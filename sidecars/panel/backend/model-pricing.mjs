@@ -142,10 +142,60 @@ export function formatGenericModelSlug(slug = '') {
 }
 
 /**
+ * 解析模型的真实上下文窗口上限（token 数）。
+ * 优先级：`GetUserStatus` 动态下发值 > `pricing-catalog.json` 显式配置 > 按模型族/版本号规则推断。
+ *
+ * @param {object} params
+ * @param {string} [params.modelId='']
+ * @param {string} [params.rawModelKey='']
+ * @param {string} [params.responseModel='']
+ * @param {string} [params.label='']
+ * @param {string} [params.family='']
+ * @param {object|null} [params.dynEntry=null]
+ * @param {object|null} [params.pricing=null]
+ * @returns {number} 无法确定时返回 `0`
+ */
+export function resolveModelContextWindow({
+  modelId = '',
+  rawModelKey = '',
+  responseModel = '',
+  label = '',
+  family = '',
+  dynEntry = null,
+  pricing = null,
+} = {}) {
+  const dynWin = Number(dynEntry?.contextWindow || 0);
+  if (Number.isFinite(dynWin) && dynWin > 0) return dynWin;
+
+  const catalogWin = Number(pricing?.contextWindow || 0);
+  if (Number.isFinite(catalogWin) && catalogWin > 0) return catalogWin;
+
+  const text = `${modelId} ${responseModel} ${rawModelKey} ${label}`.toLowerCase();
+  if (
+    family === 'Gemini' ||
+    /\bgemini-(?:4|3(?:\.\d+)?|2\.5)\b|\b(?:carbon|argon|hydrogen|helix)\b|gemini-flash-worker-agy|\borchestrator\b/i.test(
+      text
+    )
+  ) {
+    return 1_048_576;
+  }
+  if (/\bgpt-4\.1\b/i.test(text)) {
+    return 1_047_576;
+  }
+  if (/\bgpt-4o\b/i.test(text)) {
+    return 128_000;
+  }
+  if (/\bo[34](?:-|$)|\bclaude-/i.test(text) || family === 'Claude') {
+    return 200_000;
+  }
+  return 0;
+}
+
+/**
  * 综合动态模型目录、占位符字典与价格表，解析步骤对应的模型元数据与单价配置。
  *
  * @param {string} rawModelKey 步骤记录的原始模型键（如 `MODEL_PLACEHOLDER_M320`）
- * @param {Map<string, {modelId: string, label: string, quotaInfo?: object}>} [dynamicModelMap=new Map()] 从 `GetUserStatus` 提取的动态模型表
+ * @param {Map<string, {modelId: string, label: string, quotaInfo?: object, contextWindow?: number}>} [dynamicModelMap=new Map()] 从 `GetUserStatus` 提取的动态模型表
  * @param {string} [apiProvider=''] API 提供商枚举
  * @param {string} [modelDisplayName=''] 已知的模型展示名称
  * @param {string} [responseModel=''] 实际响应的上游模型 ID（如 `gemini-3.8-flash-n`）
@@ -240,6 +290,15 @@ export function resolveModelInfo(
       shortName: explicitPricing.short,
       family: explicitPricing.family,
       pricing: explicitPricing,
+      contextWindow: resolveModelContextWindow({
+        modelId,
+        rawModelKey,
+        responseModel: cleanResponseModel,
+        label: derivedDisplay,
+        family: explicitPricing.family,
+        dynEntry,
+        pricing: explicitPricing,
+      }),
       isEstimatedPrice: false,
     };
   }
@@ -253,6 +312,15 @@ export function resolveModelInfo(
     shortName: derivedDisplay,
     family: inferredFamily,
     pricing: null,
+    contextWindow: resolveModelContextWindow({
+      modelId,
+      rawModelKey,
+      responseModel: cleanResponseModel,
+      label: derivedDisplay,
+      family: inferredFamily,
+      dynEntry,
+      pricing: null,
+    }),
     isEstimatedPrice: true,
   };
 }

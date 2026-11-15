@@ -238,12 +238,14 @@ export function sanitizeCatalogPayload(raw) {
     for (const [k, v] of Object.entries(raw.pricing)) {
       const key = String(k || '').trim();
       if (!key || !isValidPricingEntry(v)) continue;
+      const ctxWin = Number(v.contextWindow);
       pricing[key] = {
         input: v.input,
         cache: v.cache,
         output: v.output,
         short: String(v.short).trim(),
         family: normalizeModelFamily(v.family),
+        ...(Number.isFinite(ctxWin) && ctxWin > 0 ? { contextWindow: ctxWin } : {}),
       };
       validPricingCount++;
     }

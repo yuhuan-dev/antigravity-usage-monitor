@@ -762,7 +762,12 @@ export function extractModelSteps(rawSteps = [], generatorMetadata = []) {
       estimatedContextTokens: Number(
         context?.estimatedTokensUsed || contextBreakdown?.totalTokens || 0
       ),
-      maxContextBudgetTokens: Number(context?.maxContextTokens || 256000),
+      maxContextBudgetTokens: Number(
+        context?.maxContextTokens ||
+          context?.contextWindowTokens ||
+          context?.modelMaxContextTokens ||
+          0
+      ),
       contextBreakdown,
       measurementVersion: MEASUREMENT_VERSION,
       isComplete: complete,

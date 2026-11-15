@@ -270,10 +270,20 @@ export function buildOfficialQuotaPools(officialQuota, clientConfigs = []) {
   for (const cfg of clientConfigs) {
     const rawKey = cfg?.modelOrAlias?.model;
     if (rawKey) {
+      const rawContextLimit = Number(
+        cfg?.maxContextTokens ||
+          cfg?.contextWindowTokens ||
+          cfg?.contextWindow ||
+          cfg?.contextLength ||
+          cfg?.maxInputTokens ||
+          cfg?.maxTokens ||
+          0
+      );
       dynamicModelMap.set(rawKey, {
         modelId: cfg.modelId || '',
         label: cfg.label || cfg.modelId || rawKey,
         quotaInfo: cfg.quotaInfo || null,
+        contextWindow: Number.isFinite(rawContextLimit) && rawContextLimit > 0 ? rawContextLimit : 0,
       });
     }
     const info = resolveModelInfo(rawKey, dynamicModelMap);

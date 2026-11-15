@@ -148,8 +148,12 @@ function enrichActiveConversationSteps(
       ...serializedStep
     } = st;
 
+    const effectiveContextLimit =
+      Math.max(Number(st.maxContextBudgetTokens || 0), Number(mInfo.contextWindow || 0)) || 256000;
+
     return {
       ...serializedStep,
+      maxContextBudgetTokens: effectiveContextLimit,
       responseModel: st.responseModel || '',
       modelUpstream,
       modelLabel: st.isCompactionStep ? `${mInfo.label} [自动压缩]` : mInfo.label,
@@ -863,7 +867,18 @@ export async function buildTelemetryPayloadInternal(
 
     let contextUsedPct = null;
     if (lastRootStep) {
-      const limitTokens = Number(lastRootStep.maxContextBudgetTokens || 256000);
+      const rootModelInfo = resolveModelInfo(
+        lastRootStep.modelKey,
+        dynamicModelMap,
+        lastRootStep.apiProvider,
+        lastRootStep.modelDisplayName,
+        lastRootStep.responseModel
+      );
+      const limitTokens =
+        Math.max(
+          Number(lastRootStep.maxContextBudgetTokens || 0),
+          Number(rootModelInfo.contextWindow || 0)
+        ) || 256000;
       const cb = lastRootStep.contextBreakdown;
       const cbTotal = cb
         ? Number(cb.messagesTokens || 0) +

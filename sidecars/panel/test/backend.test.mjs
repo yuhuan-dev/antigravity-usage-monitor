@@ -542,3 +542,162 @@ test('supports Gemini 4 Carbon pricing/pool and resolves all newly added languag
   assert.equal(p.quotas.activePool.poolKey, 'Carbon');
   assert.equal(p.quotas.activePool.weeklyRemainingIntPct, 65);
 });
+
+test('resolves real model context window size (1M for Gemini 4 Hydrogen, 200k for Claude, dynamic override from GetUserStatus)', async () => {
+  const nowIso = new Date().toISOString();
+  const h = backendHarness({
+    userStatus: {
+      name: 'Context Window Tester',
+      cascadeModelConfigData: {
+        clientModelConfigs: [
+          {
+            label: 'Gemini 4 Hydrogen (Medium)',
+            modelId: 'gemini-4-hydrogen-medium',
+            modelOrAlias: { model: 'MODEL_PLACEHOLDER_M526' },
+            quotaInfo: { remainingFraction: 0.74, resetTime: '2026-11-17T00:00:00Z' },
+          },
+          {
+            label: 'Claude Sonnet 4.6 (Thinking)',
+            modelId: 'claude-sonnet-4-6',
+            modelOrAlias: { model: 'MODEL_PLACEHOLDER_M35' },
+            quotaInfo: { remainingFraction: 1.0, resetTime: '2026-11-17T00:00:00Z' },
+          },
+          {
+            label: 'Custom Dynamic Model',
+            modelId: 'custom-dyn-model',
+            modelOrAlias: { model: 'MODEL_PLACEHOLDER_CUSTOM' },
+            maxContextTokens: 524288,
+          },
+        ],
+      },
+    },
+    trajectories: {
+      cHydrogen: {
+        trajectory: {
+          steps: [
+            {
+              status: 'CORTEX_STEP_STATUS_DONE',
+              metadata: {
+                createdAt: '2026-11-15T00:00:00Z',
+                finishedGeneratingAt: '2026-11-15T00:00:05Z',
+                modelUsage: {
+                  model: 'MODEL_PLACEHOLDER_M526',
+                  inputTokens: '25400',
+                  outputTokens: '500',
+                },
+              },
+              plannerResponse: { response: 'hydrogen answer' },
+            },
+          ],
+          generatorMetadata: [
+            {
+              stepIndices: [0],
+              chatModel: {
+                timeToFirstToken: '1s',
+                streamingDuration: '4s',
+                chatStartMetadata: {
+                  contextWindowMetadata: {
+                    estimatedTokensUsed: 25400,
+                    maxContextTokens: 256000,
+                    tokenBreakdown: {
+                      groups: [{ type: 'TOKEN_TYPE_CHAT_MESSAGES', numTokens: 25400 }],
+                    },
+                  },
+                },
+              },
+            },
+          ],
+        },
+      },
+      cClaude: {
+        trajectory: {
+          steps: [
+            {
+              status: 'CORTEX_STEP_STATUS_DONE',
+              metadata: {
+                createdAt: '2026-11-15T00:01:00Z',
+                finishedGeneratingAt: '2026-11-15T00:01:05Z',
+                modelUsage: {
+                  model: 'MODEL_PLACEHOLDER_M35',
+                  inputTokens: '50000',
+                  outputTokens: '500',
+                },
+              },
+              plannerResponse: { response: 'claude answer' },
+            },
+          ],
+          generatorMetadata: [
+            {
+              stepIndices: [0],
+              chatModel: {
+                timeToFirstToken: '1s',
+                streamingDuration: '4s',
+                chatStartMetadata: {
+                  contextWindowMetadata: {
+                    estimatedTokensUsed: 50000,
+                    tokenBreakdown: {
+                      groups: [{ type: 'TOKEN_TYPE_CHAT_MESSAGES', numTokens: 50000 }],
+                    },
+                  },
+                },
+              },
+            },
+          ],
+        },
+      },
+      cDynamic: {
+        trajectory: {
+          steps: [
+            {
+              status: 'CORTEX_STEP_STATUS_DONE',
+              metadata: {
+                createdAt: '2026-11-15T00:02:00Z',
+                finishedGeneratingAt: '2026-11-15T00:02:05Z',
+                modelUsage: {
+                  model: 'MODEL_PLACEHOLDER_CUSTOM',
+                  inputTokens: '10000',
+                  outputTokens: '200',
+                },
+              },
+              plannerResponse: { response: 'custom answer' },
+            },
+          ],
+          generatorMetadata: [
+            {
+              stepIndices: [0],
+              chatModel: {
+                timeToFirstToken: '1s',
+                streamingDuration: '4s',
+                chatStartMetadata: {
+                  contextWindowMetadata: {
+                    estimatedTokensUsed: 10000,
+                    tokenBreakdown: {
+                      groups: [{ type: 'TOKEN_TYPE_CHAT_MESSAGES', numTokens: 10000 }],
+                    },
+                  },
+                },
+              },
+            },
+          ],
+        },
+      },
+    },
+    summaries: {
+      cHydrogen: { stepCount: 1, lastModifiedTime: nowIso, status: 'IDLE' },
+      cClaude: { stepCount: 1, lastModifiedTime: nowIso, status: 'IDLE' },
+      cDynamic: { stepCount: 1, lastModifiedTime: nowIso, status: 'IDLE' },
+    },
+  });
+
+  const pHydrogen = await h.buildTelemetryPayloadInternal('cHydrogen');
+  assert.equal(pHydrogen.activeConversation.context.limitTokens, 1048576);
+  assert.equal(pHydrogen.activeConversation.context.compactionLimitTokens, 1048576);
+  assert.equal(pHydrogen.activeConversation.context.usedPct, 2.4);
+
+  const pClaude = await h.buildTelemetryPayloadInternal('cClaude');
+  assert.equal(pClaude.activeConversation.context.limitTokens, 200000);
+  assert.equal(pClaude.activeConversation.context.usedPct, 25);
+
+  const pDynamic = await h.buildTelemetryPayloadInternal('cDynamic');
+  assert.equal(pDynamic.activeConversation.context.limitTokens, 524288);
+});
