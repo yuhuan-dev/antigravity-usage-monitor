@@ -406,6 +406,12 @@ export function aggregateMultiWindowUsage({
   let earliestSelectedStepMs = Infinity;
 
   const currentYear = new Date(nowMs).getFullYear();
+  const monthBoundsMs = Array.from({ length: 13 }, (_, idx) =>
+    new Date(currentYear, idx, 1).getTime()
+  );
+  const yearStartMs = monthBoundsMs[0];
+  const nextYearStartMs = monthBoundsMs[12];
+  const pollModelInfoMemo = new Map();
   const monthlySeries = Array.from({ length: 12 }, (_, idx) => ({
     month: idx + 1,
     label: `${idx + 1}月`,
@@ -503,13 +509,18 @@ export function aggregateMultiWindowUsage({
 
     for (const st of entry.steps || []) {
       if (!st || typeof st !== 'object') continue;
-      const mInfo = resolveModelInfo(
-        st.modelKey,
-        dynamicModelMap,
-        st.apiProvider,
-        st.modelDisplayName,
-        st.responseModel
-      );
+      const modelMemoKey = `${st.modelKey || ''}\0${st.apiProvider || ''}\0${st.modelDisplayName || ''}\0${st.responseModel || ''}`;
+      let mInfo = pollModelInfoMemo.get(modelMemoKey);
+      if (!mInfo) {
+        mInfo = resolveModelInfo(
+          st.modelKey,
+          dynamicModelMap,
+          st.apiProvider,
+          st.modelDisplayName,
+          st.responseModel
+        );
+        pollModelInfoMemo.set(modelMemoKey, mInfo);
+      }
       const inTok = safeTok(st.inputTokens);
       const cacheTok = safeTok(st.cacheReadTokens);
       const outTok = safeTok(st.outputTokens);
@@ -524,20 +535,24 @@ export function aggregateMultiWindowUsage({
       const unpriced = stepCost === null ? 1 : 0;
       const tMs = Number(st.createdAtMs) > 0 ? Number(st.createdAtMs) : 0;
 
-      if (tMs > 0) {
-        const stepDate = new Date(tMs);
-        if (stepDate.getFullYear() === currentYear) {
-          const mBucket = monthlySeries[stepDate.getMonth()];
-          if (mBucket) {
-            mBucket.calls += 1;
-            mBucket.inputTokens += inTok;
-            mBucket.cacheReadTokens += cacheTok;
-            mBucket.responseTokens += respTok;
-            mBucket.thinkingTokens += thinkTok;
-            mBucket.totalTokens += stepTotalTokens;
-            mBucket.costUsd += resolvedCost;
-            mBucket.unpricedCalls = (mBucket.unpricedCalls || 0) + unpriced;
+      if (tMs >= yearStartMs && tMs < nextYearStartMs) {
+        let monthIdx = 11;
+        for (let m = 0; m < 12; m++) {
+          if (tMs < monthBoundsMs[m + 1]) {
+            monthIdx = m;
+            break;
           }
+        }
+        const mBucket = monthlySeries[monthIdx];
+        if (mBucket) {
+          mBucket.calls += 1;
+          mBucket.inputTokens += inTok;
+          mBucket.cacheReadTokens += cacheTok;
+          mBucket.responseTokens += respTok;
+          mBucket.thinkingTokens += thinkTok;
+          mBucket.totalTokens += stepTotalTokens;
+          mBucket.costUsd += resolvedCost;
+          mBucket.unpricedCalls = (mBucket.unpricedCalls || 0) + unpriced;
         }
       }
 
