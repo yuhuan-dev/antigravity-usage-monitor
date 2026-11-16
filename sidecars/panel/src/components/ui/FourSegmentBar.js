@@ -16,7 +16,8 @@ import { h, patchStyleVar } from '../../core/domPatch.js';
  *     inputTokens?: number,
  *     cacheReadTokens?: number,
  *     responseTokens?: number,
- *     thinkingTokens?: number
+ *     thinkingTokens?: number,
+ *     scaleMax?: number
  *   }) => void
  * }} 组件根元素与增量更新方法
  */
@@ -33,14 +34,35 @@ export function createFourSegmentBar() {
   ]);
 
   /**
-   * 根据四类 Token 数量重新计算并写入各分段百分比宽度。
+   * 根据四类 Token 数量重新计算并写入各分段百分比宽度；
+   * 若传入大于 0 的 `scaleMax`，则整条叠加宽度按 `total / scaleMax` 相对缩放，用于跨条目总量直观对比。
    */
-  function update({ inputTokens = 0, cacheReadTokens = 0, responseTokens = 0, thinkingTokens = 0 }) {
-    const total = Math.max(1, inputTokens + cacheReadTokens + responseTokens + thinkingTokens);
-    patchStyleVar(segInput, '--seg-w', `${((inputTokens / total) * 100).toFixed(2)}%`);
-    patchStyleVar(segCached, '--seg-w', `${((cacheReadTokens / total) * 100).toFixed(2)}%`);
-    patchStyleVar(segOutput, '--seg-w', `${((responseTokens / total) * 100).toFixed(2)}%`);
-    patchStyleVar(segThinking, '--seg-w', `${((thinkingTokens / total) * 100).toFixed(2)}%`);
+  function update({
+    inputTokens = 0,
+    cacheReadTokens = 0,
+    responseTokens = 0,
+    thinkingTokens = 0,
+    scaleMax = 0,
+  }) {
+    const total = inputTokens + cacheReadTokens + responseTokens + thinkingTokens;
+    if (total <= 0) {
+      patchStyleVar(segInput, '--seg-w', '0%');
+      patchStyleVar(segCached, '--seg-w', '0%');
+      patchStyleVar(segOutput, '--seg-w', '0%');
+      patchStyleVar(segThinking, '--seg-w', '0%');
+      return;
+    }
+    const maxRef = Number(scaleMax || 0);
+    const barSpanPct =
+      maxRef > 0 ? Math.min(100, Math.max(1.2, (total / maxRef) * 100)) : 100;
+    patchStyleVar(segInput, '--seg-w', `${((inputTokens / total) * barSpanPct).toFixed(2)}%`);
+    patchStyleVar(segCached, '--seg-w', `${((cacheReadTokens / total) * barSpanPct).toFixed(2)}%`);
+    patchStyleVar(segOutput, '--seg-w', `${((responseTokens / total) * barSpanPct).toFixed(2)}%`);
+    patchStyleVar(
+      segThinking,
+      '--seg-w',
+      `${((thinkingTokens / total) * barSpanPct).toFixed(2)}%`
+    );
   }
 
   return { el, update };

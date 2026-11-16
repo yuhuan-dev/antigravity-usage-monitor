@@ -46,6 +46,23 @@ const TIME_RANGE_OPTIONS = [
   { value: 'custom', label: '自定义' },
 ];
 
+const CONV_SORT_OPTIONS = [
+  { value: 'tokens', label: 'Token' },
+  { value: 'cost', label: '费用' },
+  { value: 'recent', label: '最近' },
+];
+
+const CONV_COLLAPSE_THRESHOLD = 30;
+
+function formatConvActivityTime(ms) {
+  const num = Number(ms || 0);
+  if (!Number.isFinite(num) || num <= 0) return '';
+  const d = new Date(num);
+  if (Number.isNaN(d.getTime())) return '';
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getMonth() + 1}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 export const ConsumptionView = defineComponent({
   name: 'ConsumptionView',
   setup({ onCleanup }) {
@@ -330,6 +347,52 @@ export const ConsumptionView = defineComponent({
       ]),
     ]);
 
+    // --- Section 6: 会话消耗对比 (所选时间段内所有会话 Token 与费用横向对比，位于月度统计最下方) ---
+    let convSortMode = 'tokens';
+    let convsExpanded = false;
+
+    const convRangeBadge = h('span', { className: 'cons-badge', text: '全部时间' });
+    const convCountBadge = h('span', { className: 'cons-badge text-mono', text: '0 个会话' });
+    const convSortSwitch = SegmentedControl({
+      ariaLabel: '会话对比排序方式',
+      modelValue: convSortMode,
+      options: CONV_SORT_OPTIONS,
+      onUpdateModelValue: (nextSort) => {
+        convSortMode = nextSort || 'tokens';
+        if (latestSlice) renderConsumptionData(latestSlice);
+      },
+    });
+    const convEmptyEl = h('div', {
+      className: 'text-muted',
+      style: 'font-size: 11.5px; padding: 4px 0;',
+      text: '所选时间段内暂无会话消耗记录',
+    });
+    const conversationsListEl = h('div', { className: 'cons-item-list', hidden: true });
+    const convExpandBtn = h('button', {
+      type: 'button',
+      className: 'cons-conv-expand-btn',
+      hidden: true,
+      text: '展开全部会话 ▾',
+      onClick: () => {
+        convsExpanded = !convsExpanded;
+        if (latestSlice) renderConsumptionData(latestSlice);
+      },
+    });
+
+    const conversationsPanel = h('section', { className: 'panel' }, [
+      h('div', { className: 'panel-header cons-overview-head' }, [
+        h('span', { className: 'panel-title' }, [
+          h('span', { text: '会话消耗对比' }),
+          convRangeBadge,
+          convCountBadge,
+        ]),
+        convSortSwitch.el,
+      ]),
+      convEmptyEl,
+      conversationsListEl,
+      convExpandBtn,
+    ]);
+
     const scrollInner = h(
       'div',
       {
@@ -341,6 +404,7 @@ export const ConsumptionView = defineComponent({
         modelsPanel,
         sourcesPanel,
         monthlyPanel,
+        conversationsPanel,
       ]
     );
 
@@ -441,6 +505,145 @@ export const ConsumptionView = defineComponent({
       patchText(refs.outVal, formatTokensPrecise(responseTok));
       patchText(refs.thinkVal, formatTokensPrecise(thinkingTok));
       patchText(refs.callsVal, String(Number(item.calls || 0)));
+    }
+
+    /**
+     * 创建单个会话消耗对比行 DOM 结构（含排名、标题、当前标识、占比胶囊、总量、费用、相对 4 段比较条及明细脚标）。
+     */
+    function createConversationCompareRow() {
+      const rankEl = h('span', { className: 'cons-rank-pill text-mono', text: '#1' });
+      const titleEl = h('strong', { className: 'cons-row-title cons-conv-title' });
+      const currentBadge = h('span', {
+        className: 'agent-badge badge-main',
+        hidden: true,
+        text: '当前',
+      });
+      const pctBadge = h('span', { className: 'cons-share-pill text-mono', text: '0%' });
+      const totalTokEl = h('span', { className: 'cons-row-tok text-mono' });
+      const costEl = h('strong', { className: 'cons-row-cost text-mono' });
+      const segBar = createFourSegmentBar();
+
+      const inVal = h('strong', { className: 'text-mono' });
+      const cacheVal = h('strong', { className: 'text-mono' });
+      const outVal = h('strong', { className: 'text-mono' });
+      const thinkVal = h('strong', { className: 'text-mono' });
+      const callsVal = h('strong', { className: 'text-mono' });
+      const timeTagEl = h('span', { className: 'text-muted text-mono', hidden: true, text: '' });
+
+      const rowEl = h('div', { className: 'cons-item-row' }, [
+        h('div', { className: 'panel-header' }, [
+          h('div', { className: 'cons-conv-title-wrap' }, [rankEl, titleEl, currentBadge]),
+          h('span', { className: 'cons-row-metrics' }, [
+            pctBadge,
+            totalTokEl,
+            costEl,
+          ]),
+        ]),
+        segBar.el,
+        h('div', { className: 'cons-item-foot' }, [
+          h('span', { className: 'legend-left' }, [
+            h('span', { className: 'dot-swatch seg-input' }),
+            h('span', { text: '输入 ' }),
+            inVal,
+          ]),
+          h('span', { className: 'legend-left' }, [
+            h('span', { className: 'dot-swatch seg-cached' }),
+            h('span', { text: '缓存 ' }),
+            cacheVal,
+          ]),
+          h('span', { className: 'legend-left' }, [
+            h('span', { className: 'dot-swatch seg-output' }),
+            h('span', { text: '输出 ' }),
+            outVal,
+          ]),
+          h('span', { className: 'legend-left' }, [
+            h('span', { className: 'dot-swatch seg-thinking' }),
+            h('span', { text: '思考 ' }),
+            thinkVal,
+          ]),
+          h('span', { className: 'legend-left' }, [
+            h('span', { text: '调用 ' }),
+            callsVal,
+          ]),
+          timeTagEl,
+        ]),
+      ]);
+
+      return {
+        el: rowEl,
+        refs: {
+          rowEl,
+          rankEl,
+          titleEl,
+          currentBadge,
+          pctBadge,
+          totalTokEl,
+          costEl,
+          segBar,
+          inVal,
+          cacheVal,
+          outVal,
+          thinkVal,
+          callsVal,
+          timeTagEl,
+        },
+      };
+    }
+
+    /**
+     * 增量更新单个会话对比行：按时间段内最高 Token 会话宽度等比缩放 4 段对比条。
+     */
+    function updateConversationCompareRow(refs, item, idx, grandTotalTokens, maxConvTokens) {
+      const displayTitle = item.title || String(item.cascadeId || '').slice(0, 8) || '未知会话';
+      patchText(refs.rankEl, `#${idx + 1}`);
+      patchText(refs.titleEl, displayTitle);
+      patchAttr(refs.currentBadge, 'hidden', !item.isCurrent);
+
+      const total = Number(item.totalTokens || 0);
+      const share = grandTotalTokens > 0 ? +((total / grandTotalTokens) * 100).toFixed(1) : 0;
+      patchText(refs.pctBadge, `${share.toFixed(1)}%`);
+      patchText(refs.totalTokEl, formatTokensPrecise(total));
+      const costDisplay =
+        item.unpricedCalls > 0 && Number(item.costUsd || 0) === 0
+          ? '待定'
+          : formatUsd(item.costUsd || 0);
+      patchText(refs.costEl, costDisplay);
+
+      const responseTok =
+        item.responseTokens != null
+          ? Number(item.responseTokens)
+          : Math.max(0, Number(item.outputTokens || 0) - Number(item.thinkingTokens || 0));
+      const thinkingTok = Number(item.thinkingTokens || 0);
+
+      refs.segBar.update({
+        inputTokens: Number(item.inputTokens || 0),
+        cacheReadTokens: Number(item.cacheReadTokens || 0),
+        responseTokens: responseTok,
+        thinkingTokens: thinkingTok,
+        scaleMax: maxConvTokens,
+      });
+
+      patchText(refs.inVal, formatTokensPrecise(item.inputTokens || 0));
+      patchText(refs.cacheVal, formatTokensPrecise(item.cacheReadTokens || 0));
+      patchText(refs.outVal, formatTokensPrecise(responseTok));
+      patchText(refs.thinkVal, formatTokensPrecise(thinkingTok));
+      patchText(refs.callsVal, String(Number(item.calls || 0)));
+
+      const actTime = formatConvActivityTime(item.lastActivityMs);
+      const subText = item.subagentCount > 0 ? `${item.subagentCount}子` : '';
+      const timeMeta = [subText, actTime].filter(Boolean).join(' · ');
+      patchAttr(refs.timeTagEl, 'hidden', !timeMeta);
+      if (timeMeta) patchText(refs.timeTagEl, timeMeta);
+
+      const tooltipParts = [
+        displayTitle,
+        `总计 ${formatTokensPrecise(total)} (${share.toFixed(1)}%) · 费用 ${costDisplay} · ${item.calls || 0} 次调用`,
+        item.cacheHitPct != null ? `缓存命中率 ${Number(item.cacheHitPct).toFixed(1)}%` : '',
+        item.models?.length ? `常用模型: ${item.models.join(', ')}` : '',
+        item.appSource ? `来源: ${item.appSource}` : '',
+        actTime ? `最近活跃: ${actTime}` : '',
+      ].filter(Boolean);
+      patchAttr(refs.rowEl, 'title', tooltipParts.join('\n'));
     }
 
     let latestSlice = null;
@@ -630,6 +833,60 @@ export const ConsumptionView = defineComponent({
         }
       }
 
+      // 6. 同步所选时间段内所有会话 Token 消耗对比列表（位于月度统计最下方）
+      patchText(convRangeBadge, preset?.label || rangeInfo.label || '全部时间');
+      const rawConvs = Array.isArray(cons.conversationsBreakdown)
+        ? cons.conversationsBreakdown
+        : [];
+      const sortedConvs = rawConvs.slice().sort((a, b) => {
+        if (convSortMode === 'cost') {
+          return (
+            Number(b.costUsd || 0) - Number(a.costUsd || 0) ||
+            Number(b.totalTokens || 0) - Number(a.totalTokens || 0)
+          );
+        }
+        if (convSortMode === 'recent') {
+          return (
+            Number(b.lastActivityMs || 0) - Number(a.lastActivityMs || 0) ||
+            Number(b.totalTokens || 0) - Number(a.totalTokens || 0)
+          );
+        }
+        return (
+          Number(b.totalTokens || 0) - Number(a.totalTokens || 0) ||
+          Number(b.costUsd || 0) - Number(a.costUsd || 0)
+        );
+      });
+      const convGrandTotalTok = rawConvs.reduce((s, c) => s + Number(c.totalTokens || 0), 0);
+      const maxConvTok = Math.max(1, ...rawConvs.map((c) => Number(c.totalTokens || 0)));
+      const hasConvs = sortedConvs.length > 0;
+      const canCollapseConvs = sortedConvs.length > CONV_COLLAPSE_THRESHOLD;
+      const visibleConvs =
+        canCollapseConvs && !convsExpanded
+          ? sortedConvs.slice(0, CONV_COLLAPSE_THRESHOLD)
+          : sortedConvs;
+
+      patchText(convCountBadge, `${sortedConvs.length} 个会话`);
+      patchAttr(convEmptyEl, 'hidden', hasConvs);
+      patchAttr(conversationsListEl, 'hidden', !hasConvs);
+      patchAttr(convExpandBtn, 'hidden', !canCollapseConvs);
+      if (canCollapseConvs) {
+        patchText(
+          convExpandBtn,
+          convsExpanded
+            ? `收起至前 ${CONV_COLLAPSE_THRESHOLD} 个会话 ▴`
+            : `展开全部 ${sortedConvs.length} 个会话 ▾`
+        );
+      }
+
+      patchKeyedList(conversationsListEl, visibleConvs, {
+        keyFn: (c) => c.cascadeId,
+        sigFn: (c, idx) =>
+          `${idx}:${c.cascadeId}:${c.title}:${Boolean(c.isCurrent)}:${c.totalTokens}:${c.costUsd}:${c.unpricedCalls}:${c.calls}:${c.lastActivityMs}:${c.subagentCount}:${maxConvTok}:${convGrandTotalTok}`,
+        createRow: createConversationCompareRow,
+        updateRow: (refs, c, idx) =>
+          updateConversationCompareRow(refs, c, idx, convGrandTotalTok, maxConvTok),
+      });
+
       viewScrollbar.refresh();
     }
 
@@ -672,6 +929,7 @@ export const ConsumptionView = defineComponent({
       unsub();
       unsubView();
       timeFilterSwitch.destroy();
+      convSortSwitch.destroy();
       startPicker.destroy();
       endPicker.destroy();
       viewScrollbar.destroy();

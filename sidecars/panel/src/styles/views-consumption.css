@@ -178,6 +178,7 @@
   align-items: center;
   gap: 8px;
   height: 20px;
+  flex-shrink: 0;
 }
 
 .cons-share-pill {
@@ -518,4 +519,60 @@
   padding-top: var(--space-2);
   font-size: 11px;
   color: var(--text-secondary);
+}
+
+/* --- 7. 会话消耗对比列表 (Session Token Comparison List) --- */
+.cons-conv-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+}
+
+.cons-rank-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 18px;
+  padding: 0 5px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--surface-subtle);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-xs);
+  flex-shrink: 0;
+}
+
+.cons-conv-title {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cons-conv-expand-btn {
+  width: 100%;
+  height: 26px;
+  margin-top: 2px;
+  border: 1px dashed var(--border-hairline);
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    border-color var(--dur-instant) var(--ease-fast),
+    color var(--dur-instant) var(--ease-fast),
+    background-color var(--dur-instant) var(--ease-fast);
+}
+
+.cons-conv-expand-btn:hover {
+  border-style: solid;
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+  background: var(--surface-hover);
 }

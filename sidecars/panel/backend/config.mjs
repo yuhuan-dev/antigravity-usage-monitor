@@ -32,6 +32,7 @@ export const LOCAL_CATALOG_FILE = join(PLUGIN_ROOT, 'pricing-catalog.json');
 export const DATA_DIR = process.env.ANTIGRAVITY_EXECUTABLE_DATA_DIR || join(HERE, '.data');
 export const SETTINGS_FILE = join(DATA_DIR, 'settings.json');
 export const CACHE_FILE = join(DATA_DIR, 'trajectory_usage_cache.json');
+export const SESSION_QUOTA_LEDGER_FILE = join(DATA_DIR, 'session_quota_ledger.json');
 export const REMOTE_CATALOG_CACHE_FILE = join(DATA_DIR, 'remote_pricing_cache.json');
 
 /**
@@ -196,7 +197,9 @@ export function saveJson(filePath, data) {
   try {
     mkdirSync(DATA_DIR, { recursive: true });
     const serialized =
-      filePath === CACHE_FILE ? JSON.stringify(data) : JSON.stringify(data, null, 2);
+      filePath === CACHE_FILE || filePath === SESSION_QUOTA_LEDGER_FILE
+        ? JSON.stringify(data)
+        : JSON.stringify(data, null, 2);
     writeFileSync(filePath, serialized, 'utf8');
     return true;
   } catch (err) {

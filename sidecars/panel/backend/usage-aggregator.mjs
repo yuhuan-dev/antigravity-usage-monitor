@@ -354,76 +354,21 @@ export function buildScopedModelBreakdown(steps = [], dynamicModelMap = new Map(
 }
 
 /**
- * 聚合所有预设时间窗口、当前选定窗口、趋势图、年度月序列、来源占比与分模型统计。
+ * 汇总并去重当前账号下所有可统计的对话轨迹单元（合并内存 `trajectoryCache` 与跨端 `.deep_stats_cache.json`），
+ * 自动按账号隔离并将子代理按顶层根会话 `groupCascadeId` 归并，同时输出根会话真实标题字典。
  *
  * @param {{
- *   filterOpts?: { range?: string, startMs?: number, endMs?: number },
- *   cycleAnchors?: { fiveHourResetMs?: number, weeklyResetMs?: number },
  *   currentAccountName?: string,
- *   activeCascadeId?: string|null,
- *   activeFamilyCascadeIds?: Set<string>|null,
- *   dynamicModelMap?: Map<string, object>
- * }} params
+ *   familySet?: Set<string>,
+ *   titleByCascadeId?: Map<string, string>|null
+ * }} [options={}]
+ * @returns {{ entries: Array<object>, rootTitleMap: Map<string, string> }}
  */
-export function aggregateMultiWindowUsage({
-  filterOpts = {},
-  cycleAnchors = {},
+export function collectAccountConversationEntries({
   currentAccountName = '',
-  activeCascadeId = null,
-  activeFamilyCascadeIds = null,
-  dynamicModelMap = new Map(),
+  familySet = new Set(),
+  titleByCascadeId = null,
 } = {}) {
-  const rawFamilyIds =
-    activeFamilyCascadeIds instanceof Set
-      ? Array.from(activeFamilyCascadeIds)
-      : activeCascadeId
-        ? [activeCascadeId]
-        : [];
-  const familySet = new Set(rawFamilyIds.map((id) => String(id || '').toLowerCase()));
-  const nowMs = Date.now();
-  const selectedWindow = resolveTimeWindow(
-    filterOpts.range || 'all',
-    filterOpts.startMs,
-    filterOpts.endMs,
-    nowMs,
-    cycleAnchors
-  );
-
-  const presetKeys = ['all', '5h', 'today', '24h', 'week', '7d', '14d', '30d'];
-  const presetWindows = {};
-  const accountBuckets = {};
-  const sessionBuckets = {};
-
-  for (const k of presetKeys) {
-    presetWindows[k] = resolveTimeWindow(k, 0, 0, nowMs, cycleAnchors);
-    accountBuckets[k] = createUsageBucket();
-    sessionBuckets[k] = createUsageBucket();
-  }
-  const selectedAccountBucket = createUsageBucket();
-  const selectedSessionBucket = createUsageBucket();
-  const perModelStats = new Map();
-  const selectedWindowSteps = [];
-  let earliestSelectedStepMs = Infinity;
-
-  const currentYear = new Date(nowMs).getFullYear();
-  const monthlySeries = Array.from({ length: 12 }, (_, idx) => ({
-    month: idx + 1,
-    label: `${idx + 1}月`,
-    calls: 0,
-    inputTokens: 0,
-    cacheReadTokens: 0,
-    responseTokens: 0,
-    thinkingTokens: 0,
-    totalTokens: 0,
-    costUsd: 0,
-  }));
-
-  const SOURCE_LABELS = {
-    standalone: 'Antigravity App',
-    ide: 'Antigravity IDE',
-    cli: 'Antigravity CLI',
-  };
-  const perSourceStats = new Map();
   const externalConvos = loadExternalDeepStatsCache();
 
   // 构建大小写归一化的内存缓存与跨端深层缓存索引，彻底杜绝 `${appSource}:${cascadeId}` 键不匹配导致的双倍重复计费
@@ -457,7 +402,15 @@ export function aggregateMultiWindowUsage({
     }
   }
 
-  const allEntriesToAggregate = [];
+  const rootTitleMap = new Map();
+  if (titleByCascadeId && typeof titleByCascadeId.entries === 'function') {
+    for (const [k, v] of titleByCascadeId.entries()) {
+      const lower = String(k || '').toLowerCase();
+      if (lower && v) rootTitleMap.set(lower, String(v));
+    }
+  }
+
+  const entries = [];
 
   for (const [cidLower, entry] of allLiveByLower.entries()) {
     if (
@@ -475,9 +428,16 @@ export function aggregateMultiWindowUsage({
     const groupCascadeId = String(
       entry?.rootConversationId || entry?.parentConversationId || cidLower
     ).toLowerCase();
-    allEntriesToAggregate.push({
+    const isSub = cidLower !== groupCascadeId;
+    if (!isSub && entry?.title && !rootTitleMap.has(groupCascadeId)) {
+      rootTitleMap.set(groupCascadeId, String(entry.title));
+    }
+    entries.push({
       cascadeId: groupCascadeId,
+      rawCascadeId: cidLower,
+      isSubagent: isSub,
       appSource: entry?.appSource || 'standalone',
+      lastModifiedMs: Number(entry?.lastModifiedMs || 0),
       steps: entry?.steps || [],
       isCurrentConv: familySet.has(cidLower),
     });
@@ -488,16 +448,110 @@ export function aggregateMultiWindowUsage({
     if (liveEntry && (liveEntry.steps?.length || 0) >= (ext.steps?.length || 0)) {
       continue;
     }
-    allEntriesToAggregate.push({
-      cascadeId: extCidLower,
+    const groupCascadeId = String(
+      liveEntry?.rootConversationId || liveEntry?.parentConversationId || extCidLower
+    ).toLowerCase();
+    const isSub = extCidLower !== groupCascadeId;
+    if (!isSub && ext?.title && !rootTitleMap.has(groupCascadeId)) {
+      rootTitleMap.set(groupCascadeId, String(ext.title));
+    }
+    entries.push({
+      cascadeId: groupCascadeId,
+      rawCascadeId: extCidLower,
+      isSubagent: isSub,
       appSource: ext.appSource || 'ide',
+      lastModifiedMs: Number(ext.lastModifiedMs || 0),
       steps: ext.steps || [],
       isCurrentConv: familySet.has(extCidLower),
     });
   }
 
+  return { entries, rootTitleMap };
+}
+
+/**
+ * 聚合所有预设时间窗口、当前选定窗口、趋势图、年度月序列、来源占比、分模型统计与所选时段分会话对比统计。
+ *
+ * @param {{
+ *   filterOpts?: { range?: string, startMs?: number, endMs?: number },
+ *   cycleAnchors?: { fiveHourResetMs?: number, weeklyResetMs?: number },
+ *   currentAccountName?: string,
+ *   activeCascadeId?: string|null,
+ *   activeFamilyCascadeIds?: Set<string>|null,
+ *   titleByCascadeId?: Map<string, string>|null,
+ *   dynamicModelMap?: Map<string, object>
+ * }} params
+ */
+export function aggregateMultiWindowUsage({
+  filterOpts = {},
+  cycleAnchors = {},
+  currentAccountName = '',
+  activeCascadeId = null,
+  activeFamilyCascadeIds = null,
+  titleByCascadeId = null,
+  dynamicModelMap = new Map(),
+} = {}) {
+  const rawFamilyIds =
+    activeFamilyCascadeIds instanceof Set
+      ? Array.from(activeFamilyCascadeIds)
+      : activeCascadeId
+        ? [activeCascadeId]
+        : [];
+  const familySet = new Set(rawFamilyIds.map((id) => String(id || '').toLowerCase()));
+  const activeRootLower = String(activeCascadeId || '').toLowerCase();
+  const nowMs = Date.now();
+  const selectedWindow = resolveTimeWindow(
+    filterOpts.range || 'all',
+    filterOpts.startMs,
+    filterOpts.endMs,
+    nowMs,
+    cycleAnchors
+  );
+
+  const presetKeys = ['all', '5h', 'today', '24h', 'week', '7d', '14d', '30d'];
+  const presetWindows = {};
+  const accountBuckets = {};
+  const sessionBuckets = {};
+
+  for (const k of presetKeys) {
+    presetWindows[k] = resolveTimeWindow(k, 0, 0, nowMs, cycleAnchors);
+    accountBuckets[k] = createUsageBucket();
+    sessionBuckets[k] = createUsageBucket();
+  }
+  const selectedAccountBucket = createUsageBucket();
+  const selectedSessionBucket = createUsageBucket();
+  const perModelStats = new Map();
+  const perConversationStats = new Map();
+  const selectedWindowSteps = [];
+  let earliestSelectedStepMs = Infinity;
+
+  const currentYear = new Date(nowMs).getFullYear();
+  const monthlySeries = Array.from({ length: 12 }, (_, idx) => ({
+    month: idx + 1,
+    label: `${idx + 1}月`,
+    calls: 0,
+    inputTokens: 0,
+    cacheReadTokens: 0,
+    responseTokens: 0,
+    thinkingTokens: 0,
+    totalTokens: 0,
+    costUsd: 0,
+  }));
+
+  const SOURCE_LABELS = {
+    standalone: 'Antigravity App',
+    ide: 'Antigravity IDE',
+    cli: 'Antigravity CLI',
+  };
+  const perSourceStats = new Map();
+  const { entries: allEntriesToAggregate, rootTitleMap } = collectAccountConversationEntries({
+    currentAccountName,
+    familySet,
+    titleByCascadeId,
+  });
+
   for (const entry of allEntriesToAggregate) {
-    const { cascadeId, isCurrentConv } = entry;
+    const { cascadeId, rawCascadeId, isSubagent, isCurrentConv, lastModifiedMs: entryModMs } = entry;
     const srcKey = entry.appSource || 'standalone';
     const srcName = SOURCE_LABELS[srcKey] || `Antigravity (${srcKey})`;
 
@@ -596,6 +650,55 @@ export function aggregateMultiWindowUsage({
         sAgg.unpricedCalls = (sAgg.unpricedCalls || 0) + unpriced;
 
         accumulateStepIntoModelMap(perModelStats, st, mInfo, stepCost);
+
+        if (!perConversationStats.has(cascadeId)) {
+          perConversationStats.set(cascadeId, {
+            cascadeId,
+            title: rootTitleMap.get(cascadeId) || cascadeId.slice(0, 8),
+            isCurrent:
+              Boolean(activeRootLower && cascadeId === activeRootLower) ||
+              (isCurrentConv && !isSubagent),
+            calls: 0,
+            inputTokens: 0,
+            cacheReadTokens: 0,
+            responseTokens: 0,
+            thinkingTokens: 0,
+            outputTokens: 0,
+            totalTokens: 0,
+            costUsd: 0,
+            savedCostUsd: 0,
+            unpricedCalls: 0,
+            lastActivityMs: entryModMs || 0,
+            sourcesSet: new Set(),
+            subagentIds: new Set(),
+            modelCounts: new Map(),
+          });
+        }
+        const cAgg = perConversationStats.get(cascadeId);
+        if (isCurrentConv) cAgg.isCurrent = true;
+        if (isSubagent && rawCascadeId && rawCascadeId !== cascadeId) {
+          cAgg.subagentIds.add(rawCascadeId);
+        }
+        cAgg.sourcesSet.add(srcName);
+        cAgg.calls += 1;
+        cAgg.inputTokens += inTok;
+        cAgg.cacheReadTokens += cacheTok;
+        cAgg.responseTokens += respTok;
+        cAgg.thinkingTokens += thinkTok;
+        cAgg.outputTokens += outTok;
+        cAgg.totalTokens += stepTotalTokens;
+        cAgg.costUsd += resolvedCost;
+        cAgg.savedCostUsd += mInfo?.pricing
+          ? (cacheTok / 1_000_000) * Math.max(0, mInfo.pricing.input - mInfo.pricing.cache)
+          : 0;
+        cAgg.unpricedCalls += unpriced;
+        if (tMs > cAgg.lastActivityMs) {
+          cAgg.lastActivityMs = tMs;
+        }
+        const modelTag = mInfo.label || mInfo.shortName || '';
+        if (modelTag) {
+          cAgg.modelCounts.set(modelTag, (cAgg.modelCounts.get(modelTag) || 0) + 1);
+        }
       }
     }
   }
@@ -813,6 +916,34 @@ export function aggregateMultiWindowUsage({
     }))
     .sort((a, b) => b.totalTokens - a.totalTokens || b.calls - a.calls);
 
+  const conversationsBreakdown = Array.from(perConversationStats.values())
+    .filter((c) => c.totalTokens > 0 || c.calls > 0)
+    .map(({ sourcesSet, subagentIds, modelCounts, ...c }) => {
+      const promptTok = c.inputTokens + c.cacheReadTokens;
+      const cacheHitPct =
+        promptTok > 0 ? +((c.cacheReadTokens / promptTok) * 100).toFixed(1) : 0;
+      const topModels = Array.from(modelCounts.entries())
+        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+        .map(([name]) => name);
+      return {
+        ...c,
+        costUsd: +c.costUsd.toFixed(2),
+        savedCostUsd: +c.savedCostUsd.toFixed(2),
+        cacheHitPct,
+        subagentCount: subagentIds.size,
+        appSource: Array.from(sourcesSet).join(' / '),
+        topModel: topModels[0] || '',
+        models: topModels.slice(0, 4),
+      };
+    })
+    .sort(
+      (a, b) =>
+        b.totalTokens - a.totalTokens ||
+        b.costUsd - a.costUsd ||
+        b.calls - a.calls ||
+        b.lastActivityMs - a.lastActivityMs
+    );
+
   const todayBucket = finalizedPresets.today.account;
   const weekBucket = finalizedPresets.week.account;
   const modelBreakdown = finalizeModelBreakdownMap(perModelStats);
@@ -826,6 +957,7 @@ export function aggregateMultiWindowUsage({
     finalizedPresets,
     trendSeries,
     sourcesBreakdown,
+    conversationsBreakdown,
     currentYear,
     monthlySeries,
     todayBucket,

@@ -400,7 +400,24 @@ function isEquivalentTelemetry(prev, next) {
     }
   }
 
-  // 8. 比对账号订阅档位与动态多配额池（活跃池、周汇总及各配额池的 5h/周限额进度与重置时间）
+  const pConsConvs = prev.consumption?.conversationsBreakdown || [];
+  const nConsConvs = next.consumption?.conversationsBreakdown || [];
+  if (pConsConvs.length !== nConsConvs.length) return false;
+  for (let i = 0; i < pConsConvs.length; i++) {
+    if (
+      pConsConvs[i]?.cascadeId !== nConsConvs[i]?.cascadeId ||
+      pConsConvs[i]?.title !== nConsConvs[i]?.title ||
+      pConsConvs[i]?.isCurrent !== nConsConvs[i]?.isCurrent ||
+      pConsConvs[i]?.totalTokens !== nConsConvs[i]?.totalTokens ||
+      pConsConvs[i]?.costUsd !== nConsConvs[i]?.costUsd ||
+      pConsConvs[i]?.calls !== nConsConvs[i]?.calls ||
+      pConsConvs[i]?.lastActivityMs !== nConsConvs[i]?.lastActivityMs
+    ) {
+      return false;
+    }
+  }
+
+  // 8. 比对账号订阅档位与动态多配额池（活跃池、会话已用池、周汇总及各配额池的 5h/周限额进度与重置时间）
   if (
     prev.account?.tierName !== next.account?.tierName ||
     prev.account?.planName !== next.account?.planName ||
@@ -444,6 +461,34 @@ function isEquivalentTelemetry(prev, next) {
       pPools[i]?.weeklyUsedPct !== nPools[i]?.weeklyUsedPct ||
       pPools[i]?.weeklyRemainingPct !== nPools[i]?.weeklyRemainingPct ||
       pPools[i]?.weeklyResetTime !== nPools[i]?.weeklyResetTime
+    ) {
+      return false;
+    }
+  }
+
+  const pUsed = prev.quotas?.sessionUsed;
+  const nUsed = next.quotas?.sessionUsed;
+  if (
+    pUsed?.cascadeId !== nUsed?.cascadeId ||
+    pUsed?.totalCalls !== nUsed?.totalCalls ||
+    pUsed?.totalTokens !== nUsed?.totalTokens ||
+    pUsed?.totalCostUsd !== nUsed?.totalCostUsd
+  ) {
+    return false;
+  }
+  const pUsedPools = pUsed?.pools || [];
+  const nUsedPools = nUsed?.pools || [];
+  if (pUsedPools.length !== nUsedPools.length) return false;
+  for (let i = 0; i < pUsedPools.length; i++) {
+    if (
+      pUsedPools[i]?.poolKey !== nUsedPools[i]?.poolKey ||
+      pUsedPools[i]?.calls !== nUsedPools[i]?.calls ||
+      pUsedPools[i]?.totalTokens !== nUsedPools[i]?.totalTokens ||
+      pUsedPools[i]?.costUsd !== nUsedPools[i]?.costUsd ||
+      pUsedPools[i]?.used5hPct !== nUsedPools[i]?.used5hPct ||
+      pUsedPools[i]?.source5h !== nUsedPools[i]?.source5h ||
+      pUsedPools[i]?.usedWeeklyPct !== nUsedPools[i]?.usedWeeklyPct ||
+      pUsedPools[i]?.sourceWeekly !== nUsedPools[i]?.sourceWeekly
     ) {
       return false;
     }

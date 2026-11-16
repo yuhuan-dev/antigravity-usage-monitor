@@ -286,6 +286,121 @@ export function quotaPoolRowSig(item, idx) {
   return `${idx}:${item.poolLabel}:${item.isActivePool}:${Boolean(item.isPending)}:${item.minuteTick}:${item.poolData?.usedPct}:${item.poolData?.remainingPct}:${item.poolData?.resetTime}:${item.poolData?.weeklyUsedPct}:${item.poolData?.weeklyRemainingPct}:${item.poolData?.weeklyResetTime}:${item.fallbackWeekly?.isOfficial}:${item.fallbackWeekly?.usedPct}:${item.fallbackWeekly?.remainingPct}:${item.fallbackWeekly?.resetTime}:${item.fallbackWeekly?.title}`;
 }
 
+/**
+ * 构建当前会话「已使用额度」展示项列表（仅包含本会话实际调用过的配额分组，未使用的分组绝不列出）。
+ *
+ * @param {object|null|undefined} sessionUsed
+ * @returns {Array<object>}
+ */
+export function buildSessionUsedQuotaItems(sessionUsed) {
+  const rawPools = Array.isArray(sessionUsed?.pools) ? sessionUsed.pools : [];
+  return rawPools
+    .filter((p) => Number(p?.calls || 0) > 0 || Number(p?.totalTokens || 0) > 0)
+    .map((p) => ({
+      key: p.poolKey || p.family || p.poolLabel || 'Other',
+      poolLabel: p.poolLabel || p.family || p.poolKey || 'Other',
+      poolData: p,
+    }));
+}
+
+function formatUsedQuotaPctLabel(pct, source, observedPct) {
+  if (pct == null || !Number.isFinite(Number(pct))) {
+    return '--% (未追踪)';
+  }
+  const num = Number(pct);
+  if (source === 'observed') return `实测 ${num.toFixed(1)}%`;
+  if (source === 'mixed') {
+    return `约 ${num.toFixed(1)}% (测${Number(observedPct || 0).toFixed(1)}%)`;
+  }
+  if (source === 'estimated') return `估算 ${num.toFixed(1)}%`;
+  return `已用 ${num.toFixed(1)}%`;
+}
+
+/**
+ * 同步当前会话在单个已使用配额池中的 5h 与每周消耗进度条（样式严格对齐 `syncPoolQuotaRow`）。
+ */
+export function syncUsedPoolQuotaRow(refs, item, idx, rowEl) {
+  const { poolData, poolLabel } = item;
+  patchAttr(
+    rowEl,
+    'style',
+    idx === 0
+      ? 'display: flex; flex-direction: column; gap: 8px;'
+      : 'display: flex; flex-direction: column; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border-hairline);'
+  );
+
+  const has5h = Boolean(poolData?.has5h);
+  const hasWk = Boolean(poolData?.hasWeekly);
+  const show5h = has5h;
+  const showWk = hasWk || !has5h;
+
+  refs.row5h.hidden = !show5h;
+  refs.row5h.style.display = show5h ? 'flex' : 'none';
+  refs.rowWk.hidden = !showWk;
+  refs.rowWk.style.display = showWk ? 'flex' : 'none';
+
+  const calls = Number(poolData?.calls || 0);
+  const totalTok = Number(poolData?.totalTokens || 0);
+  const costUsd = poolData?.unpricedCalls > 0 && poolData?.costUsd === 0 ? null : poolData?.costUsd ?? 0;
+
+  patchAttr(
+    rowEl,
+    'title',
+    `${poolLabel} · 本会话 ${calls} 次调用 · ${formatTokens(totalTok)} (${formatUsd(costUsd)})\n配额来源：实时运行期间基于官方配额扣减差值累加；插件未运行前的当期历史按占比保守估算。`
+  );
+
+  if (show5h) {
+    const pct5hRaw = poolData?.used5hPct;
+    const hasPct5h = pct5hRaw != null && Number.isFinite(Number(pct5hRaw));
+    const pct5hVal = hasPct5h ? Math.max(0, Number(pct5hRaw)) : 0;
+    const pctText5h = formatUsedQuotaPctLabel(pct5hRaw, poolData?.source5h, poolData?.observed5hPct);
+    const tok5h = hasWk && Number(poolData?.win5hCalls || 0) > 0 ? Number(poolData.win5hTokens || 0) : totalTok;
+    const cost5h =
+      hasWk && Number(poolData?.win5hCalls || 0) > 0 ? (poolData.win5hCostUsd ?? costUsd) : costUsd;
+
+    patchText(refs.title5h, `5h 限额 (${poolLabel})`);
+    patchText(
+      refs.meta5h,
+      hasWk
+        ? `${pctText5h} · ${formatTokens(tok5h)} (${formatUsd(cost5h)})`
+        : `${pctText5h} · ${formatTokens(totalTok)} (${formatUsd(costUsd)}) · ${calls}次`
+    );
+    const bar5hPct = hasPct5h && pct5hVal > 0 ? Math.min(100, Math.max(1.2, pct5hVal)) : 0;
+    patchStyleVar(refs.fill5h, '--fill-w', `${bar5hPct}%`);
+    patchClasses(refs.fill5h, {
+      'tone-warn': pct5hVal >= 60 && pct5hVal < 85,
+      'tone-danger': pct5hVal >= 85,
+    });
+  }
+
+  if (showWk) {
+    const isOfflineFallback = !has5h && !hasWk;
+    const pctWkRaw = isOfflineFallback ? null : poolData?.usedWeeklyPct;
+    const hasPctWk = pctWkRaw != null && Number.isFinite(Number(pctWkRaw));
+    const pctWkVal = hasPctWk ? Math.max(0, Number(pctWkRaw)) : 0;
+    const pctTextWk = isOfflineFallback
+      ? '--% (未获取周期)'
+      : formatUsedQuotaPctLabel(pctWkRaw, poolData?.sourceWeekly, poolData?.observedWeeklyPct);
+
+    patchText(refs.titleWk, isOfflineFallback ? `限额 (${poolLabel})` : `每周限额 (${poolLabel})`);
+    patchText(
+      refs.metaWk,
+      `${pctTextWk} · ${formatTokens(totalTok)} (${formatUsd(costUsd)}) · ${calls}次`
+    );
+    const barWkPct = hasPctWk && pctWkVal > 0 ? Math.min(100, Math.max(1.2, pctWkVal)) : 0;
+    patchStyleVar(refs.fillWk, '--fill-w', `${barWkPct}%`);
+    patchClasses(refs.fillWk, {
+      'tone-warn': pctWkVal >= 60 && pctWkVal < 85,
+      'tone-danger': pctWkVal >= 85,
+    });
+  }
+}
+
+export function usedQuotaPoolRowSig(item, idx) {
+  const p = item.poolData || {};
+  return `${idx}:${item.key}:${item.poolLabel}:${p.calls}:${p.totalTokens}:${p.costUsd}:${p.unpricedCalls}:${Boolean(p.has5h)}:${Boolean(p.hasWeekly)}:${p.used5hPct}:${p.observed5hPct}:${p.source5h}:${p.win5hTokens}:${p.win5hCostUsd}:${p.win5hCalls}:${p.usedWeeklyPct}:${p.observedWeeklyPct}:${p.sourceWeekly}`;
+}
+
 export const LiveOverviewView = defineComponent({
   name: 'LiveOverviewView',
   setup({ onCleanup }) {
@@ -558,7 +673,37 @@ export const LiveOverviewView = defineComponent({
       ctxLegendGrid,
     ]);
 
-    // --- 3. 官方动态多配额池监控面板 (Gemini / Pro 独立 Argon 池 / Claude & GPT) ---
+    // --- 3. 当前会话「已使用额度」分组消耗面板（仅列本会话实际用到的配额分组，位于可用额度上方） ---
+    const usedMetaBadge = h('span', { className: 'panel-meta', text: '本会话 · 0 个分组' });
+    const usedEmptyEl = h('div', {
+      className: 'text-muted',
+      style: 'font-size: 11.5px; padding: 2px 0;',
+      text: '本会话暂未产生模型调用',
+    });
+    const usedPoolsListEl = h('div', {
+      style: 'display: flex; flex-direction: column; gap: 0;',
+      hidden: true,
+    });
+    const usedFootLeft = h('span', { className: 'text-muted', text: '本会话消耗: 0 ($0.00)' });
+    const usedFootRight = h('span', { className: 'text-muted', text: '共调用 0 次' });
+
+    const usedQuotaPanel = h('section', { className: 'panel' }, [
+      h('div', { className: 'panel-header' }, [
+        h('span', { className: 'panel-title' }, [
+          createSvgIcon('pulse', { size: 13 }),
+          h('span', { text: '已使用额度' }),
+        ]),
+        usedMetaBadge,
+      ]),
+      usedEmptyEl,
+      usedPoolsListEl,
+      h('div', { className: 'panel-header', style: 'font-size: 11px; padding-top: 2px;' }, [
+        usedFootLeft,
+        usedFootRight,
+      ]),
+    ]);
+
+    // --- 4. 官方动态多配额池监控面板 (Gemini / Pro 独立 Argon 池 / Claude & GPT) ---
     const tierBadge = h('span', { className: 'panel-meta', text: 'Google AI · Pro' });
     const poolsListEl = h('div', { style: 'display: flex; flex-direction: column; gap: 0;' });
 
@@ -585,7 +730,7 @@ export const LiveOverviewView = defineComponent({
       {
         style: 'display: flex; flex-direction: column; gap: var(--space-3); padding-bottom: 2px;',
       },
-      [matrixEl, ctxPanel, quotaPanel, liveActivityBar]
+      [matrixEl, ctxPanel, usedQuotaPanel, quotaPanel, liveActivityBar]
     );
     const viewScrollbar = CustomScrollbar({
       contentEl: overviewInner,
@@ -1032,7 +1177,42 @@ export const LiveOverviewView = defineComponent({
         }
       }
 
-      // 3. 更新动态配额池列表（支持 Gemini、Pro 独立 Argon 池、Claude & GPT 等）
+      // 3. 更新当前会话「已使用额度」分组消耗面板（仅显示本会话实际使用过的分组）
+      const sessionUsed = quotas.sessionUsed || {};
+      const usedPoolItems = buildSessionUsedQuotaItems(sessionUsed);
+      const hasUsedPools = usedPoolItems.length > 0;
+      patchAttr(usedEmptyEl, 'hidden', hasUsedPools);
+      patchAttr(usedPoolsListEl, 'hidden', !hasUsedPools);
+      patchText(
+        usedMetaBadge,
+        hasUsedPools
+          ? `本会话 · ${usedPoolItems.length} 个分组${hasSubagents ? ' (含子代理)' : ''}`
+          : '本会话 · 0 个分组'
+      );
+      patchKeyedList(usedPoolsListEl, usedPoolItems, {
+        keyFn: (item) => item.key,
+        sigFn: usedQuotaPoolRowSig,
+        createRow: createPoolQuotaRow,
+        updateRow: syncUsedPoolQuotaRow,
+      });
+
+      const usedTotalTok =
+        Number(sessionUsed.totalTokens || 0) + Number(sessionUsed.unknownPoolTokens || 0);
+      const usedTotalCalls =
+        Number(sessionUsed.totalCalls || 0) + Number(sessionUsed.unknownPoolCalls || 0);
+      const usedTotalCost = active.sessionCostUsd ?? sessionUsed.totalCostUsd ?? 0;
+      patchText(
+        usedFootLeft,
+        `本会话消耗: ${formatTokens(usedTotalTok)} (${formatUsd(usedTotalCost)})`
+      );
+      patchText(
+        usedFootRight,
+        sessionUsed.unknownPoolCalls > 0
+          ? `共调用 ${usedTotalCalls} 次 (未归类 ${sessionUsed.unknownPoolCalls})`
+          : `共调用 ${usedTotalCalls} 次${hasSubagents ? ' · 主+子' : ''}`
+      );
+
+      // 4. 更新动态配额池列表（支持 Gemini、Pro 独立 Argon 池、Claude & GPT 等）
       patchText(
         tierBadge,
         `${data.account?.tierName || 'Google AI'} · ${data.account?.planName || 'Pro'}`

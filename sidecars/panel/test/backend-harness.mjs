@@ -22,6 +22,7 @@ const BACKEND_MODULE_FILES = [
   '../backend/quota-pools.mjs',
   '../backend/local-scanner.mjs',
   '../backend/usage-aggregator.mjs',
+  '../backend/quota-ledger.mjs',
   '../backend/telemetry-builder.mjs',
   '../backend/window-bridge.mjs',
   '../main.mjs',
@@ -39,6 +40,7 @@ function stripEsmSyntax(rawSource, mainUrl) {
 
 export function backendHarness({
   cache={},
+  quotaLedger=null,
   deepStats=null,
   transcripts={},
   settings={},
@@ -59,7 +61,7 @@ export function backendHarness({
   const mainUrl = pluginRootPath ? `file://${pluginRootPath}/sidecars/panel/main.mjs` : 'file:///test/sidecars/panel/main.mjs';
   const mainPath = pluginRootPath ? `${pluginRootPath}/sidecars/panel/main.mjs` : '/test/sidecars/panel/main.mjs';
   const source = stripEsmSyntax(sourceText ?? loadCombinedBackendSource(), mainUrl);
-  const state={calls:[],errors:[],saves:[],trajectories,transcripts,transcriptMtimeMs:1,userStatus,quotaSummary,localCatalog,remoteCatalog,pluginManifest,hasGitDir,deepStats,deepStatsMtimeMs:1};
+  const state={calls:[],errors:[],saves:[],trajectories,transcripts,transcriptMtimeMs:1,userStatus,quotaSummary,quotaLedger,localCatalog,remoteCatalog,pluginManifest,hasGitDir,deepStats,deepStatsMtimeMs:1};
   const ctx={
     ...metricsImplementation, URL, AbortSignal, Buffer,
     process:{platform:'win32',env:{ANTIGRAVITY_EXECUTABLE_DATA_DIR:'/test-data',ANTIGRAVITY_LS_ADDRESS:'test.invalid',ANTIGRAVITY_CSRF_TOKEN:'test'}},
@@ -73,6 +75,7 @@ export function backendHarness({
     existsSync:p=>{
       const norm = String(p).replace(/\\/g, '/');
       if (norm.endsWith('settings.json') || norm.endsWith('trajectory_usage_cache.json')) return true;
+      if (norm.endsWith('session_quota_ledger.json')) return Boolean(state.quotaLedger);
       if (norm.endsWith('/antigravity/brain/.deep_stats_cache.json')) return Boolean(state.deepStats);
       if (norm.endsWith('pricing-catalog.json')) return Boolean(state.localCatalog);
       if (norm.endsWith('remote_pricing_cache.json')) return Boolean(state.remoteCatalog);
@@ -111,6 +114,7 @@ export function backendHarness({
       if (norm.endsWith('/antigravity/brain/.deep_stats_cache.json')) return JSON.stringify(state.deepStats);
       if (norm.endsWith('pricing-catalog.json')) return JSON.stringify(state.localCatalog);
       if (norm.endsWith('remote_pricing_cache.json')) return JSON.stringify(state.remoteCatalog);
+      if (norm.endsWith('session_quota_ledger.json')) return JSON.stringify(state.quotaLedger);
       if (norm.endsWith('plugin.json')) return JSON.stringify(state.pluginManifest);
       return JSON.stringify(cache);
     },
@@ -120,6 +124,8 @@ export function backendHarness({
       state.saves.push({path:p,data:parsed});
       if (norm.endsWith('remote_pricing_cache.json')) {
         state.remoteCatalog = parsed;
+      } else if (norm.endsWith('session_quota_ledger.json')) {
+        state.quotaLedger = parsed;
       }
     },
     homedir:()=>'/test-home',dirname:path.dirname,join:path.join,basename:path.basename,fileURLToPath:()=>mainPath,
@@ -144,6 +150,6 @@ export function backendHarness({
       return {ok:true,json:async()=>data};
     },
   };
-  vm.runInNewContext(source+'\n globalThis.api={buildTelemetryPayloadInternal,computeStepCost,resolveModelInfo,inferFamilyFromProviderOrKey,isArgonModelIdentifier,isCarbonModelIdentifier,getBaseModelLabel,formatUpstreamModelId,PLACEHOLDER_MAP,normalizeQuotaFraction,classifyOfficialBucketWindow,classifyQuotaPoolIdentity,buildOfficialQuotaPools,resolveTimeWindow,sanitizeCatalogPayload,rebuildActiveCatalog,syncCloudCatalog,getCloudStatus,isValidSemver,compareSemver,performPluginUpdate,resolveMigratedGitRemoteUrl,loadSettings,executeSettingsAction};',ctx);
+  vm.runInNewContext(source+'\n globalThis.api={buildTelemetryPayloadInternal,computeStepCost,resolveModelInfo,inferFamilyFromProviderOrKey,isArgonModelIdentifier,isCarbonModelIdentifier,getBaseModelLabel,formatUpstreamModelId,PLACEHOLDER_MAP,normalizeQuotaFraction,classifyOfficialBucketWindow,classifyQuotaPoolIdentity,buildOfficialQuotaPools,resolveStepQuotaPoolKey,updateLedgerAndBuildSessionUsedQuota,resetSessionQuotaLedgerCache,resolveTimeWindow,sanitizeCatalogPayload,rebuildActiveCatalog,syncCloudCatalog,getCloudStatus,isValidSemver,compareSemver,performPluginUpdate,resolveMigratedGitRemoteUrl,loadSettings,executeSettingsAction};',ctx);
   return {...ctx.api,state};
 }

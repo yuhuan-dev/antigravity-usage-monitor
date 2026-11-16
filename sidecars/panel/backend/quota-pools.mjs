@@ -16,6 +16,73 @@ import {
   resolveModelInfo,
 } from './model-pricing.mjs';
 
+export const POOL_PRIORITY_ORDER = Object.freeze(['Gemini', 'Argon', 'Carbon', 'Claude & GPT']);
+
+/**
+ * 解析单条模型步骤所属的官方配额池键名（`'Gemini'` | `'Argon'` | `'Carbon'` | `'Claude & GPT'` | `null`）。
+ * 确保主/子代理分池统计与 `activePool` / `buildOfficialQuotaPools` 的口径完全一致。
+ *
+ * @param {object} step
+ * @param {Map<string, object>} [dynamicModelMap=new Map()]
+ * @param {Map<string, object>} [quotaPoolsMap=new Map()]
+ * @returns {string|null}
+ */
+export function resolveStepQuotaPoolKey(
+  step,
+  dynamicModelMap = new Map(),
+  quotaPoolsMap = new Map()
+) {
+  if (!step || typeof step !== 'object') return null;
+  const rawModelKey = String(step.modelKey || '').trim();
+  const hasExplicitKey = Boolean(rawModelKey && rawModelKey !== 'unknown');
+  const hasSecondaryIdentity = Boolean(
+    step.responseModel || step.modelDisplayName || step.apiProvider
+  );
+  if (!hasExplicitKey && !hasSecondaryIdentity) {
+    return null;
+  }
+
+  const mInfo = resolveModelInfo(
+    rawModelKey,
+    dynamicModelMap,
+    step.apiProvider,
+    step.modelDisplayName,
+    step.responseModel
+  );
+  const resolvedHasIdentity =
+    hasExplicitKey ||
+    Boolean(step.responseModel) ||
+    Boolean(step.modelDisplayName) ||
+    Boolean(step.apiProvider) ||
+    mInfo.family !== 'Other';
+  if (!resolvedHasIdentity) {
+    return null;
+  }
+
+  const isCarbon = isCarbonModelIdentifier(
+    rawModelKey,
+    step.responseModel,
+    step.modelUpstream,
+    step.modelLabel,
+    mInfo.modelId,
+    mInfo.label
+  );
+  const isArgon = isArgonModelIdentifier(
+    rawModelKey,
+    step.responseModel,
+    step.modelUpstream,
+    step.modelLabel,
+    mInfo.modelId,
+    mInfo.label
+  );
+
+  if (isCarbon && quotaPoolsMap?.has?.('Carbon')) return 'Carbon';
+  if (isArgon && quotaPoolsMap?.has?.('Argon')) return 'Argon';
+  if (mInfo.family === 'Gemini') return 'Gemini';
+  if (['Claude', 'GPT', 'Other'].includes(mInfo.family)) return 'Claude & GPT';
+  return null;
+}
+
 /**
  * 将原始配额对象（来自 `RetrieveUserQuotaSummary` 桶或 `clientModelConfigs.quotaInfo`）归一化为百分比结构。
  *

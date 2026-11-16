@@ -1362,7 +1362,24 @@ function isEquivalentTelemetry(prev, next) {
     }
   }
 
-  // 8. 比对账号订阅档位与动态多配额池（活跃池、周汇总及各配额池的 5h/周限额进度与重置时间）
+  const pConsConvs = prev.consumption?.conversationsBreakdown || [];
+  const nConsConvs = next.consumption?.conversationsBreakdown || [];
+  if (pConsConvs.length !== nConsConvs.length) return false;
+  for (let i = 0; i < pConsConvs.length; i++) {
+    if (
+      pConsConvs[i]?.cascadeId !== nConsConvs[i]?.cascadeId ||
+      pConsConvs[i]?.title !== nConsConvs[i]?.title ||
+      pConsConvs[i]?.isCurrent !== nConsConvs[i]?.isCurrent ||
+      pConsConvs[i]?.totalTokens !== nConsConvs[i]?.totalTokens ||
+      pConsConvs[i]?.costUsd !== nConsConvs[i]?.costUsd ||
+      pConsConvs[i]?.calls !== nConsConvs[i]?.calls ||
+      pConsConvs[i]?.lastActivityMs !== nConsConvs[i]?.lastActivityMs
+    ) {
+      return false;
+    }
+  }
+
+  // 8. 比对账号订阅档位与动态多配额池（活跃池、会话已用池、周汇总及各配额池的 5h/周限额进度与重置时间）
   if (
     prev.account?.tierName !== next.account?.tierName ||
     prev.account?.planName !== next.account?.planName ||
@@ -1406,6 +1423,34 @@ function isEquivalentTelemetry(prev, next) {
       pPools[i]?.weeklyUsedPct !== nPools[i]?.weeklyUsedPct ||
       pPools[i]?.weeklyRemainingPct !== nPools[i]?.weeklyRemainingPct ||
       pPools[i]?.weeklyResetTime !== nPools[i]?.weeklyResetTime
+    ) {
+      return false;
+    }
+  }
+
+  const pUsed = prev.quotas?.sessionUsed;
+  const nUsed = next.quotas?.sessionUsed;
+  if (
+    pUsed?.cascadeId !== nUsed?.cascadeId ||
+    pUsed?.totalCalls !== nUsed?.totalCalls ||
+    pUsed?.totalTokens !== nUsed?.totalTokens ||
+    pUsed?.totalCostUsd !== nUsed?.totalCostUsd
+  ) {
+    return false;
+  }
+  const pUsedPools = pUsed?.pools || [];
+  const nUsedPools = nUsed?.pools || [];
+  if (pUsedPools.length !== nUsedPools.length) return false;
+  for (let i = 0; i < pUsedPools.length; i++) {
+    if (
+      pUsedPools[i]?.poolKey !== nUsedPools[i]?.poolKey ||
+      pUsedPools[i]?.calls !== nUsedPools[i]?.calls ||
+      pUsedPools[i]?.totalTokens !== nUsedPools[i]?.totalTokens ||
+      pUsedPools[i]?.costUsd !== nUsedPools[i]?.costUsd ||
+      pUsedPools[i]?.used5hPct !== nUsedPools[i]?.used5hPct ||
+      pUsedPools[i]?.source5h !== nUsedPools[i]?.source5h ||
+      pUsedPools[i]?.usedWeeklyPct !== nUsedPools[i]?.usedWeeklyPct ||
+      pUsedPools[i]?.sourceWeekly !== nUsedPools[i]?.sourceWeekly
     ) {
       return false;
     }
@@ -2830,7 +2875,8 @@ const ContextSegmentMeter = defineComponent({
  *     inputTokens?: number,
  *     cacheReadTokens?: number,
  *     responseTokens?: number,
- *     thinkingTokens?: number
+ *     thinkingTokens?: number,
+ *     scaleMax?: number
  *   }) => void
  * }} 组件根元素与增量更新方法
  */
@@ -2847,14 +2893,35 @@ function createFourSegmentBar() {
   ]);
 
   /**
-   * 根据四类 Token 数量重新计算并写入各分段百分比宽度。
+   * 根据四类 Token 数量重新计算并写入各分段百分比宽度；
+   * 若传入大于 0 的 `scaleMax`，则整条叠加宽度按 `total / scaleMax` 相对缩放，用于跨条目总量直观对比。
    */
-  function update({ inputTokens = 0, cacheReadTokens = 0, responseTokens = 0, thinkingTokens = 0 }) {
-    const total = Math.max(1, inputTokens + cacheReadTokens + responseTokens + thinkingTokens);
-    patchStyleVar(segInput, '--seg-w', `${((inputTokens / total) * 100).toFixed(2)}%`);
-    patchStyleVar(segCached, '--seg-w', `${((cacheReadTokens / total) * 100).toFixed(2)}%`);
-    patchStyleVar(segOutput, '--seg-w', `${((responseTokens / total) * 100).toFixed(2)}%`);
-    patchStyleVar(segThinking, '--seg-w', `${((thinkingTokens / total) * 100).toFixed(2)}%`);
+  function update({
+    inputTokens = 0,
+    cacheReadTokens = 0,
+    responseTokens = 0,
+    thinkingTokens = 0,
+    scaleMax = 0,
+  }) {
+    const total = inputTokens + cacheReadTokens + responseTokens + thinkingTokens;
+    if (total <= 0) {
+      patchStyleVar(segInput, '--seg-w', '0%');
+      patchStyleVar(segCached, '--seg-w', '0%');
+      patchStyleVar(segOutput, '--seg-w', '0%');
+      patchStyleVar(segThinking, '--seg-w', '0%');
+      return;
+    }
+    const maxRef = Number(scaleMax || 0);
+    const barSpanPct =
+      maxRef > 0 ? Math.min(100, Math.max(1.2, (total / maxRef) * 100)) : 100;
+    patchStyleVar(segInput, '--seg-w', `${((inputTokens / total) * barSpanPct).toFixed(2)}%`);
+    patchStyleVar(segCached, '--seg-w', `${((cacheReadTokens / total) * barSpanPct).toFixed(2)}%`);
+    patchStyleVar(segOutput, '--seg-w', `${((responseTokens / total) * barSpanPct).toFixed(2)}%`);
+    patchStyleVar(
+      segThinking,
+      '--seg-w',
+      `${((thinkingTokens / total) * barSpanPct).toFixed(2)}%`
+    );
   }
 
   return { el, update };
@@ -3786,6 +3853,121 @@ function quotaPoolRowSig(item, idx) {
   return `${idx}:${item.poolLabel}:${item.isActivePool}:${Boolean(item.isPending)}:${item.minuteTick}:${item.poolData?.usedPct}:${item.poolData?.remainingPct}:${item.poolData?.resetTime}:${item.poolData?.weeklyUsedPct}:${item.poolData?.weeklyRemainingPct}:${item.poolData?.weeklyResetTime}:${item.fallbackWeekly?.isOfficial}:${item.fallbackWeekly?.usedPct}:${item.fallbackWeekly?.remainingPct}:${item.fallbackWeekly?.resetTime}:${item.fallbackWeekly?.title}`;
 }
 
+/**
+ * 构建当前会话「已使用额度」展示项列表（仅包含本会话实际调用过的配额分组，未使用的分组绝不列出）。
+ *
+ * @param {object|null|undefined} sessionUsed
+ * @returns {Array<object>}
+ */
+function buildSessionUsedQuotaItems(sessionUsed) {
+  const rawPools = Array.isArray(sessionUsed?.pools) ? sessionUsed.pools : [];
+  return rawPools
+    .filter((p) => Number(p?.calls || 0) > 0 || Number(p?.totalTokens || 0) > 0)
+    .map((p) => ({
+      key: p.poolKey || p.family || p.poolLabel || 'Other',
+      poolLabel: p.poolLabel || p.family || p.poolKey || 'Other',
+      poolData: p,
+    }));
+}
+
+function formatUsedQuotaPctLabel(pct, source, observedPct) {
+  if (pct == null || !Number.isFinite(Number(pct))) {
+    return '--% (未追踪)';
+  }
+  const num = Number(pct);
+  if (source === 'observed') return `实测 ${num.toFixed(1)}%`;
+  if (source === 'mixed') {
+    return `约 ${num.toFixed(1)}% (测${Number(observedPct || 0).toFixed(1)}%)`;
+  }
+  if (source === 'estimated') return `估算 ${num.toFixed(1)}%`;
+  return `已用 ${num.toFixed(1)}%`;
+}
+
+/**
+ * 同步当前会话在单个已使用配额池中的 5h 与每周消耗进度条（样式严格对齐 `syncPoolQuotaRow`）。
+ */
+function syncUsedPoolQuotaRow(refs, item, idx, rowEl) {
+  const { poolData, poolLabel } = item;
+  patchAttr(
+    rowEl,
+    'style',
+    idx === 0
+      ? 'display: flex; flex-direction: column; gap: 8px;'
+      : 'display: flex; flex-direction: column; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border-hairline);'
+  );
+
+  const has5h = Boolean(poolData?.has5h);
+  const hasWk = Boolean(poolData?.hasWeekly);
+  const show5h = has5h;
+  const showWk = hasWk || !has5h;
+
+  refs.row5h.hidden = !show5h;
+  refs.row5h.style.display = show5h ? 'flex' : 'none';
+  refs.rowWk.hidden = !showWk;
+  refs.rowWk.style.display = showWk ? 'flex' : 'none';
+
+  const calls = Number(poolData?.calls || 0);
+  const totalTok = Number(poolData?.totalTokens || 0);
+  const costUsd = poolData?.unpricedCalls > 0 && poolData?.costUsd === 0 ? null : poolData?.costUsd ?? 0;
+
+  patchAttr(
+    rowEl,
+    'title',
+    `${poolLabel} · 本会话 ${calls} 次调用 · ${formatTokens(totalTok)} (${formatUsd(costUsd)})\n配额来源：实时运行期间基于官方配额扣减差值累加；插件未运行前的当期历史按占比保守估算。`
+  );
+
+  if (show5h) {
+    const pct5hRaw = poolData?.used5hPct;
+    const hasPct5h = pct5hRaw != null && Number.isFinite(Number(pct5hRaw));
+    const pct5hVal = hasPct5h ? Math.max(0, Number(pct5hRaw)) : 0;
+    const pctText5h = formatUsedQuotaPctLabel(pct5hRaw, poolData?.source5h, poolData?.observed5hPct);
+    const tok5h = hasWk && Number(poolData?.win5hCalls || 0) > 0 ? Number(poolData.win5hTokens || 0) : totalTok;
+    const cost5h =
+      hasWk && Number(poolData?.win5hCalls || 0) > 0 ? (poolData.win5hCostUsd ?? costUsd) : costUsd;
+
+    patchText(refs.title5h, `5h 限额 (${poolLabel})`);
+    patchText(
+      refs.meta5h,
+      hasWk
+        ? `${pctText5h} · ${formatTokens(tok5h)} (${formatUsd(cost5h)})`
+        : `${pctText5h} · ${formatTokens(totalTok)} (${formatUsd(costUsd)}) · ${calls}次`
+    );
+    const bar5hPct = hasPct5h && pct5hVal > 0 ? Math.min(100, Math.max(1.2, pct5hVal)) : 0;
+    patchStyleVar(refs.fill5h, '--fill-w', `${bar5hPct}%`);
+    patchClasses(refs.fill5h, {
+      'tone-warn': pct5hVal >= 60 && pct5hVal < 85,
+      'tone-danger': pct5hVal >= 85,
+    });
+  }
+
+  if (showWk) {
+    const isOfflineFallback = !has5h && !hasWk;
+    const pctWkRaw = isOfflineFallback ? null : poolData?.usedWeeklyPct;
+    const hasPctWk = pctWkRaw != null && Number.isFinite(Number(pctWkRaw));
+    const pctWkVal = hasPctWk ? Math.max(0, Number(pctWkRaw)) : 0;
+    const pctTextWk = isOfflineFallback
+      ? '--% (未获取周期)'
+      : formatUsedQuotaPctLabel(pctWkRaw, poolData?.sourceWeekly, poolData?.observedWeeklyPct);
+
+    patchText(refs.titleWk, isOfflineFallback ? `限额 (${poolLabel})` : `每周限额 (${poolLabel})`);
+    patchText(
+      refs.metaWk,
+      `${pctTextWk} · ${formatTokens(totalTok)} (${formatUsd(costUsd)}) · ${calls}次`
+    );
+    const barWkPct = hasPctWk && pctWkVal > 0 ? Math.min(100, Math.max(1.2, pctWkVal)) : 0;
+    patchStyleVar(refs.fillWk, '--fill-w', `${barWkPct}%`);
+    patchClasses(refs.fillWk, {
+      'tone-warn': pctWkVal >= 60 && pctWkVal < 85,
+      'tone-danger': pctWkVal >= 85,
+    });
+  }
+}
+
+function usedQuotaPoolRowSig(item, idx) {
+  const p = item.poolData || {};
+  return `${idx}:${item.key}:${item.poolLabel}:${p.calls}:${p.totalTokens}:${p.costUsd}:${p.unpricedCalls}:${Boolean(p.has5h)}:${Boolean(p.hasWeekly)}:${p.used5hPct}:${p.observed5hPct}:${p.source5h}:${p.win5hTokens}:${p.win5hCostUsd}:${p.win5hCalls}:${p.usedWeeklyPct}:${p.observedWeeklyPct}:${p.sourceWeekly}`;
+}
+
 const LiveOverviewView = defineComponent({
   name: 'LiveOverviewView',
   setup({ onCleanup }) {
@@ -4058,7 +4240,37 @@ const LiveOverviewView = defineComponent({
       ctxLegendGrid,
     ]);
 
-    // --- 3. 官方动态多配额池监控面板 (Gemini / Pro 独立 Argon 池 / Claude & GPT) ---
+    // --- 3. 当前会话「已使用额度」分组消耗面板（仅列本会话实际用到的配额分组，位于可用额度上方） ---
+    const usedMetaBadge = h('span', { className: 'panel-meta', text: '本会话 · 0 个分组' });
+    const usedEmptyEl = h('div', {
+      className: 'text-muted',
+      style: 'font-size: 11.5px; padding: 2px 0;',
+      text: '本会话暂未产生模型调用',
+    });
+    const usedPoolsListEl = h('div', {
+      style: 'display: flex; flex-direction: column; gap: 0;',
+      hidden: true,
+    });
+    const usedFootLeft = h('span', { className: 'text-muted', text: '本会话消耗: 0 ($0.00)' });
+    const usedFootRight = h('span', { className: 'text-muted', text: '共调用 0 次' });
+
+    const usedQuotaPanel = h('section', { className: 'panel' }, [
+      h('div', { className: 'panel-header' }, [
+        h('span', { className: 'panel-title' }, [
+          createSvgIcon('pulse', { size: 13 }),
+          h('span', { text: '已使用额度' }),
+        ]),
+        usedMetaBadge,
+      ]),
+      usedEmptyEl,
+      usedPoolsListEl,
+      h('div', { className: 'panel-header', style: 'font-size: 11px; padding-top: 2px;' }, [
+        usedFootLeft,
+        usedFootRight,
+      ]),
+    ]);
+
+    // --- 4. 官方动态多配额池监控面板 (Gemini / Pro 独立 Argon 池 / Claude & GPT) ---
     const tierBadge = h('span', { className: 'panel-meta', text: 'Google AI · Pro' });
     const poolsListEl = h('div', { style: 'display: flex; flex-direction: column; gap: 0;' });
 
@@ -4085,7 +4297,7 @@ const LiveOverviewView = defineComponent({
       {
         style: 'display: flex; flex-direction: column; gap: var(--space-3); padding-bottom: 2px;',
       },
-      [matrixEl, ctxPanel, quotaPanel, liveActivityBar]
+      [matrixEl, ctxPanel, usedQuotaPanel, quotaPanel, liveActivityBar]
     );
     const viewScrollbar = CustomScrollbar({
       contentEl: overviewInner,
@@ -4532,7 +4744,42 @@ const LiveOverviewView = defineComponent({
         }
       }
 
-      // 3. 更新动态配额池列表（支持 Gemini、Pro 独立 Argon 池、Claude & GPT 等）
+      // 3. 更新当前会话「已使用额度」分组消耗面板（仅显示本会话实际使用过的分组）
+      const sessionUsed = quotas.sessionUsed || {};
+      const usedPoolItems = buildSessionUsedQuotaItems(sessionUsed);
+      const hasUsedPools = usedPoolItems.length > 0;
+      patchAttr(usedEmptyEl, 'hidden', hasUsedPools);
+      patchAttr(usedPoolsListEl, 'hidden', !hasUsedPools);
+      patchText(
+        usedMetaBadge,
+        hasUsedPools
+          ? `本会话 · ${usedPoolItems.length} 个分组${hasSubagents ? ' (含子代理)' : ''}`
+          : '本会话 · 0 个分组'
+      );
+      patchKeyedList(usedPoolsListEl, usedPoolItems, {
+        keyFn: (item) => item.key,
+        sigFn: usedQuotaPoolRowSig,
+        createRow: createPoolQuotaRow,
+        updateRow: syncUsedPoolQuotaRow,
+      });
+
+      const usedTotalTok =
+        Number(sessionUsed.totalTokens || 0) + Number(sessionUsed.unknownPoolTokens || 0);
+      const usedTotalCalls =
+        Number(sessionUsed.totalCalls || 0) + Number(sessionUsed.unknownPoolCalls || 0);
+      const usedTotalCost = active.sessionCostUsd ?? sessionUsed.totalCostUsd ?? 0;
+      patchText(
+        usedFootLeft,
+        `本会话消耗: ${formatTokens(usedTotalTok)} (${formatUsd(usedTotalCost)})`
+      );
+      patchText(
+        usedFootRight,
+        sessionUsed.unknownPoolCalls > 0
+          ? `共调用 ${usedTotalCalls} 次 (未归类 ${sessionUsed.unknownPoolCalls})`
+          : `共调用 ${usedTotalCalls} 次${hasSubagents ? ' · 主+子' : ''}`
+      );
+
+      // 4. 更新动态配额池列表（支持 Gemini、Pro 独立 Argon 池、Claude & GPT 等）
       patchText(
         tierBadge,
         `${data.account?.tierName || 'Google AI'} · ${data.account?.planName || 'Pro'}`
@@ -4669,6 +4916,23 @@ const TIME_RANGE_OPTIONS = [
   { value: 'all', label: '全部' },
   { value: 'custom', label: '自定义' },
 ];
+
+const CONV_SORT_OPTIONS = [
+  { value: 'tokens', label: 'Token' },
+  { value: 'cost', label: '费用' },
+  { value: 'recent', label: '最近' },
+];
+
+const CONV_COLLAPSE_THRESHOLD = 30;
+
+function formatConvActivityTime(ms) {
+  const num = Number(ms || 0);
+  if (!Number.isFinite(num) || num <= 0) return '';
+  const d = new Date(num);
+  if (Number.isNaN(d.getTime())) return '';
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getMonth() + 1}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
 
 const ConsumptionView = defineComponent({
   name: 'ConsumptionView',
@@ -4954,6 +5218,52 @@ const ConsumptionView = defineComponent({
       ]),
     ]);
 
+    // --- Section 6: 会话消耗对比 (所选时间段内所有会话 Token 与费用横向对比，位于月度统计最下方) ---
+    let convSortMode = 'tokens';
+    let convsExpanded = false;
+
+    const convRangeBadge = h('span', { className: 'cons-badge', text: '全部时间' });
+    const convCountBadge = h('span', { className: 'cons-badge text-mono', text: '0 个会话' });
+    const convSortSwitch = SegmentedControl({
+      ariaLabel: '会话对比排序方式',
+      modelValue: convSortMode,
+      options: CONV_SORT_OPTIONS,
+      onUpdateModelValue: (nextSort) => {
+        convSortMode = nextSort || 'tokens';
+        if (latestSlice) renderConsumptionData(latestSlice);
+      },
+    });
+    const convEmptyEl = h('div', {
+      className: 'text-muted',
+      style: 'font-size: 11.5px; padding: 4px 0;',
+      text: '所选时间段内暂无会话消耗记录',
+    });
+    const conversationsListEl = h('div', { className: 'cons-item-list', hidden: true });
+    const convExpandBtn = h('button', {
+      type: 'button',
+      className: 'cons-conv-expand-btn',
+      hidden: true,
+      text: '展开全部会话 ▾',
+      onClick: () => {
+        convsExpanded = !convsExpanded;
+        if (latestSlice) renderConsumptionData(latestSlice);
+      },
+    });
+
+    const conversationsPanel = h('section', { className: 'panel' }, [
+      h('div', { className: 'panel-header cons-overview-head' }, [
+        h('span', { className: 'panel-title' }, [
+          h('span', { text: '会话消耗对比' }),
+          convRangeBadge,
+          convCountBadge,
+        ]),
+        convSortSwitch.el,
+      ]),
+      convEmptyEl,
+      conversationsListEl,
+      convExpandBtn,
+    ]);
+
     const scrollInner = h(
       'div',
       {
@@ -4965,6 +5275,7 @@ const ConsumptionView = defineComponent({
         modelsPanel,
         sourcesPanel,
         monthlyPanel,
+        conversationsPanel,
       ]
     );
 
@@ -5065,6 +5376,145 @@ const ConsumptionView = defineComponent({
       patchText(refs.outVal, formatTokensPrecise(responseTok));
       patchText(refs.thinkVal, formatTokensPrecise(thinkingTok));
       patchText(refs.callsVal, String(Number(item.calls || 0)));
+    }
+
+    /**
+     * 创建单个会话消耗对比行 DOM 结构（含排名、标题、当前标识、占比胶囊、总量、费用、相对 4 段比较条及明细脚标）。
+     */
+    function createConversationCompareRow() {
+      const rankEl = h('span', { className: 'cons-rank-pill text-mono', text: '#1' });
+      const titleEl = h('strong', { className: 'cons-row-title cons-conv-title' });
+      const currentBadge = h('span', {
+        className: 'agent-badge badge-main',
+        hidden: true,
+        text: '当前',
+      });
+      const pctBadge = h('span', { className: 'cons-share-pill text-mono', text: '0%' });
+      const totalTokEl = h('span', { className: 'cons-row-tok text-mono' });
+      const costEl = h('strong', { className: 'cons-row-cost text-mono' });
+      const segBar = createFourSegmentBar();
+
+      const inVal = h('strong', { className: 'text-mono' });
+      const cacheVal = h('strong', { className: 'text-mono' });
+      const outVal = h('strong', { className: 'text-mono' });
+      const thinkVal = h('strong', { className: 'text-mono' });
+      const callsVal = h('strong', { className: 'text-mono' });
+      const timeTagEl = h('span', { className: 'text-muted text-mono', hidden: true, text: '' });
+
+      const rowEl = h('div', { className: 'cons-item-row' }, [
+        h('div', { className: 'panel-header' }, [
+          h('div', { className: 'cons-conv-title-wrap' }, [rankEl, titleEl, currentBadge]),
+          h('span', { className: 'cons-row-metrics' }, [
+            pctBadge,
+            totalTokEl,
+            costEl,
+          ]),
+        ]),
+        segBar.el,
+        h('div', { className: 'cons-item-foot' }, [
+          h('span', { className: 'legend-left' }, [
+            h('span', { className: 'dot-swatch seg-input' }),
+            h('span', { text: '输入 ' }),
+            inVal,
+          ]),
+          h('span', { className: 'legend-left' }, [
+            h('span', { className: 'dot-swatch seg-cached' }),
+            h('span', { text: '缓存 ' }),
+            cacheVal,
+          ]),
+          h('span', { className: 'legend-left' }, [
+            h('span', { className: 'dot-swatch seg-output' }),
+            h('span', { text: '输出 ' }),
+            outVal,
+          ]),
+          h('span', { className: 'legend-left' }, [
+            h('span', { className: 'dot-swatch seg-thinking' }),
+            h('span', { text: '思考 ' }),
+            thinkVal,
+          ]),
+          h('span', { className: 'legend-left' }, [
+            h('span', { text: '调用 ' }),
+            callsVal,
+          ]),
+          timeTagEl,
+        ]),
+      ]);
+
+      return {
+        el: rowEl,
+        refs: {
+          rowEl,
+          rankEl,
+          titleEl,
+          currentBadge,
+          pctBadge,
+          totalTokEl,
+          costEl,
+          segBar,
+          inVal,
+          cacheVal,
+          outVal,
+          thinkVal,
+          callsVal,
+          timeTagEl,
+        },
+      };
+    }
+
+    /**
+     * 增量更新单个会话对比行：按时间段内最高 Token 会话宽度等比缩放 4 段对比条。
+     */
+    function updateConversationCompareRow(refs, item, idx, grandTotalTokens, maxConvTokens) {
+      const displayTitle = item.title || String(item.cascadeId || '').slice(0, 8) || '未知会话';
+      patchText(refs.rankEl, `#${idx + 1}`);
+      patchText(refs.titleEl, displayTitle);
+      patchAttr(refs.currentBadge, 'hidden', !item.isCurrent);
+
+      const total = Number(item.totalTokens || 0);
+      const share = grandTotalTokens > 0 ? +((total / grandTotalTokens) * 100).toFixed(1) : 0;
+      patchText(refs.pctBadge, `${share.toFixed(1)}%`);
+      patchText(refs.totalTokEl, formatTokensPrecise(total));
+      const costDisplay =
+        item.unpricedCalls > 0 && Number(item.costUsd || 0) === 0
+          ? '待定'
+          : formatUsd(item.costUsd || 0);
+      patchText(refs.costEl, costDisplay);
+
+      const responseTok =
+        item.responseTokens != null
+          ? Number(item.responseTokens)
+          : Math.max(0, Number(item.outputTokens || 0) - Number(item.thinkingTokens || 0));
+      const thinkingTok = Number(item.thinkingTokens || 0);
+
+      refs.segBar.update({
+        inputTokens: Number(item.inputTokens || 0),
+        cacheReadTokens: Number(item.cacheReadTokens || 0),
+        responseTokens: responseTok,
+        thinkingTokens: thinkingTok,
+        scaleMax: maxConvTokens,
+      });
+
+      patchText(refs.inVal, formatTokensPrecise(item.inputTokens || 0));
+      patchText(refs.cacheVal, formatTokensPrecise(item.cacheReadTokens || 0));
+      patchText(refs.outVal, formatTokensPrecise(responseTok));
+      patchText(refs.thinkVal, formatTokensPrecise(thinkingTok));
+      patchText(refs.callsVal, String(Number(item.calls || 0)));
+
+      const actTime = formatConvActivityTime(item.lastActivityMs);
+      const subText = item.subagentCount > 0 ? `${item.subagentCount}子` : '';
+      const timeMeta = [subText, actTime].filter(Boolean).join(' · ');
+      patchAttr(refs.timeTagEl, 'hidden', !timeMeta);
+      if (timeMeta) patchText(refs.timeTagEl, timeMeta);
+
+      const tooltipParts = [
+        displayTitle,
+        `总计 ${formatTokensPrecise(total)} (${share.toFixed(1)}%) · 费用 ${costDisplay} · ${item.calls || 0} 次调用`,
+        item.cacheHitPct != null ? `缓存命中率 ${Number(item.cacheHitPct).toFixed(1)}%` : '',
+        item.models?.length ? `常用模型: ${item.models.join(', ')}` : '',
+        item.appSource ? `来源: ${item.appSource}` : '',
+        actTime ? `最近活跃: ${actTime}` : '',
+      ].filter(Boolean);
+      patchAttr(refs.rowEl, 'title', tooltipParts.join('\n'));
     }
 
     let latestSlice = null;
@@ -5254,6 +5704,60 @@ const ConsumptionView = defineComponent({
         }
       }
 
+      // 6. 同步所选时间段内所有会话 Token 消耗对比列表（位于月度统计最下方）
+      patchText(convRangeBadge, preset?.label || rangeInfo.label || '全部时间');
+      const rawConvs = Array.isArray(cons.conversationsBreakdown)
+        ? cons.conversationsBreakdown
+        : [];
+      const sortedConvs = rawConvs.slice().sort((a, b) => {
+        if (convSortMode === 'cost') {
+          return (
+            Number(b.costUsd || 0) - Number(a.costUsd || 0) ||
+            Number(b.totalTokens || 0) - Number(a.totalTokens || 0)
+          );
+        }
+        if (convSortMode === 'recent') {
+          return (
+            Number(b.lastActivityMs || 0) - Number(a.lastActivityMs || 0) ||
+            Number(b.totalTokens || 0) - Number(a.totalTokens || 0)
+          );
+        }
+        return (
+          Number(b.totalTokens || 0) - Number(a.totalTokens || 0) ||
+          Number(b.costUsd || 0) - Number(a.costUsd || 0)
+        );
+      });
+      const convGrandTotalTok = rawConvs.reduce((s, c) => s + Number(c.totalTokens || 0), 0);
+      const maxConvTok = Math.max(1, ...rawConvs.map((c) => Number(c.totalTokens || 0)));
+      const hasConvs = sortedConvs.length > 0;
+      const canCollapseConvs = sortedConvs.length > CONV_COLLAPSE_THRESHOLD;
+      const visibleConvs =
+        canCollapseConvs && !convsExpanded
+          ? sortedConvs.slice(0, CONV_COLLAPSE_THRESHOLD)
+          : sortedConvs;
+
+      patchText(convCountBadge, `${sortedConvs.length} 个会话`);
+      patchAttr(convEmptyEl, 'hidden', hasConvs);
+      patchAttr(conversationsListEl, 'hidden', !hasConvs);
+      patchAttr(convExpandBtn, 'hidden', !canCollapseConvs);
+      if (canCollapseConvs) {
+        patchText(
+          convExpandBtn,
+          convsExpanded
+            ? `收起至前 ${CONV_COLLAPSE_THRESHOLD} 个会话 ▴`
+            : `展开全部 ${sortedConvs.length} 个会话 ▾`
+        );
+      }
+
+      patchKeyedList(conversationsListEl, visibleConvs, {
+        keyFn: (c) => c.cascadeId,
+        sigFn: (c, idx) =>
+          `${idx}:${c.cascadeId}:${c.title}:${Boolean(c.isCurrent)}:${c.totalTokens}:${c.costUsd}:${c.unpricedCalls}:${c.calls}:${c.lastActivityMs}:${c.subagentCount}:${maxConvTok}:${convGrandTotalTok}`,
+        createRow: createConversationCompareRow,
+        updateRow: (refs, c, idx) =>
+          updateConversationCompareRow(refs, c, idx, convGrandTotalTok, maxConvTok),
+      });
+
       viewScrollbar.refresh();
     }
 
@@ -5296,6 +5800,7 @@ const ConsumptionView = defineComponent({
       unsub();
       unsubView();
       timeFilterSwitch.destroy();
+      convSortSwitch.destroy();
       startPicker.destroy();
       endPicker.destroy();
       viewScrollbar.destroy();

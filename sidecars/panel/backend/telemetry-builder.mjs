@@ -34,15 +34,19 @@ import {
   resolveModelInfo,
 } from './model-pricing.mjs';
 import { getCloudStatus } from './pricing-catalog.mjs';
-import { buildOfficialQuotaPools } from './quota-pools.mjs';
+import {
+  POOL_PRIORITY_ORDER,
+  buildOfficialQuotaPools,
+  resolveStepQuotaPoolKey,
+} from './quota-pools.mjs';
 import {
   aggregateMultiWindowUsage,
   buildScopedModelBreakdown,
   getNextMondayResetIso,
 } from './usage-aggregator.mjs';
+import { updateLedgerAndBuildSessionUsedQuota } from './quota-ledger.mjs';
 
 const MAX_RECENT_CONVERSATIONS = 30;
-const POOL_PRIORITY_ORDER = ['Gemini', 'Argon', 'Carbon', 'Claude & GPT'];
 
 function roundSessionCost(val) {
   if (!Number.isFinite(val) || val <= 0) return 0;
@@ -641,37 +645,8 @@ export async function buildTelemetryPayloadInternal(
     allCombinedEnrichedSteps.length > 0
       ? allCombinedEnrichedSteps[allCombinedEnrichedSteps.length - 1]
       : latestEnriched;
-  const hasResolvedStepModel = Boolean(
-    latestFamilyStep && latestFamilyStep.modelKey && latestFamilyStep.modelKey !== 'unknown'
-  );
-  const latestIsCarbon = hasResolvedStepModel
-    ? isCarbonModelIdentifier(
-        latestFamilyStep.modelKey,
-        latestFamilyStep.responseModel,
-        latestFamilyStep.modelUpstream,
-        latestFamilyStep.modelLabel
-      )
-    : false;
-  const latestIsArgon = hasResolvedStepModel
-    ? isArgonModelIdentifier(
-        latestFamilyStep.modelKey,
-        latestFamilyStep.responseModel,
-        latestFamilyStep.modelUpstream,
-        latestFamilyStep.modelLabel
-      )
-    : false;
-  const rawActiveFamily = latestFamilyStep?.family || 'Other';
-  const activePoolKey = !hasResolvedStepModel
-    ? 'Unknown'
-    : latestIsCarbon && quotaPoolsMap.has('Carbon')
-      ? 'Carbon'
-      : latestIsArgon && quotaPoolsMap.has('Argon')
-        ? 'Argon'
-        : rawActiveFamily === 'Gemini'
-          ? 'Gemini'
-          : ['Claude', 'GPT', 'Other'].includes(rawActiveFamily)
-            ? 'Claude & GPT'
-            : 'Unknown';
+  const activePoolKey =
+    resolveStepQuotaPoolKey(latestFamilyStep, dynamicModelMap, quotaPoolsMap) || 'Unknown';
   const matchedActivePool = quotaPoolsMap.get(activePoolKey) || null;
   const activeLive5h = matchedActivePool?.has5h
     ? {
@@ -709,7 +684,13 @@ export async function buildTelemetryPayloadInternal(
     weeklyResetMs: accountWeeklyResetMs || parseIsoMs(activeLiveWeekly?.resetTime),
   };
 
-  // 5. 多时间窗口聚合（预设窗口 + 当前选定窗口 + 趋势 + 月序列 + 来源与模型拆解）
+  // 5. 多时间窗口聚合（预设窗口 + 当前选定窗口 + 趋势 + 月序列 + 来源、模型与会话对比拆解）
+  const titleByCascadeId = new Map();
+  for (const c of conversations) {
+    if (c?.cascadeId && c?.title) {
+      titleByCascadeId.set(String(c.cascadeId).toLowerCase(), c.title);
+    }
+  }
   const {
     selectedWindow,
     trendStartMs,
@@ -719,6 +700,7 @@ export async function buildTelemetryPayloadInternal(
     finalizedPresets,
     trendSeries,
     sourcesBreakdown,
+    conversationsBreakdown,
     currentYear,
     monthlySeries,
     weekBucket,
@@ -729,6 +711,17 @@ export async function buildTelemetryPayloadInternal(
     currentAccountName,
     activeCascadeId,
     activeFamilyCascadeIds,
+    titleByCascadeId,
+    dynamicModelMap,
+  });
+
+  // 5.5 更新当前账号的会话级已使用配额台账，并构建当前活跃会话分分组已使用配额汇总
+  const sessionUsedQuotas = updateLedgerAndBuildSessionUsedQuota({
+    activeCascadeId,
+    activeFamilyCascadeIds,
+    currentAccountName,
+    quotaPoolsMap,
+    officialQuotaInfo,
     dynamicModelMap,
   });
 
@@ -1133,6 +1126,7 @@ export async function buildTelemetryPayloadInternal(
       presets: finalizedPresets,
       trendSeries,
       sourcesBreakdown,
+      conversationsBreakdown,
       monthlyYear: currentYear,
       monthlySeries,
     },
@@ -1145,6 +1139,7 @@ export async function buildTelemetryPayloadInternal(
         error: officialQuotaInfo?.error || null,
         errorMessage: officialQuotaInfo?.error || null,
       },
+      sessionUsed: sessionUsedQuotas,
       activePool: activePoolQuota,
       pools: Array.from(quotaPoolsMap.values()).sort((a, b) => {
         const order = { Gemini: 0, Argon: 1, Carbon: 2, 'Claude & GPT': 3 };
