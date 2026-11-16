@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
 import vm from 'node:vm';
 import * as metrics from '../speed-metrics.mjs';
 import { stripModuleSyntax } from '../scripts/build-bundle.mjs';
@@ -20,6 +21,8 @@ const BACKEND_MODULE_FILES = [
   '../backend/ls-rpc.mjs',
   '../backend/model-pricing.mjs',
   '../backend/quota-pools.mjs',
+  '../backend/protobuf-wire.mjs',
+  '../backend/sqlite-trajectory-reader.mjs',
   '../backend/local-scanner.mjs',
   '../backend/usage-aggregator.mjs',
   '../backend/telemetry-builder.mjs',
@@ -50,6 +53,9 @@ export function backendHarness({
   remoteCatalog=null,
   pluginManifest=null,
   hasGitDir=false,
+  gitConfigText=null,
+  homeDir='/test-home',
+  useRealSqlite=false,
   pluginRootPath=null,
   remoteFetch=null,
   execFileImpl=null,
@@ -59,9 +65,13 @@ export function backendHarness({
   const mainUrl = pluginRootPath ? `file://${pluginRootPath}/sidecars/panel/main.mjs` : 'file:///test/sidecars/panel/main.mjs';
   const mainPath = pluginRootPath ? `${pluginRootPath}/sidecars/panel/main.mjs` : '/test/sidecars/panel/main.mjs';
   const source = stripEsmSyntax(sourceText ?? loadCombinedBackendSource(), mainUrl);
-  const state={calls:[],errors:[],saves:[],trajectories,transcripts,transcriptMtimeMs:1,userStatus,quotaSummary,localCatalog,remoteCatalog,pluginManifest,hasGitDir,deepStats,deepStatsMtimeMs:1};
+  const state={calls:[],errors:[],saves:[],trajectories,transcripts,transcriptMtimeMs:1,userStatus,quotaSummary,localCatalog,remoteCatalog,pluginManifest,hasGitDir,gitConfigText,deepStats,deepStatsMtimeMs:1};
+  const normHomePrefix = String(homeDir).replace(/\\/g, '/').replace(/\/+$/, '');
+  const isRealSqlitePath = (normPath) =>
+    Boolean(useRealSqlite && normHomePrefix && normPath.startsWith(`${normHomePrefix}/`));
   const ctx={
-    ...metricsImplementation, URL, AbortSignal, Buffer,
+    ...metricsImplementation, URL, AbortSignal, Buffer, TextDecoder, setTimeout, clearTimeout,
+    ...(useRealSqlite ? { DatabaseSync, NodeDatabaseSync: DatabaseSync } : {}),
     process:{platform:'win32',env:{ANTIGRAVITY_EXECUTABLE_DATA_DIR:'/test-data',ANTIGRAVITY_LS_ADDRESS:'test.invalid',ANTIGRAVITY_CSRF_TOKEN:'test'}},
     console:{error:m=>state.errors.push(m)},
     cpSync:()=>{},
@@ -72,6 +82,7 @@ export function backendHarness({
     }),
     existsSync:p=>{
       const norm = String(p).replace(/\\/g, '/');
+      if (isRealSqlitePath(norm)) return fs.existsSync(p);
       if (norm.endsWith('settings.json') || norm.endsWith('trajectory_usage_cache.json')) return true;
       if (norm.endsWith('/antigravity/brain/.deep_stats_cache.json')) return Boolean(state.deepStats);
       if (norm.endsWith('pricing-catalog.json')) return Boolean(state.localCatalog);
@@ -81,12 +92,19 @@ export function backendHarness({
         const m = norm.match(/\/brain\/([^/]+)\/\.system_generated\/logs\/transcript\.jsonl$/i);
         return Boolean(m && state.transcripts?.[m[1]]);
       }
-      if (norm.endsWith('/.git')) return Boolean(state.hasGitDir);
+      if (norm.endsWith('/.git/config')) return Boolean(state.gitConfigText);
+      if (norm.endsWith('/.git')) return Boolean(state.hasGitDir || state.gitConfigText);
       return false;
     },
-    mkdirSync:()=>{},readdirSync:()=>[],
+    mkdirSync:()=>{},
+    readdirSync:p=>{
+      const norm = String(p).replace(/\\/g, '/');
+      if (isRealSqlitePath(norm)) return fs.readdirSync(p);
+      return [];
+    },
     statSync:p=>{
       const norm = String(p).replace(/\\/g, '/');
+      if (isRealSqlitePath(norm)) return fs.statSync(p);
       if (norm.endsWith('/.system_generated/logs/transcript.jsonl')) {
         const m = norm.match(/\/brain\/([^/]+)\/\.system_generated\/logs\/transcript\.jsonl$/i);
         const lines = m && state.transcripts?.[m[1]];
@@ -102,6 +120,8 @@ export function backendHarness({
     },
     readFileSync:p=>{
       const norm = String(p).replace(/\\/g, '/');
+      if (isRealSqlitePath(norm)) return fs.readFileSync(p, 'utf8');
+      if (norm.endsWith('/.git/config') && state.gitConfigText) return String(state.gitConfigText);
       if (norm.endsWith('/.system_generated/logs/transcript.jsonl')) {
         const m = norm.match(/\/brain\/([^/]+)\/\.system_generated\/logs\/transcript\.jsonl$/i);
         const lines = m && state.transcripts?.[m[1]];
@@ -122,7 +142,7 @@ export function backendHarness({
         state.remoteCatalog = parsed;
       }
     },
-    homedir:()=>'/test-home',dirname:path.dirname,join:path.join,basename:path.basename,fileURLToPath:()=>mainPath,
+    homedir:()=>homeDir,dirname:path.dirname,join:path.join,basename:path.basename,fileURLToPath:()=>mainPath,
     Response:class {constructor(body,options){this.body=body;this.options=options;}},
     SidecarApp:class {page(){} api(){} run(){}},
     fetch:async(url,options={})=>{

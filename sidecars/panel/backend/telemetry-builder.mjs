@@ -17,6 +17,10 @@ import {
   summarizeTtft,
 } from '../speed-metrics.mjs';
 import {
+  CLI_CONVERSATIONS_DIR,
+  CONVERSATIONS_DIR,
+  LS_ADDR,
+  SUMMARIES_DB_FILE,
   computeRuntimeCodeVersion,
   inFlightRequests,
   loadSettings,
@@ -36,6 +40,10 @@ import {
 import { getCloudStatus } from './pricing-catalog.mjs';
 import { buildOfficialQuotaPools } from './quota-pools.mjs';
 import {
+  discoverSqliteConversationFiles,
+  readSqliteConversationSummaries,
+} from './sqlite-trajectory-reader.mjs';
+import {
   aggregateMultiWindowUsage,
   buildScopedModelBreakdown,
   getNextMondayResetIso,
@@ -43,6 +51,8 @@ import {
 
 const MAX_RECENT_CONVERSATIONS = 30;
 const POOL_PRIORITY_ORDER = ['Gemini', 'Argon', 'Carbon', 'Claude & GPT'];
+const stepsUpstreamPairsMemo = new WeakMap();
+let lastKnownUserStatus = null;
 
 function roundSessionCost(val) {
   if (!Number.isFinite(val) || val <= 0) return 0;
@@ -67,10 +77,21 @@ function findTrajectoryCacheEntry(cascadeId) {
 function buildKnownUpstreamModelMap() {
   const knownUpstreamByModelKey = new Map();
   for (const entry of Object.values(trajectoryCache)) {
-    for (const s of entry?.steps || []) {
-      if (s?.modelKey && s.modelKey !== 'unknown' && s.responseModel) {
-        knownUpstreamByModelKey.set(s.modelKey, s.responseModel);
+    const steps = entry?.steps;
+    if (!Array.isArray(steps) || steps.length === 0) continue;
+    let pairs = stepsUpstreamPairsMemo.get(steps);
+    if (!pairs) {
+      const localMap = new Map();
+      for (const s of steps) {
+        if (s?.modelKey && s.modelKey !== 'unknown' && s.responseModel) {
+          localMap.set(s.modelKey, s.responseModel);
+        }
       }
+      pairs = Array.from(localMap.entries());
+      stepsUpstreamPairsMemo.set(steps, pairs);
+    }
+    for (const [mk, rm] of pairs) {
+      knownUpstreamByModelKey.set(mk, rm);
     }
   }
   return knownUpstreamByModelKey;
@@ -390,13 +411,28 @@ export async function buildTelemetryPayloadInternal(
   filterOpts = {}
 ) {
   const settings = loadSettings();
+  const sqliteSummariesRes = readSqliteConversationSummaries({
+    summariesDbPath: SUMMARIES_DB_FILE,
+    forceRefresh: forceQuotaRefresh,
+  });
+  const sqliteDiskFiles = discoverSqliteConversationFiles({
+    conversationsDirs: [CONVERSATIONS_DIR, CLI_CONVERSATIONS_DIR],
+    forceScan: forceQuotaRefresh,
+  });
+  const useSqliteDirect = Boolean(
+    sqliteSummariesRes.available || sqliteDiskFiles.size > 0 || LS_ADDR !== 'test.invalid'
+  );
+
   const [userStatusRes, allTrajRes, initialOfficialQuotaInfo] = await Promise.all([
-    callLsRpc('GetUserStatus', {}).catch(() => ({})),
-    callLsRpc('GetAllCascadeTrajectories', {}).catch(() => ({})),
+    callLsRpc('GetUserStatus', {}).catch(() => null),
+    useSqliteDirect ? Promise.resolve(null) : callLsRpc('GetAllCascadeTrajectories', {}).catch(() => ({})),
     getOfficialQuotaSummary(forceQuotaRefresh),
   ]);
 
-  const userStatus = userStatusRes?.userStatus || {};
+  if (userStatusRes?.userStatus) {
+    lastKnownUserStatus = userStatusRes.userStatus;
+  }
+  const userStatus = userStatusRes?.userStatus || lastKnownUserStatus || {};
   const currentAccountName = userStatus?.email || userStatus?.name || '';
   let officialQuotaInfo = initialOfficialQuotaInfo;
 
@@ -431,10 +467,15 @@ export async function buildTelemetryPayloadInternal(
     clientConfigs
   );
 
-  // 2. 枚举本地与 LS 会话，并增量同步历史轨迹步骤
+  // 2. 枚举本地 SQLite（或沙箱模拟）会话，并增量同步历史轨迹步骤
   const { conversations, activeConvSummary, activeCascadeId } =
     await enumerateAndSyncConversations({
-      summariesObj: allTrajRes?.trajectorySummaries || {},
+      summariesObj: useSqliteDirect
+        ? sqliteSummariesRes.summaries
+        : allTrajRes?.trajectorySummaries || {},
+      sideQuestionParents: useSqliteDirect ? sqliteSummariesRes.sideQuestionParents : {},
+      sqliteFilesMap: useSqliteDirect ? sqliteDiskFiles : null,
+      useSqliteDirect,
       currentAccountName,
       requestedConvId,
       forceRefresh: forceQuotaRefresh,
@@ -487,6 +528,8 @@ export async function buildTelemetryPayloadInternal(
   let totalFamilyInputTokens = sessionInputTokens;
   let totalFamilyCacheReadTokens = sessionCacheReadTokens;
 
+  let normalSubCount = 0;
+  let sideQuestionCount = 0;
   for (let idx = 0; idx < subagentSummaries.length; idx++) {
     const subSum = subagentSummaries[idx];
     const subCid = subSum.cascadeId;
@@ -496,13 +539,34 @@ export async function buildTelemetryPayloadInternal(
     allCombinedRawSteps.push(...subRawSteps);
 
     const subSpec = subSum.subagentSpec || subEntry?.subagentSpec || null;
+    const isSideQ = Boolean(
+      subSum.isSideQuestion || subEntry?.isSideQuestion || subSpec?.typeName === 'side_question'
+    );
     const rawRole =
       subSpec?.role || subSum.agentScriptName || subEntry?.agentScriptName || subSpec?.typeName || '';
     const subIndex = idx + 1;
-    const shortLabel = `子代理 #${subIndex}`;
-    const badgeText = `子${subIndex}`;
-    const roleLabel = rawRole || '子代理';
-    const typeName = subSpec?.typeName || '';
+    let shortLabel = '';
+    let badgeText = '';
+    let roleLabel = '';
+    let typeName = '';
+    let agentLabel = '';
+    if (isSideQ) {
+      const sideIdx = ++sideQuestionCount;
+      shortLabel = `旁路提问 #${sideIdx}`;
+      badgeText = `旁${sideIdx}`;
+      const cleanSideRole =
+        rawRole && rawRole !== '旁路提问' && rawRole !== 'side_question' ? rawRole : '';
+      roleLabel = cleanSideRole || '旁路提问';
+      typeName = 'side_question';
+      agentLabel = cleanSideRole ? `${shortLabel} · ${cleanSideRole}` : shortLabel;
+    } else {
+      const subOrd = ++normalSubCount;
+      shortLabel = `子代理 #${subOrd}`;
+      badgeText = `子${subOrd}`;
+      roleLabel = rawRole || '子代理';
+      typeName = subSpec?.typeName || '';
+      agentLabel = rawRole ? `${shortLabel} · ${rawRole}` : shortLabel;
+    }
 
     const subUnit = buildAgentUnitTelemetry({
       agentId: subCid,
@@ -513,7 +577,7 @@ export async function buildTelemetryPayloadInternal(
       badgeText,
       role: roleLabel,
       typeName,
-      agentLabel: rawRole ? `${shortLabel} · ${rawRole}` : shortLabel,
+      agentLabel,
       status: subSum.status || 'IDLE',
       rawSteps: subRawSteps,
       liveActivity: subSum.liveActivity || null,
@@ -522,6 +586,7 @@ export async function buildTelemetryPayloadInternal(
       knownUpstreamByModelKey,
       includeRecentSteps: true,
     });
+    subUnit.telemetryUnit.isSideQuestion = isSideQ;
 
     allCombinedEnrichedSteps.push(...subUnit.taggedSteps);
     totalRawSessionCostUsd += subUnit.enrichedRes.sessionCostUsd;
@@ -569,6 +634,25 @@ export async function buildTelemetryPayloadInternal(
             .sort((a, b) => (b.lastModifiedMs || 0) - (a.lastModifiedMs || 0))[0] ||
           latestActiveAgent;
 
+    // 汇总视图上下文进度条始终锁定主线（主代理与非旁问子代理），防止旁路提问抽屉覆盖主会话上下文水位
+    const mainlineAgents = allAgents.filter((a) => !a.isSideQuestion);
+    const mainlineWithSteps = mainlineAgents.filter((a) => a.stepCount > 0);
+    const contextMetricAgent =
+      !latestMetricAgent.isSideQuestion
+        ? latestMetricAgent
+        : mainlineWithSteps.find((a) => a.isRunning) ||
+          mainlineWithSteps
+            .slice()
+            .sort((a, b) => (b.lastModifiedMs || 0) - (a.lastModifiedMs || 0))[0] ||
+          mainAgentTelemetry;
+
+    const aggregatedRoleLabel =
+      normalSubCount > 0 && sideQuestionCount > 0
+        ? `主代理 + ${normalSubCount} 子代理 + ${sideQuestionCount} 旁问`
+        : sideQuestionCount > 0
+          ? `主代理 + ${sideQuestionCount} 旁路提问`
+          : `主代理 + ${subAgentTelemetries.length} 子代理`;
+
     const totalCostUsd = roundSessionCost(totalRawSessionCostUsd);
     const totalUnpricedCalls = allAgents.reduce(
       (sum, a) => sum + (a.sessionUnpricedCalls || 0),
@@ -606,7 +690,7 @@ export async function buildTelemetryPayloadInternal(
       index: -1,
       shortLabel: '全部汇总',
       badgeText: '全部',
-      role: `主代理 + ${subAgentTelemetries.length} 子代理`,
+      role: aggregatedRoleLabel,
       typeName: 'all',
       activeAgentId: latestActiveAgent.agentId,
       activeAgentShortLabel: latestActiveAgent.shortLabel,
@@ -630,7 +714,7 @@ export async function buildTelemetryPayloadInternal(
       activeModelShort: latestMetricAgent.activeModelShort,
       activeModelLabel: latestMetricAgent.activeModelLabel,
       activeModelUpstream: latestMetricAgent.activeModelUpstream,
-      context: latestMetricAgent.context,
+      context: contextMetricAgent.context,
       modelBreakdown: combinedModelBreakdown,
       lastModifiedMs: latestActiveAgent.lastModifiedMs,
     };
@@ -938,10 +1022,15 @@ export async function buildTelemetryPayloadInternal(
     const rootFallbackMs =
       rootConv.lastModifiedMs || rootEntry?.lastModifiedMs || rootConv.createdTimeMs || 0;
 
+    let runNormalSubIdx = 0;
+    let runSideIdx = 0;
     const subItems = rawSubs.map((subSum, idx) => {
       const subCid = subSum.cascadeId;
       const subEntry = findTrajectoryCacheEntry(subCid);
       const subSpec = subSum.subagentSpec || subEntry?.subagentSpec || null;
+      const isSideQ = Boolean(
+        subSum.isSideQuestion || subEntry?.isSideQuestion || subSpec?.typeName === 'side_question'
+      );
       const rawRole =
         subSpec?.role ||
         subSum.agentScriptName ||
@@ -949,9 +1038,22 @@ export async function buildTelemetryPayloadInternal(
         subSpec?.typeName ||
         '';
       const subIndex = idx + 1;
-      const badgeText = `子${subIndex}`;
-      const shortLabel = `子代理 #${subIndex}`;
-      const role = rawRole || shortLabel;
+      let badgeText = '';
+      let shortLabel = '';
+      let role = '';
+      if (isSideQ) {
+        const sOrd = ++runSideIdx;
+        badgeText = `旁${sOrd}`;
+        shortLabel = `旁路提问 #${sOrd}`;
+        const cleanSide =
+          rawRole && rawRole !== '旁路提问' && rawRole !== 'side_question' ? rawRole : '';
+        role = cleanSide || shortLabel;
+      } else {
+        const nOrd = ++runNormalSubIdx;
+        badgeText = `子${nOrd}`;
+        shortLabel = `子代理 #${nOrd}`;
+        role = rawRole || shortLabel;
+      }
       const isSubRunning = subSum.status === 'CASCADE_RUN_STATUS_RUNNING';
       const stepCount = Number(subSum.stepCount ?? subEntry?.steps?.length ?? 0);
       const subModMs = subSum.lastModifiedMs || subEntry?.lastModifiedMs || 0;

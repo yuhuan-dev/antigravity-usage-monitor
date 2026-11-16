@@ -18,18 +18,23 @@ import {
 } from '../speed-metrics.mjs';
 import {
   BRAIN_DIR,
-  CACHE_FILE,
   CACHE_SCHEMA_VERSION,
+  CLI_CONVERSATIONS_DIR,
   CONVERSATIONS_DIR,
   DEEP_STATS_CACHE_CANDIDATES,
   cacheState,
   externalDeepStatsMemo,
   loadJson,
-  saveJson,
+  persistTrajectoryCacheIfNeeded,
   trajectoryCache,
 } from './config.mjs';
 import { callLsRpc } from './ls-rpc.mjs';
 import { formatGenericModelSlug, getBaseModelLabel } from './model-pricing.mjs';
+import {
+  discoverSqliteConversationFiles,
+  readSqliteCascadeTrajectory,
+  statSqliteConversationFile,
+} from './sqlite-trajectory-reader.mjs';
 
 /**
  * 扫描本地 `conversations` 目录，返回 `cascadeId -> 最新磁盘修改时间 (mtimeMs)` 映射表。
@@ -505,6 +510,10 @@ function extractTrajectorySubagentMeta(trajRes, fallback = {}) {
  */
 export async function enumerateAndSyncConversations({
   summariesObj = {},
+  sideQuestionParents = {},
+  sqliteFilesMap = null,
+  useSqliteDirect = false,
+  conversationsDirs = null,
   currentAccountName = '',
   requestedConvId = '',
   forceRefresh = false,
@@ -523,7 +532,54 @@ export async function enumerateAndSyncConversations({
   }
 
   let cacheDirty = cacheState.needsSave;
-  const diskConvMap = discoverLocalConversationFiles();
+  const reqLower = String(requestedConvId || '').trim().toLowerCase();
+  const convDirs = conversationsDirs || [CONVERSATIONS_DIR, CLI_CONVERSATIONS_DIR];
+  const diskFiles = useSqliteDirect
+    ? sqliteFilesMap ||
+      discoverSqliteConversationFiles({
+        conversationsDirs: convDirs,
+        forceScan: forceRefresh,
+        nowMs: nowSweepMs,
+      })
+    : null;
+
+  if (useSqliteDirect && diskFiles) {
+    const refreshTargets = new Set();
+    if (reqLower) refreshTargets.add(reqLower);
+    for (const [rawId, item] of Object.entries(summariesObj || {})) {
+      const lower = String(rawId || '').trim().toLowerCase();
+      if (!lower) continue;
+      const cached = trajectoryCache[lower] || trajectoryCache[rawId];
+      if (
+        item?.status === 'CASCADE_RUN_STATUS_RUNNING' ||
+        item?.notFullyIdle ||
+        !diskFiles.has(lower) ||
+        Number(item?.stepCount || 0) !== Number(cached?.rawStepCount ?? -1)
+      ) {
+        refreshTargets.add(lower);
+      }
+    }
+    for (const sqLower of Object.keys(sideQuestionParents || {})) {
+      if (!diskFiles.has(sqLower)) {
+        refreshTargets.add(sqLower);
+      }
+    }
+    for (const [cacheKey, entry] of Object.entries(trajectoryCache)) {
+      if (entry?.wasRunning) {
+        refreshTargets.add(String(cacheKey || '').trim().toLowerCase());
+      }
+    }
+    for (const targetCid of refreshTargets) {
+      const refreshed = statSqliteConversationFile(targetCid, { conversationsDirs: convDirs });
+      if (refreshed) {
+        diskFiles.set(targetCid, refreshed);
+      }
+    }
+  }
+
+  const diskConvMap = useSqliteDirect
+    ? new Map(Array.from(diskFiles.entries(), ([cid, info]) => [cid, info.mtimeMs || 0]))
+    : discoverLocalConversationFiles();
 
   // 构建大小写不敏感索引，将同一会话的不同大小写键合并至唯一规范键（优先保留 summariesObj 中的原始键以兼容 RPC）
   const canonicalIdByLower = new Map();
@@ -584,7 +640,6 @@ export async function enumerateAndSyncConversations({
     }
   }
 
-  const reqLower = String(requestedConvId || '').trim().toLowerCase();
   const rawConversations = [];
   for (const [cidLower, cascadeId] of canonicalIdByLower.entries()) {
     const item = summariesByLower.get(cidLower);
@@ -598,20 +653,43 @@ export async function enumerateAndSyncConversations({
       continue;
     }
     const diskMtimeMs = diskConvMap.get(cidLower) || 0;
+    const fileInfo = diskFiles ? diskFiles.get(cidLower) : null;
+    const dbPath = fileInfo?.dbPath || '';
+    const diskFileSig = fileInfo?.sig || '';
+    const appSource =
+      fileInfo?.appSource ||
+      (item?.source === 'CORTEX_TRAJECTORY_SOURCE_CLI'
+        ? 'cli'
+        : cached?.appSource || 'standalone');
+    const sqParentInfo = sideQuestionParents?.[cidLower] || null;
+    const isSideQuestion = Boolean(
+      sqParentInfo || cached?.isSideQuestion || cached?.subagentSpec?.typeName === 'side_question'
+    );
     const rawMeta = item?.trajectoryMetadata || item?.metadata || {};
     const parentConversationId = String(
-      rawMeta.parentConversationId || cached?.parentConversationId || ''
+      rawMeta.parentConversationId ||
+        sqParentInfo?.parentConversationId ||
+        cached?.parentConversationId ||
+        ''
     ).toLowerCase();
-    const rootConversationId = String(
-      rawMeta.rootConversationId || cached?.rootConversationId || parentConversationId || ''
-    ).toLowerCase();
-    const subagentSpec = mergeSubagentSpecs(rawMeta.subagentSpec, cached?.subagentSpec);
+    const rawRootCid = String(rawMeta.rootConversationId || '').trim().toLowerCase();
+    const cachedRootCid = String(cached?.rootConversationId || '').trim().toLowerCase();
+    const rootConversationId =
+      (rawRootCid && rawRootCid !== cidLower ? rawRootCid : '') ||
+      (cachedRootCid && cachedRootCid !== cidLower ? cachedRootCid : '') ||
+      parentConversationId ||
+      '';
+    const primarySpec = isSideQuestion
+      ? { typeName: 'side_question', role: sqParentInfo?.title || '' }
+      : rawMeta.subagentSpec;
+    const subagentSpec = mergeSubagentSpecs(primarySpec, cached?.subagentSpec);
     const agentScriptName = rawMeta.agentScript?.name || cached?.agentScriptName || '';
     const createdTimeMs =
       parseIsoMs(item?.createdTime || rawMeta?.createdAt) || cached?.createdTimeMs || 0;
     const spawnOrder = Number.isFinite(cached?.spawnOrder) ? cached.spawnOrder : null;
     const subagentRefs = Array.isArray(cached?.subagentRefs) ? cached.subagentRefs : null;
     const isSubagent =
+      isSideQuestion ||
       Boolean(parentConversationId) ||
       Boolean(rootConversationId && rootConversationId !== cidLower);
 
@@ -633,8 +711,12 @@ export async function enumerateAndSyncConversations({
         lastModifiedTime,
         lastModifiedMs,
         diskMtimeMs,
+        dbPath,
+        diskFileSig,
+        appSource,
         inSummaries: true,
         isSubagent,
+        isSideQuestion,
         parentConversationId,
         rootConversationId,
         subagentSpec,
@@ -648,15 +730,22 @@ export async function enumerateAndSyncConversations({
       const cachedStepCount = Number(cached.steps?.length || 0);
       rawConversations.push({
         cascadeId,
-        title: cached.title || cascadeId.slice(0, 8),
+        title:
+          sqParentInfo?.title ||
+          cached.title ||
+          (isSideQuestion ? '旁路提问' : cascadeId.slice(0, 8)),
         stepCount: cachedStepCount,
-        rawStepCount: cachedStepCount,
+        rawStepCount: Number.isFinite(cached.rawStepCount) ? cached.rawStepCount : cachedStepCount,
         status: 'IDLE',
         lastModifiedTime: '',
         lastModifiedMs: Math.max(cached.lastModifiedMs || 0, lastStepMs, diskMtimeMs),
         diskMtimeMs,
+        dbPath,
+        diskFileSig,
+        appSource,
         inSummaries: false,
         isSubagent,
+        isSideQuestion,
         parentConversationId,
         rootConversationId,
         subagentSpec,
@@ -668,19 +757,23 @@ export async function enumerateAndSyncConversations({
     } else {
       rawConversations.push({
         cascadeId,
-        title: cascadeId.slice(0, 8),
+        title: sqParentInfo?.title || (isSideQuestion ? '旁路提问' : cascadeId.slice(0, 8)),
         stepCount: 0,
         rawStepCount: 0,
         status: 'IDLE',
         lastModifiedTime: '',
         lastModifiedMs: diskMtimeMs,
         diskMtimeMs,
+        dbPath,
+        diskFileSig,
+        appSource,
         inSummaries: false,
         needsInitialLoad: true,
-        isSubagent: false,
-        parentConversationId: '',
-        rootConversationId: '',
-        subagentSpec: null,
+        isSubagent,
+        isSideQuestion,
+        parentConversationId,
+        rootConversationId,
+        subagentSpec,
         agentScriptName: '',
         createdTimeMs: 0,
         spawnOrder: null,
@@ -695,6 +788,13 @@ export async function enumerateAndSyncConversations({
   const nowPollMs = Date.now();
 
   function buildConvSig(conv) {
+    if (useSqliteDirect) {
+      if (conv.dbPath) {
+        return `${CACHE_SCHEMA_VERSION}:sqlite:${conv.rawStepCount ?? conv.stepCount}:${conv.lastModifiedTime || ''}:${conv.diskFileSig || Math.floor(conv.diskMtimeMs || 0)}`;
+      }
+      const cachedSig = trajectoryCache[conv.cascadeId]?.signature;
+      if (cachedSig) return cachedSig;
+    }
     return conv.inSummaries
       ? `${CACHE_SCHEMA_VERSION}:${conv.rawStepCount ?? conv.stepCount}:${conv.lastModifiedTime}`
       : `${CACHE_SCHEMA_VERSION}:disk:${Math.floor(conv.diskMtimeMs || conv.lastModifiedMs || 0)}`;
@@ -759,12 +859,17 @@ export async function enumerateAndSyncConversations({
           let partialTailSteps = [];
           let hasTailStepInfo = false;
           try {
-            const trajRes = await callLsRpc('GetCascadeTrajectory', { cascadeId: conv.cascadeId });
+            const trajRes = useSqliteDirect
+              ? readSqliteCascadeTrajectory(conv.cascadeId, {
+                  dbPath: conv.dbPath,
+                  isRunning,
+                })
+              : await callLsRpc('GetCascadeTrajectory', { cascadeId: conv.cascadeId });
             if (!Array.isArray(trajRes?.trajectory?.steps)) {
               throw new Error('Trajectory steps unavailable');
             }
             const rawSteps = trajRes.trajectory.steps;
-            if (Number(trajRes.numTotalSteps) > rawSteps.length) {
+            if (!useSqliteDirect && Number(trajRes.numTotalSteps) > rawSteps.length) {
               if (rawSteps.length > 0) {
                 partialTailSteps = rawSteps;
                 const tailIdx =
@@ -778,19 +883,69 @@ export async function enumerateAndSyncConversations({
             const steps = extractModelSteps(rawSteps, generatorMeta);
             const nextLast = steps[steps.length - 1];
 
-            // 提取轨迹内携带的子代理归属元数据与派生的子代理引用列表
+            // 提取轨迹内携带的子代理归属元数据、旁路提问父归属与派生的子代理引用列表
+            const cidLower = conv.cascadeId.toLowerCase();
+            const sqParentInfo = sideQuestionParents?.[cidLower] || null;
             const extractedMeta = extractTrajectorySubagentMeta(trajRes, conv);
-            conv.parentConversationId = extractedMeta.parentConversationId;
-            conv.rootConversationId = extractedMeta.rootConversationId;
-            conv.subagentSpec = extractedMeta.subagentSpec;
-            conv.agentScriptName = extractedMeta.agentScriptName;
-            conv.createdTimeMs = extractedMeta.createdTimeMs;
-            conv.isSubagent =
-              Boolean(conv.parentConversationId) ||
-              Boolean(
-                conv.rootConversationId &&
-                  conv.rootConversationId !== conv.cascadeId.toLowerCase()
-              );
+            const detectedSideQuestion = Boolean(
+              trajRes?.isSideQuestion || conv.isSideQuestion || sqParentInfo
+            );
+            if (detectedSideQuestion) {
+              const parentCid = String(
+                sqParentInfo?.parentConversationId ||
+                  trajRes?.forkParentConversationId ||
+                  extractedMeta.parentConversationId ||
+                  conv.parentConversationId ||
+                  ''
+              )
+                .trim()
+                .toLowerCase();
+              const sqTitle = String(
+                sqParentInfo?.title ||
+                  trajRes?.firstOwnUserPrompt ||
+                  (prev?.isSideQuestion ? prev?.title : '') ||
+                  ''
+              ).trim();
+              conv.isSideQuestion = true;
+              conv.parentConversationId = parentCid;
+              const extRoot = String(extractedMeta.rootConversationId || '').trim().toLowerCase();
+              const prevConvRoot = String(conv.rootConversationId || '').trim().toLowerCase();
+              conv.rootConversationId =
+                (extRoot && extRoot !== cidLower ? extRoot : '') ||
+                (prevConvRoot && prevConvRoot !== cidLower ? prevConvRoot : '') ||
+                parentCid ||
+                '';
+              conv.title = sqTitle || '旁路提问';
+              conv.subagentSpec = {
+                typeName: 'side_question',
+                role: sqTitle || '旁路提问',
+              };
+              conv.agentScriptName = '';
+              conv.createdTimeMs =
+                extractedMeta.createdTimeMs || steps[0]?.createdAtMs || conv.createdTimeMs || 0;
+              conv.isSubagent = Boolean(conv.parentConversationId || conv.rootConversationId);
+            } else {
+              conv.parentConversationId = extractedMeta.parentConversationId;
+              conv.rootConversationId = extractedMeta.rootConversationId;
+              conv.subagentSpec = extractedMeta.subagentSpec;
+              conv.agentScriptName = extractedMeta.agentScriptName;
+              conv.createdTimeMs = extractedMeta.createdTimeMs;
+              conv.isSubagent =
+                Boolean(conv.parentConversationId) ||
+                Boolean(
+                  conv.rootConversationId && conv.rootConversationId !== cidLower
+                );
+              if (
+                !conv.inSummaries &&
+                trajRes?.firstOwnUserPrompt &&
+                (!conv.title || conv.title === conv.cascadeId.slice(0, 8))
+              ) {
+                conv.title = trajRes.firstOwnUserPrompt;
+              }
+            }
+            if (useSqliteDirect && Number.isFinite(trajRes?.rawTableStepCount) && !conv.inSummaries) {
+              conv.rawStepCount = trajRes.rawTableStepCount;
+            }
 
             const subagentRefs = extractSubagentRefsFromSteps(rawSteps);
             conv.subagentRefs = subagentRefs;
@@ -799,6 +954,7 @@ export async function enumerateAndSyncConversations({
             const resolvedLastModMs = Math.max(conv.lastModifiedMs || 0, lastStepMs);
             conv.lastModifiedMs = resolvedLastModMs;
             conv.stepCount = steps.length;
+            const finalSig = buildConvSig(conv);
 
             const liveAct = resolveBestLiveActivity(
               conv.cascadeId,
@@ -815,15 +971,23 @@ export async function enumerateAndSyncConversations({
             }
 
             const cacheEntry = {
-              signature: sig,
+              signature: finalSig,
               accountName: prev?.accountName || currentAccountName || '',
               title: conv.title,
               lastModifiedMs: resolvedLastModMs,
               diskMtimeMs: conv.diskMtimeMs || 0,
+              rawStepCount: conv.rawStepCount ?? steps.length,
               wasRunning: isRunning,
               steps,
               subagentRefs,
             };
+            if (conv.diskFileSig) cacheEntry.diskFileSig = conv.diskFileSig;
+            if (conv.appSource && conv.appSource !== 'standalone') {
+              cacheEntry.appSource = conv.appSource;
+            }
+            if (conv.isSideQuestion) {
+              cacheEntry.isSideQuestion = true;
+            }
             if (conv.isSubagent) {
               cacheEntry.parentConversationId = conv.parentConversationId;
               cacheEntry.rootConversationId = conv.rootConversationId;
@@ -836,10 +1000,11 @@ export async function enumerateAndSyncConversations({
             const metaChanged =
               !Array.isArray(prev?.subagentRefs) ||
               JSON.stringify(prev?.subagentRefs) !== JSON.stringify(subagentRefs) ||
-              (prev?.rootConversationId || '') !== (cacheEntry.rootConversationId || '');
+              (prev?.rootConversationId || '') !== (cacheEntry.rootConversationId || '') ||
+              Boolean(prev?.isSideQuestion) !== Boolean(cacheEntry.isSideQuestion);
             const stepsChanged =
               !prev ||
-              prev.signature !== sig ||
+              prev.signature !== finalSig ||
               Boolean(prev.wasRunning) !== isRunning ||
               metaChanged ||
               JSON.stringify(prev.steps) !== JSON.stringify(steps);
@@ -885,6 +1050,7 @@ export async function enumerateAndSyncConversations({
 
   // 阶段 1：拉取常规新增/变更会话，以及摘要列表中尚未提取 subagentRefs 的会话
   const toFetch = rawConversations.filter((conv) => {
+    if (useSqliteDirect && !conv.dbPath) return false;
     const sig = buildConvSig(conv);
     if (isFetchInCooldown(conv, sig)) return false;
     const cached = trajectoryCache[conv.cascadeId];
@@ -893,9 +1059,15 @@ export async function enumerateAndSyncConversations({
       `${CACHE_SCHEMA_VERSION}:`
     );
     if (!hasCurrentSchema) return true;
+    if (useSqliteDirect && !String(cached.signature || '').startsWith(`${CACHE_SCHEMA_VERSION}:sqlite:`)) {
+      return true;
+    }
     if (hasMissingStepFields(cached)) return true;
     const missingSubagentRefs = !Array.isArray(cached.subagentRefs);
     if (!conv.inSummaries) {
+      if (useSqliteDirect) {
+        return cached.signature !== sig;
+      }
       if (missingSubagentRefs && conv.cascadeId.toLowerCase() === reqLower) {
         return true;
       }
@@ -941,7 +1113,13 @@ export async function enumerateAndSyncConversations({
           let subConv = byLowerId.get(subCid);
           const subCached = trajectoryCache[subConv?.cascadeId || canonSubId];
           if (!subConv) {
-            const diskMtimeMs = diskConvMap.get(subCid) || 0;
+            const subFileInfo = diskFiles
+              ? diskFiles.get(subCid) || statSqliteConversationFile(subCid, { conversationsDirs: convDirs })
+              : null;
+            if (subFileInfo && diskFiles) {
+              diskFiles.set(subCid, subFileInfo);
+            }
+            const diskMtimeMs = subFileInfo?.mtimeMs || diskConvMap.get(subCid) || 0;
             const lastStepMs = subCached?.steps?.[subCached.steps.length - 1]?.createdAtMs || 0;
             const stepCount = Number(subCached?.steps?.length || 0);
             subConv = {
@@ -958,9 +1136,13 @@ export async function enumerateAndSyncConversations({
                 ref.createdTimeMs || 0
               ),
               diskMtimeMs,
+              dbPath: subFileInfo?.dbPath || '',
+              diskFileSig: subFileInfo?.sig || '',
+              appSource: subFileInfo?.appSource || subCached?.appSource || 'standalone',
               inSummaries: false,
               needsInitialLoad: !subCached,
               isSubagent: true,
+              isSideQuestion: false,
               parentConversationId: parentId,
               rootConversationId: rootId,
               subagentSpec: mergeSubagentSpecs(ref, subCached?.subagentSpec),
@@ -991,7 +1173,11 @@ export async function enumerateAndSyncConversations({
           const existingSubCache = trajectoryCache[targetCacheKey];
           const hasValidSubCache =
             existingSubCache &&
-            String(existingSubCache.signature || '').startsWith(`${CACHE_SCHEMA_VERSION}:`) &&
+            String(existingSubCache.signature || '').startsWith(
+              useSqliteDirect && subConv.dbPath
+                ? `${CACHE_SCHEMA_VERSION}:sqlite:`
+                : `${CACHE_SCHEMA_VERSION}:`
+            ) &&
             !hasMissingStepFields(existingSubCache);
 
           if (hasValidSubCache) {
@@ -1033,7 +1219,7 @@ export async function enumerateAndSyncConversations({
             if (subMetaUpdated) {
               cacheDirty = true;
             }
-          } else {
+          } else if (!useSqliteDirect || subConv.dbPath) {
             const subSig = buildConvSig(subConv);
             if (!attemptedFetchIds.has(subCid) && !isFetchInCooldown(subConv, subSig)) {
               missingSubagentsToFetch.push(subConv);
@@ -1052,6 +1238,7 @@ export async function enumerateAndSyncConversations({
   // 阶段 3：对剩余尚未标记 subagentRefs 的纯磁盘历史会话每次增量迁移最多 8 个，避免单次轮询阻塞
   const remainingLegacyDiskConvs = rawConversations
     .filter((c) => {
+      if (useSqliteDirect && !c.dbPath) return false;
       const sig = buildConvSig(c);
       if (attemptedFetchIds.has(c.cascadeId.toLowerCase()) || isFetchInCooldown(c, sig)) {
         return false;
@@ -1072,6 +1259,9 @@ export async function enumerateAndSyncConversations({
     if (!conv.isSubagent) continue;
     const cid = conv.cascadeId.toLowerCase();
     let candidate = (conv.rootConversationId || conv.parentConversationId || '').toLowerCase();
+    if (candidate === cid) {
+      candidate = (conv.parentConversationId || '').toLowerCase();
+    }
     const visited = new Set([cid]);
     while (candidate && !visited.has(candidate)) {
       visited.add(candidate);
@@ -1095,11 +1285,14 @@ export async function enumerateAndSyncConversations({
     }
   }
 
-  if (cacheDirty) {
-    cacheState.needsSave = !saveJson(CACHE_FILE, trajectoryCache);
+  const hasAnyRunningSession = rawConversations.some(
+    (c) => c.status === 'CASCADE_RUN_STATUS_RUNNING'
+  );
+  if (cacheDirty || (cacheState.needsSave && !hasAnyRunningSession)) {
+    persistTrajectoryCacheIfNeeded({ hasRunningSessions: hasAnyRunningSession });
   }
 
-  // 确保所有处于 RUNNING 状态的会话（含本轮未触发 RPC 拉取的会话）都同步了最新的实时动作摘要
+  // 确保所有处于 RUNNING 状态的会话（含本轮未触发同步的会话）都同步了最新的实时动作摘要
   for (const conv of rawConversations) {
     if (conv.status === 'CASCADE_RUN_STATUS_RUNNING') {
       if (!conv.liveActivity) {
@@ -1116,7 +1309,7 @@ export async function enumerateAndSyncConversations({
     }
   }
 
-  // 按最终收敛的 rootConversationId 将所有层级的子代理挂载至对应顶层根会话下；孤儿子代理绝不提升为顶层根会话
+  // 按最终收敛的 rootConversationId 将所有层级的子代理与有新增步骤的旁路提问挂载至对应顶层根会话下；孤儿子项绝不提升为顶层根会话
   const subagentsByRoot = new Map();
   const conversations = [];
 
@@ -1124,12 +1317,23 @@ export async function enumerateAndSyncConversations({
     const cid = conv.cascadeId.toLowerCase();
     const rootId = (conv.rootConversationId || conv.parentConversationId || '').toLowerCase();
     const rootTarget = byId.get(rootId);
-    if (conv.isSubagent) {
-      if (rootId && rootId !== cid && rootTarget && !rootTarget.isSubagent) {
+    if (conv.isSubagent || conv.isSideQuestion) {
+      if (
+        conv.isSideQuestion &&
+        Number(conv.stepCount || 0) === 0 &&
+        conv.status !== 'CASCADE_RUN_STATUS_RUNNING' &&
+        cid !== reqLower
+      ) {
+        continue;
+      }
+      if (rootId && rootId !== cid && rootTarget && !rootTarget.isSubagent && !rootTarget.isSideQuestion) {
         if (!subagentsByRoot.has(rootId)) {
           subagentsByRoot.set(rootId, []);
         }
         subagentsByRoot.get(rootId).push(conv);
+      } else if (conv.isSideQuestion && cid === reqLower) {
+        // 若用户直接通过 URL 访问父会话已删除的旁路提问，允许临时作为当前检视目标展示
+        conversations.push(conv);
       }
     } else {
       conversations.push(conv);
@@ -1140,7 +1344,13 @@ export async function enumerateAndSyncConversations({
     const cid = rootConv.cascadeId.toLowerCase();
     const subs = subagentsByRoot.get(cid) || [];
     subs.sort((a, b) => {
+      const aSide = Boolean(a.isSideQuestion);
+      const bSide = Boolean(b.isSideQuestion);
+      if (aSide !== bSide) {
+        return aSide ? 1 : -1;
+      }
       if (
+        !aSide &&
         a.parentConversationId === b.parentConversationId &&
         Number.isFinite(a.spawnOrder) &&
         Number.isFinite(b.spawnOrder) &&
