@@ -35,9 +35,21 @@ export const CACHE_FILE = join(DATA_DIR, 'trajectory_usage_cache.json');
 export const REMOTE_CATALOG_CACHE_FILE = join(DATA_DIR, 'remote_pricing_cache.json');
 
 /**
- * 本地对话记录目录与跨端深层统计缓存路径候选列表。
+ * 本地对话记录目录、SQLite 摘要库路径与跨端深层统计缓存路径候选列表。
  */
+export const SUMMARIES_DB_FILE = join(
+  homedir(),
+  '.gemini',
+  'antigravity',
+  'conversation_summaries.db'
+);
 export const CONVERSATIONS_DIR = join(homedir(), '.gemini', 'antigravity', 'conversations');
+export const CLI_CONVERSATIONS_DIR = join(
+  homedir(),
+  '.gemini',
+  'antigravity-cli',
+  'conversations'
+);
 export const BRAIN_DIR = join(homedir(), '.gemini', 'antigravity', 'brain');
 export const DEEP_STATS_CACHE_CANDIDATES = [
   join(homedir(), '.gemini', 'antigravity-ide', 'brain', '.deep_stats_cache.json'),
@@ -70,6 +82,56 @@ export const DEFAULT_DOWNLOAD_URL =
   `https://github.com/${OFFICIAL_GITHUB_REPO}/releases/latest/download/usage-monitor.zip`;
 export const DEFAULT_ARCHIVE_FALLBACK_URL =
   `https://codeload.github.com/${OFFICIAL_GITHUB_REPO}/zip/refs/heads/main`;
+
+/**
+ * 检测当前插件目录是否关联了非官方自定义 GitHub Fork 远程（如 `orbitoo/antigravity-usage-monitor`）。
+ * 若命中自定义 Fork，则保留上游 `yuhuan-dev` 价格表热同步，同时将插件版本与发布地址解耦至用户自己的 Fork，
+ * 避免上游发布新版本时误报升级提示。
+ *
+ * @returns {string} 自定义 Fork 的 `owner/repo`（小写规范化前保留原名），未命中或为官方仓库时返回 `''`
+ */
+export function detectCustomGitForkRepo() {
+  try {
+    const dotGitPath = join(PLUGIN_ROOT, '.git');
+    if (!existsSync(dotGitPath)) return '';
+    let gitConfigPath = join(dotGitPath, 'config');
+    if (!existsSync(gitConfigPath)) {
+      const ptrText = readFileSync(dotGitPath, 'utf8');
+      const m = typeof ptrText === 'string' && ptrText.match(/^gitdir:\s*(.+)$/im);
+      if (m) {
+        const gitDir = m[1].trim();
+        const commonDirFile = join(gitDir, 'commondir');
+        if (existsSync(commonDirFile)) {
+          const relCommon = String(readFileSync(commonDirFile, 'utf8') || '').trim();
+          gitConfigPath = join(gitDir, relCommon, 'config');
+        } else {
+          gitConfigPath = join(gitDir, 'config');
+        }
+      }
+    }
+    if (!existsSync(gitConfigPath)) return '';
+    const cfg = readFileSync(gitConfigPath, 'utf8');
+    if (typeof cfg !== 'string' || !cfg) return '';
+    const originBlock = cfg.match(/\[remote\s+"origin"\]([\s\S]*?)(?:\n\[|$)/i);
+    if (!originBlock) return '';
+    const urlMatch = originBlock[1].match(/^\s*url\s*=\s*(.+)$/im);
+    if (!urlMatch) return '';
+    const rawUrl = urlMatch[1].trim();
+    const ghMatch = rawUrl.match(/github\.com[:/]([^/\s]+\/[^/\s]+?)(?:\.git)?\/?$/i);
+    if (!ghMatch) return '';
+    const repo = ghMatch[1];
+    const lower = repo.toLowerCase();
+    if (
+      lower === OFFICIAL_GITHUB_REPO.toLowerCase() ||
+      LEGACY_GITHUB_REPOS.some((r) => r.toLowerCase() === lower)
+    ) {
+      return '';
+    }
+    return repo;
+  } catch {
+    return '';
+  }
+}
 
 /** 云端目录常规自动检查间隔（6 小时）与失败冷却时间（5 分钟）。 */
 export const CLOUD_SYNC_TTL_MS = 6 * 3600 * 1000;
@@ -359,10 +421,82 @@ export const trajectoryCache = Object.fromEntries(safeCacheEntries);
 
 /**
  * 缓存状态与外部深层统计缓存 Memo。
+ * 运行中会话采用 30 秒节流落盘（会话进入 IDLE 或进程退出时立即刷盘），彻底消除每 2 秒同步序列化大 JSON 的 CPU/内存尖峰。
  */
+export const CACHE_RUNNING_SAVE_INTERVAL_MS = 30_000;
+
 export const cacheState = {
   needsSave: initialCacheMigrated,
+  lastSavedAtMs: 0,
+  flushTimer: null,
 };
+
+/**
+ * 立即将当前内存态 `trajectoryCache` 同步刷入磁盘，并清理挂起的延迟定时器。
+ *
+ * @returns {boolean}
+ */
+export function flushTrajectoryCacheNow() {
+  if (cacheState.flushTimer) {
+    try {
+      clearTimeout(cacheState.flushTimer);
+    } catch {
+      // 忽略沙箱无 clearTimeout 异常
+    }
+    cacheState.flushTimer = null;
+  }
+  const ok = saveJson(CACHE_FILE, trajectoryCache);
+  cacheState.needsSave = !ok;
+  if (ok) {
+    cacheState.lastSavedAtMs = Date.now();
+  }
+  return ok;
+}
+
+/**
+ * 按当前是否存在活跃运行会话决定立即写盘还是节流延迟写盘。
+ * 单元测试沙箱 (`LS_ADDR === 'test.invalid'`) 始终同步落盘以保证断言确定性。
+ *
+ * @param {{ hasRunningSessions?: boolean }} [options={}]
+ */
+export function persistTrajectoryCacheIfNeeded({ hasRunningSessions = false } = {}) {
+  if (LS_ADDR === 'test.invalid' || typeof setTimeout !== 'function') {
+    flushTrajectoryCacheNow();
+    return;
+  }
+  const nowMs = Date.now();
+  const elapsedMs = nowMs - (cacheState.lastSavedAtMs || 0);
+  if (
+    !hasRunningSessions ||
+    cacheState.lastSavedAtMs === 0 ||
+    elapsedMs >= CACHE_RUNNING_SAVE_INTERVAL_MS
+  ) {
+    flushTrajectoryCacheNow();
+    return;
+  }
+  cacheState.needsSave = true;
+  if (!cacheState.flushTimer) {
+    const delayMs = Math.max(1000, CACHE_RUNNING_SAVE_INTERVAL_MS - elapsedMs);
+    const timer = setTimeout(() => {
+      cacheState.flushTimer = null;
+      if (cacheState.needsSave) {
+        flushTrajectoryCacheNow();
+      }
+    }, delayMs);
+    if (timer && typeof timer.unref === 'function') {
+      timer.unref();
+    }
+    cacheState.flushTimer = timer;
+  }
+}
+
+if (typeof process !== 'undefined' && typeof process?.once === 'function') {
+  process.once('exit', () => {
+    if (cacheState.needsSave) {
+      flushTrajectoryCacheNow();
+    }
+  });
+}
 
 export const externalDeepStatsMemo = {
   sig: '',
