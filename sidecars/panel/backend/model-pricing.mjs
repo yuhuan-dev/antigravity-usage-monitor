@@ -121,7 +121,7 @@ export function formatGenericModelSlug(slug = '') {
     .replace(/^session-display:/i, '');
   if (!s || /^MODEL_PLACEHOLDER_/i.test(s)) return '';
   const m = s.match(
-    /^gemini-(\d+(?:\.\d+)?)-(pro|flash|argon|carbon|hydrogen|helix)(?:-(lite))?$/i
+    /^gemini-(\d+(?:\.\d+)?)-(pro|flash|argon|carbon|hydrogen|helix)(?:-(lite))?(?:-(?:[a-z]|trial))?$/i
   );
   if (m) {
     const ver = m[1];
@@ -217,18 +217,21 @@ export function resolveModelInfo(
   const isOpaqueOrchestratorResp = Boolean(
     cleanResponseModel && /\borchestrator\b/i.test(cleanResponseModel)
   );
+  const normalizedResponseShard = cleanResponseModel
+    ? cleanResponseModel.replace(/-(?:[a-z]|trial)$/i, '')
+    : '';
   const explicitPricing =
     MODEL_PRICING[modelId] ||
     MODEL_PRICING[rawModelKey] ||
     (cleanResponseModel && !isOpaqueOrchestratorResp
-      ? MODEL_PRICING[cleanResponseModel]
+      ? MODEL_PRICING[cleanResponseModel] || MODEL_PRICING[normalizedResponseShard]
       : null) ||
     MODEL_PRICING[tieredSlug] ||
     MODEL_PRICING[tieredDashedSlug] ||
     MODEL_PRICING[canonicalSlug] ||
     MODEL_PRICING[dashedSlug] ||
     (cleanResponseModel && isOpaqueOrchestratorResp
-      ? MODEL_PRICING[cleanResponseModel]
+      ? MODEL_PRICING[cleanResponseModel] || MODEL_PRICING[normalizedResponseShard]
       : null);
 
   if (explicitPricing) {

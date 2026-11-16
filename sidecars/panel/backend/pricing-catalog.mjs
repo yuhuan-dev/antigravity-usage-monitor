@@ -23,6 +23,7 @@ import {
   PLUGIN_ROOT,
   REMOTE_CATALOG_CACHE_FILE,
   cloudSyncState,
+  detectCustomGitForkRepo,
   loadJson,
   pluginUpdateState,
 } from './config.mjs';
@@ -331,10 +332,18 @@ export function rebuildActiveCatalog() {
   let catalogVersion = 'builtin';
   let updatedAt = null;
   const installedVersion = readInstalledPluginVersion();
+  const customForkRepo = detectCustomGitForkRepo();
+  const customForkPrefix = customForkRepo ? `/${customForkRepo.toLowerCase()}` : '';
   let latestPluginVersion = installedVersion;
-  let releaseUrl = DEFAULT_RELEASE_URL;
-  let downloadUrl = DEFAULT_DOWNLOAD_URL;
-  let archiveFallbackUrl = DEFAULT_ARCHIVE_FALLBACK_URL;
+  let releaseUrl = customForkRepo
+    ? `https://github.com/${customForkRepo}/releases/latest`
+    : DEFAULT_RELEASE_URL;
+  let downloadUrl = customForkRepo
+    ? `https://github.com/${customForkRepo}/releases/latest/download/usage-monitor.zip`
+    : DEFAULT_DOWNLOAD_URL;
+  let archiveFallbackUrl = customForkRepo
+    ? `https://codeload.github.com/${customForkRepo}/zip/refs/heads/main`
+    : DEFAULT_ARCHIVE_FALLBACK_URL;
 
   for (const { kind, cat } of layers) {
     Object.assign(nextPricing, cat.pricing);
@@ -344,16 +353,24 @@ export function rebuildActiveCatalog() {
     }
     if (cat.catalogVersion) catalogVersion = cat.catalogVersion;
     if (cat.updatedAt) updatedAt = cat.updatedAt;
-    if (cat.latestPluginVersion) {
-      // 以当前更高优先级层的 latestPluginVersion 为准，但永不低于本地已安装版本
+    const isFromCustomFork = Boolean(
+      customForkPrefix &&
+        typeof cat.sourceUrl === 'string' &&
+        cat.sourceUrl.toLowerCase().includes(customForkPrefix)
+    );
+    const shouldAcceptCatalogVersion = !customForkRepo || isFromCustomFork;
+    if (shouldAcceptCatalogVersion && cat.latestPluginVersion) {
+      // 以当前更高优先级层的 latestPluginVersion 为准，但永不低于本地已安装版本；自定义 Fork 忽略上游仓库版本号
       latestPluginVersion =
         compareSemver(cat.latestPluginVersion, installedVersion) > 0
           ? cat.latestPluginVersion
           : installedVersion;
     }
-    if (cat.hasReleaseUrl) releaseUrl = cat.releaseUrl;
-    if (cat.hasDownloadUrl) downloadUrl = cat.downloadUrl;
-    if (cat.hasArchiveFallbackUrl) archiveFallbackUrl = cat.archiveFallbackUrl;
+    if (shouldAcceptCatalogVersion) {
+      if (cat.hasReleaseUrl) releaseUrl = cat.releaseUrl;
+      if (cat.hasDownloadUrl) downloadUrl = cat.downloadUrl;
+      if (cat.hasArchiveFallbackUrl) archiveFallbackUrl = cat.archiveFallbackUrl;
+    }
   }
 
   for (const k of Object.keys(MODEL_PRICING)) delete MODEL_PRICING[k];

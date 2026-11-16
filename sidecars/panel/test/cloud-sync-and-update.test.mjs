@@ -425,3 +425,52 @@ test('pluginUpdateMode supports manual (default), auto, and off with legacy auto
   await new Promise((r) => setTimeout(r, 20));
   assert.equal(gitTriggered, true, 'pluginUpdateMode=auto triggers background update check');
 });
+
+test('custom git fork syncs upstream pricing without false upstream version badges, and prices backend deployment shards', async () => {
+  const forkH = backendHarness({
+    hasGitDir: true,
+    gitConfigText: '[remote "origin"]\n\turl = https://github.com/orbitoo/antigravity-usage-monitor.git\n[remote "upstream"]\n\turl = https://github.com/yuhuan-dev/antigravity-usage-monitor.git\n',
+    pluginManifest: { name: 'usage-monitor', version: '1.4.5' },
+    remoteFetch: async () => ({
+      ok: true,
+      json: async () => ({
+        schemaVersion: 1,
+        catalogVersion: '2026.11.20.1',
+        updatedAt: '2026-11-20T10:00:00Z',
+        latestPluginVersion: '1.9.0',
+        pricing: {
+          'gemini-5-hyper': { input: 3.0, cache: 0.3, output: 15.0, short: 'hyper-5', family: 'Gemini' },
+        },
+        placeholders: {
+          MODEL_PLACEHOLDER_M950: { modelId: 'gemini-5-hyper', label: 'Gemini 5 Hyper' },
+        },
+      }),
+    }),
+  });
+
+  const status = await forkH.syncCloudCatalog({ force: true });
+  assert.equal(status.catalogVersion, '2026.11.20.1');
+  assert.equal(status.updateAvailable, false, 'upstream version bump must not nag custom fork');
+  assert.equal(status.latestPluginVersion, '1.4.5');
+  assert.equal(status.releaseUrl, 'https://github.com/orbitoo/antigravity-usage-monitor/releases/latest');
+
+  // Upstream placeholder synced accurately
+  const hyper = forkH.resolveModelInfo('MODEL_PLACEHOLDER_M950', new Map());
+  assert.equal(hyper.shortName, 'hyper-5');
+  assert.equal(hyper.pricing.input, 3.0);
+
+  // Backend deployment shards price accurately on unmapped placeholders, while unknown tier suffixes stay unpriced
+  for (const [respModel, expectedShort] of [
+    ['gemini-4-argon-b', 'argon-4'],
+    ['gemini-4-argon-trial', 'argon-4'],
+    ['gemini-4-carbon-c', 'carbon-4'],
+    ['gemini-3.8-flash-n', 'flash-3.8'],
+    ['gemini-3-flash-a', 'flash-3'],
+  ]) {
+    const info = forkH.resolveModelInfo('MODEL_PLACEHOLDER_M9999', new Map(), '', '', respModel);
+    assert.ok(info.pricing, `expected pricing for ${respModel}`);
+    assert.equal(info.shortName, expectedShort);
+  }
+  const unknownTier = forkH.resolveModelInfo('MODEL_PLACEHOLDER_M9999', new Map(), '', '', 'gemini-3.1-pro-ultra-v2');
+  assert.equal(unknownTier.pricing, null);
+});
