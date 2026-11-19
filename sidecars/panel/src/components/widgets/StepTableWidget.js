@@ -990,7 +990,7 @@ export const StepTableWidget = defineComponent({
             ? `${cellCtx.scopeSigKey}:${st.agentId || 'main'}:${st.agentBadge || ''}:${st.agentLabel || ''}`
             : '';
           const stripeSig = isVirtualized ? (item.isStripeEven ? 'E' : 'O') : 'N';
-          const anomalySig = st.anomalySig || '';
+          const anomalySig = `${st.anomalySig || ''}:${JSON.stringify(st.requestDiagnostics)}:${st.nativeStreamSec}:${st.thinkingDurationSec}`;
           return `${locale}:${colOrderSig}:${stripeSig}:${badgeSig}:${anomalySig}:${railActive}:${item.hasTurn}:${item.hasUp}:${item.hasDown}:${item.isStart}:${item.isLatest}:${item.prompt}:${parts}`;
         },
         createRow: (item) => {
@@ -1145,6 +1145,20 @@ export const StepTableWidget = defineComponent({
           for (const colKey of colKeys) {
             const cellEntry = refs.cellMap.get(colKey);
             STEP_COLUMN_REGISTRY[colKey].updateCell(cellEntry.refs, st, cellCtx);
+            if (colKey === 'ttft' && props.onInspectRequest) {
+              if (!cellEntry.inspectButton) {
+                cellEntry.inspectButton = h('button', {
+                  type: 'button', className: 'step-request-diagnostics-button',
+                  style: 'font: inherit; color: inherit; padding: 0; border: 0; background: transparent; text-decoration: underline; cursor: pointer;',
+                });
+                cellEntry.inspectButton.appendChild(cellEntry.refs.valEl);
+                cellEntry.td.appendChild(cellEntry.inspectButton);
+              }
+              patchAttr(cellEntry.inspectButton, 'title', t('steps.diagnosticsOpen'));
+              patchAttr(cellEntry.inspectButton, 'aria-label', t('steps.diagnosticsSelected', { step: st.stepIndex }));
+              cellEntry.inspectButton.onclick = () => props.onInspectRequest(st);
+            }
+
           }
 
           const firstColKey = colKeys[0];

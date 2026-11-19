@@ -1368,6 +1368,18 @@ export function extractModelSteps(rawSteps = [], generatorMetadata = []) {
       thinkingDurationSec,
       totalDurationSec,
       totalTokPerSec,
+      requestDiagnostics: {
+        version: 2,
+        createdAt: m.createdAt || null,
+        viewableAt: m.viewableAt || null,
+        finishedGeneratingAt: m.finishedGeneratingAt || null,
+        completedAt: m.completedAt || null,
+        status: s.status || null,
+        retryInfoCount: Array.isArray(chat?.retryInfos) ? chat.retryInfos.length :
+          Array.isArray(m.retryInfos) ? m.retryInfos.length : null,
+        toolNames: (Array.isArray(p.toolCalls) ? p.toolCalls : [])
+          .map((tool) => String(tool.name || tool.function?.name || 'unknown').slice(0, 100)),
+      },
       speedBasis: totalTokPerSec === null ? 'unavailable' : 'request_total',
       speedSampleEligible:
         totalTokPerSec !== null && !shortOutputSample && !isCompactionStep,

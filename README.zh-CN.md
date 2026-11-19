@@ -250,3 +250,7 @@ npm test
     <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=yuhuan-dev/antigravity-usage-monitor&type=Date" />
   </picture>
 </a>
+
+### 脱敏原始计时导出
+
+调用明细中点击首字延迟，可查看并下载单步 JSON：包含原生 TTFT、总耗时、思考/返回阶段计时、时间戳、缓存 token、可用的重试条目数和新版异常汇总。旧缓存缺少新增字段时显示未知，重新读取轨迹后补齐。工具参数、提示词、思考正文和错误正文不导出。原生计时可能重叠，不可相加；重试条目数不一定等于实际重试次数。报告不能拆出 DNS/TCP/TLS、服务端排队或 prefill 耗时，也不自动判定故障归属。新版上游异常诊断保持原样。

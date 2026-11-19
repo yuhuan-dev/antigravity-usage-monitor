@@ -250,3 +250,7 @@ Licensed under the [GNU General Public License v3.0](LICENSE).
     <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=yuhuan-dev/antigravity-usage-monitor&type=Date" />
   </picture>
 </a>
+
+### Sanitized raw request timing export
+
+Click a TTFT value in the per-step table to inspect raw timing and download a sanitized JSON report. It includes native TTFT, request duration, native thinking/streaming intervals, timestamps, token counts, retry metadata entry counts when available, and a compact anomaly summary. Legacy cached steps show unknown metadata until refreshed. Prompts, reasoning text, tool arguments, credentials, and raw error messages are excluded. Native intervals can overlap and do not provide separate DNS/TCP/TLS, queue or prefill measurements. Reports do not assign fault to a provider or network; the 60-second warning is a display threshold, not a claimed service timeout.

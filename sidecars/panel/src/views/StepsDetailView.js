@@ -49,6 +49,7 @@ import { CustomSelect } from '../components/ui/CustomSelect.js';
 import { createFourSegmentBar } from '../components/ui/FourSegmentBar.js';
 import { SegmentedControl } from '../components/ui/SegmentedControl.js';
 import { StepTableWidget } from '../components/widgets/StepTableWidget.js';
+import { buildRequestDiagnostics } from '../core/requestDiagnostics.js';
 
 function mergeSelectedAgentUnits(units) {
   const combinedSteps = [];
@@ -291,8 +292,27 @@ export const StepsDetailView = defineComponent({
     });
 
     // --- 子视图 1：单步明细表（委托给可复用的 `StepTableWidget` 解耦组件） ---
+    let diagnosticUrl = null;
+    const diagnosticText = h('pre', { style: 'white-space: pre-wrap; overflow-wrap: anywhere; font-size: 11px;' });
+    const diagnosticDownload = h('a', { text: t('steps.diagnosticsDownload'), download: 'request-diagnostics.json', hidden: true });
+    const diagnosticSummary = h('summary', { text: t('steps.diagnosticsHint') });
+    const diagnosticPanel = h('details', { style: 'flex: 0 0 auto; max-height: 240px; overflow: auto; padding: 8px 12px;' }, [
+      diagnosticSummary,
+      diagnosticDownload, diagnosticText,
+    ]);
+    function inspectRequest(step) {
+      const report = JSON.stringify(buildRequestDiagnostics(step), null, 2);
+      patchText(diagnosticSummary, t('steps.diagnosticsSelected', { step: step.stepIndex }));
+      patchText(diagnosticText, report);
+      if (diagnosticUrl) URL.revokeObjectURL(diagnosticUrl);
+      diagnosticUrl = URL.createObjectURL(new Blob([report], { type: 'application/json' }));
+      patchAttr(diagnosticDownload, 'href', diagnosticUrl);
+      patchAttr(diagnosticDownload, 'hidden', false);
+      diagnosticPanel.open = true;
+    }
     let stepsScroll = null;
     const stepTableWidget = StepTableWidget({
+      onInspectRequest: inspectRequest,
       onSelectAgentScopes: applyAgentScopesSelection,
       onVirtualHeightChange: () => stepsScroll?.refresh(),
     });
@@ -499,6 +519,7 @@ export const StepsDetailView = defineComponent({
         anomalyFilterBarEl,
         stepsScroll.el,
         modelsScroll.el,
+        diagnosticPanel,
         turnTipEl,
         anomalyTipEl,
       ]
@@ -1427,6 +1448,8 @@ export const StepsDetailView = defineComponent({
       (st) => st.locale,
       () => {
         refreshStaticLocaleLabels();
+        patchText(diagnosticSummary, t('steps.diagnosticsHint'));
+        patchText(diagnosticDownload, t('steps.diagnosticsDownload'));
         if (getVisibleMonitorView() === 'steps' && latestSlice) {
           renderStepsData(latestSlice);
         } else {
@@ -1436,6 +1459,7 @@ export const StepsDetailView = defineComponent({
     );
 
     onCleanup(() => {
+      if (diagnosticUrl) URL.revokeObjectURL(diagnosticUrl);
       modelsAnalyticsPane.removeEventListener('scroll', onModelsPaneScroll);
       unsubUi();
       unsubTelemetry();
