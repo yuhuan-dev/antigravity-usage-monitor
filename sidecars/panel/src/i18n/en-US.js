@@ -4,6 +4,11 @@
  */
 
 export const I18N_MESSAGES_EN_US = Object.freeze({
+  'steps.diagnosticsHint': 'Raw timing diagnostics: click a TTFT value',
+  'steps.diagnosticsDownload': 'Download sanitized JSON',
+  'steps.diagnosticsSelected': 'Request diagnostics for step #{step}',
+  'steps.diagnosticsOpen': 'Inspect raw timing and download sanitized request diagnostics',
+
   // Top Navigation
   'nav.overview': 'Live',
   'nav.consumption': 'Usage',

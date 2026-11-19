@@ -1044,6 +1044,11 @@ const { I18N_MESSAGES_ZH_CN } = (() => {
  */
 
 const I18N_MESSAGES_ZH_CN = Object.freeze({
+  'steps.diagnosticsHint': '原始计时诊断：点击首字延迟查看',
+  'steps.diagnosticsDownload': '下载脱敏 JSON',
+  'steps.diagnosticsSelected': '步骤 #{step} 的请求诊断',
+  'steps.diagnosticsOpen': '查看原始计时并下载脱敏请求诊断',
+
   // Top Navigation
   'nav.overview': '实时监控',
   'nav.consumption': '用量统计',
@@ -1749,6 +1754,11 @@ const { I18N_MESSAGES_EN_US } = (() => {
  */
 
 const I18N_MESSAGES_EN_US = Object.freeze({
+  'steps.diagnosticsHint': 'Raw timing diagnostics: click a TTFT value',
+  'steps.diagnosticsDownload': 'Download sanitized JSON',
+  'steps.diagnosticsSelected': 'Request diagnostics for step #{step}',
+  'steps.diagnosticsOpen': 'Inspect raw timing and download sanitized request diagnostics',
+
   // Top Navigation
   'nav.overview': 'Live',
   'nav.consumption': 'Usage',
@@ -4410,6 +4420,61 @@ function buildDeterministicModelColorMap(models = []) {
 return { formatMetric, formatSpeedMetric, formatCachePct, getSpeedToneClass, getCacheToneClass, getStepCostToneClass, getTtftToneClass, formatTokens, formatTokensPrecise, formatCnyApprox, formatDateSpanBadge, formatUsd, speedReasonText, formatAnomalyKindLabel, formatAnomalyTagText, resolveModelAnomalySummary, formatStepAnomalyInlineSummary, buildStepAnomalyDiagnostic, buildModelAnomalyDiagnostic, sampleSummary, formatCountdown, formatCompactDateTime, formatElapsedSec, stripVendorModelPrefix, normalizeOrchestratorIdDisplayMode, resolveModelDisplayInfo, mergeModelsByDisplayName, getAgentBadgeClass, formatAgentBadgeText, formatAgentLabel, formatConversationMeta, formatLiveActivityLabel, formatLiveActivityDetail, getCanonicalModelColorSeed, resolveDeterministicModelColor, buildDeterministicModelColorMap };
 })();
 
+// --- src/core/requestDiagnostics.js ---
+const { buildRequestDiagnostics } = (() => {
+// Export only allowlisted timing and counts, never prompts, credentials or tool arguments.
+function buildRequestDiagnostics(step) {
+  const finite = (value) => typeof value === 'number' && Number.isFinite(value) ? value : null;
+  const text = (value) => typeof value === 'string' ? value.slice(0, 160) : null;
+  const ttft = finite(step.nativeTtftSec ?? step.ttftSec);
+  const total = finite(step.totalDurationSec);
+  const raw = step.requestDiagnostics;
+  const notes = [];
+  if (ttft !== null && ttft >= 60) notes.push('long_first_token_wait');
+  if (step.inputTokens > 0 && step.cacheReadTokens === 0) notes.push('zero_cache_read_recorded');
+  if (ttft !== null && total !== null && total >= ttft && total - ttft < 0.5 && step.hasToolCalls) {
+    notes.push('tool_call_returned_in_short_interval');
+  }
+  return {
+    schemaVersion: 1,
+    stepIndex: finite(step.stepIndex),
+    model: text(step.responseModel || step.modelKey),
+    timingSeconds: {
+      timeToFirstToken: ttft,
+      totalRequest: total,
+      nativeStreaming: finite(step.nativeStreamSec),
+      nativeThinking: finite(step.thinkingDurationSec),
+      // This interval is not an independent network/GPU throughput measurement.
+      afterFirstToken: total !== null && ttft !== null && total >= ttft
+        ? +(total - ttft).toFixed(6) : null,
+    },
+    tokens: {
+      input: finite(step.inputTokens), cacheRead: finite(step.cacheReadTokens),
+      output: finite(step.outputTokens), thinking: finite(step.thinkingTokens),
+    },
+    rawMetadata: raw ? {
+      createdAt: text(raw.createdAt), viewableAt: text(raw.viewableAt),
+      finishedGeneratingAt: text(raw.finishedGeneratingAt), completedAt: text(raw.completedAt),
+      status: text(raw.status), retryInfoCount: finite(raw.retryInfoCount),
+      toolNames: Array.isArray(raw.toolNames) ? raw.toolNames.slice(0, 32).map(text) : [],
+    } : null,
+    anomalySummary: step.anomaly ? {
+      primaryKind: text(step.anomaly.primaryKind), severity: text(step.anomaly.severity),
+      count: finite(step.anomaly.count), totalDelaySec: finite(step.anomaly.totalDelaySec),
+    } : null,
+    notes,
+    limitations: [
+      'Native timing intervals may overlap; do not add them or infer causality from matching durations.',
+      'DNS, TCP, TLS, server queue and prefill timings are unavailable.',
+      'Missing retry metadata means unknown; entry counts are not necessarily retry attempts.',
+      'Tool execution errors are separate from model request failures.',
+      'The 60-second warning threshold is not an asserted service timeout.',
+    ],
+  };
+}
+return { buildRequestDiagnostics };
+})();
+
 // --- src/core/httpClient.js ---
 const { abortSidecarApiKey, getWindowBridgeConfig, isWindowOverlayMode, deliverCdpBridgeResponses, callSidecarApi } = (() => {
 /**
@@ -5375,6 +5440,7 @@ function isEquivalentTelemetry(prev, next) {
         bs?.cacheHitPct !== as?.cacheHitPct ||
         bs?.selectedSpeedReason !== as?.selectedSpeedReason ||
         bs?.anomalySig !== as?.anomalySig ||
+        JSON.stringify(bs?.requestDiagnostics) !== JSON.stringify(as?.requestDiagnostics) ||
         bs?.turnIndex !== as?.turnIndex ||
         bs?.rootTurnIndex !== as?.rootTurnIndex ||
         bs?.isTurnStart !== as?.isTurnStart ||
@@ -5432,6 +5498,7 @@ function isEquivalentTelemetry(prev, next) {
       before.cacheHitPct !== after.cacheHitPct ||
       before.selectedSpeedReason !== after.selectedSpeedReason ||
       before.anomalySig !== after.anomalySig ||
+      JSON.stringify(before.requestDiagnostics) !== JSON.stringify(after.requestDiagnostics) ||
       before.turnIndex !== after.turnIndex ||
       before.rootTurnIndex !== after.rootTurnIndex ||
       before.isTurnStart !== after.isTurnStart ||
@@ -16508,7 +16575,7 @@ const StepTableWidget = defineComponent({
             ? `${cellCtx.scopeSigKey}:${st.agentId || 'main'}:${st.agentBadge || ''}:${st.agentLabel || ''}`
             : '';
           const stripeSig = isVirtualized ? (item.isStripeEven ? 'E' : 'O') : 'N';
-          const anomalySig = st.anomalySig || '';
+          const anomalySig = `${st.anomalySig || ''}:${JSON.stringify(st.requestDiagnostics)}:${st.nativeStreamSec}:${st.thinkingDurationSec}`;
           return `${locale}:${colOrderSig}:${stripeSig}:${badgeSig}:${anomalySig}:${railActive}:${item.hasTurn}:${item.hasUp}:${item.hasDown}:${item.isStart}:${item.isLatest}:${item.prompt}:${parts}`;
         },
         createRow: (item) => {
@@ -16663,6 +16730,20 @@ const StepTableWidget = defineComponent({
           for (const colKey of colKeys) {
             const cellEntry = refs.cellMap.get(colKey);
             STEP_COLUMN_REGISTRY[colKey].updateCell(cellEntry.refs, st, cellCtx);
+            if (colKey === 'ttft' && props.onInspectRequest) {
+              if (!cellEntry.inspectButton) {
+                cellEntry.inspectButton = h('button', {
+                  type: 'button', className: 'step-request-diagnostics-button',
+                  style: 'font: inherit; color: inherit; padding: 0; border: 0; background: transparent; text-decoration: underline; cursor: pointer;',
+                });
+                cellEntry.inspectButton.appendChild(cellEntry.refs.valEl);
+                cellEntry.td.appendChild(cellEntry.inspectButton);
+              }
+              patchAttr(cellEntry.inspectButton, 'title', t('steps.diagnosticsOpen'));
+              patchAttr(cellEntry.inspectButton, 'aria-label', t('steps.diagnosticsSelected', { step: st.stepIndex }));
+              cellEntry.inspectButton.onclick = () => props.onInspectRequest(st);
+            }
+
           }
 
           const firstColKey = colKeys[0];
@@ -23019,8 +23100,27 @@ const StepsDetailView = defineComponent({
     });
 
     // --- 子视图 1：单步明细表（委托给可复用的 `StepTableWidget` 解耦组件） ---
+    let diagnosticUrl = null;
+    const diagnosticText = h('pre', { style: 'white-space: pre-wrap; overflow-wrap: anywhere; font-size: 11px;' });
+    const diagnosticDownload = h('a', { text: t('steps.diagnosticsDownload'), download: 'request-diagnostics.json', hidden: true });
+    const diagnosticSummary = h('summary', { text: t('steps.diagnosticsHint') });
+    const diagnosticPanel = h('details', { style: 'flex: 0 0 auto; max-height: 240px; overflow: auto; padding: 8px 12px;' }, [
+      diagnosticSummary,
+      diagnosticDownload, diagnosticText,
+    ]);
+    function inspectRequest(step) {
+      const report = JSON.stringify(buildRequestDiagnostics(step), null, 2);
+      patchText(diagnosticSummary, t('steps.diagnosticsSelected', { step: step.stepIndex }));
+      patchText(diagnosticText, report);
+      if (diagnosticUrl) URL.revokeObjectURL(diagnosticUrl);
+      diagnosticUrl = URL.createObjectURL(new Blob([report], { type: 'application/json' }));
+      patchAttr(diagnosticDownload, 'href', diagnosticUrl);
+      patchAttr(diagnosticDownload, 'hidden', false);
+      diagnosticPanel.open = true;
+    }
     let stepsScroll = null;
     const stepTableWidget = StepTableWidget({
+      onInspectRequest: inspectRequest,
       onSelectAgentScopes: applyAgentScopesSelection,
       onVirtualHeightChange: () => stepsScroll?.refresh(),
     });
@@ -23227,6 +23327,7 @@ const StepsDetailView = defineComponent({
         anomalyFilterBarEl,
         stepsScroll.el,
         modelsScroll.el,
+        diagnosticPanel,
         turnTipEl,
         anomalyTipEl,
       ]
@@ -24155,6 +24256,8 @@ const StepsDetailView = defineComponent({
       (st) => st.locale,
       () => {
         refreshStaticLocaleLabels();
+        patchText(diagnosticSummary, t('steps.diagnosticsHint'));
+        patchText(diagnosticDownload, t('steps.diagnosticsDownload'));
         if (getVisibleMonitorView() === 'steps' && latestSlice) {
           renderStepsData(latestSlice);
         } else {
@@ -24164,6 +24267,7 @@ const StepsDetailView = defineComponent({
     );
 
     onCleanup(() => {
+      if (diagnosticUrl) URL.revokeObjectURL(diagnosticUrl);
       modelsAnalyticsPane.removeEventListener('scroll', onModelsPaneScroll);
       unsubUi();
       unsubTelemetry();

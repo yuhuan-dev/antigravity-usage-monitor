@@ -723,6 +723,7 @@ export function isEquivalentTelemetry(prev, next) {
         bs?.cacheHitPct !== as?.cacheHitPct ||
         bs?.selectedSpeedReason !== as?.selectedSpeedReason ||
         bs?.anomalySig !== as?.anomalySig ||
+        JSON.stringify(bs?.requestDiagnostics) !== JSON.stringify(as?.requestDiagnostics) ||
         bs?.turnIndex !== as?.turnIndex ||
         bs?.rootTurnIndex !== as?.rootTurnIndex ||
         bs?.isTurnStart !== as?.isTurnStart ||
@@ -780,6 +781,7 @@ export function isEquivalentTelemetry(prev, next) {
       before.cacheHitPct !== after.cacheHitPct ||
       before.selectedSpeedReason !== after.selectedSpeedReason ||
       before.anomalySig !== after.anomalySig ||
+      JSON.stringify(before.requestDiagnostics) !== JSON.stringify(after.requestDiagnostics) ||
       before.turnIndex !== after.turnIndex ||
       before.rootTurnIndex !== after.rootTurnIndex ||
       before.isTurnStart !== after.isTurnStart ||

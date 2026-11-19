@@ -4,6 +4,11 @@
  */
 
 export const I18N_MESSAGES_ZH_CN = Object.freeze({
+  'steps.diagnosticsHint': '原始计时诊断：点击首字延迟查看',
+  'steps.diagnosticsDownload': '下载脱敏 JSON',
+  'steps.diagnosticsSelected': '步骤 #{step} 的请求诊断',
+  'steps.diagnosticsOpen': '查看原始计时并下载脱敏请求诊断',
+
   // Top Navigation
   'nav.overview': '实时监控',
   'nav.consumption': '用量统计',
