@@ -122,10 +122,15 @@ export function backendHarness({
       return false;
     },
     mkdirSync:()=>{},
-    readdirSync:p=>{
+    readdirSync:(p,options)=>{
       const norm = String(p).replace(/\\/g, '/');
-      if (diskDirs && Array.isArray(diskDirs[norm])) return diskDirs[norm];
-      return [];
+      if (diskDirs?.[norm] instanceof Error) throw diskDirs[norm];
+      if (Array.isArray(diskDirs?.[norm])) {
+        return options?.withFileTypes ? diskDirs[norm].map(name =>
+          typeof name === 'string' ? { name, isDirectory: () => true, isSymbolicLink: () => false } : name
+        ) : diskDirs[norm];
+      }
+      throw Object.assign(new Error('Missing test directory'), { code: 'ENOENT' });
     },
     statSync:p=>{
       const norm = String(p).replace(/\\/g, '/');
@@ -134,8 +139,9 @@ export function backendHarness({
         const lines = m && state.transcripts?.[m[1]];
         if (lines) {
           const text = Array.isArray(lines) ? lines.map(x => JSON.stringify(x)).join('\n') : String(lines);
-          return {mtimeMs:state.transcriptMtimeMs,size:Buffer.byteLength(text,'utf8')};
+          return {mtimeMs:state.transcriptMtimeMs,size:Buffer.byteLength(text,'utf8'),isFile:()=>true};
         }
+        throw Object.assign(new Error('Missing test transcript'), { code: 'ENOENT' });
       }
       if (norm.endsWith('/.system_generated/swarm/members.json')) {
         const m = norm.match(/\/brain\/([^/]+)\/\.system_generated\/swarm\/members\.json$/i);

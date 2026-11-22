@@ -26,6 +26,7 @@ test('trajectory checkpoints preserve updated metadata and ignore bytes replaced
   const state = {
     '会话📝': { title: 'first', steps: [{ stepIndex: 1, model: '模型', inputTokens: 10 }] },
     second: { title: 'second', steps: [{ stepIndex: 2, outputTokens: 4 }] },
+    'usage-history:example': [{ appSource: 'cli', steps: [{ outputTokens: 9 }] }],
   };
   const read = () => JSON.parse(readFileSync(file, 'utf8'));
   try {

@@ -6,6 +6,7 @@
  * 进行去重遍历聚合，输出前端消费分析与模型明细所需的完整统计结构。
  */
 
+import { usageHistoryKey } from './config.mjs';
 import { isDeepStrictEqual } from 'node:util';
 import {
   MEASUREMENT_VERSION,
@@ -503,7 +504,7 @@ function collectUsageEntriesToAggregate(familySet, endpoint = null) {
 
   // 构建大小写归一化的内存缓存与跨端深层缓存索引，彻底杜绝 `${appSource}:${cascadeId}` 键不匹配导致的双倍重复计费
   const allLiveByLower = new Map();
-  for (const [rawId, entry] of cacheStore.listCachedTrajectoryEntries()) {
+  for (const [rawId, entry] of cacheStore.listCachedTrajectoryEntries(true)) {
     const cidLower = String(rawId || '').toLowerCase();
     if (!cidLower || !entry || typeof entry !== 'object') continue;
     const prev = allLiveByLower.get(cidLower);
@@ -519,6 +520,25 @@ function collectUsageEntriesToAggregate(familySet, endpoint = null) {
     const prevExt = externalByCid.get(extCidLower);
     if (!prevExt || (ext.steps?.length || 0) > (prevExt.steps?.length || 0)) {
       externalByCid.set(extCidLower, ext);
+    }
+  }
+
+  if (!isRemote && [...allLiveByLower.keys()].some(id => id.startsWith('usage-history:'))) {
+    for (const id of new Set([...allLiveByLower.keys(), ...externalByCid.keys()])) {
+      if (id.startsWith('usage-history:')) continue;
+      const key = usageHistoryKey(id);
+      const history = allLiveByLower.get(key);
+      if (!history) continue;
+      const live = allLiveByLower.get(id);
+      const external = externalByCid.get(id);
+      if (history.steps.length > Math.max(live?.steps?.length || 0, external?.steps?.length || 0)) {
+        allLiveByLower.set(id, {
+          ...history,
+          rootConversationId: live?.rootConversationId,
+          parentConversationId: live?.parentConversationId,
+        });
+      }
+      allLiveByLower.delete(key);
     }
   }
 

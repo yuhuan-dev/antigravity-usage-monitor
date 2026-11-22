@@ -44,14 +44,15 @@ export function writeTrajectoryCacheFile(filePath, data) {
   append('{');
   let separator = '';
   for (const [id, entry] of Object.entries(data)) {
-    const { steps, ...metadata } = entry;
+    const wrapped = Array.isArray(entry);
+    const { steps, ...metadata } = wrapped ? entry[0] : entry;
     const header = JSON.stringify(metadata);
-    append(`${separator}${JSON.stringify(id)}:${header.slice(0, -1)}${header === '{}' ? '' : ','}"steps":`);
+    append(`${separator}${JSON.stringify(id)}:${wrapped ? '[' : ''}${header.slice(0, -1)}${header === '{}' ? '' : ','}"steps":`);
     const range = bytes && previous.ranges.get(steps);
     const start = position;
     append(range ? bytes.subarray(range.start, range.end) : JSON.stringify(steps));
     ranges.set(steps, { start, end: position });
-    append('}');
+    append(wrapped ? '}]' : '}');
     separator = ',';
   }
   append('}');

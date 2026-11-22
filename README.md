@@ -216,6 +216,7 @@ ssh -L 8787:127.0.0.1:8787 user@your-server
   - macOS / Linux: `git -C ~/.gemini/config/plugins/usage-monitor pull --ff-only`
   - Toggle the plugin off and back on in **Customizations → Installed**.
 - **Data Persistence**: Settings and parsed caches live in `~/.gemini/antigravity/sidecar_data/usage-monitor/` (or `sidecars/panel/.data/` in standalone mode), so updates keep existing history intact.
+- **Deleted Local Sessions**: When a full scan of the current account finds that a session has no local copies or host summary, the plugin hides it from the conversation selector. For sessions previously seen on disk, the plugin clears cached step details if a second full scan at least 60 seconds later still finds the session missing. The **Usage** tab keeps per-request metrics such as account, model, timestamp, and token counts. A one-way hash of the session ID prevents double-counting older statistics or restored copies.
 
 </details>
 

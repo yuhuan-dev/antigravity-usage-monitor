@@ -10,6 +10,7 @@
 
 import { closeSync, existsSync, openSync, readFileSync, readSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
+import { homedir } from 'node:os';
 import { isDeepStrictEqual } from 'node:util';
 import {
   extractLiveActivity,
@@ -22,6 +23,9 @@ import {
 } from '../trajectory-metrics.mjs';
 import {
   ANNOTATION_DIRS,
+  archiveLocalTrajectory,
+  hasUsageHistory,
+  getCachedTrajectory,
   BRAIN_DIR,
   BRAIN_DIRS,
   CACHE_SCHEMA_VERSION,
@@ -50,46 +54,74 @@ const TRANSCRIPT_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-
  * 联合扫描本地多端（Desktop / CLI / IDE）的 `conversations` 与 `brain/<id>/.system_generated/logs/transcript.jsonl`，
  * 按小写 `cascadeId` 归并关联磁盘文件路径。
  *
- * @returns {Map<string, string[]>}
+ * @returns {{map: Map<string, string[]>, storeDirs: Map<string, string[]>, readable: Set<string>, complete: boolean}}
  */
 function discoverLocalConversationFiles() {
-  const map = new Map();
-  const convDirs =
-    Array.isArray(CONVERSATION_DIRS) && CONVERSATION_DIRS.length > 0
-      ? CONVERSATION_DIRS
-      : [CONVERSATIONS_DIR];
-  for (const dir of convDirs) {
-    if (!dir || !existsSync(dir)) continue;
+  const readable = new Set();
+  let complete = true;
+  function names(dir, options) {
     try {
-      for (const rawName of readdirSync(dir)) {
-        const name = String(rawName || '');
-        const m = name.match(CONV_FILE_RE);
-        if (!m) continue;
-        const cascadeId = m[1].toLowerCase();
-        if (!map.has(cascadeId)) map.set(cascadeId, []);
-        map.get(cascadeId).push(join(dir, name));
-      }
-    } catch {
-      // 忽略目录读取异常
+      const result = readdirSync(dir, options);
+      if (!options?.withFileTypes) readable.add(dir);
+      return result;
+    } catch (error) {
+      if (error.code !== 'ENOENT') complete = false;
+      return [];
+    }
+  }
+  const map = new Map();
+  const storeDirs = new Map();
+  function addFile(id, dir, path) {
+    if (!map.has(id)) {
+      map.set(id, []);
+      storeDirs.set(id, []);
+    }
+    map.get(id).push(path);
+    if (!storeDirs.get(id).includes(dir)) storeDirs.get(id).push(dir);
+  }
+  const convDirs = [...CONVERSATION_DIRS];
+  const brainDirs = [...BRAIN_DIRS];
+  const profileDirs = new Set();
+  const base = join(homedir(), '.cc-switch', 'agy');
+  for (const profile of names(base, { withFileTypes: true })) {
+    if (profile.isSymbolicLink()) {
+      complete = false;
+      continue;
+    }
+    if (!profile.isDirectory()) continue;
+    const root = join(base, profile.name, 'antigravity-cli');
+    const conversations = join(root, 'conversations');
+    const brain = join(root, 'brain');
+    convDirs.push(conversations);
+    brainDirs.push(brain);
+    profileDirs.add(conversations);
+    profileDirs.add(brain);
+  }
+  const include = (dir, id) => !profileDirs.has(dir) || map.has(id) || getCachedTrajectory(id) || hasUsageHistory(id);
+  for (const dir of convDirs) {
+    for (const rawName of names(dir)) {
+      const name = String(rawName || '');
+      const m = name.match(CONV_FILE_RE);
+      if (!m) continue;
+      const cascadeId = m[1].toLowerCase();
+      if (!include(dir, cascadeId)) continue;
+      addFile(cascadeId, dir, join(dir, name));
     }
   }
 
-  const brainDirs =
-    Array.isArray(BRAIN_DIRS) && BRAIN_DIRS.length > 0 ? BRAIN_DIRS : [BRAIN_DIR];
   for (const dir of brainDirs) {
-    if (!dir || !existsSync(dir)) continue;
-    try {
-      for (const rawName of readdirSync(dir)) {
-        const name = String(rawName || '').trim();
-        const cascadeId = name.toLowerCase();
-        if (!TRANSCRIPT_UUID_RE.test(cascadeId)) continue;
-        const transcriptPath = join(dir, name, '.system_generated', 'logs', 'transcript.jsonl');
-        if (!existsSync(transcriptPath)) continue;
-        if (!map.has(cascadeId)) map.set(cascadeId, []);
-        map.get(cascadeId).push(transcriptPath);
+    for (const rawName of names(dir)) {
+      const name = String(rawName || '').trim();
+      const cascadeId = name.toLowerCase();
+      if (!TRANSCRIPT_UUID_RE.test(cascadeId) || !include(dir, cascadeId)) continue;
+      const transcriptPath = join(dir, name, '.system_generated', 'logs', 'transcript.jsonl');
+      try {
+        if (!statSync(transcriptPath).isFile()) continue;
+      } catch (error) {
+        if (error.code !== 'ENOENT') complete = false;
+        continue;
       }
-    } catch {
-      // 忽略目录读取异常
+      addFile(cascadeId, dir, transcriptPath);
     }
   }
 
@@ -112,8 +144,12 @@ function discoverLocalConversationFiles() {
       }
     }
   }
-  return map;
+  for (const dirs of storeDirs.values()) dirs.sort();
+  return { map, storeDirs, readable, complete };
 }
+
+const firstMissingAt = new Map();
+const MISSING_GRACE_MS = 60_000;
 
 function readConversationMtime(files = []) {
   let mtimeMs = 0;
@@ -370,6 +406,7 @@ export function clearScannerRuntimeMemos(endpointId = null) {
     return;
   }
   failedFetchCooldownMap.clear();
+  firstMissingAt.clear();
   liveActivityMemo.clear();
   transcriptTailMemo.clear();
   swarmManifestMemo.clear();
@@ -1392,6 +1429,7 @@ function extractTrajectorySubagentMeta(trajRes, fallback = {}) {
 export async function enumerateAndSyncConversations({
   summariesObj = {},
   sideQuestionParents = {},
+  summariesAvailable = false,
   currentAccountName = '',
   requestedConvId = '',
   forceRefresh = false,
@@ -1400,7 +1438,11 @@ export async function enumerateAndSyncConversations({
   const isRemote = Boolean(endpoint && endpoint.isRemote);
   const cacheStore = getEndpointCacheStore(endpoint);
   const getEntry = cacheStore.getCachedTrajectory;
-  const setEntry = cacheStore.setCachedTrajectory;
+  const setEntry = (id, entry) => {
+    const dirs = diskStores.get(id.toLowerCase()) || getEntry(id)?.localStoreDirs;
+    if (dirs) entry.localStoreDirs = dirs;
+    cacheStore.setCachedTrajectory(id, entry);
+  };
   const removeEntry = cacheStore.removeCachedTrajectory;
   const listEntries = cacheStore.listCachedTrajectoryEntries;
   const hasPendingSave = cacheStore.hasPendingTrajectoryCacheSave;
@@ -1423,7 +1465,13 @@ export async function enumerateAndSyncConversations({
   }
 
   let cacheDirty = hasPendingSave();
-  const diskConvMap = isRemote ? new Map() : discoverLocalConversationFiles();
+  const diskScan = isRemote ? null : discoverLocalConversationFiles();
+  const diskConvMap = diskScan?.map || new Map();
+  const diskStores = diskScan?.storeDirs || new Map();
+  const hidden = new Set();
+  const archived = id => !isRemote && Boolean(id) && !diskConvMap.has(id) &&
+    !summariesByLower.has(id) && hasUsageHistory(id);
+  const unavailable = id => hidden.has(id) || archived(id);
 
   // 构建大小写不敏感索引，将同一会话的不同大小写键合并至唯一规范键（优先保留 summariesObj 中的原始键以兼容 RPC）
   const mergedSideQuestionParents = { ...(sideQuestionParents || {}) };
@@ -1472,9 +1520,52 @@ export async function enumerateAndSyncConversations({
     }
   }
 
+  if (!isRemote) {
+    for (const [key, entry] of listEntries()) {
+      const id = key.toLowerCase();
+      if (!UUID_RE.test(id)) continue;
+      let dirs = diskStores.get(id);
+      if (dirs && Array.isArray(entry.localStoreDirs)) {
+        const inaccessible = entry.localStoreDirs.filter(dir => !diskScan.readable.has(dir));
+        if (inaccessible.length) {
+          dirs = [...new Set([...dirs, ...inaccessible])].sort();
+          diskStores.set(id, dirs);
+        }
+      }
+      if (dirs && !isDeepStrictEqual(entry.localStoreDirs, dirs)) {
+        setEntry(key, { ...entry, localStoreDirs: dirs });
+        cacheDirty = true;
+      }
+
+      if (dirs || summariesByLower.has(id)) {
+        firstMissingAt.delete(id);
+        continue;
+      }
+      const knownDirs = Array.isArray(entry.localStoreDirs) ? entry.localStoreDirs : [...diskScan.readable].filter(dir =>
+        inferAppSourceFromSummary('', [dir]) === (entry.appSource || 'standalone'));
+      const observedOnDisk = Boolean(entry.localStoreDirs?.length || entry.diskMtimeMs > 0 || entry.offlineSqliteTelemetry);
+      const canConfirm = diskScan.complete && knownDirs.length && knownDirs.every(dir => diskScan.readable.has(dir)) &&
+        currentAccountName !== null && (!entry.accountName || entry.accountName === currentAccountName);
+      if (!canConfirm) {
+        firstMissingAt.delete(id);
+        continue;
+      }
+      if (!observedOnDisk && !summariesAvailable) continue;
+      hidden.add(id);
+      if (!observedOnDisk) continue;
+      const since = firstMissingAt.get(id);
+      if (since === undefined || since > nowSweepMs) firstMissingAt.set(id, nowSweepMs);
+      else if (nowSweepMs - since >= MISSING_GRACE_MS) {
+        archiveLocalTrajectory(key);
+        firstMissingAt.delete(id);
+        cacheDirty = true;
+      }
+    }
+  }
+
   for (const [rawCacheKey] of listEntries()) {
     const lower = String(rawCacheKey || '').trim().toLowerCase();
-    if (!lower) continue;
+    if (!lower || unavailable(lower)) continue;
     const existingCanon = canonicalIdByLower.get(lower);
     if (!existingCanon) {
       // 标准 UUID 统一收敛为小写键，避免大小写分裂产生双份条目
@@ -1506,7 +1597,7 @@ export async function enumerateAndSyncConversations({
   for (const [, entry] of listEntries()) {
     for (const ref of entry?.subagentRefs || []) {
       const refCid = String(ref?.cascadeId || '').trim().toLowerCase();
-      if (refCid && !canonicalIdByLower.has(refCid)) {
+      if (refCid && !unavailable(refCid) && !canonicalIdByLower.has(refCid)) {
         canonicalIdByLower.set(refCid, refCid);
       }
     }
@@ -2361,7 +2452,7 @@ export async function enumerateAndSyncConversations({
 
         for (const ref of refs) {
           const subCid = String(ref?.cascadeId || '').trim().toLowerCase();
-          if (!subCid || subCid === parentId) continue;
+          if (!subCid || subCid === parentId || unavailable(subCid)) continue;
 
           const canonSubId = canonicalIdByLower.get(subCid) || subCid;
           canonicalIdByLower.set(subCid, canonSubId);
@@ -2538,6 +2629,22 @@ export async function enumerateAndSyncConversations({
       const cached = getEntry(conv.cascadeId);
       if (cached && cached.rootConversationId !== candidate) {
         setEntry(conv.cascadeId, { ...cached, rootConversationId: candidate });
+        cacheDirty = true;
+      }
+    }
+  }
+
+  if (!isRemote) {
+    for (const entry of [...rawConversations, ...listEntries().map(([, cached]) => cached)]) {
+      for (const field of ['rootConversationId', 'parentConversationId', 'parentCascadeId']) {
+        const id = entry[field]?.toLowerCase();
+        if (archived(id)) {
+          delete entry[field];
+          cacheDirty = true;
+        }
+      }
+      if (entry.subagentRefs?.some(ref => archived(ref.cascadeId?.toLowerCase()))) {
+        entry.subagentRefs = entry.subagentRefs.filter(ref => !archived(ref.cascadeId?.toLowerCase()));
         cacheDirty = true;
       }
     }
@@ -2777,7 +2884,8 @@ export async function enumerateAndSyncConversations({
     null;
   const safeReqId =
     requestedConvId && !/[\\/]|\.\./.test(String(requestedConvId)) ? requestedConvId : null;
-  const activeCascadeId = activeConvSummary?.cascadeId || safeReqId || null;
+  const activeCascadeId = activeConvSummary?.cascadeId ||
+    (safeReqId && !unavailable(reqLower) && !reqLower.startsWith('usage-history:') ? safeReqId : null);
 
   return {
     conversations,

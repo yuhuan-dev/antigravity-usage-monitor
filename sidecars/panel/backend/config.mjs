@@ -9,6 +9,7 @@
  */
 
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -393,6 +394,7 @@ export function computeRuntimeCodeVersion() {
 // 跨模块共享运行时状态容器（启动时自动完成历史轨迹缓存迁移与损坏结构防御）
 // ---------------------------------------------------------------------------
 
+const HISTORY_PREFIX = 'usage-history:';
 const loadedTrajectoryCache = loadJson(CACHE_FILE, {});
 let initialCacheMigrated =
   loadedTrajectoryCache !== null &&
@@ -405,6 +407,15 @@ let initialCacheMigrated =
 const trajectoryCache = Object.create(null);
 if (isPlainObject(loadedTrajectoryCache)) {
   for (const [id, entry] of Object.entries(loadedTrajectoryCache)) {
+    if (id.startsWith(HISTORY_PREFIX)) {
+      const record = Array.isArray(entry) ? entry[0] : null;
+      if (isPlainObject(record) && Array.isArray(record.steps) && record.steps.every(isPlainObject)) {
+        trajectoryCache[id] = record;
+      } else {
+        initialCacheMigrated = true;
+      }
+      continue;
+    }
     if (!id || !isPlainObject(entry)) {
       initialCacheMigrated = true;
       continue;
@@ -433,12 +444,59 @@ if (isPlainObject(loadedTrajectoryCache)) {
   }
 }
 
+for (const [id, entry] of listCachedTrajectoryEntries()) {
+  if (!entry.localStoreDirs?.length) continue;
+  const key = usageHistoryKey(id);
+  if (trajectoryCache[key]?.steps.length <= entry.steps.length) delete trajectoryCache[key];
+}
+
+export function usageHistoryKey(id) {
+  return HISTORY_PREFIX + createHash('sha256').update(id.toLowerCase()).digest('hex');
+}
+
 export function getCachedTrajectory(cascadeId) {
+  if (String(cascadeId).startsWith(HISTORY_PREFIX)) return undefined;
   return trajectoryCache[cascadeId];
 }
 
-export function listCachedTrajectoryEntries() {
-  return Object.entries(trajectoryCache);
+export function listCachedTrajectoryEntries(includeHistory = false) {
+  const entries = Object.entries(trajectoryCache);
+  return includeHistory ? entries : entries.filter(([key]) => !key.startsWith(HISTORY_PREFIX));
+}
+
+export function hasUsageHistory(id) {
+  return !trajectoryCache[id] && Boolean(trajectoryCache[usageHistoryKey(id)]);
+}
+
+const usageFields = ['accountName', 'createdAt', 'createdAtMs', 'totalDurationSec', 'isCompactionStep',
+  'modelKey', 'modelDisplayName', 'responseModel', 'apiProvider', 'inputTokens', 'cacheReadTokens',
+  'outputTokens', 'thinkingTokens', 'responseTokens'];
+const projectedUsage = new WeakMap();
+
+function usageRecord(entry) {
+  let steps = projectedUsage.get(entry.steps);
+  if (!steps) {
+    steps = entry.steps.map(step => {
+      const usage = {};
+      for (const field of usageFields) {
+        if (['number', 'string', 'boolean'].includes(typeof step[field])) usage[field] = step[field];
+      }
+      return usage;
+    });
+    projectedUsage.set(entry.steps, steps);
+  }
+  return { appSource: entry.appSource, accountName: entry.accountName, steps };
+}
+
+function retainUsage(cache, id, entry) {
+  const key = usageHistoryKey(id);
+  if ((cache[key]?.steps.length || 0) <= entry.steps.length) cache[key] = usageRecord(entry);
+}
+
+export function archiveLocalTrajectory(id) {
+  const entry = trajectoryCache[id];
+  if (entry) retainUsage(trajectoryCache, id, entry);
+  delete trajectoryCache[id];
 }
 
 export function setCachedTrajectory(cascadeId, entry) {
@@ -483,7 +541,15 @@ function cancelPendingCacheFlushTimer() {
  */
 export function flushTrajectoryCacheNow() {
   cancelPendingCacheFlushTimer();
-  const ok = saveJson(CACHE_FILE, trajectoryCache);
+
+  const snapshot = { ...trajectoryCache };
+  for (const [id, entry] of listCachedTrajectoryEntries()) {
+    if (entry.localStoreDirs?.length) retainUsage(snapshot, id, entry);
+  }
+  for (const [key, record] of Object.entries(snapshot)) {
+    if (key.startsWith(HISTORY_PREFIX)) snapshot[key] = [record];
+  }
+  const ok = saveJson(CACHE_FILE, snapshot);
   cacheState.needsSave = !ok;
   if (ok) {
     cacheState.lastSavedAtMs = Date.now();

@@ -216,6 +216,7 @@ ssh -L 8787:127.0.0.1:8787 user@your-server
   - macOS / Linux：`git -C ~/.gemini/config/plugins/usage-monitor pull --ff-only`
   - 更新后在 **Customizations → Installed** 重新开关一次插件生效。
 - **数据目录**：缓存与设置保存在 `~/.gemini/antigravity/sidecar_data/usage-monitor/`（独立模式未指定 `ANTIGRAVITY_EXECUTABLE_DATA_DIR` 时存放在 `sidecars/panel/.data/`），升级插件不会清除历史记录。
+- **已删除的本地会话**：完整扫描确认当前账号的会话已无本地副本和宿主摘要后，插件会将其从会话选择器中隐藏。对于曾在磁盘上发现的会话，若至少 60 秒后的第二次完整扫描仍确认其缺失，插件会清除缓存的调用明细。「用量统计」保留每次请求的账号、模型、时间和 Token 数量等计量数据，并使用会话 ID 的单向摘要去重，避免重复计入旧统计或恢复的副本。
 
 </details>
 
