@@ -54,3 +54,17 @@ export const BRIDGE_API_PATHS = Object.freeze(BRIDGE_API_ROUTE_DEFS.map((r) => r
 export function readInjectedWindowBridge() {
   return typeof window === 'undefined' ? undefined : window[WINDOW_BRIDGE_KEY];
 }
+
+export function isVsCodeExtensionHost() {
+  const bridge = readInjectedWindowBridge();
+  if (bridge?.isVsCodeHost === true) return true;
+  if (typeof window !== 'undefined') {
+    const search = String(window.location?.search || '');
+    if (/[?&]extensionVariant=vs-code/i.test(search)) return true;
+    const href = String(window.location?.href || '');
+    if (/(?:Visual(?:%20|\s)Studio(?:%20|\s)Code|Code(?:\s|%20)-?(?:\s|%20)Insiders)/i.test(href)) {
+      return true;
+    }
+  }
+  return false;
+}

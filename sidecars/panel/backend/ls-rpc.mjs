@@ -227,11 +227,12 @@ async function callRemoteEndpointLsRpc(endpoint, method, body, timeoutMs) {
   const baseUrl = String(endpoint.baseUrl || endpoint.origin || '').trim().replace(/\/+$/, '');
   const csrfToken = String(endpoint.csrfToken || '').trim();
   const windowInvoker = getRemoteWindowRpcInvoker();
+  const tier1Only = endpoint.tier1Only === true;
   const canTryTier1 =
     Boolean(baseUrl) &&
     isStrictLoopbackUrl(baseUrl) &&
     Boolean(csrfToken) &&
-    !shouldRemoteEndpointPreferTier2(endpoint);
+    (tier1Only || !shouldRemoteEndpointPreferTier2(endpoint));
 
   let tier1Err = null;
   if (canTryTier1) {
@@ -252,10 +253,10 @@ async function callRemoteEndpointLsRpc(endpoint, method, body, timeoutMs) {
         status === 401 ||
         status === 403 ||
         (status === 404 && method !== 'GetCascadeTrajectory');
-      if (isTransportAuthOrRouteMiss) {
+      if (isTransportAuthOrRouteMiss && !tier1Only) {
         markRemoteEndpointPreferTier2(endpoint);
       } else {
-        // 业务级 4xx（如单个会话已被删除导致的 GetCascadeTrajectory 404）直接上抛，不误触熔断
+        // 业务级 4xx（如单个会话已被删除导致的 GetCascadeTrajectory 404）或纯 Tier-1 隧道端点直接上抛
         throw tier1Err;
       }
     } catch (err) {
@@ -263,11 +264,13 @@ async function callRemoteEndpointLsRpc(endpoint, method, body, timeoutMs) {
         throw err;
       }
       tier1Err = err;
-      markRemoteEndpointPreferTier2(endpoint);
+      if (!tier1Only) {
+        markRemoteEndpointPreferTier2(endpoint);
+      }
     }
   }
 
-  if (typeof windowInvoker === 'function') {
+  if (!tier1Only && typeof windowInvoker === 'function') {
     const remainingMs = canTryTier1 ? deadlineMs - Date.now() : safeTimeoutMs;
     if (!canTryTier1 || remainingMs >= REMOTE_TIER2_MIN_REMAINING_MS) {
       return windowInvoker(

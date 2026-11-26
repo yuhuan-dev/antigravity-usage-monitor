@@ -4,7 +4,10 @@
  * extracted from WindowOverlayShell.js.
  */
 
-import { readInjectedWindowBridge } from '../../../shared/window-bridge-protocol.mjs';
+import {
+  isVsCodeExtensionHost,
+  readInjectedWindowBridge,
+} from '../../../shared/window-bridge-protocol.mjs';
 import {
   extractHostRouteCascadeId,
   normalizeClientWindowMountMode,
@@ -781,12 +784,27 @@ export function isIdeExtensionChatFrame() {
 
 export function resolveActiveDockTarget(options = undefined) {
   const settings = telemetryStore.getState().telemetry?.settings;
-  const rawMode =
-    settings?.windowMountMode ??
-    readInjectedWindowBridge()?.mountMode;
+  const bridge = readInjectedWindowBridge();
+  const isVsCode = isVsCodeExtensionHost();
+  const forceTopbar = bridge?.forceTopbarMode === true;
+  const rawMode = forceTopbar
+    ? 'dual'
+    : isVsCode
+      ? settings?.vsCodeMountMode === 'dual'
+        ? 'dual'
+        : bridge?.mountMode === 'dual' && settings?.vsCodeMountMode === undefined
+          ? 'dual'
+          : 'composer'
+      : settings?.windowMountMode ?? bridge?.mountMode;
   const mountMode =
     options?.mountMode ||
-    normalizeClientWindowMountMode(rawMode, settings?.enableWindowOverlay);
+    (forceTopbar
+      ? 'dual'
+      : isVsCode
+        ? rawMode === 'dual'
+          ? 'dual'
+          : 'composer'
+        : normalizeClientWindowMountMode(rawMode, settings?.enableWindowOverlay));
   if (isIdeExtensionChatFrame()) {
     if (mountMode !== 'composer') return null;
     return findHostComposerAutoTarget(

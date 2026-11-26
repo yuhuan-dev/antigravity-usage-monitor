@@ -4,7 +4,7 @@
 
 # Antigravity Usage & Speed Monitor
 
-Google Antigravity 2.0、Antigravity IDE 与 Antigravity CLI 的本地用量、速率、上下文与配额监控插件，无外部 npm 依赖。
+Google Antigravity 2.0、Antigravity IDE、VS Code（官方扩展）与 Antigravity CLI 的本地用量、速率、上下文与配额监控插件，无外部 npm 依赖。
 
 [![Release](https://img.shields.io/github/v/release/yuhuan-dev/antigravity-usage-monitor?style=flat-square&color=2A5E76&label=release)](https://github.com/yuhuan-dev/antigravity-usage-monitor/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/yuhuan-dev/antigravity-usage-monitor/total?style=flat-square&color=0ea5e9)](https://github.com/yuhuan-dev/antigravity-usage-monitor/releases)
@@ -41,6 +41,7 @@ Google Antigravity 2.0、Antigravity IDE 与 Antigravity CLI 的本地用量、�
 - **原生多表 `.xlsx` 报表导出及配置备份**：支持将用量统计及调用明细直接导出为多工作表双语 Excel（`.xlsx`）工作簿或复制 Markdown 汇总报告（落盘至 `~/Downloads` 并弹出「打开位置」定位提示），同时支持便携 JSON 偏好配置备份导入导出。
 - **跨客户端会话无损迁移**：在「偏好设置 → 其他」提供 `CLI ↔ 桌面端 / 新版 IDE` 及 `旧版 IDE (.db)` 按需会话迁移及克隆副本工具，自动重写独立 UUID 防止跨端镜像互删及重复计费。
 - **多端胶囊及 CLI `statusLine` 多模式**：支持 Antigravity 2.0 顶栏/输入框胶囊（含环形额度指示及主代理上下文锁定）及右侧辅助栏、Antigravity IDE 顶栏/输入框胶囊、Antigravity CLI（`agy`）单行 24-bit ANSI `statusLine`（支持 `--style pill|bar|compact`、`--preset compact|balanced|full` 及 `--json` 快照输出）以及独立 Web 页面。
+- **VS Code 官方扩展与 Remote-SSH 适配**：自动补齐 `~/.vscode/argv.json`，默认以独立设置挂载在聊天输入框（支持切换为顶部栏，不提供仅侧边栏）；支持本地与 Remote-SSH 远端扩展及远端 `agy` CLI 插件的自动识别、端点隔离与实时会话跟随，未安装对应插件的窗口自动静默跳过。
 - **不修改 `app.asar` 及 Desktop 2.33.0+ 自动补齐**：桌面端和 IDE 的胶囊挂载及上下文改写均通过本地 CDP 内存注入完成；自动补齐 Desktop `2.33.0+` 用户快捷方式/启动项（支持面板内一键脱离作业树带参重拉）及 `~/.antigravity-ide/argv.json`，绝不触碰宿主安装包及 `app.asar`。
 - **按模型设置上下文窗口（主代理 + 子代理/Swarm）**：支持按模型系列指定上下文上限或跟随宿主默认，提供独立的主代理开关（CDP 请求钩子）及子代理 / Swarm Worker 同步开关（本机回环 CloudCode 透明反代），CLI 端通过 `AGY_CLI_AUTO_COMPACT_OVERRIDE` 控制。
 - **外观定制、离线读取及云端同步**：提供简体中文 / English / 跟随宿主语言、无边框 Modern UI、`sm / md / lg / xl` 字号、6 种主题强调色；离线直读 CLI SQLite + WAL、`annotations/*.pbtxt`、`transcript.jsonl` 及 `.deep_stats_cache.json`；内置 GitHub [`pricing-catalog.json`](pricing-catalog.json) 同步及面板内更新（手动 / 自动 / 关闭）。
@@ -108,6 +109,7 @@ Google Antigravity 2.0、Antigravity IDE 与 Antigravity CLI 的本地用量、�
 | :--- | :---: | :---: | :---: | :---: | :---: |
 | **Antigravity 2.0 桌面端** | 顶栏 / 输入框停靠 | 悬浮窗 + 右侧辅助栏 | 支持 | CDP 钩子 + 本机 CloudCode 反代 | 否 |
 | **Antigravity IDE** | 顶栏 / 输入框停靠 | 点击胶囊展开面板 | 支持 | CDP 钩子 + 本机 CloudCode 反代 | 否 |
+| **VS Code（官方扩展 / Remote-SSH）** | 输入框（默认）/ 顶部栏 | 点击胶囊展开面板 | 支持 | 按宿主 / 端点同步 | 否 |
 | **Antigravity CLI (`agy`)** | 终端底栏 `statusLine` | 独立 Web (`--port`) | 支持（`node:sqlite` + `.pbtxt`） | `AGY_CLI_AUTO_COMPACT_OVERRIDE` | 否 |
 | **无头服务器 / SSH 远程** | 按端点胶囊 / ANSI `statusLine` | SSH 悬浮窗 / `--token` Web | 支持 | 按端点钩子 / 环境变量 | 否 |
 
@@ -163,10 +165,12 @@ git clone --filter=blob:none --single-branch https://github.com/yuhuan-dev/antig
    - 主窗口右上角挂载悬浮胶囊（**悬停**查看速览，**左键**打开四标签面板，**右键**强制刷新），同时可在右侧辅助栏打开「用量监控」。
 3. **Antigravity IDE**：
    - 首次启用后**重启一次 Antigravity IDE**，保持挂载方式为「双栖挂载」，点击顶栏胶囊即可打开面板。
-4. **Antigravity CLI (`agy`) 底部胶囊**：
+4. **VS Code（官方扩展 / Remote-SSH）**：
+   - 首次启用后**重启一次 VS Code**（自动写入 `~/.vscode/argv.json`）；默认挂载在 Antigravity 聊天输入框，可在设置中切换为「顶部栏」。若未安装 VS Code 扩展、仅安装本机或远端（需免密 SSH）的 `agy` CLI 插件，将自动显示于顶部栏。
+5. **Antigravity CLI (`agy`) 底部胶囊**：
    - 检测到 `~/.gemini/antigravity-cli` 时自动写入原生 `statusLine` 配置（保留已有自定义 `statusLine.command`），在终端底栏单行显示当前活跃状态、输出速率、首字延迟与上下文占比（如 `● 1 运行中   38.1 t/s | 0.85s | ◎ 17%`）。
    - 可在 `agy` 中通过 `/statusline` 或在面板 **偏好设置 → 界面编排 → 挂载胶囊** 开关及调整显示顺序。
-5. **独立 Web 服务（纯终端 / 远程服务器）**：
+6. **独立 Web 服务（纯终端 / 远程服务器）**：
 
 ```bash
 # 1. 在远程服务器上启动（默认监听 127.0.0.1:8787）

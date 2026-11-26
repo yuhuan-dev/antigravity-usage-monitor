@@ -727,6 +727,8 @@ export const I18N_MESSAGES_EN_US = Object.freeze({
   'settings.str.mountDual': 'Dual Mount (Titlebar + Sidebar)',
   'settings.str.mountComposer': 'Composer Mount (Input Box + Sidebar)',
   'settings.str.mountSidebar': 'Sidebar Only',
+  'settings.str.mountVsCodeComposer': 'Input Box',
+  'settings.str.mountVsCodeTopbar': 'Top Bar',
   'settings.bridge.restartTitle': 'Launch Flag Auto-Configured — Restart Once to Activate',
   'settings.bridge.ctxRestartTitle': 'Launch Flag Auto-Configured — Restart Once for Context Override',
   'settings.bridge.restartBody': 'Automatically added --remote-debugging-port=0 to your shortcuts, startup entries, and protocol handlers (subsequent shortcut launches mount automatically). Click below to close background processes and relaunch now.',

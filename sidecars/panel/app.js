@@ -902,7 +902,7 @@ return { THIRD_PARTY_POOL_RE, isThirdPartyPoolText, classifySpeedTier, classifyC
 })();
 
 // --- shared/window-bridge-protocol.mjs ---
-const { WINDOW_BRIDGE_KEY, WINDOW_BRIDGE_ROUTE_KEY, WINDOW_BRIDGE_ENDPOINT_KEY, WINDOW_BRIDGE_ENDPOINT_HEADER, LOCAL_ENDPOINT_ID, WINDOW_OVERLAY_KEY, CONTEXT_WINDOWS_GLOBAL_KEY, WINDOW_OVERLAY_METHODS, BRIDGE_API_ROUTE_DEFS, BRIDGE_API_PATHS, readInjectedWindowBridge } = (() => {
+const { WINDOW_BRIDGE_KEY, WINDOW_BRIDGE_ROUTE_KEY, WINDOW_BRIDGE_ENDPOINT_KEY, WINDOW_BRIDGE_ENDPOINT_HEADER, LOCAL_ENDPOINT_ID, WINDOW_OVERLAY_KEY, CONTEXT_WINDOWS_GLOBAL_KEY, WINDOW_OVERLAY_METHODS, BRIDGE_API_ROUTE_DEFS, BRIDGE_API_PATHS, readInjectedWindowBridge, isVsCodeExtensionHost } = (() => {
 const WINDOW_BRIDGE_KEY = '__AGUsageMonitorBridge';
 const WINDOW_BRIDGE_ROUTE_KEY = 'hostRouteCascadeId';
 const WINDOW_BRIDGE_ENDPOINT_KEY = 'endpointId';
@@ -959,7 +959,21 @@ const BRIDGE_API_PATHS = Object.freeze(BRIDGE_API_ROUTE_DEFS.map((r) => r.path))
 function readInjectedWindowBridge() {
   return typeof window === 'undefined' ? undefined : window[WINDOW_BRIDGE_KEY];
 }
-return { WINDOW_BRIDGE_KEY, WINDOW_BRIDGE_ROUTE_KEY, WINDOW_BRIDGE_ENDPOINT_KEY, WINDOW_BRIDGE_ENDPOINT_HEADER, LOCAL_ENDPOINT_ID, WINDOW_OVERLAY_KEY, CONTEXT_WINDOWS_GLOBAL_KEY, WINDOW_OVERLAY_METHODS, BRIDGE_API_ROUTE_DEFS, BRIDGE_API_PATHS, readInjectedWindowBridge };
+
+function isVsCodeExtensionHost() {
+  const bridge = readInjectedWindowBridge();
+  if (bridge?.isVsCodeHost === true) return true;
+  if (typeof window !== 'undefined') {
+    const search = String(window.location?.search || '');
+    if (/[?&]extensionVariant=vs-code/i.test(search)) return true;
+    const href = String(window.location?.href || '');
+    if (/(?:Visual(?:%20|\s)Studio(?:%20|\s)Code|Code(?:\s|%20)-?(?:\s|%20)Insiders)/i.test(href)) {
+      return true;
+    }
+  }
+  return false;
+}
+return { WINDOW_BRIDGE_KEY, WINDOW_BRIDGE_ROUTE_KEY, WINDOW_BRIDGE_ENDPOINT_KEY, WINDOW_BRIDGE_ENDPOINT_HEADER, LOCAL_ENDPOINT_ID, WINDOW_OVERLAY_KEY, CONTEXT_WINDOWS_GLOBAL_KEY, WINDOW_OVERLAY_METHODS, BRIDGE_API_ROUTE_DEFS, BRIDGE_API_PATHS, readInjectedWindowBridge, isVsCodeExtensionHost };
 })();
 
 // --- shared/host-i18n-protocol.mjs ---
@@ -2081,6 +2095,8 @@ const I18N_MESSAGES_ZH_CN = Object.freeze({
   'settings.str.mountDual': '双栖挂载 (顶部栏 + 侧边栏)',
   'settings.str.mountComposer': '输入框挂载 (输入框 + 侧边栏)',
   'settings.str.mountSidebar': '仅侧边栏',
+  'settings.str.mountVsCodeComposer': '输入框',
+  'settings.str.mountVsCodeTopbar': '顶部栏',
   'settings.bridge.restartTitle': '已自动补齐启动参数，重启一次即可启用悬浮胶囊',
   'settings.bridge.ctxRestartTitle': '已自动补齐启动参数，重启一次即可激活上下文覆写',
   'settings.bridge.restartBody': '已自动为快捷方式、自启项及协议关联写入 --remote-debugging-port=0（后续通过常规快捷方式打开均自动生效）。点击下方按钮即可退出后台进程并立即生效。',
@@ -3112,6 +3128,8 @@ const I18N_MESSAGES_EN_US = Object.freeze({
   'settings.str.mountDual': 'Dual Mount (Titlebar + Sidebar)',
   'settings.str.mountComposer': 'Composer Mount (Input Box + Sidebar)',
   'settings.str.mountSidebar': 'Sidebar Only',
+  'settings.str.mountVsCodeComposer': 'Input Box',
+  'settings.str.mountVsCodeTopbar': 'Top Bar',
   'settings.bridge.restartTitle': 'Launch Flag Auto-Configured — Restart Once to Activate',
   'settings.bridge.ctxRestartTitle': 'Launch Flag Auto-Configured — Restart Once for Context Override',
   'settings.bridge.restartBody': 'Automatically added --remote-debugging-port=0 to your shortcuts, startup entries, and protocol handlers (subsequent shortcut launches mount automatically). Click below to close background processes and relaunch now.',
@@ -9581,6 +9599,7 @@ const TELEMETRY_RECOMPUTE_SETTING_KEYS = new Set([
   'weeklyTokenBudget',
   'weeklyCostBudget',
   'windowMountMode',
+  'vsCodeMountMode',
   'enableWindowOverlay',
 ]);
 
@@ -11666,7 +11685,16 @@ function startAsyncTelemetryLoop(intervalMs = 2000) {
 
   const resolveNextDelay = () => {
     if (isWindowOverlayMode() && typeof document !== 'undefined' && document.hidden) {
-      return Math.max(loopIntervalMs, 8000);
+      return Math.max(loopIntervalMs, 10000);
+    }
+    if (isWindowOverlayMode() && readInjectedWindowBridge()?.isRemoteEndpoint) {
+      const tel = telemetryStore.getState().telemetry;
+      const hasRunning =
+        (Array.isArray(tel?.runningConversations) && tel.runningConversations.length > 0) ||
+        tel?.activeConversation?.status === 'CASCADE_RUN_STATUS_RUNNING';
+      if (!hasRunning) {
+        return Math.max(loopIntervalMs, 6000);
+      }
     }
     return loopIntervalMs;
   };
@@ -32289,6 +32317,12 @@ function normalizeStructureTabKey(raw) {
 }
 
 function getMountModeOptions() {
+  if (isVsCodeExtensionHost()) {
+    return [
+      { value: 'composer', label: t('settings.str.mountVsCodeComposer') },
+      { value: 'dual', label: t('settings.str.mountVsCodeTopbar') },
+    ];
+  }
   return [
     { value: 'dual', label: t('settings.str.mountDual') },
     { value: 'composer', label: t('settings.str.mountComposer') },
@@ -32668,6 +32702,16 @@ const SettingsStructureTab = defineComponent({
       icon: 'dock',
       options: getMountModeOptions(),
       onUpdateModelValue: (val) => {
+        if (isVsCodeExtensionHost()) {
+          const nextVsMode = val === 'dual' ? 'dual' : 'composer';
+          draftWindowMountMode = nextVsMode;
+          syncMountSectionMeta();
+          props.onLayoutChange?.();
+          void persistStructurePatch(mountSection, {
+            vsCodeMountMode: nextVsMode,
+          });
+          return;
+        }
         const nextMode = normalizeClientWindowMountMode(val);
         draftWindowMountMode = nextMode;
         syncMountSectionMeta();
@@ -32857,7 +32901,8 @@ const SettingsStructureTab = defineComponent({
       title: t('settings.str.mountSection'),
       badgeText: t('settings.str.mountBadge', { count: draftTopbarSlots.length }),
       onReset: () => {
-        draftWindowMountMode = 'dual';
+        const vsCodeHost = isVsCodeExtensionHost();
+        draftWindowMountMode = vsCodeHost ? 'composer' : 'dual';
         draftPopoverWidthMode = 'auto';
         draftPopoverWidth = DEFAULT_CLIENT_POPOVER_WIDTH;
         popoverWidthStepper.setProps({ modelValue: DEFAULT_CLIENT_POPOVER_WIDTH });
@@ -32872,8 +32917,9 @@ const SettingsStructureTab = defineComponent({
         void persistStructurePatch(
           mountSection,
           {
-            windowMountMode: 'dual',
-            enableWindowOverlay: true,
+            ...(vsCodeHost
+              ? { vsCodeMountMode: 'composer' }
+              : { windowMountMode: 'dual', enableWindowOverlay: true }),
             popoverWidthMode: 'auto',
             popoverWidth: DEFAULT_CLIENT_POPOVER_WIDTH,
             enableCliStatusLine: true,
@@ -33658,10 +33704,14 @@ const SettingsStructureTab = defineComponent({
       if (hostPlatform) latestHostPlatform = hostPlatform;
       if (cliStatusLine !== undefined) latestCliStatusLine = cliStatusLine;
       if (quotas !== undefined) latestQuotas = quotas;
-      draftWindowMountMode = normalizeClientWindowMountMode(
-        settings.windowMountMode,
-        settings.enableWindowOverlay
-      );
+      draftWindowMountMode = isVsCodeExtensionHost()
+        ? settings.vsCodeMountMode === 'dual'
+          ? 'dual'
+          : 'composer'
+        : normalizeClientWindowMountMode(
+            settings.windowMountMode,
+            settings.enableWindowOverlay
+          );
       draftPopoverWidthMode = normalizeClientPopoverWidthMode(settings.popoverWidthMode);
       draftPopoverWidth = normalizeClientPopoverWidth(settings.popoverWidth);
       draftEnableCliStatusLine = settings.enableCliStatusLine !== false;
@@ -41810,12 +41860,27 @@ function isIdeExtensionChatFrame() {
 
 function resolveActiveDockTarget(options = undefined) {
   const settings = telemetryStore.getState().telemetry?.settings;
-  const rawMode =
-    settings?.windowMountMode ??
-    readInjectedWindowBridge()?.mountMode;
+  const bridge = readInjectedWindowBridge();
+  const isVsCode = isVsCodeExtensionHost();
+  const forceTopbar = bridge?.forceTopbarMode === true;
+  const rawMode = forceTopbar
+    ? 'dual'
+    : isVsCode
+      ? settings?.vsCodeMountMode === 'dual'
+        ? 'dual'
+        : bridge?.mountMode === 'dual' && settings?.vsCodeMountMode === undefined
+          ? 'dual'
+          : 'composer'
+      : settings?.windowMountMode ?? bridge?.mountMode;
   const mountMode =
     options?.mountMode ||
-    normalizeClientWindowMountMode(rawMode, settings?.enableWindowOverlay);
+    (forceTopbar
+      ? 'dual'
+      : isVsCode
+        ? rawMode === 'dual'
+          ? 'dual'
+          : 'composer'
+        : normalizeClientWindowMountMode(rawMode, settings?.enableWindowOverlay));
   if (isIdeExtensionChatFrame()) {
     if (mountMode !== 'composer') return null;
     return findHostComposerAutoTarget(
@@ -43607,10 +43672,17 @@ function mountWindowOverlay() {
     }
   }
 
-  let lastAppliedMountMode = normalizeClientWindowMountMode(
-    telemetryStore.getState().telemetry?.settings?.windowMountMode,
-    telemetryStore.getState().telemetry?.settings?.enableWindowOverlay
-  );
+  const resolveShellMountMode = (settingsObj) => {
+    if (isVsCodeExtensionHost()) {
+      return settingsObj?.vsCodeMountMode === 'dual' ? 'dual' : 'composer';
+    }
+    return normalizeClientWindowMountMode(
+      settingsObj?.windowMountMode,
+      settingsObj?.enableWindowOverlay
+    );
+  };
+
+  let lastAppliedMountMode = resolveShellMountMode(telemetryStore.getState().telemetry?.settings);
 
   const unsubStore = telemetryStore.subscribe(
     (st) => ({
@@ -43620,11 +43692,11 @@ function mountWindowOverlay() {
       selectedConversationId: st.selectedConversationId,
     }),
     (slice) => {
-      const nextMountMode = normalizeClientWindowMountMode(
-        slice.telemetry?.settings?.windowMountMode,
-        slice.telemetry?.settings?.enableWindowOverlay
-      );
-      if (slice.telemetry?.settings?.enableWindowOverlay === false || nextMountMode === 'sidebar') {
+      const nextMountMode = resolveShellMountMode(slice.telemetry?.settings);
+      if (
+        !isVsCodeExtensionHost() &&
+        (slice.telemetry?.settings?.enableWindowOverlay === false || nextMountMode === 'sidebar')
+      ) {
         if (popoverOpen) setPopoverOpen(false);
         if (multiOpen) setMultiOpen(false);
       } else if (nextMountMode !== lastAppliedMountMode) {
@@ -43698,7 +43770,7 @@ function mountWindowOverlay() {
     const shouldPreserveSameSession =
       !currentRouteId || isSameActiveRoot || isChildOfActiveRoot;
     const nextSelectedId =
-      currentRouteId && st.selectedConversationId && st.selectedConversationId !== currentRouteId
+      st.selectedConversationId && st.selectedConversationId !== currentRouteId
         ? ''
         : st.selectedConversationId;
     if (!shouldPreserveSameSession) {

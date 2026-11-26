@@ -190,6 +190,7 @@ const TELEMETRY_RECOMPUTE_SETTING_KEYS = new Set([
   'weeklyTokenBudget',
   'weeklyCostBudget',
   'windowMountMode',
+  'vsCodeMountMode',
   'enableWindowOverlay',
 ]);
 
@@ -2275,7 +2276,16 @@ export function startAsyncTelemetryLoop(intervalMs = 2000) {
 
   const resolveNextDelay = () => {
     if (isWindowOverlayMode() && typeof document !== 'undefined' && document.hidden) {
-      return Math.max(loopIntervalMs, 8000);
+      return Math.max(loopIntervalMs, 10000);
+    }
+    if (isWindowOverlayMode() && readInjectedWindowBridge()?.isRemoteEndpoint) {
+      const tel = telemetryStore.getState().telemetry;
+      const hasRunning =
+        (Array.isArray(tel?.runningConversations) && tel.runningConversations.length > 0) ||
+        tel?.activeConversation?.status === 'CASCADE_RUN_STATUS_RUNNING';
+      if (!hasRunning) {
+        return Math.max(loopIntervalMs, 6000);
+      }
     }
     return loopIntervalMs;
   };

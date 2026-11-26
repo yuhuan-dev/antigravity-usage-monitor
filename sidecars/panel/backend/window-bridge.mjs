@@ -57,6 +57,7 @@ import {
   ensureDesktopLaunchEntriesConfigured,
   resolveDesktopHostExecutable,
 } from './desktop-launcher-config.mjs';
+import { createRemoteCliBridge } from './remote-cli-bridge.mjs';
 import {
   getRegisteredRemoteEndpoint,
   getRemoteEndpointTargetWsUrls,
@@ -106,45 +107,49 @@ const WINDOW_VISIBLE_EXPR = `Boolean(
 function buildDomRouteCascadeIdSnippet() {
   return `(() => {
     const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    const m = String(window.location?.pathname || '').match(/^\\/c\\/([0-9a-f-]{36})(?:\\/|$)/i);
-    if (m && uuidRe.test(m[1])) return m[1];
-    if (typeof document === 'undefined' || typeof document.querySelector !== 'function') return '';
-    const selectedRow = document.querySelector(
-      '[data-testid^="conversation-row-"][data-selected="true"][data-cascade-id]'
-    );
-    const selectedRowId = String(selectedRow?.getAttribute?.('data-cascade-id') || '').trim();
-    if (typeof document.querySelectorAll === 'function') {
-      const views = document.querySelectorAll('[data-testid="conversation-view"][data-cascade-id]');
-      const visibleIds = [];
-      let focusedId = '';
-      const activeEl = document.activeElement || null;
-      for (const viewEl of views) {
-        const cid = String(viewEl?.getAttribute?.('data-cascade-id') || '').trim();
-        if (!uuidRe.test(cid)) continue;
-        if (viewEl.hasAttribute?.('hidden')) continue;
-        if (viewEl.getBoundingClientRect) {
-          const r = viewEl.getBoundingClientRect();
-          if (r.width <= 0 && r.height <= 0) continue;
+    const isExtView = /[?&]extension(?:View|Variant)=/i.test(String(window.location?.search || ''));
+    const pathMatch = String(window.location?.pathname || '').match(/^\\/c\\/([0-9a-f-]{36})(?:\\/|$)/i);
+    const pathId = pathMatch && uuidRe.test(pathMatch[1]) ? pathMatch[1] : '';
+    if (!isExtView && pathId) return pathId;
+    if (typeof document !== 'undefined' && typeof document.querySelector === 'function') {
+      const selectedRow = document.querySelector(
+        '[data-testid^="conversation-row-"][data-selected="true"][data-cascade-id]'
+      );
+      const selectedRowId = String(selectedRow?.getAttribute?.('data-cascade-id') || '').trim();
+      if (typeof document.querySelectorAll === 'function') {
+        const views = document.querySelectorAll('[data-testid="conversation-view"][data-cascade-id]');
+        const visibleIds = [];
+        let focusedId = '';
+        const activeEl = document.activeElement || null;
+        for (const viewEl of views) {
+          const cid = String(viewEl?.getAttribute?.('data-cascade-id') || '').trim();
+          if (!uuidRe.test(cid)) continue;
+          if (viewEl.hasAttribute?.('hidden')) continue;
+          if (viewEl.getBoundingClientRect) {
+            const r = viewEl.getBoundingClientRect();
+            if (r.width <= 0 && r.height <= 0) continue;
+          }
+          visibleIds.push(cid);
+          if (activeEl && viewEl.contains?.(activeEl)) {
+            focusedId = cid;
+          }
         }
-        visibleIds.push(cid);
-        if (activeEl && viewEl.contains?.(activeEl)) {
-          focusedId = cid;
+        if (focusedId) return focusedId;
+        if (
+          selectedRowId &&
+          uuidRe.test(selectedRowId) &&
+          visibleIds.some((id) => id.toLowerCase() === selectedRowId.toLowerCase())
+        ) {
+          return selectedRowId;
         }
+        if (visibleIds.length > 0) return visibleIds[0];
       }
-      if (focusedId) return focusedId;
-      if (
-        selectedRowId &&
-        uuidRe.test(selectedRowId) &&
-        visibleIds.some((id) => id.toLowerCase() === selectedRowId.toLowerCase())
-      ) {
-        return selectedRowId;
-      }
-      if (visibleIds.length > 0) return visibleIds[0];
+      const singleView = document.querySelector('[data-testid="conversation-view"][data-cascade-id]');
+      const singleViewId = String(singleView?.getAttribute?.('data-cascade-id') || '').trim();
+      if (uuidRe.test(singleViewId)) return singleViewId;
+      if (uuidRe.test(selectedRowId)) return selectedRowId;
     }
-    const singleView = document.querySelector('[data-testid="conversation-view"][data-cascade-id]');
-    const singleViewId = String(singleView?.getAttribute?.('data-cascade-id') || '').trim();
-    if (uuidRe.test(singleViewId)) return singleViewId;
-    if (uuidRe.test(selectedRowId)) return selectedRowId;
+    if (pathId) return pathId;
     return '';
   })()`;
 }
@@ -252,6 +257,249 @@ export function resolveDevToolsPortCandidates(
     }
   } catch {
     // 宿主机未安装 Snap 或目录不可读时静默忽略
+  }
+
+  return out;
+}
+
+const VSCODE_ANTIGRAVITY_EXT_RE = /^google\.google-antigravity(?:[-.@]|$)/i;
+const VSCODE_REMOTE_SSH_EXT_RE = /^ms-vscode-remote\.remote-ssh(?:[-.@]|$)/i;
+
+/**
+ * 检查指定的 VS Code 用户配置目录（如 `~/.vscode`、`~/.vscode-insiders`）下是否已安装
+ * Google Antigravity 官方扩展（`google.google-antigravity`）。
+ *
+ * @param {string} vsCodeUserRoot
+ * @param {{ readdirFn?: typeof readdirSync }|null} [fsOps=null]
+ * @returns {boolean}
+ */
+export function hasVsCodeAntigravityExtension(vsCodeUserRoot, fsOps = null) {
+  const cleanRoot = String(vsCodeUserRoot || '').trim();
+  if (!cleanRoot) return false;
+  const readdirFn = fsOps?.readdirFn || readdirSync;
+  try {
+    const entries = readdirFn(join(cleanRoot, 'extensions')) || [];
+    for (const rawEntry of entries) {
+      const name = typeof rawEntry === 'string' ? rawEntry : String(rawEntry?.name || '');
+      if (VSCODE_ANTIGRAVITY_EXT_RE.test(name)) {
+        return true;
+      }
+    }
+  } catch {
+    return false;
+  }
+  return false;
+}
+
+/**
+ * 检查指定的 VS Code 用户配置目录下是否安装了 Remote-SSH 扩展（远端服务器可能单独安装了 Antigravity 扩展）。
+ *
+ * @param {string} vsCodeUserRoot
+ * @param {{ readdirFn?: typeof readdirSync }|null} [fsOps=null]
+ * @returns {boolean}
+ */
+export function hasVsCodeRemoteSshExtension(vsCodeUserRoot, fsOps = null) {
+  const cleanRoot = String(vsCodeUserRoot || '').trim();
+  if (!cleanRoot) return false;
+  const readdirFn = fsOps?.readdirFn || readdirSync;
+  try {
+    const entries = readdirFn(join(cleanRoot, 'extensions')) || [];
+    for (const rawEntry of entries) {
+      const name = typeof rawEntry === 'string' ? rawEntry : String(rawEntry?.name || '');
+      if (VSCODE_REMOTE_SSH_EXT_RE.test(name)) {
+        return true;
+      }
+    }
+  } catch {
+    return false;
+  }
+  return false;
+}
+
+/**
+ * 检查本机是否安装了 Antigravity CLI（`agy` 二进制或 `~/.gemini/antigravity-cli` 目录）。
+ *
+ * @param {Record<string, string|undefined>} [env=process.env]
+ * @param {string} [homeDir=homedir()]
+ * @param {{ existsFn?: typeof existsSync }|null} [fsOps=null]
+ * @returns {boolean}
+ */
+export function hasLocalAgyCli(env = process.env, homeDir = homedir(), fsOps = null) {
+  const existsFn = fsOps?.existsFn || existsSync;
+  const geminiBase = String(env?.ANTIGRAVITY_GEMINI_DIR || '').trim() || join(homeDir, '.gemini');
+  try {
+    if (existsFn(join(geminiBase, 'antigravity-cli'))) {
+      return true;
+    }
+  } catch {
+    // 忽略目录不可读
+  }
+  const exeName = process.platform === 'win32' ? 'agy.exe' : 'agy';
+  const binCandidates =
+    process.platform === 'win32'
+      ? [
+          join(homeDir, '.local', 'bin', exeName),
+          join(env?.LOCALAPPDATA || join(homeDir, 'AppData', 'Local'), 'Programs', 'agy', exeName),
+        ]
+      : [
+          join(homeDir, '.local', 'bin', exeName),
+          '/usr/local/bin/agy',
+          '/opt/homebrew/bin/agy',
+        ];
+  for (const binPath of binCandidates) {
+    try {
+      if (existsFn(binPath)) return true;
+    } catch {
+      // 忽略异常
+    }
+  }
+  const pathEnv = String(env?.PATH || '');
+  if (pathEnv) {
+    const sep = process.platform === 'win32' ? ';' : ':';
+    for (const dir of pathEnv.split(sep)) {
+      const cleanDir = dir.trim();
+      if (!cleanDir) continue;
+      try {
+        if (existsFn(join(cleanDir, exeName))) return true;
+      } catch {
+        // 忽略不可读 PATH 目录
+      }
+    }
+  }
+  return false;
+}
+
+/**
+ * 检查本机是否安装了 `agy` CLI 及其 `usage-monitor` 插件。
+ *
+ * @param {Record<string, string|undefined>} [env=process.env]
+ * @param {string} [homeDir=homedir()]
+ * @param {{ existsFn?: typeof existsSync, readFileFn?: typeof readFileSync }|null} [fsOps=null]
+ * @returns {boolean}
+ */
+export function hasLocalAgyCliPlugin(env = process.env, homeDir = homedir(), fsOps = null) {
+  if (!hasLocalAgyCli(env, homeDir, fsOps)) return false;
+  const existsFn = fsOps?.existsFn || existsSync;
+  const readFileFn = fsOps?.readFileFn || readFileSync;
+  const geminiBase = String(env?.ANTIGRAVITY_GEMINI_DIR || '').trim() || join(homeDir, '.gemini');
+  const pluginManifestCandidates = [
+    join(geminiBase, 'config', 'plugins', 'usage-monitor', 'plugin.json'),
+    join(geminiBase, 'antigravity-cli', 'plugins', 'usage-monitor', 'plugin.json'),
+  ];
+  for (const manifestPath of pluginManifestCandidates) {
+    try {
+      if (existsFn(manifestPath)) return true;
+    } catch {
+      // 忽略不可读路径
+    }
+  }
+  try {
+    const cliSettingsPath = join(geminiBase, 'antigravity-cli', 'settings.json');
+    if (existsFn(cliSettingsPath)) {
+      const raw = String(readFileFn(cliSettingsPath, 'utf8') || '');
+      if (/usage-monitor|cli-statusline/i.test(raw)) return true;
+    }
+  } catch {
+    // 忽略配置读取异常
+  }
+  return false;
+}
+
+/**
+ * 检查本机标准 VS Code / VS Code Insiders 是否安装了 Antigravity 官方扩展。
+ *
+ * @param {string} [homeDir=homedir()]
+ * @param {{ readdirFn?: typeof readdirSync }|null} [fsOps=null]
+ * @returns {boolean}
+ */
+export function hasAnyLocalVsCodeAntigravityExtension(homeDir = homedir(), fsOps = null) {
+  return Boolean(
+    hasVsCodeAntigravityExtension(join(homeDir, '.vscode'), fsOps) ||
+      hasVsCodeAntigravityExtension(join(homeDir, '.vscode-insiders'), fsOps)
+  );
+}
+
+/**
+ * 判断指定的标准 VS Code 目录是否应纳入 Antigravity 探测范围：
+ * 满足本机已装 VS Code `google.google-antigravity` 扩展、已装 `Remote-SSH`（远端可能装了扩展或 CLI 插件）
+ * 或本机已装 `agy` CLI `usage-monitor` 插件任一条件即启用。
+ *
+ * @param {string} vsCodeUserRoot
+ * @param {Record<string, string|undefined>} [env=process.env]
+ * @param {string} [homeDir=homedir()]
+ * @param {{ readdirFn?: typeof readdirSync, existsFn?: typeof existsSync, readFileFn?: typeof readFileSync }|null} [fsOps=null]
+ * @returns {boolean}
+ */
+export function hasVsCodeAntigravitySupport(
+  vsCodeUserRoot,
+  env = process.env,
+  homeDir = homedir(),
+  fsOps = null
+) {
+  return Boolean(
+    hasVsCodeAntigravityExtension(vsCodeUserRoot, fsOps) ||
+      hasVsCodeRemoteSshExtension(vsCodeUserRoot, fsOps) ||
+      hasLocalAgyCliPlugin(env, homeDir, fsOps)
+  );
+}
+
+/**
+ * 解析已安装 Antigravity 官方扩展（或 Remote-SSH / agy CLI）的标准 VS Code / VS Code Insiders 的 `DevToolsActivePort` 候选路径。
+ * 与 `resolveDevToolsPortCandidates` 隔离，避免 Antigravity 桌面端重拉时误删 VS Code 的端口文件。
+ *
+ * @param {Record<string, string|undefined>} [env=process.env]
+ * @param {string} [platform=process.platform]
+ * @param {string} [homeDir=homedir()]
+ * @param {{ readdirFn?: typeof readdirSync, existsFn?: typeof existsSync }|null} [fsOps=null]
+ * @returns {string[]}
+ */
+export function resolveVsCodeDevToolsPortCandidates(
+  env = process.env,
+  platform = process.platform,
+  homeDir = homedir(),
+  fsOps = null
+) {
+  if (String(env?.ANTIGRAVITY_DEVTOOLS_PORT_FILE || '').trim()) {
+    return [];
+  }
+  const variants = [
+    { userRoot: join(homeDir, '.vscode'), dataDirName: 'Code' },
+    { userRoot: join(homeDir, '.vscode-insiders'), dataDirName: 'Code - Insiders' },
+  ].filter((v) => hasVsCodeAntigravitySupport(v.userRoot, env, homeDir, fsOps));
+
+  if (variants.length === 0) {
+    return [];
+  }
+
+  const out = [];
+  const seen = new Set();
+  const pushUnique = (p) => {
+    const clean = String(p || '').trim();
+    if (clean && !seen.has(clean)) {
+      seen.add(clean);
+      out.push(clean);
+    }
+  };
+
+  for (const { dataDirName } of variants) {
+    if (platform === 'win32') {
+      const appData = env?.APPDATA || join(homeDir, 'AppData', 'Roaming');
+      const localAppData = env?.LOCALAPPDATA || join(homeDir, 'AppData', 'Local');
+      pushUnique(join(appData, dataDirName, 'DevToolsActivePort'));
+      pushUnique(join(localAppData, dataDirName, 'DevToolsActivePort'));
+      continue;
+    }
+    if (platform === 'darwin') {
+      pushUnique(join(homeDir, 'Library', 'Application Support', dataDirName, 'DevToolsActivePort'));
+      pushUnique(join(homeDir, '.config', dataDirName, 'DevToolsActivePort'));
+      continue;
+    }
+    const defaultConfigHome = join(homeDir, '.config');
+    const configHome = env?.XDG_CONFIG_HOME || defaultConfigHome;
+    pushUnique(join(configHome, dataDirName, 'DevToolsActivePort'));
+    if (configHome !== defaultConfigHome) {
+      pushUnique(join(defaultConfigHome, dataDirName, 'DevToolsActivePort'));
+    }
   }
 
   return out;
@@ -564,10 +812,32 @@ export function ensureIdeRemoteDebuggingArgv({
     return { checked: false, updated: false, reason: 'disabled' };
   }
   const argvPath = resolveIdeArgvPath(env, homeDir);
-  return patchSingleHostArgvFile(argvPath, {
+  const ideRes = patchSingleHostArgvFile(argvPath, {
     createDir: false,
     missingReason: 'ide_dir_missing',
   });
+
+  const vsCodeRoots = [join(homeDir, '.vscode'), join(homeDir, '.vscode-insiders')];
+  let vsCodeUpdated = false;
+  let vsCodeAlreadyConfigured = false;
+  for (const root of vsCodeRoots) {
+    if (!hasVsCodeAntigravitySupport(root, env, homeDir)) continue;
+    const res = patchSingleHostArgvFile(join(root, 'argv.json'), {
+      createDir: false,
+      missingReason: 'vscode_dir_missing',
+    });
+    if (res.updated) vsCodeUpdated = true;
+    if (res.alreadyConfigured) vsCodeAlreadyConfigured = true;
+  }
+
+  if (vsCodeUpdated || vsCodeAlreadyConfigured) {
+    return {
+      ...ideRes,
+      updated: Boolean(ideRes.updated || vsCodeUpdated),
+      alreadyConfigured: Boolean(ideRes.alreadyConfigured || vsCodeAlreadyConfigured),
+    };
+  }
+  return ideRes;
 }
 
 /**
@@ -710,6 +980,7 @@ export function associateIdeIframeRoutes(rawTargets, mainTargets, options = unde
     if (!cascadeId && !isChatFrame) continue;
 
     let matchedMainId = '';
+    let ancestorRemoteAuthority = '';
     let curId = String(t.parentId || '').trim();
     const visited = new Set();
     while (curId && !visited.has(curId)) {
@@ -719,6 +990,15 @@ export function associateIdeIframeRoutes(rawTargets, mainTargets, options = unde
         break;
       }
       const parentTarget = byId.get(curId);
+      if (!ancestorRemoteAuthority && parentTarget?.url) {
+        try {
+          const parentUrl = new URL(String(parentTarget.url));
+          const auth = String(parentUrl.searchParams.get('remoteAuthority') || '').trim();
+          if (auth) ancestorRemoteAuthority = auth;
+        } catch {
+          // 忽略非标准父级 URL
+        }
+      }
       curId = parentTarget ? String(parentTarget.parentId || '').trim() : '';
     }
 
@@ -742,8 +1022,11 @@ export function associateIdeIframeRoutes(rawTargets, mainTargets, options = unde
         wsUrl = `ws://127.0.0.1:${cdpPort}/devtools/page/${encodeURIComponent(String(t.id))}`;
       }
       let origin = '';
+      let remoteKind = '';
       try {
-        origin = new URL(rawUrl).origin;
+        const parsedChatUrl = new URL(rawUrl);
+        origin = parsedChatUrl.origin;
+        remoteKind = String(parsedChatUrl.searchParams.get('remoteKind') || '').trim().toLowerCase();
       } catch {
         // 忽略非法 URL
       }
@@ -754,6 +1037,8 @@ export function associateIdeIframeRoutes(rawTargets, mainTargets, options = unde
         id: String(t.id || ''),
         url: rawUrl,
         origin,
+        remoteKind,
+        remoteAuthority: ancestorRemoteAuthority,
         cascadeId: cascadeId || (fallbackUuidMatch ? fallbackUuidMatch[1] : ''),
         webSocketDebuggerUrl: wsUrl,
         isIdeChatFrame: true,
@@ -849,14 +1134,80 @@ export function extractRemoteHostMetadata(appConfig, title = '') {
  *   confirmedLocalPorts?: Set<number>|null,
  * }} params
  */
+/**
+ * 从 IDE / VS Code 主窗口及其关联的扩展聊天 iframe 中提取远端连接元数据（如 Remote-SSH / WSL / Dev Container）。
+ * 仅在检测到显式远端标记（非 `none` 的 `remoteKind`、`remoteAuthority` 或窗口标题 `[SSH: ...]`）时返回 `isRemote: true`。
+ *
+ * @param {object|null|undefined} target
+ * @param {object|null|undefined} [chatTarget=null]
+ */
+export function pickPrimaryIdeChatTarget(target) {
+  const list = Array.isArray(target?.ideChatTargets) ? target.ideChatTargets : [];
+  if (list.length === 0) return null;
+  const remoteChat = list.find(
+    (c) =>
+      (c?.remoteKind && c.remoteKind !== 'none') ||
+      Boolean(String(c?.remoteAuthority || '').trim())
+  );
+  if (remoteChat) return remoteChat;
+  return list.find((c) => c?.webSocketDebuggerUrl || c?.origin) || list[0];
+}
+
+export function extractIdeRemoteMetadata(target, chatTarget = null) {
+  const ct = chatTarget || pickPrimaryIdeChatTarget(target);
+  const remoteKind = String(ct?.remoteKind || '').trim().toLowerCase();
+  const rawAuthority = String(ct?.remoteAuthority || '').trim();
+  const cleanAuthorityHost = rawAuthority
+    .replace(/^(?:ssh-remote|ssh|wsl|dev-container|attached-container|tunnel|codespaces)\+/i, '')
+    .trim();
+  const titleMeta = extractRemoteHostMetadata(null, String(target?.title || ''));
+  const hasRemoteKind = Boolean(remoteKind && remoteKind !== 'none');
+  const isRemote = Boolean(hasRemoteKind || rawAuthority || titleMeta.bracketedTitleHost);
+  const stableHostKey = cleanAuthorityHost || titleMeta.stableHostKey || '';
+  const hostLabel = cleanAuthorityHost || titleMeta.hostLabel || (hasRemoteKind ? remoteKind : '');
+  return {
+    isRemote,
+    remoteKind,
+    remoteAuthority: rawAuthority,
+    stableHostKey,
+    hostLabel,
+  };
+}
+
 export function classifyWindowTargetEndpoint({
   target,
   probedInfo = null,
   localHubInfo = null,
   confirmedLocalPorts = null,
 }) {
-  if (!target || target.isIdeWorkbench) {
+  if (!target) {
     return { isRemote: false, endpointId: LOCAL_ENDPOINT_ID, label: '', origin: '', csrfToken: '' };
+  }
+  if (target.isIdeWorkbench) {
+    const primaryChat = pickPrimaryIdeChatTarget(target);
+    const ideRemote = extractIdeRemoteMetadata(target, primaryChat);
+    if (!ideRemote.isRemote) {
+      return { isRemote: false, endpointId: LOCAL_ENDPOINT_ID, label: '', origin: '', csrfToken: '' };
+    }
+    const origin = String(probedInfo?.origin || primaryChat?.origin || '').trim();
+    let originPort = 0;
+    if (origin) {
+      try {
+        originPort = Number(new URL(origin).port || 0);
+      } catch {
+        originPort = 0;
+      }
+    }
+    const csrfToken = String(probedInfo?.csrfToken || probedInfo?.observedCsrfToken || '').trim();
+    return {
+      isRemote: true,
+      origin,
+      originPort,
+      csrfToken,
+      stableHostKey: ideRemote.stableHostKey,
+      hostLabel: ideRemote.hostLabel || (originPort > 0 ? `SSH:${originPort}` : 'SSH'),
+      remoteWsUrl: String(primaryChat?.webSocketDebuggerUrl || '').trim(),
+    };
   }
 
   let origin = String(probedInfo?.origin || '').trim();
@@ -1141,7 +1492,7 @@ export function createWindowBridgeController(options) {
     env = process.env,
     platform = process.platform,
     homeDir = homedir(),
-    pollIntervalMs = 3000,
+    pollIntervalMs = 6000,
     fastPollIntervalMs = 1500,
     cdpTimeoutMs = 3500,
     bootBundleVersion = '',
@@ -1158,6 +1509,8 @@ export function createWindowBridgeController(options) {
     getLocalHubPortsFn = getLocalHubPorts,
     cloudCodeProxy = null,
     manageCloudCodeProxy = false,
+    remoteCliBridge = null,
+    enableRemoteCliBridge = options?.env === undefined && options?.homeDir === undefined,
     resolveLocalContextRulesFn = null,
     getHostI18nDescriptorFn =
       options?.env === undefined && options?.homeDir === undefined
@@ -1167,6 +1520,7 @@ export function createWindowBridgeController(options) {
 
   const activeCloudCodeProxy =
     cloudCodeProxy || (manageCloudCodeProxy ? getDefaultCloudCodeProxy() : null);
+  let activeRemoteCliBridge = remoteCliBridge || null;
 
   function isPidAlive(pid) {
     if (!Number.isInteger(pid) || pid <= 0) return false;
@@ -1185,6 +1539,7 @@ export function createWindowBridgeController(options) {
   let bridgeToken = '';
   let pollTimer = null;
   let initialTimer = null;
+  let routePingTimer = null;
   let stopped = false;
   let syncInFlight = null;
   let hadInjectedTargets = false;
@@ -1365,6 +1720,28 @@ export function createWindowBridgeController(options) {
         } catch {
           res.writeHead(400, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ error: 'Malformed URL' }));
+          return;
+        }
+
+        if (method === 'POST' && parsedUrl.pathname === '/api/bridge-route-ping') {
+          const pingToken = String(req.headers['x-usage-monitor-token'] || '');
+          if (!verifyBridgeToken(pingToken, bridgeToken, crypto.timingSafeEqual)) {
+            res.writeHead(403, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Invalid bridge token' }));
+            return;
+          }
+          res.writeHead(204);
+          res.end();
+          if (!stopped) {
+            if (routePingTimer) clearTimeout(routePingTimer);
+            routePingTimer = setTimeout(() => {
+              routePingTimer = null;
+              if (!stopped) {
+                void syncAllWindows().catch(() => {});
+              }
+            }, 80);
+            routePingTimer.unref?.();
+          }
           return;
         }
 
@@ -1557,21 +1934,28 @@ export function createWindowBridgeController(options) {
   }
 
   function findActiveDevToolsPorts() {
-    const candidates = resolveDevToolsPortCandidates(env, platform, homeDir);
+    const primaryCandidates = resolveDevToolsPortCandidates(env, platform, homeDir);
+    const vsCodeCandidates = resolveVsCodeDevToolsPortCandidates(env, platform, homeDir);
     const ports = [];
     const seen = new Set();
-    for (const filePath of candidates) {
-      try {
-        if (!existsSync(filePath)) continue;
-        const port = parseDevToolsPortFile(readFileSync(filePath, 'utf8'));
-        if (port && !seen.has(port)) {
-          seen.add(port);
-          ports.push(port);
+    const vsCodePorts = new Set();
+    const collectFrom = (filePaths, markVsCode) => {
+      for (const filePath of filePaths) {
+        try {
+          if (!existsSync(filePath)) continue;
+          const port = parseDevToolsPortFile(readFileSync(filePath, 'utf8'));
+          if (port && !seen.has(port)) {
+            seen.add(port);
+            ports.push(port);
+            if (markVsCode) vsCodePorts.add(port);
+          }
+        } catch {
+          // 忽略不可读候选文件
         }
-      } catch {
-        // 忽略不可读候选文件
       }
-    }
+    };
+    collectFrom(primaryCandidates, false);
+    collectFrom(vsCodeCandidates, true);
     const rawExplicitPorts = String(env?.ANTIGRAVITY_DEVTOOLS_PORT || '').trim();
     if (rawExplicitPorts) {
       for (const token of rawExplicitPorts.split(/[\s,]+/)) {
@@ -1583,10 +1967,11 @@ export function createWindowBridgeController(options) {
         }
       }
     }
+    ports._vsCodePorts = vsCodePorts;
     return ports;
   }
 
-  async function listMainWindowTargets(cdpPort) {
+  async function listMainWindowTargets(cdpPort, { isVsCodeHost = false } = {}) {
     const { http } = await loadNodeDeps();
     const rawBody = await new Promise((resolve, reject) => {
       const req = http.get(`http://127.0.0.1:${cdpPort}/json/list`, (res) => {
@@ -1613,8 +1998,14 @@ export function createWindowBridgeController(options) {
       { lsAddr: lsRuntimeEndpoint.addr, cdpPort }
     );
     for (const mainT of associated) {
+      const urlText = String(mainT?.url || '');
+      mainT.isVsCodeHost = Boolean(
+        isVsCodeHost ||
+          /(?:Visual(?:%20|\s)Studio(?:%20|\s)Code|Code(?:\s|%20)-?(?:\s|%20)Insiders)/i.test(urlText)
+      );
       if (Array.isArray(mainT.ideChatTargets)) {
         for (const ct of mainT.ideChatTargets) {
+          ct.isVsCodeHost = mainT.isVsCodeHost;
           if (ct.origin && /^https?:\/\/(127\.0\.0\.1|localhost|\[::1\]):\d+$/i.test(ct.origin)) {
             allowedDynamicOrigins.add(ct.origin);
           }
@@ -1641,7 +2032,10 @@ export function createWindowBridgeController(options) {
   }
 
   async function collectAllMainWindowTargets(cdpPorts) {
-    const settled = await Promise.allSettled(cdpPorts.map((p) => listMainWindowTargets(p)));
+    const vsCodePorts = cdpPorts?._vsCodePorts instanceof Set ? cdpPorts._vsCodePorts : new Set();
+    const settled = await Promise.allSettled(
+      cdpPorts.map((p) => listMainWindowTargets(p, { isVsCodeHost: vsCodePorts.has(p) }))
+    );
     let reachableCount = 0;
     const merged = [];
     const seenWs = new Set();
@@ -1988,6 +2382,7 @@ export function createWindowBridgeController(options) {
     const cdpPorts = findActiveDevToolsPorts();
     if (!cdpPorts.length) {
       pruneStaleRemoteEndpoints(new Set());
+      activeRemoteCliBridge?.pruneInactiveHosts?.(new Set());
       const provPending = shouldCheckLaunchers
         ? provisionHostLaunchersOnce({ fastCheckIfActive: !isInitialLauncherPass })
         : hostLauncherPromise;
@@ -2009,6 +2404,7 @@ export function createWindowBridgeController(options) {
     const { reachableCount, targets } = await collectAllMainWindowTargets(cdpPorts);
     if (reachableCount === 0) {
       pruneStaleRemoteEndpoints(new Set());
+      activeRemoteCliBridge?.pruneInactiveHosts?.(new Set());
       const provPending = shouldCheckLaunchers
         ? provisionHostLaunchersOnce({ fastCheckIfActive: !isInitialLauncherPass })
         : hostLauncherPromise;
@@ -2033,6 +2429,7 @@ export function createWindowBridgeController(options) {
     }
     if (!targets.length) {
       pruneStaleRemoteEndpoints(new Set());
+      activeRemoteCliBridge?.pruneInactiveHosts?.(new Set());
       updateBridgeStatus(enabled ? 'no_targets' : 'disabled', {
         enabled,
         leasedBySelf,
@@ -2042,8 +2439,10 @@ export function createWindowBridgeController(options) {
       return { ok: true, enabled, reason: 'no_targets', injected: 0 };
     }
 
+    const hasAnyVsCodeTarget = targets.some((t) => t.isVsCodeHost);
     if (
       !enabled &&
+      !hasAnyVsCodeTarget &&
       !needsAnyCdpContext &&
       !hadContextWindows &&
       !needsHostI18n &&
@@ -2101,9 +2500,25 @@ export function createWindowBridgeController(options) {
       typeof getLocalHubPortsFn === 'function' ? getLocalHubPortsFn() : { allPorts: new Set(), httpsPorts: new Set(), csrfTokens: new Set() };
     const probedByWsUrl = new Map();
     const desktopTargets = targets.filter((t) => !t.isIdeWorkbench && t.webSocketDebuggerUrl);
+    const remoteIdeProbeTargets = [];
+    const seenRemoteIdeProbeWs = new Set();
+    for (const t of targets) {
+      if (!t.isIdeWorkbench) continue;
+      const primaryChat = pickPrimaryIdeChatTarget(t);
+      const ideRemote = extractIdeRemoteMetadata(t, primaryChat);
+      const chatWs = String(primaryChat?.webSocketDebuggerUrl || '').trim();
+      if (ideRemote.isRemote && chatWs && !seenRemoteIdeProbeWs.has(chatWs)) {
+        seenRemoteIdeProbeWs.add(chatWs);
+        remoteIdeProbeTargets.push({
+          webSocketDebuggerUrl: chatWs,
+          url: primaryChat?.url || primaryChat?.origin || '',
+        });
+      }
+    }
+    const targetsToProbe = [...desktopTargets, ...remoteIdeProbeTargets];
 
     await Promise.allSettled(
-      desktopTargets.map(async (target) => {
+      targetsToProbe.map(async (target) => {
         const wsUrl = String(target.webSocketDebuggerUrl || '');
         let targetOriginKey = '';
         try {
@@ -2113,7 +2528,7 @@ export function createWindowBridgeController(options) {
         }
         const cacheKey = `${wsUrl}::${targetOriginKey}`;
         const cached = targetClassifyCache.get(cacheKey);
-        if (cached && nowClassifyMs - cached.ts < 4000) {
+        if (cached && nowClassifyMs - cached.ts < 8000) {
           probedByWsUrl.set(wsUrl, cached.info);
           return;
         }
@@ -2157,34 +2572,126 @@ export function createWindowBridgeController(options) {
     }
 
     const activeRemoteWsUrls = new Set();
+    const activeRemoteCliHosts = new Set();
+    const localHasVsCodeExt = hasAnyLocalVsCodeAntigravityExtension(homeDir);
+    const localHasCliPlugin = hasLocalAgyCliPlugin(env, homeDir);
+    if (!activeRemoteCliBridge && enableRemoteCliBridge) {
+      activeRemoteCliBridge = createRemoteCliBridge({
+        onStateChanged: () => {
+          if (stopped) return;
+          if (routePingTimer) clearTimeout(routePingTimer);
+          routePingTimer = setTimeout(() => {
+            routePingTimer = null;
+            if (!stopped) {
+              void syncAllWindows().catch(() => {});
+            }
+          }, 120);
+          routePingTimer.unref?.();
+        },
+      });
+    }
+
     for (const target of targets) {
       const wsUrl = String(target.webSocketDebuggerUrl || '');
-      const probedInfo = probedByWsUrl.get(wsUrl) || null;
+      const primaryIdeChat = target.isIdeWorkbench ? pickPrimaryIdeChatTarget(target) : null;
+      const probeKeyWs = target.isIdeWorkbench
+        ? String(primaryIdeChat?.webSocketDebuggerUrl || '')
+        : wsUrl;
+      const probedInfo = (probeKeyWs && probedByWsUrl.get(probeKeyWs)) || null;
       const cls = classifyWindowTargetEndpoint({
         target,
         probedInfo,
         localHubInfo,
         confirmedLocalPorts,
       });
-      if (cls.isRemote && wsUrl) {
+      const effectiveRemoteWsUrl = String(
+        cls.remoteWsUrl || (target.isIdeWorkbench ? '' : wsUrl)
+      ).trim();
+      target.forceTopbarMode = false;
+      if (target.isIdeWorkbench && cls.isRemote && !effectiveRemoteWsUrl) {
+        // Remote-SSH 目标服务器未安装/未打开 VS Code Antigravity 扩展时：
+        // 进一步探测远端是否安装了 `agy` CLI 的 `usage-monitor` 插件；
+        // 若已装 CLI 插件，则强制在 VS Code 顶部栏挂载并通过按需 SSH 隧道直连远端 CLI；否则不启用。
+        const sshHost = String(cls.hostLabel || '').trim();
+        const remoteCliState =
+          activeRemoteCliBridge && sshHost
+            ? activeRemoteCliBridge.getOrScheduleHost(sshHost)
+            : null;
+        if (remoteCliState?.hasCliPlugin === true) {
+          activeRemoteCliHosts.add(remoteCliState.host || sshHost);
+          target.skipOverlayInjection = false;
+          target.forceTopbarMode = true;
+          const tunOrigin =
+            remoteCliState.tunnelReady && remoteCliState.localPort > 0
+              ? `${remoteCliState.protocol || 'http'}://127.0.0.1:${remoteCliState.localPort}`
+              : '';
+          const ep = registerRemoteEndpoint({
+            origin: tunOrigin,
+            baseUrl: tunOrigin,
+            csrfToken: remoteCliState.csrfToken || '',
+            wsUrl,
+            label: `${sshHost} (CLI)`,
+            stableHostKey: `ssh-cli:${sshHost}`,
+            tier1Only: true,
+          });
+          target.endpointId = ep.id;
+          target.isRemoteEndpoint = true;
+          target.endpointLabel = ep.label;
+          if (wsUrl) activeRemoteWsUrls.add(wsUrl);
+        } else {
+          target.skipOverlayInjection = true;
+          target.endpointId = LOCAL_ENDPOINT_ID;
+          target.isRemoteEndpoint = false;
+          target.endpointLabel = '';
+        }
+      } else if (cls.isRemote && effectiveRemoteWsUrl) {
+        target.skipOverlayInjection = false;
         const ep = registerRemoteEndpoint({
           origin: cls.origin,
           baseUrl: cls.origin,
           csrfToken: cls.csrfToken,
-          wsUrl,
+          wsUrl: effectiveRemoteWsUrl,
           label: cls.hostLabel,
           stableHostKey: cls.stableHostKey,
         });
         target.endpointId = ep.id;
         target.isRemoteEndpoint = true;
         target.endpointLabel = ep.label;
-        activeRemoteWsUrls.add(wsUrl);
+        activeRemoteWsUrls.add(effectiveRemoteWsUrl);
+      } else if (target.isVsCodeHost) {
+        // 本机标准 VS Code 窗口：同时检测 VS Code Antigravity 扩展与本机 `agy` CLI 插件；
+        // 仅装了 CLI 插件、未装 VS Code 扩展时强制显示在顶部栏；两者都未装则不启用。
+        const hasLocalExt =
+          (Array.isArray(target.ideChatTargets) && target.ideChatTargets.length > 0) ||
+          localHasVsCodeExt;
+        if (hasLocalExt) {
+          target.skipOverlayInjection = false;
+          target.forceTopbarMode = false;
+        } else if (localHasCliPlugin) {
+          target.skipOverlayInjection = false;
+          target.forceTopbarMode = true;
+        } else {
+          target.skipOverlayInjection = true;
+          target.forceTopbarMode = false;
+        }
+        target.endpointId = LOCAL_ENDPOINT_ID;
+        target.isRemoteEndpoint = false;
+        target.endpointLabel = '';
       } else {
+        target.skipOverlayInjection = false;
         target.endpointId = LOCAL_ENDPOINT_ID;
         target.isRemoteEndpoint = false;
         target.endpointLabel = '';
       }
+      if (Array.isArray(target.ideChatTargets)) {
+        for (const ct of target.ideChatTargets) {
+          ct.endpointId = target.endpointId;
+          ct.isRemoteEndpoint = target.isRemoteEndpoint;
+          ct.endpointLabel = target.endpointLabel;
+        }
+      }
     }
+    activeRemoteCliBridge?.pruneInactiveHosts?.(activeRemoteCliHosts);
 
     if (needsAnyCdpContext || hadContextWindows) {
       const localFallbackRes = needsAnyCdpContext
@@ -2207,7 +2714,7 @@ export function createWindowBridgeController(options) {
       const remoteFallbackRulesById = new Map();
       const uniqueRemoteIds = new Set(
         targets
-          .filter((t) => !t.isIdeWorkbench && t.isRemoteEndpoint && t.endpointId)
+          .filter((t) => t.isRemoteEndpoint && t.endpointId)
           .map((t) => t.endpointId)
       );
       for (const cachedKey of Array.from(cachedBackendCtxModelsByEndpoint.keys())) {
@@ -2261,27 +2768,40 @@ export function createWindowBridgeController(options) {
         }
         ctxEvalTasks.push(evaluateOnTarget(wsUrl, expr));
       }
-      const ideChatExpr = !needsAnyCdpContext
-        ? createContextWindowSyncExpression({}, contextWindowBootId, {}, false, null)
-        : pinMainBackToDefaults
-          ? createContextWindowSyncExpression(
+      for (const target of targets) {
+        if (!Array.isArray(target?.ideChatTargets)) continue;
+        for (const ct of target.ideChatTargets) {
+          const chatUrl = String(ct?.webSocketDebuggerUrl || '').trim();
+          if (!chatUrl || seenCtxUrls.has(chatUrl)) continue;
+          seenCtxUrls.add(chatUrl);
+          let chatExpr;
+          if (!needsAnyCdpContext) {
+            chatExpr = createContextWindowSyncExpression({}, contextWindowBootId, {}, false, null);
+          } else if (pinMainBackToDefaults) {
+            chatExpr = target.isRemoteEndpoint
+              ? createContextWindowSyncExpression({}, contextWindowBootId, {}, false, null)
+              : createContextWindowSyncExpression(
+                  contextWindows,
+                  contextWindowBootId,
+                  pinBackRules,
+                  false,
+                  pinBackRules
+                );
+          } else {
+            const epFallback =
+              target.isRemoteEndpoint && target.endpointId
+                ? remoteFallbackRulesById.get(target.endpointId) || localFallbackRules
+                : localFallbackRules;
+            chatExpr = createContextWindowSyncExpression(
               contextWindows,
               contextWindowBootId,
-              pinBackRules,
-              false,
-              pinBackRules
-            )
-          : createContextWindowSyncExpression(
-              contextWindows,
-              contextWindowBootId,
-              localFallbackRules,
+              epFallback,
               false,
               null
             );
-      for (const chatUrl of collectAllChatDebuggerUrls(targets)) {
-        if (!chatUrl || seenCtxUrls.has(chatUrl)) continue;
-        seenCtxUrls.add(chatUrl);
-        ctxEvalTasks.push(evaluateOnTarget(chatUrl, ideChatExpr));
+          }
+          ctxEvalTasks.push(evaluateOnTarget(chatUrl, chatExpr));
+        }
       }
       await Promise.allSettled(ctxEvalTasks);
       hadContextWindows = needsAnyCdpContext;
@@ -2369,7 +2889,8 @@ export function createWindowBridgeController(options) {
       }
     }
 
-    if (!enabled) {
+    const hasActiveVsCodeTarget = targets.some((t) => t.isVsCodeHost && !t.skipOverlayInjection);
+    if (!enabled && !hasActiveVsCodeTarget) {
       pruneStaleRemoteEndpoints(activeRemoteWsUrls);
       if (!hadInjectedTargets && !hadInjectedChatFrames && !forceReinject) {
         updateBridgeStatus('disabled', {
@@ -2437,11 +2958,121 @@ export function createWindowBridgeController(options) {
 
     const ideChatRouteProbeExpr = `(() => {
       try {
+        const readRouteId = () => ${domRouteExpr};
         const visible = ${WINDOW_VISIBLE_EXPR};
         const focused = Boolean(
           typeof document !== 'undefined' && typeof document.hasFocus === 'function' && document.hasFocus()
         );
-        const routeCascadeId = ${domRouteExpr};
+        const routeCascadeId = readRouteId();
+        try {
+          const bridgePort = ${Number(port) || 0};
+          const bridgeToken = ${JSON.stringify(String(token || ''))};
+          if (bridgePort > 0 && bridgeToken && typeof window !== 'undefined' && typeof fetch === 'function') {
+            const existing = window.__agUsageMonitorRouteWatcher;
+            if (existing && typeof existing === 'object') {
+              existing.port = bridgePort;
+              existing.token = bridgeToken;
+              existing.lastRouteId = routeCascadeId;
+            } else {
+              const watcher = {
+                port: bridgePort,
+                token: bridgeToken,
+                lastRouteId: routeCascadeId,
+                timer: null,
+                ping(force = false) {
+                  try {
+                    const nextId = force ? null : readRouteId();
+                    if (!force && nextId === watcher.lastRouteId) return;
+                    if (!force) watcher.lastRouteId = nextId;
+                    fetch('http://127.0.0.1:' + watcher.port + '/api/bridge-route-ping', {
+                      method: 'POST',
+                      headers: { 'X-Usage-Monitor-Token': watcher.token },
+                      keepalive: true,
+                    }).catch(() => {});
+                  } catch {
+                    // 忽略路由通知异常
+                  }
+                },
+                schedule(delayMs = 120) {
+                  if (typeof setTimeout !== 'function') return;
+                  if (watcher.timer) clearTimeout(watcher.timer);
+                  watcher.timer = setTimeout(() => {
+                    watcher.timer = null;
+                    watcher.ping(false);
+                  }, delayMs);
+                },
+                dispose() {
+                  if (watcher.timer) {
+                    clearTimeout(watcher.timer);
+                    watcher.timer = null;
+                  }
+                  try { watcher.observer?.disconnect?.(); } catch {}
+                  try {
+                    if (typeof window.removeEventListener === 'function') {
+                      window.removeEventListener('popstate', watcher.onRoute);
+                      window.removeEventListener('hashchange', watcher.onRoute);
+                      window.removeEventListener('pagehide', watcher.onHide);
+                    }
+                    if (typeof document !== 'undefined' && typeof document.removeEventListener === 'function') {
+                      document.removeEventListener('visibilitychange', watcher.onRoute);
+                    }
+                  } catch {}
+                  delete window.__agUsageMonitorRouteWatcher;
+                },
+              };
+              watcher.onRoute = () => watcher.schedule(60);
+              watcher.onHide = () => watcher.ping(true);
+              if (typeof window.addEventListener === 'function') {
+                window.addEventListener('popstate', watcher.onRoute);
+                window.addEventListener('hashchange', watcher.onRoute);
+                window.addEventListener('pagehide', watcher.onHide);
+              }
+              if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
+                document.addEventListener('visibilitychange', watcher.onRoute);
+              }
+              if (typeof history !== 'undefined' && history && !history.__agRouteWrapped) {
+                try {
+                  const origPush = history.pushState;
+                  const origReplace = history.replaceState;
+                  if (typeof origPush === 'function') {
+                    history.pushState = function (...args) {
+                      const out = origPush.apply(this, args);
+                      window.__agUsageMonitorRouteWatcher?.schedule?.(40);
+                      return out;
+                    };
+                  }
+                  if (typeof origReplace === 'function') {
+                    history.replaceState = function (...args) {
+                      const out = origReplace.apply(this, args);
+                      window.__agUsageMonitorRouteWatcher?.schedule?.(40);
+                      return out;
+                    };
+                  }
+                  history.__agRouteWrapped = true;
+                } catch {}
+              }
+              if (
+                typeof MutationObserver === 'function' &&
+                typeof document !== 'undefined' &&
+                document.documentElement
+              ) {
+                try {
+                  const mo = new MutationObserver(() => watcher.schedule(140));
+                  mo.observe(document.documentElement, {
+                    subtree: true,
+                    childList: true,
+                    attributes: true,
+                    attributeFilter: ['data-cascade-id', 'data-selected', 'hidden'],
+                  });
+                  watcher.observer = mo;
+                } catch {}
+              }
+              window.__agUsageMonitorRouteWatcher = watcher;
+            }
+          }
+        } catch {
+          // 忽略被动路由监听挂载异常
+        }
         return { routeCascadeId, visible, focused };
       } catch {
         return { routeCascadeId: '', visible: false, focused: false };
@@ -2453,29 +3084,38 @@ export function createWindowBridgeController(options) {
       Math.min(Number(cdpTimeoutMs) || IDE_ROUTE_PROBE_MAX_TIMEOUT_MS, IDE_ROUTE_PROBE_MAX_TIMEOUT_MS)
     );
 
-    async function resolveIdeWorkbenchRouteId(targetObj) {
+    async function resolveIdeWorkbenchRouteState(targetObj) {
       const staticRouteId = sanitizeRouteCascadeId(targetObj?.ideRouteCascadeId);
       const chatList = Array.isArray(targetObj?.ideChatTargets) ? targetObj.ideChatTargets : [];
       const probeUrls = chatList
         .map((chatTarget) => String(chatTarget?.webSocketDebuggerUrl || '').trim())
         .filter(Boolean);
       if (probeUrls.length === 0) {
-        return staticRouteId;
+        return { resolved: true, routeId: staticRouteId };
       }
 
       if (probeUrls.length === 1) {
         try {
           const res = await evaluateOnTarget(probeUrls[0], ideChatRouteProbeExpr, ideRouteProbeTimeoutMs);
-          const cid = sanitizeRouteCascadeId(res?.result?.result?.value?.routeCascadeId);
-          return cid || staticRouteId;
+          const val = res?.result?.result?.value;
+          if (res && !res.error && !res.result?.exceptionDetails && val && typeof val === 'object') {
+            const rawCid = typeof val.routeCascadeId === 'string' ? val.routeCascadeId.trim() : '';
+            const cid = sanitizeRouteCascadeId(rawCid);
+            if (cid) return { resolved: true, routeId: cid };
+            if (rawCid === '' && val.routeCascadeId === '') {
+              return { resolved: true, routeId: '' };
+            }
+          }
+          return { resolved: false, routeId: staticRouteId };
         } catch {
-          return staticRouteId;
+          return { resolved: false, routeId: staticRouteId };
         }
       }
 
       const abortCtrl = typeof AbortController === 'function' ? new AbortController() : null;
       const results = new Array(probeUrls.length).fill(null);
       let settledCount = 0;
+      let anyExplicitEmpty = false;
       let resolved = false;
 
       return new Promise((resolve) => {
@@ -2490,7 +3130,12 @@ export function createWindowBridgeController(options) {
               if (bestRank === 3) break;
             }
           }
-          return bestRouteId || staticRouteId;
+          if (bestRouteId) {
+            return { resolved: true, routeId: bestRouteId };
+          }
+          return anyExplicitEmpty
+            ? { resolved: true, routeId: '' }
+            : { resolved: false, routeId: staticRouteId };
         };
 
         const finishEarly = (routeId) => {
@@ -2501,7 +3146,7 @@ export function createWindowBridgeController(options) {
           } catch {
             // 忽略中止异常
           }
-          resolve(routeId);
+          resolve({ resolved: true, routeId });
         };
 
         probeUrls.forEach((chatWsUrl, idx) => {
@@ -2513,12 +3158,17 @@ export function createWindowBridgeController(options) {
           )
             .then((res) => {
               const val = res?.result?.result?.value;
-              const cid = sanitizeRouteCascadeId(val?.routeCascadeId);
-              if (cid) {
-                const rank = val?.focused && val?.visible ? 3 : val?.visible ? 2 : 1;
-                results[idx] = { cid, rank };
-                if (rank === 3) {
-                  finishEarly(cid);
+              if (res && !res.error && !res.result?.exceptionDetails && val && typeof val === 'object') {
+                const rawCid = typeof val.routeCascadeId === 'string' ? val.routeCascadeId.trim() : '';
+                const cid = sanitizeRouteCascadeId(rawCid);
+                if (cid) {
+                  const rank = val.focused && val.visible ? 3 : val.visible ? 2 : 1;
+                  results[idx] = { cid, rank };
+                  if (rank === 3) {
+                    finishEarly(cid);
+                  }
+                } else if (rawCid === '' && val.routeCascadeId === '') {
+                  anyExplicitEmpty = true;
                 }
               }
             })
@@ -2542,14 +3192,25 @@ export function createWindowBridgeController(options) {
     let relayedRpcCount = 0;
     let sawCdpTransport = false;
 
-    async function syncSingleTarget(targetObj, { ideRouteOverride = '', isIdeChatFrame = false } = {}) {
+    async function syncSingleTarget(
+      targetObj,
+      {
+        ideRouteOverride = '',
+        ideRouteResolved = false,
+        isIdeChatFrame = false,
+        effectiveMountMode = mountMode,
+      } = {}
+    ) {
       const wsUrl = String(targetObj?.webSocketDebuggerUrl || '').trim();
       if (!wsUrl) return { alive: false, dockKind: '', visible: false };
       let probedRouteId = '';
-      const ideRouteId = sanitizeRouteCascadeId(ideRouteOverride || targetObj.ideRouteCascadeId);
+      const ideRouteId = ideRouteResolved
+        ? sanitizeRouteCascadeId(ideRouteOverride)
+        : sanitizeRouteCascadeId(ideRouteOverride || targetObj.ideRouteCascadeId);
       const targetEndpointId = String(targetObj.endpointId || LOCAL_ENDPOINT_ID);
       const targetIsRemote = Boolean(targetObj.isRemoteEndpoint && targetEndpointId !== LOCAL_ENDPOINT_ID);
       const targetEndpointLabel = targetIsRemote ? String(targetObj.endpointLabel || 'SSH') : '';
+      const targetMountMode = effectiveMountMode || mountMode;
 
       if (!forceReinject) {
         const probeRes = await evaluateOnTarget(wsUrl, probeExpr);
@@ -2586,10 +3247,10 @@ export function createWindowBridgeController(options) {
               await evaluateOnTarget(wsUrl, rebindExpr);
             }
             let effectiveDockKind = String(snap.dockKind || '');
-            if (snap.clientMountMode && snap.clientMountMode !== mountMode) {
+            if (snap.clientMountMode && snap.clientMountMode !== targetMountMode) {
               const modeSyncExpr = `(() => {
                 const overlay = ${windowOverlayRef};
-                overlay?.[${overlayMethods.applyMountMode}]?.(${JSON.stringify(mountMode)});
+                overlay?.[${overlayMethods.applyMountMode}]?.(${JSON.stringify(targetMountMode)});
                 return String(overlay?.[${overlayMethods.getDockKind}]?.() || '');
               })()`;
               const modeRes = await evaluateOnTarget(wsUrl, modeSyncExpr);
@@ -2599,7 +3260,7 @@ export function createWindowBridgeController(options) {
             }
             if (
               (targetObj.isIdeWorkbench || isIdeChatFrame) &&
-              ideRouteId &&
+              (ideRouteResolved || ideRouteId) &&
               String(snap.hostRouteCascadeId || '') !== ideRouteId
             ) {
               const routeSyncExpr = `(() => {
@@ -2669,7 +3330,9 @@ export function createWindowBridgeController(options) {
         token,
         bundleVersion,
         platform: String(platform || ''),
-        mountMode,
+        mountMode: targetMountMode,
+        isVsCodeHost: Boolean(targetObj.isVsCodeHost),
+        forceTopbarMode: Boolean(targetObj.forceTopbarMode),
         [WINDOW_BRIDGE_ENDPOINT_KEY]: targetEndpointId,
         isRemoteEndpoint: targetIsRemote,
         endpointLabel: targetEndpointLabel,
@@ -2715,16 +3378,47 @@ export function createWindowBridgeController(options) {
       return { alive: false, dockKind: '', visible: false };
     }
 
-    if (mountMode !== 'composer' && (hadInjectedChatFrames || forceReinject)) {
-      for (const chatWsUrl of collectAllChatDebuggerUrls(targets)) {
-        await disposeSingleTarget(chatWsUrl);
+    const vsCodeMountMode = curSettings?.vsCodeMountMode === 'dual' ? 'dual' : 'composer';
+    const resolveTargetMountMode = (t) => {
+      // 未装 VS Code Antigravity 扩展、仅装了 agy CLI 插件时，强制挂载在顶部栏
+      if (t?.forceTopbarMode) return 'dual';
+      // 标准 VS Code 没有 Antigravity 2.0 辅助侧边栏，不允许进入 sidebar 模式；默认输入框挂载（Composer）
+      if (t?.isVsCodeHost) return vsCodeMountMode;
+      return mountMode;
+    };
+
+    if (hadInjectedChatFrames || forceReinject) {
+      let keptAnyChatFrame = false;
+      for (const t of targets) {
+        const tMode = resolveTargetMountMode(t);
+        if (tMode === 'composer' && !t.skipOverlayInjection && (enabled || t.isVsCodeHost)) {
+          if (Array.isArray(t.ideChatTargets) && t.ideChatTargets.length > 0) {
+            keptAnyChatFrame = true;
+          }
+          continue;
+        }
+        if (Array.isArray(t.ideChatTargets)) {
+          for (const ct of t.ideChatTargets) {
+            if (ct?.webSocketDebuggerUrl) {
+              await disposeSingleTarget(ct.webSocketDebuggerUrl);
+            }
+          }
+        }
       }
-      hadInjectedChatFrames = false;
+      if (!keptAnyChatFrame) {
+        hadInjectedChatFrames = false;
+      }
     }
 
     for (const target of targets) {
       try {
-        if (mountMode === 'composer' && target.isIdeWorkbench) {
+        if (target.skipOverlayInjection || (!enabled && !target.isVsCodeHost)) {
+          await disposeSingleTarget(target.webSocketDebuggerUrl);
+          continue;
+        }
+
+        const targetMountMode = resolveTargetMountMode(target);
+        if (targetMountMode === 'composer' && target.isIdeWorkbench) {
           const chatList = Array.isArray(target.ideChatTargets) ? target.ideChatTargets : [];
           let chatComposerActive = false;
           for (const chatTarget of chatList) {
@@ -2733,6 +3427,7 @@ export function createWindowBridgeController(options) {
               const chatState = await syncSingleTarget(chatTarget, {
                 ideRouteOverride: chatTarget.cascadeId || target.ideRouteCascadeId,
                 isIdeChatFrame: true,
+                effectiveMountMode: 'composer',
               });
               if (chatState.alive && chatState.visible && chatState.dockKind === 'composer') {
                 chatComposerActive = true;
@@ -2741,19 +3436,28 @@ export function createWindowBridgeController(options) {
               // 单个聊天子视图异常不阻断主窗口兜底
             }
           }
-          if (chatComposerActive) {
+          if (chatComposerActive || target.isVsCodeHost) {
+            // VS Code 扩展默认只在聊天输入框内挂载；扩展未打开或尚未就绪时不污染 VS Code 顶栏
             await disposeSingleTarget(target.webSocketDebuggerUrl);
           } else {
-            const ideRouteOverride = await resolveIdeWorkbenchRouteId(target);
-            await syncSingleTarget(target, { ideRouteOverride });
+            const routeState = await resolveIdeWorkbenchRouteState(target);
+            await syncSingleTarget(target, {
+              ideRouteOverride: routeState.routeId,
+              ideRouteResolved: routeState.resolved,
+              effectiveMountMode: targetMountMode,
+            });
           }
           continue;
         }
 
-        const ideRouteOverride = target.isIdeWorkbench
-          ? await resolveIdeWorkbenchRouteId(target)
-          : '';
-        await syncSingleTarget(target, { ideRouteOverride });
+        const routeState = target.isIdeWorkbench
+          ? await resolveIdeWorkbenchRouteState(target)
+          : { resolved: false, routeId: '' };
+        await syncSingleTarget(target, {
+          ideRouteOverride: routeState.routeId,
+          ideRouteResolved: routeState.resolved,
+          effectiveMountMode: targetMountMode,
+        });
       } catch {
         // 单个窗口注入异常不阻断其他窗口
       }
@@ -2880,6 +3584,10 @@ export function createWindowBridgeController(options) {
       clearTimeout(pollTimer);
       pollTimer = null;
     }
+    if (routePingTimer) {
+      clearTimeout(routePingTimer);
+      routePingTimer = null;
+    }
     if (
       disposeWindows &&
       (hadInjectedTargets || hadInjectedChatFrames || hadContextWindows || hadHostI18n)
@@ -2894,6 +3602,7 @@ export function createWindowBridgeController(options) {
           }));
           const disposeExpr = `(() => {
             try {
+              window.__agUsageMonitorRouteWatcher?.dispose?.();
               ${windowHostI18nRef}?.dispose?.();
               ${windowContextWindowsRef}?.dispose?.();
               ${windowOverlayRef}?.[${overlayMethods.dispose}]?.();
@@ -2925,6 +3634,9 @@ export function createWindowBridgeController(options) {
     cachedHostI18nApply = { revision: '', bootId: '', expr: '' };
     if (activeCloudCodeProxy) {
       await activeCloudCodeProxy.stop().catch(() => {});
+    }
+    if (activeRemoteCliBridge) {
+      activeRemoteCliBridge.stopAll?.();
     }
     if (bindRemoteRpcInvoker) {
       setRemoteWindowRpcInvoker(null);

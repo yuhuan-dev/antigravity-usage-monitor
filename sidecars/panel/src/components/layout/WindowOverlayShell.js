@@ -14,6 +14,7 @@ import {
   WINDOW_BRIDGE_KEY,
   WINDOW_OVERLAY_KEY,
   WINDOW_OVERLAY_METHODS,
+  isVsCodeExtensionHost,
   readInjectedWindowBridge,
 } from '../../../shared/window-bridge-protocol.mjs';
 import { App } from '../../App.js';
@@ -1723,10 +1724,17 @@ export function mountWindowOverlay() {
     }
   }
 
-  let lastAppliedMountMode = normalizeClientWindowMountMode(
-    telemetryStore.getState().telemetry?.settings?.windowMountMode,
-    telemetryStore.getState().telemetry?.settings?.enableWindowOverlay
-  );
+  const resolveShellMountMode = (settingsObj) => {
+    if (isVsCodeExtensionHost()) {
+      return settingsObj?.vsCodeMountMode === 'dual' ? 'dual' : 'composer';
+    }
+    return normalizeClientWindowMountMode(
+      settingsObj?.windowMountMode,
+      settingsObj?.enableWindowOverlay
+    );
+  };
+
+  let lastAppliedMountMode = resolveShellMountMode(telemetryStore.getState().telemetry?.settings);
 
   const unsubStore = telemetryStore.subscribe(
     (st) => ({
@@ -1736,11 +1744,11 @@ export function mountWindowOverlay() {
       selectedConversationId: st.selectedConversationId,
     }),
     (slice) => {
-      const nextMountMode = normalizeClientWindowMountMode(
-        slice.telemetry?.settings?.windowMountMode,
-        slice.telemetry?.settings?.enableWindowOverlay
-      );
-      if (slice.telemetry?.settings?.enableWindowOverlay === false || nextMountMode === 'sidebar') {
+      const nextMountMode = resolveShellMountMode(slice.telemetry?.settings);
+      if (
+        !isVsCodeExtensionHost() &&
+        (slice.telemetry?.settings?.enableWindowOverlay === false || nextMountMode === 'sidebar')
+      ) {
         if (popoverOpen) setPopoverOpen(false);
         if (multiOpen) setMultiOpen(false);
       } else if (nextMountMode !== lastAppliedMountMode) {
@@ -1814,7 +1822,7 @@ export function mountWindowOverlay() {
     const shouldPreserveSameSession =
       !currentRouteId || isSameActiveRoot || isChildOfActiveRoot;
     const nextSelectedId =
-      currentRouteId && st.selectedConversationId && st.selectedConversationId !== currentRouteId
+      st.selectedConversationId && st.selectedConversationId !== currentRouteId
         ? ''
         : st.selectedConversationId;
     if (!shouldPreserveSameSession) {

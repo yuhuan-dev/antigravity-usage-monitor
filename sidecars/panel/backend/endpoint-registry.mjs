@@ -194,6 +194,7 @@ export function registerRemoteEndpoint(info = {}) {
       origin: cleanOrigin,
       baseUrl: cleanBaseUrl,
       csrfToken: cleanCsrf,
+      tier1Only: info.tier1Only === true,
       targets: new Map(),
       lastSeenMs: nowMs,
       preferTier2UntilMs: 0,
@@ -209,6 +210,7 @@ export function registerRemoteEndpoint(info = {}) {
   } else {
     entry.lastSeenMs = nowMs;
     if (identity.label) entry.label = identity.label;
+    if (info.tier1Only !== undefined) entry.tier1Only = info.tier1Only === true;
     if (cleanOrigin) entry.origin = cleanOrigin;
 
     const existingTarget = cleanWsUrl ? entry.targets.get(cleanWsUrl) : null;

@@ -410,7 +410,8 @@ export function executeSettingsAction(data) {
   }
   if (
     updated.enableWindowOverlay !== (current.enableWindowOverlay !== false) ||
-    updated.windowMountMode !== prevMountMode
+    updated.windowMountMode !== prevMountMode ||
+    updated.vsCodeMountMode !== (current.vsCodeMountMode || 'composer')
   ) {
     void notifyWindowOverlaySetting(updated.enableWindowOverlay);
   } else if (contextWindowScopeChanged) {
@@ -535,7 +536,8 @@ export function executeResetSettingsAction() {
   );
   if (
     updated.enableWindowOverlay !== (current.enableWindowOverlay !== false) ||
-    updated.windowMountMode !== prevMountMode
+    updated.windowMountMode !== prevMountMode ||
+    updated.vsCodeMountMode !== (current.vsCodeMountMode || 'composer')
   ) {
     void notifyWindowOverlaySetting(updated.enableWindowOverlay);
   } else if (
