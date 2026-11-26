@@ -195,6 +195,7 @@ const PORTABLE_SETTING_DESCRIPTORS = Object.freeze([
       }
     },
   },
+  boolField('autoRelaunchOnMissingDebugPort', false),
   normField('popoverWidthMode', normalizePopoverWidthMode),
   normField('popoverWidth', normalizePopoverWidth),
   boolField('enableCliStatusLine', true),

@@ -55,6 +55,8 @@ import {
 } from './host-i18n/index.mjs';
 import {
   ensureDesktopLaunchEntriesConfigured,
+  maybeAutoRelaunchMacDesktopHost,
+  resetMacAutoRelaunchState,
   resolveDesktopHostExecutable,
 } from './desktop-launcher-config.mjs';
 import {
@@ -1150,8 +1152,12 @@ export function createWindowBridgeController(options) {
     autoConfigureIdeArgv = options?.env === undefined && options?.homeDir === undefined,
     launcherRecheckIntervalMs = 15 * 60 * 1000,
     launcherExecFileFn = null,
+    launcherSpawnFn = null,
     launcherFsOps = null,
     allowDesktopLauncherInTest = false,
+    macAutoRelaunchFn = maybeAutoRelaunchMacDesktopHost,
+    resetMacAutoRelaunchStateFn = resetMacAutoRelaunchState,
+    macAutoRelaunchStateFilePath = '',
     existsHostFn = existsSync,
     WebSocketImpl = globalThis.WebSocket,
     bindRemoteRpcInvoker = false,
@@ -1196,6 +1202,8 @@ export function createWindowBridgeController(options) {
   let argvConfigured = false;
   let launcherConfigured = false;
   let hasReadOnlyShortcuts = false;
+  let macAutoRelaunchCheckedThisProcess = false;
+  let macAutoRelaunchResetThisProcess = false;
   const hostExecInfo = resolveDesktopHostExecutable({
     env,
     platform,
@@ -1985,6 +1993,35 @@ export function createWindowBridgeController(options) {
         Date.now() - lastLauncherProvisionAtMs >= launcherRecheckIntervalMs);
     const isInitialLauncherPass = lastLauncherProvisionAtMs === 0;
 
+    const needsCdp = Boolean(enabled || needsMainCdpContext || needsHostI18n);
+    const tryMacColdStartAutoRelaunch = async () => {
+      if (
+        platform !== 'darwin' ||
+        macAutoRelaunchCheckedThisProcess ||
+        !needsCdp ||
+        (leaseFilePath && !leasedBySelf)
+      ) {
+        return;
+      }
+      macAutoRelaunchCheckedThisProcess = true;
+      if (curSettings?.autoRelaunchOnMissingDebugPort !== true) {
+        return;
+      }
+      await macAutoRelaunchFn({
+        enabled: true,
+        env,
+        platform,
+        homeDir,
+        stalePortFiles: resolveDevToolsPortCandidates(env, platform, homeDir),
+        ...(macAutoRelaunchStateFilePath ? { stateFilePath: macAutoRelaunchStateFilePath } : {}),
+        execFileFn: launcherExecFileFn,
+        spawnFn: launcherSpawnFn,
+        existsFn: existsHostFn,
+        fsOps: launcherFsOps,
+        allowInTest: allowDesktopLauncherInTest,
+      }).catch(() => {});
+    };
+
     const cdpPorts = findActiveDevToolsPorts();
     if (!cdpPorts.length) {
       pruneStaleRemoteEndpoints(new Set());
@@ -1994,8 +2031,9 @@ export function createWindowBridgeController(options) {
       if (provPending) {
         await provPending.catch(() => {});
       }
+      await tryMacColdStartAutoRelaunch();
       updateBridgeStatus(
-        enabled || needsMainCdpContext || needsHostI18n ? 'no_devtools_port' : 'disabled',
+        needsCdp ? 'no_devtools_port' : 'disabled',
         {
           enabled,
           leasedBySelf,
@@ -2015,8 +2053,9 @@ export function createWindowBridgeController(options) {
       if (provPending) {
         await provPending.catch(() => {});
       }
+      await tryMacColdStartAutoRelaunch();
       updateBridgeStatus(
-        enabled || needsMainCdpContext || needsHostI18n ? 'cdp_unreachable' : 'disabled',
+        needsCdp ? 'cdp_unreachable' : 'disabled',
         {
           enabled,
           leasedBySelf,
@@ -2025,6 +2064,19 @@ export function createWindowBridgeController(options) {
         }
       );
       return { ok: false, enabled, reason: 'cdp_unreachable', injected: 0 };
+    }
+
+    if (platform === 'darwin' && !macAutoRelaunchResetThisProcess && (!leaseFilePath || leasedBySelf)) {
+      macAutoRelaunchResetThisProcess = true;
+      try {
+        resetMacAutoRelaunchStateFn({
+          ...(macAutoRelaunchStateFilePath ? { stateFilePath: macAutoRelaunchStateFilePath } : {}),
+          fsOps: launcherFsOps,
+          allowInTest: allowDesktopLauncherInTest,
+        });
+      } catch {
+        // 忽略重置状态文件异常
+      }
     }
 
     if (shouldCheckLaunchers) {

@@ -25,11 +25,15 @@ import {
   buildWindowsRelaunchInnerScript,
   ensureDesktopLaunchEntriesConfigured,
   ensureRemoteDebugFlagInArgs,
+  inspectMacDesktopHostProcess,
   inspectWindowsLnkBuffer,
+  maybeAutoRelaunchMacDesktopHost,
+  parsePsElapsedSeconds,
   patchLinuxDesktopEntryText,
   patchWindowsRunRegistryCommand,
   patchWindowsShellOpenCommand,
   probeWindowsShortcutsFast,
+  resetMacAutoRelaunchState,
   resolveDesktopHostExecutable,
   resolveWindowsPowerShellExecutable,
   triggerDesktopHostRelaunch,
@@ -1699,7 +1703,7 @@ test('Compiled app.js mounts dual Shadow DOM hosts, tracks /c/<uuid> routes, pro
 
     // Toggle popover width mode (auto -> custom 640px -> step +10px -> auto), topbar multi-session switch, capsule/hover context agent mode (main -> auto -> main), and CLI bottom capsule switch
     const topbarSegBtns = sec0.querySelectorAll('.seg-btn');
-    assert.equal(topbarSegBtns.length, 8, 'Popover width + Topbar multi-session + Capsule/Hover context mode + CLI bottom capsule toggles render 8 buttons');
+    assert.equal(topbarSegBtns.length, 10, 'Popover width + Topbar multi-session + Capsule/Hover context mode + CLI bottom capsule + macOS cold-start auto-relaunch toggles render 10 buttons');
     const popWidthInput = sec0.querySelector('.num-field');
     const popWidthStepBtns = sec0.querySelectorAll('.num-step-btn');
     assert.ok(popWidthInput, 'CustomNumberInput field exists without native <input type="number">');
@@ -7062,5 +7066,375 @@ test('WindowOverlayShell mirrors host --font-sans and --font-mono onto portalHos
     globalThis.ResizeObserver = prevRo;
     globalThis.MutationObserver = prevMo;
     globalThis.fetch = prevFetch;
+  }
+});
+
+test('macOS cold-start auto-relaunch: ps -wwxo parsing, guardrails, circuit breaker, bridge integration, and mac-only UI toggle', async () => {
+  // 1. parsePsElapsedSeconds covers mm:ss, hh:mm:ss, dd-hh:mm:ss and fails closed on invalid input
+  assert.equal(parsePsElapsedSeconds('00:08'), 8);
+  assert.equal(parsePsElapsedSeconds('01:05'), 65);
+  assert.equal(parsePsElapsedSeconds('02:03:04'), 7384);
+  assert.equal(parsePsElapsedSeconds('1-02:03:04'), 86400 + 7384);
+  assert.equal(parsePsElapsedSeconds(''), null);
+  assert.equal(parsePsElapsedSeconds('invalid'), null);
+  assert.equal(parsePsElapsedSeconds('00:60'), null);
+  assert.equal(parsePsElapsedSeconds('1-24:00:00'), null);
+
+  // 2. inspectMacDesktopHostProcess uses ps -wwxo, ignores helpers/--type=, picks oldest match, detects debug flag
+  const psCalls = [];
+  const samplePs = [
+    '  100 00:02 /Applications/Antigravity.app/Contents/Frameworks/Antigravity Helper.app/Contents/MacOS/Antigravity Helper --type=gpu-process',
+    '  101 00:03 /Applications/Antigravity.app/Contents/MacOS/Antigravity --type=renderer',
+    '  102 00:05 /Applications/Antigravity.app/Contents/MacOS/Antigravity',
+    '  103 00:12 /Applications/Antigravity.app/Contents/MacOS/Antigravity --remote-debugging-port=0',
+  ].join('\n');
+  const foundFlagged = await inspectMacDesktopHostProcess({
+    hostInfo: {
+      found: true,
+      kind: 'desktop',
+      appBundlePath: '/Applications/Antigravity.app',
+      executablePath: '/Applications/Antigravity.app/Contents/MacOS/Antigravity',
+    },
+    execFileFn: async (file, args, opts) => {
+      psCalls.push({ file, args, opts });
+      return samplePs;
+    },
+  });
+  assert.equal(psCalls[0].file, 'ps');
+  assert.deepEqual(psCalls[0].args, ['-wwxo', 'pid=,etime=,args=']);
+  assert.equal(psCalls[0].opts.maxBuffer, 4 * 1024 * 1024);
+  assert.equal(foundFlagged.found, true);
+  assert.equal(foundFlagged.pid, 103);
+  assert.equal(foundFlagged.elapsedSec, 12);
+  assert.equal(foundFlagged.hasRemoteDebugFlag, true);
+
+  // Fallback discovery without hostInfo excludes Antigravity IDE and Helpers, and supports positional path args & -psn_* flags
+  const foundFallback = await inspectMacDesktopHostProcess({
+    hostInfo: null,
+    execFileFn: async () =>
+      [
+        '  201 00:04 /Applications/Antigravity IDE.app/Contents/MacOS/Antigravity IDE',
+        '  202 00:07 /Users/dev/Apps/Antigravity Beta.app/Contents/MacOS/Antigravity Beta /Users/dev/project',
+      ].join('\n'),
+  });
+  assert.equal(foundFallback.found, true);
+  assert.equal(foundFallback.pid, 202);
+  assert.equal(foundFallback.appBundlePath, '/Users/dev/Apps/Antigravity Beta.app');
+  assert.equal(foundFallback.executablePath, '/Users/dev/Apps/Antigravity Beta.app/Contents/MacOS/Antigravity Beta');
+  assert.equal(foundFallback.hasRemoteDebugFlag, false);
+
+  const foundWithPositionalAndPsn = await inspectMacDesktopHostProcess({
+    hostInfo: {
+      found: true,
+      kind: 'desktop',
+      appBundlePath: '/Applications/Antigravity.app',
+      executablePath: '/Applications/Antigravity.app/Contents/MacOS/Antigravity',
+    },
+    execFileFn: async () =>
+      '  203 00:09 /Applications/Antigravity.app/Contents/MacOS/Antigravity -psn_0_12345 /Users/dev/workspace\n',
+  });
+  assert.equal(foundWithPositionalAndPsn.found, true);
+  assert.equal(foundWithPositionalAndPsn.pid, 203);
+  assert.equal(foundWithPositionalAndPsn.hasRemoteDebugFlag, false);
+
+  const foundBundleOnlyPositional = await inspectMacDesktopHostProcess({
+    hostInfo: {
+      found: true,
+      kind: 'desktop',
+      appBundlePath: '/Applications/Antigravity.app',
+      executablePath: '',
+    },
+    execFileFn: async () =>
+      '  204 00:06 /Applications/Antigravity.app/Contents/MacOS/Antigravity -psn_0_98765 /Users/dev/project\n',
+  });
+  assert.equal(foundBundleOnlyPositional.found, true);
+  assert.equal(foundBundleOnlyPositional.pid, 204);
+  assert.equal(foundBundleOnlyPositional.executablePath, '/Applications/Antigravity.app/Contents/MacOS/Antigravity');
+
+  // 3. maybeAutoRelaunchMacDesktopHost guardrails & persistent circuit breaker
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agy-mac-autorelaunch-'));
+  const stateFilePath = path.join(tmpDir, 'macos-auto-relaunch-state.json');
+  const spawnCalls = [];
+  const baseOpts = {
+    enabled: true,
+    platform: 'darwin',
+    homeDir: '/Users/dev',
+    env: { PATH: '/usr/bin:/bin' },
+    stalePortFiles: ['/Users/dev/Library/Application Support/Antigravity/DevToolsActivePort'],
+    stateFilePath,
+    existsFn: (p) => p === '/Applications/Antigravity.app',
+    spawnFn: async (file, args, opts) => {
+      spawnCalls.push({ file, args, env: opts?.env });
+      return { pid: 9999 };
+    },
+    allowInTest: true,
+  };
+  try {
+    // Non-darwin / disabled / test sandbox / IDE host / already-has-flag / uptime exceeded
+    assert.equal(
+      (await maybeAutoRelaunchMacDesktopHost({ ...baseOpts, platform: 'win32' })).reason,
+      'unsupported_platform'
+    );
+    assert.equal(
+      (await maybeAutoRelaunchMacDesktopHost({ ...baseOpts, enabled: false })).reason,
+      'disabled'
+    );
+    assert.equal(
+      (
+        await maybeAutoRelaunchMacDesktopHost({
+          ...baseOpts,
+          env: {
+            PATH: '/usr/bin:/bin',
+            USAGE_MONITOR_HOST_EXE: '/Applications/Antigravity IDE.app',
+          },
+          existsFn: (p) => p === '/Applications/Antigravity IDE.app',
+        })
+      ).reason,
+      'not_desktop_host'
+    );
+    assert.equal(
+      (
+        await maybeAutoRelaunchMacDesktopHost({
+          ...baseOpts,
+          execFileFn: async () =>
+            '  301 00:05 /Applications/Antigravity.app/Contents/MacOS/Antigravity --remote-debugging-port=0\n',
+        })
+      ).reason,
+      'already_has_debug_flag'
+    );
+    assert.equal(
+      (
+        await maybeAutoRelaunchMacDesktopHost({
+          ...baseOpts,
+          execFileFn: async () =>
+            '  302 01:05 /Applications/Antigravity.app/Contents/MacOS/Antigravity\n',
+        })
+      ).reason,
+      'uptime_exceeded'
+    );
+
+    // Fail closed when state persistence throws (verifies launcherFsOps *Fn naming compatibility)
+    const persistErrRes = await maybeAutoRelaunchMacDesktopHost({
+      ...baseOpts,
+      nowMs: 1_000_000,
+      execFileFn: async () =>
+        '  303 00:05 /Applications/Antigravity.app/Contents/MacOS/Antigravity\n',
+      fsOps: {
+        existsFn: () => false,
+        mkdirFn: () => {},
+        writeFn: () => {
+          throw new Error('EROFS');
+        },
+        renameFn: () => {},
+        unlinkFn: () => {},
+      },
+    });
+    assert.equal(persistErrRes.attempted, false);
+    assert.equal(persistErrRes.reason, 'state_persist_failed');
+    assert.equal(spawnCalls.length, 0);
+
+    // Cold launch #1 succeeds and persists state (consecutiveFailures = 1)
+    const firstRes = await maybeAutoRelaunchMacDesktopHost({
+      ...baseOpts,
+      nowMs: 1_000_000,
+      execFileFn: async () =>
+        '  401 00:08 /Applications/Antigravity.app/Contents/MacOS/Antigravity\n',
+    });
+    assert.equal(firstRes.attempted, true);
+    assert.equal(firstRes.ok, true);
+    assert.equal(firstRes.reason, 'triggered');
+    assert.equal(spawnCalls.length, 1);
+
+    // Same PID blocked immediately
+    assert.equal(
+      (
+        await maybeAutoRelaunchMacDesktopHost({
+          ...baseOpts,
+          nowMs: 1_200_000,
+          execFileFn: async () =>
+            '  401 00:15 /Applications/Antigravity.app/Contents/MacOS/Antigravity\n',
+        })
+      ).reason,
+      'already_attempted_for_pid'
+    );
+
+    // New PID within 120s cooldown blocked (even when elapsedSec <= 60s)
+    assert.equal(
+      (
+        await maybeAutoRelaunchMacDesktopHost({
+          ...baseOpts,
+          nowMs: 1_060_000,
+          execFileFn: async () =>
+            '  402 00:55 /Applications/Antigravity.app/Contents/MacOS/Antigravity\n',
+        })
+      ).reason,
+      'cooldown'
+    );
+
+    // After cooldown expires (>120s), attempt #2 triggers and increments consecutiveFailures to 2
+    const secondRes = await maybeAutoRelaunchMacDesktopHost({
+      ...baseOpts,
+      nowMs: 1_130_000,
+      execFileFn: async () =>
+        '  403 00:06 /Applications/Antigravity.app/Contents/MacOS/Antigravity\n',
+    });
+    assert.equal(secondRes.attempted, true);
+    assert.equal(spawnCalls.length, 2);
+
+    // Attempt #3 trips circuit breaker even after cooldown expires
+    const thirdRes = await maybeAutoRelaunchMacDesktopHost({
+      ...baseOpts,
+      nowMs: 1_400_000,
+      execFileFn: async () =>
+        '  404 00:05 /Applications/Antigravity.app/Contents/MacOS/Antigravity\n',
+    });
+    assert.equal(thirdRes.attempted, false);
+    assert.equal(thirdRes.reason, 'circuit_open');
+    assert.equal(spawnCalls.length, 2);
+
+    // resetMacAutoRelaunchState clears consecutiveFailures and becomes no-op once clean
+    const reset1 = resetMacAutoRelaunchState({ stateFilePath, allowInTest: true });
+    assert.equal(reset1.reset, true);
+    const reset2 = resetMacAutoRelaunchState({ stateFilePath, allowInTest: true });
+    assert.equal(reset2.reset, false);
+    assert.equal(reset2.reason, 'already_clean');
+
+    // After reset & cooldown, new cold-start PID can trigger again
+    const fourthRes = await maybeAutoRelaunchMacDesktopHost({
+      ...baseOpts,
+      nowMs: 1_600_000,
+      execFileFn: async () =>
+        '  405 00:05 /Applications/Antigravity.app/Contents/MacOS/Antigravity\n',
+    });
+    assert.equal(fourthRes.attempted, true);
+    assert.equal(spawnCalls.length, 3);
+
+    // 4. createWindowBridgeController triggers macAutoRelaunchFn on BOTH no_devtools_port and cdp_unreachable (stale port file), and latches once per process
+    const fakeHome = path.join(tmpDir, 'home');
+    fs.mkdirSync(path.join(fakeHome, 'Library', 'Application Support', 'Antigravity'), {
+      recursive: true,
+    });
+    let noPortTriggers = 0;
+    const ctrlNoPort = createWindowBridgeController({
+      handleApiRequest: async () => ({ status: 200, body: '{}' }),
+      readAssetFn: async () => '',
+      getSettingsFn: () => ({
+        windowMountMode: 'dual',
+        enableWindowOverlay: true,
+        autoRelaunchOnMissingDebugPort: true,
+      }),
+      platform: 'darwin',
+      homeDir: fakeHome,
+      env: { PATH: '/usr/bin:/bin' },
+      autoConfigureIdeArgv: false,
+      macAutoRelaunchFn: async (opts) => {
+        noPortTriggers += 1;
+        assert.equal(opts.enabled, true);
+        assert.ok(opts.stalePortFiles.some((p) => p.endsWith('DevToolsActivePort')));
+        return { attempted: true, ok: true, reason: 'triggered' };
+      },
+    });
+    await ctrlNoPort.syncAllWindows();
+    await ctrlNoPort.syncAllWindows();
+    assert.equal(noPortTriggers, 1, 'latches after first check on no_devtools_port');
+    await ctrlNoPort.stop();
+
+    // Stale DevToolsActivePort -> cdp_unreachable also triggers macAutoRelaunchFn
+    const stalePortPath = path.join(
+      fakeHome,
+      'Library',
+      'Application Support',
+      'Antigravity',
+      'DevToolsActivePort'
+    );
+    fs.writeFileSync(stalePortPath, '59999\n/devtools/browser/stale\n', 'utf8');
+    let staleTriggers = 0;
+    const ctrlStale = createWindowBridgeController({
+      handleApiRequest: async () => ({ status: 200, body: '{}' }),
+      readAssetFn: async () => '',
+      getSettingsFn: () => ({
+        windowMountMode: 'dual',
+        enableWindowOverlay: true,
+        autoRelaunchOnMissingDebugPort: true,
+      }),
+      platform: 'darwin',
+      homeDir: fakeHome,
+      env: { PATH: '/usr/bin:/bin' },
+      cdpTimeoutMs: 500,
+      autoConfigureIdeArgv: false,
+      macAutoRelaunchFn: async () => {
+        staleTriggers += 1;
+        return { attempted: true, ok: true, reason: 'triggered' };
+      },
+    });
+    const staleRes = await ctrlStale.syncAllWindows();
+    assert.equal(staleRes.reason, 'cdp_unreachable');
+    assert.equal(staleTriggers, 1, 'triggers on cdp_unreachable caused by stale DevToolsActivePort');
+    await ctrlStale.stop();
+
+    // Non-lease-holder controller skips macAutoRelaunchFn (process.ppid is guaranteed alive and != process.pid)
+    const leasePath = path.join(tmpDir, 'active-lease.json');
+    fs.writeFileSync(
+      leasePath,
+      JSON.stringify({
+        pid: process.ppid,
+        bundleVersion: 'v1',
+        updatedAtMs: Date.now(),
+      })
+    );
+    let nonLeaseTriggers = 0;
+    const ctrlNonLease = createWindowBridgeController({
+      handleApiRequest: async () => ({ status: 200, body: '{}' }),
+      readAssetFn: async () => '',
+      getSettingsFn: () => ({
+        windowMountMode: 'dual',
+        enableWindowOverlay: true,
+        autoRelaunchOnMissingDebugPort: true,
+      }),
+      getBundleVersionFn: () => 'v1',
+      leaseFilePath: leasePath,
+      platform: 'darwin',
+      homeDir: fakeHome,
+      env: { PATH: '/usr/bin:/bin' },
+      cdpTimeoutMs: 500,
+      autoConfigureIdeArgv: false,
+      macAutoRelaunchFn: async () => {
+        nonLeaseTriggers += 1;
+        return { attempted: true, ok: true, reason: 'triggered' };
+      },
+    });
+    await ctrlNonLease.syncAllWindows();
+    assert.equal(nonLeaseTriggers, 0, 'non-lease holder must not trigger auto-relaunch');
+    await ctrlNonLease.stop();
+
+    // 5. SettingsStructureTab shows mac auto-relaunch toggle ONLY on darwin
+    const { SettingsStructureTab } = await import('../src/views/settings/SettingsStructureTab.js');
+    const prevDoc = globalThis.document;
+    const { document: mockDoc } = createMockDom();
+    globalThis.document = mockDoc;
+    try {
+      const tab = SettingsStructureTab({ onLayoutChange: () => {} });
+      tab.refs.renderSettings(
+        { windowMountMode: 'dual', autoRelaunchOnMissingDebugPort: false },
+        { state: 'no_devtools_port' },
+        'win32'
+      );
+      assert.equal(tab.refs.macAutoRelaunchGroupEl.hasAttribute('hidden'), true);
+      tab.refs.renderSettings(
+        { windowMountMode: 'dual', autoRelaunchOnMissingDebugPort: true },
+        { state: 'no_devtools_port' },
+        'darwin'
+      );
+      assert.equal(tab.refs.macAutoRelaunchGroupEl.hasAttribute('hidden'), false);
+      const macToggleBtns = tab.refs.macAutoRelaunchToggle.el.querySelectorAll('.seg-btn');
+      assert.equal(macToggleBtns.length, 2);
+      assert.equal(macToggleBtns[0].getAttribute('aria-pressed'), 'true');
+      assert.equal(macToggleBtns[1].getAttribute('aria-pressed'), 'false');
+      tab.destroy();
+    } finally {
+      globalThis.document = prevDoc;
+    }
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
   }
 });

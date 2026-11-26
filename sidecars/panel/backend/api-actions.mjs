@@ -63,6 +63,7 @@ import { getCloudStatus } from './pricing-catalog.mjs';
 import { buildTelemetryPayload, clearTelemetryBuilderMemo } from './telemetry-builder.mjs';
 import {
   ensureDesktopLaunchEntriesConfigured,
+  resetMacAutoRelaunchState,
   triggerDesktopHostRelaunch,
 } from './desktop-launcher-config.mjs';
 import {
@@ -416,6 +417,12 @@ export function executeSettingsAction(data) {
   } else if (contextWindowScopeChanged) {
     void notifyModelContextWindowsChanged();
   }
+  if (
+    updated.autoRelaunchOnMissingDebugPort === true &&
+    current.autoRelaunchOnMissingDebugPort !== true
+  ) {
+    resetMacAutoRelaunchState();
+  }
   if ((updated.enableCliStatusLine !== false) !== (current.enableCliStatusLine !== false)) {
     ensureCliStatusLineConfigured({ enabled: updated.enableCliStatusLine !== false });
   }
@@ -545,6 +552,7 @@ export function executeResetSettingsAction() {
   ) {
     void notifyModelContextWindowsChanged();
   }
+  resetMacAutoRelaunchState();
   if ((updated.enableCliStatusLine !== false) !== (current.enableCliStatusLine !== false)) {
     ensureCliStatusLineConfigured({ enabled: updated.enableCliStatusLine !== false });
   }
@@ -735,6 +743,7 @@ export async function executeAccountCredentialAction(data, opts = {}) {
 }
 
 export async function executeBridgeRelaunchAction() {
+  resetMacAutoRelaunchState();
   ensureIdeRemoteDebuggingArgv({ enabled: true });
   const launchConfig = await ensureDesktopLaunchEntriesConfigured({ enabled: true }).catch(
     () => null

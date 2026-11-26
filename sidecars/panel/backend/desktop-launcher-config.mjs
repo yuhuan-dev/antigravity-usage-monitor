@@ -38,9 +38,14 @@ import { DATA_DIR, HERE, lsRuntimeEndpoint } from './config.mjs';
 import { writeTextFileAtomicSync } from './fs-atomic.mjs';
 
 export const REMOTE_DEBUG_LAUNCH_FLAG = '--remote-debugging-port=0';
+export const MAC_AUTO_RELAUNCH_MAX_HOST_AGE_SEC = 60;
+export const MAC_AUTO_RELAUNCH_COOLDOWN_MS = 120 * 1000;
+export const MAC_AUTO_RELAUNCH_MAX_CONSECUTIVE_FAILURES = 2;
+export const MAC_AUTO_RELAUNCH_STATE_FILE = join(DATA_DIR, 'macos-auto-relaunch-state.json');
 
 const REMOTE_DEBUG_ANY_RE = /(?:^|\s)--remote-debugging-port(?:=|\s|$)/i;
 const REMOTE_DEBUG_MANAGED_ZERO_RE = /(?:^|\s+)--remote-debugging-port=(?:"0"|'0'|0)(?=\s|$)/gi;
+const CHROMIUM_SUBPROCESS_TYPE_RE = /(?:^|\s)--type=/i;
 
 /**
  * 解析 Windows PowerShell 5.1 可执行文件绝对路径（防止用户精简系统或异常 `PATH` 丢失裸 `powershell.exe`）。
@@ -558,7 +563,7 @@ async function runLauncherExecFile(file, args, options = {}) {
       {
         windowsHide: true,
         timeout: options.timeoutMs || 9000,
-        maxBuffer: 1024 * 1024,
+        maxBuffer: options.maxBuffer || 1024 * 1024,
         env: options.env || process.env,
       },
       (err, stdout) => {
@@ -1721,5 +1726,349 @@ export async function triggerDesktopHostRelaunch({
     relaunching: true,
     platform,
     executablePath: hostInfo.executablePath,
+  };
+}
+
+/**
+ * 解析 BSD / macOS `ps -o etime=` 输出的进程运行时长（秒）。
+ * 支持 `mm:ss`、`hh:mm:ss`、`dd-hh:mm:ss`；格式非法时返回 `null`（fail closed，绝不回退为 `0`）。
+ *
+ * @param {unknown} rawEtime
+ * @returns {number|null}
+ */
+export function parsePsElapsedSeconds(rawEtime) {
+  const text = String(rawEtime ?? '').trim();
+  if (!text) return null;
+  let m = text.match(/^(\d+)-(\d{1,2}):(\d{2}):(\d{2})$/);
+  if (m) {
+    const days = Number(m[1]);
+    const hours = Number(m[2]);
+    const mins = Number(m[3]);
+    const secs = Number(m[4]);
+    if (hours >= 24 || mins >= 60 || secs >= 60) return null;
+    return days * 86400 + hours * 3600 + mins * 60 + secs;
+  }
+  m = text.match(/^(\d+):(\d{2}):(\d{2})$/);
+  if (m) {
+    const hours = Number(m[1]);
+    const mins = Number(m[2]);
+    const secs = Number(m[3]);
+    if (mins >= 60 || secs >= 60) return null;
+    return hours * 3600 + mins * 60 + secs;
+  }
+  m = text.match(/^(\d+):(\d{2})$/);
+  if (m) {
+    const mins = Number(m[1]);
+    const secs = Number(m[2]);
+    if (secs >= 60) return null;
+    return mins * 60 + secs;
+  }
+  return null;
+}
+
+/**
+ * 在 macOS 上通过 `ps -wwxo pid=,etime=,args=` 探测当前用户下运行中的 Antigravity Desktop 主进程。
+ * - 使用 `-ww` 防止 80 列截断 `--remote-debugging-port=0` 参数；
+ * - 省略 `-a` 避免跨用户进程串扰；
+ * - 锚定可执行文件路径前缀并排除 `--type=` 与 `Helper` 子进程；
+ * - 多匹配时取运行时长最长的最老主进程，确保冷启动年龄判断偏向保守（fail closed）。
+ *
+ * @param {{
+ *   hostInfo?: { found?: boolean, kind?: string, appBundlePath?: string, executablePath?: string },
+ *   execFileFn?: ((file: string, args: string[], opts?: object) => Promise<string>) | null,
+ * }} [options]
+ * @returns {Promise<{
+ *   found: boolean,
+ *   pid: number,
+ *   elapsedSec: number|null,
+ *   hasRemoteDebugFlag: boolean,
+ *   appBundlePath: string,
+ *   executablePath: string,
+ * }>}
+ */
+export async function inspectMacDesktopHostProcess({ hostInfo = null, execFileFn = null } = {}) {
+  const empty = {
+    found: false,
+    pid: 0,
+    elapsedSec: null,
+    hasRemoteDebugFlag: false,
+    appBundlePath: '',
+    executablePath: '',
+  };
+  const runner = execFileFn || runLauncherExecFile;
+  let psOut = '';
+  try {
+    psOut = await runner('ps', ['-wwxo', 'pid=,etime=,args='], {
+      timeoutMs: 3000,
+      maxBuffer: 4 * 1024 * 1024,
+    });
+  } catch {
+    return empty;
+  }
+
+  const targetBundle = String(hostInfo?.appBundlePath || '').trim().replace(/\/+$/, '');
+  const targetPrefixLower = targetBundle ? `${targetBundle}/contents/macos/`.toLowerCase() : '';
+  const rawTargetExec = String(hostInfo?.executablePath || '').trim();
+  const targetExec =
+    targetPrefixLower &&
+    rawTargetExec.toLowerCase().startsWith(targetPrefixLower) &&
+    !/helper/i.test(rawTargetExec.slice(targetPrefixLower.length))
+      ? rawTargetExec
+      : '';
+  const targetExecLower = targetExec.toLowerCase();
+  let best = null;
+
+  for (const rawLine of String(psOut || '').split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line) continue;
+    const m = line.match(/^(\d+)\s+(\S+)\s+([\s\S]+)$/);
+    if (!m) continue;
+    const pid = Number(m[1]);
+    if (!Number.isInteger(pid) || pid <= 0) continue;
+    const elapsedSec = parsePsElapsedSeconds(m[2]);
+    if (elapsedSec === null) continue;
+    const args = m[3].trim();
+    if (!args || CHROMIUM_SUBPROCESS_TYPE_RE.test(args)) continue;
+
+    let matchedBundle = '';
+    let matchedExec = '';
+    if (targetExecLower) {
+      if (
+        !args.toLowerCase().startsWith(targetExecLower) ||
+        (args.length > targetExecLower.length && !/^\s/.test(args.slice(targetExecLower.length)))
+      ) {
+        continue;
+      }
+      matchedBundle = targetBundle;
+      matchedExec = targetExec;
+    } else if (targetPrefixLower) {
+      if (!args.toLowerCase().startsWith(targetPrefixLower)) continue;
+      const tail = args.slice(targetPrefixLower.length);
+      const binLeaf = tail.split(/\s+(?=-|\S*\/)/)[0].trim();
+      if (!binLeaf || binLeaf.includes('/') || /helper/i.test(binLeaf)) continue;
+      matchedBundle = targetBundle;
+      matchedExec = `${targetBundle}/Contents/MacOS/${binLeaf}`;
+    } else {
+      const bm = args.match(/^(\/.+?\.app)\/Contents\/MacOS\/([^/]+?)(?=\s+(?:-|\S*\/)|\s*$)/i);
+      if (!bm) continue;
+      const bundlePath = bm[1].replace(/\/+$/, '');
+      const binLeaf = bm[2].trim();
+      if (!/antigravity/i.test(bundlePath) && !/antigravity/i.test(binLeaf)) continue;
+      if (/antigravity\s*ide\.app$/i.test(bundlePath)) continue;
+      if (/helper/i.test(bundlePath) || /helper/i.test(binLeaf)) continue;
+      matchedBundle = bundlePath;
+      matchedExec = `${bundlePath}/Contents/MacOS/${binLeaf}`;
+    }
+
+    const candidate = {
+      found: true,
+      pid,
+      elapsedSec,
+      hasRemoteDebugFlag: REMOTE_DEBUG_ANY_RE.test(args),
+      appBundlePath: matchedBundle,
+      executablePath: matchedExec,
+    };
+    if (!best || candidate.elapsedSec > best.elapsedSec) {
+      best = candidate;
+    }
+  }
+
+  return best || empty;
+}
+
+function resolveMacStateFsOps(fsOps = null) {
+  return {
+    existsFn: fsOps?.existsFn || fsOps?.existsSync || existsSync,
+    readFn: fsOps?.readFn || fsOps?.readFileSync || readFileSync,
+    mkdirFn: fsOps?.mkdirFn || fsOps?.mkdirSync || mkdirSync,
+    writeFn: fsOps?.writeFn || fsOps?.writeFileSync || writeFileSync,
+    renameFn: fsOps?.renameFn || fsOps?.renameSync || renameSync,
+    unlinkFn: fsOps?.unlinkFn || fsOps?.unlinkSync || unlinkSync,
+  };
+}
+
+function readMacAutoRelaunchState({
+  stateFilePath = MAC_AUTO_RELAUNCH_STATE_FILE,
+  fsOps = null,
+} = {}) {
+  const { existsFn, readFn } = resolveMacStateFsOps(fsOps);
+  const fallback = { lastHostPid: 0, lastAttemptAtMs: 0, consecutiveFailures: 0 };
+  if (!stateFilePath) return fallback;
+  try {
+    if (!existsFn(stateFilePath)) return fallback;
+    const parsed = JSON.parse(String(readFn(stateFilePath, 'utf8') || '{}'));
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return fallback;
+    return {
+      lastHostPid: Number.isInteger(Number(parsed.lastHostPid)) ? Number(parsed.lastHostPid) : 0,
+      lastAttemptAtMs:
+        Number.isFinite(Number(parsed.lastAttemptAtMs)) && Number(parsed.lastAttemptAtMs) > 0
+          ? Number(parsed.lastAttemptAtMs)
+          : 0,
+      consecutiveFailures:
+        Number.isInteger(Number(parsed.consecutiveFailures)) && Number(parsed.consecutiveFailures) > 0
+          ? Number(parsed.consecutiveFailures)
+          : 0,
+    };
+  } catch {
+    return fallback;
+  }
+}
+
+function writeMacAutoRelaunchState(
+  state,
+  { stateFilePath = MAC_AUTO_RELAUNCH_STATE_FILE, fsOps = null } = {}
+) {
+  const effectiveFs = resolveMacStateFsOps(fsOps);
+  writeTextFileAtomically(stateFilePath, `${JSON.stringify(state, null, 2)}\n`, effectiveFs);
+}
+
+/**
+ * 重置 macOS 自动重拉的连续失败熔断计数（在 CDP 恢复连通、用户手动重启或重新开启设置时调用）。
+ * 文件不存在或计数已为 0 时零磁盘写入。
+ */
+export function resetMacAutoRelaunchState({
+  stateFilePath = MAC_AUTO_RELAUNCH_STATE_FILE,
+  fsOps = null,
+  allowInTest = false,
+} = {}) {
+  if (lsRuntimeEndpoint.addr === 'test.invalid' && !allowInTest) {
+    return { reset: false, reason: 'test_sandbox' };
+  }
+  const { existsFn } = resolveMacStateFsOps(fsOps);
+  if (!stateFilePath) return { reset: false, reason: 'no_state_file' };
+  try {
+    if (!existsFn(stateFilePath)) return { reset: false, reason: 'absent' };
+    const current = readMacAutoRelaunchState({ stateFilePath, fsOps });
+    if (current.consecutiveFailures <= 0) {
+      return { reset: false, reason: 'already_clean' };
+    }
+    writeMacAutoRelaunchState(
+      {
+        ...current,
+        consecutiveFailures: 0,
+      },
+      { stateFilePath, fsOps }
+    );
+    return { reset: true, reason: 'cleared' };
+  } catch {
+    return { reset: false, reason: 'io_error' };
+  }
+}
+
+/**
+ * macOS 冷启动无调试端口自动带参重拉守卫。
+ * 严格满足：opt-in 启用、Desktop 宿主、进程刚启动（`<= maxHostAgeSec`）、无 `--remote-debugging-port` 参数、
+ * 未对同一 PID 重试过、冷却期已过（`cooldownMs > maxHostAgeSec * 1000`）、未触发连续失败熔断，
+ * 且先落盘防环状态成功（fail closed）后再触发重拉。
+ */
+export async function maybeAutoRelaunchMacDesktopHost({
+  enabled = false,
+  env = process.env,
+  platform = process.platform,
+  homeDir = homedir(),
+  stalePortFiles = [],
+  stateFilePath = MAC_AUTO_RELAUNCH_STATE_FILE,
+  nowMs = Date.now(),
+  maxHostAgeSec = MAC_AUTO_RELAUNCH_MAX_HOST_AGE_SEC,
+  cooldownMs = MAC_AUTO_RELAUNCH_COOLDOWN_MS,
+  maxConsecutiveFailures = MAC_AUTO_RELAUNCH_MAX_CONSECUTIVE_FAILURES,
+  execFileFn = null,
+  spawnFn = null,
+  existsFn = existsSync,
+  fsOps = null,
+  allowInTest = false,
+} = {}) {
+  if (platform !== 'darwin') {
+    return { attempted: false, ok: false, reason: 'unsupported_platform' };
+  }
+  if (!enabled) {
+    return { attempted: false, ok: false, reason: 'disabled' };
+  }
+  if (lsRuntimeEndpoint.addr === 'test.invalid' && !allowInTest) {
+    return { attempted: false, ok: false, reason: 'test_sandbox' };
+  }
+
+  const hostInfo = resolveDesktopHostExecutable({ env, platform, homeDir, existsFn });
+  if (hostInfo.found && hostInfo.kind !== 'desktop') {
+    return { attempted: false, ok: false, reason: 'not_desktop_host' };
+  }
+
+  const hostProc = await inspectMacDesktopHostProcess({
+    hostInfo: hostInfo.found ? hostInfo : null,
+    execFileFn,
+  });
+  if (!hostProc.found) {
+    return { attempted: false, ok: false, reason: 'host_process_not_found' };
+  }
+  if (hostProc.hasRemoteDebugFlag) {
+    return { attempted: false, ok: false, reason: 'already_has_debug_flag', pid: hostProc.pid };
+  }
+  if (hostProc.elapsedSec === null || hostProc.elapsedSec > maxHostAgeSec) {
+    return {
+      attempted: false,
+      ok: false,
+      reason: 'uptime_exceeded',
+      pid: hostProc.pid,
+      elapsedSec: hostProc.elapsedSec,
+    };
+  }
+
+  const prevState = readMacAutoRelaunchState({ stateFilePath, fsOps });
+  if (prevState.lastHostPid > 0 && prevState.lastHostPid === hostProc.pid) {
+    return { attempted: false, ok: false, reason: 'already_attempted_for_pid', pid: hostProc.pid };
+  }
+  if (prevState.consecutiveFailures >= maxConsecutiveFailures) {
+    return {
+      attempted: false,
+      ok: false,
+      reason: 'circuit_open',
+      pid: hostProc.pid,
+      consecutiveFailures: prevState.consecutiveFailures,
+    };
+  }
+  if (prevState.lastAttemptAtMs > 0 && nowMs - prevState.lastAttemptAtMs < cooldownMs) {
+    return { attempted: false, ok: false, reason: 'cooldown', pid: hostProc.pid };
+  }
+
+  // 必须先持久化防环状态再触发重拉；若磁盘不可写则 fail closed 中止，绝不冒无限重启风险
+  const nextState = {
+    lastHostPid: hostProc.pid,
+    lastAttemptAtMs: nowMs,
+    consecutiveFailures: prevState.consecutiveFailures + 1,
+  };
+  try {
+    writeMacAutoRelaunchState(nextState, { stateFilePath, fsOps });
+  } catch (err) {
+    return {
+      attempted: false,
+      ok: false,
+      reason: 'state_persist_failed',
+      error: err?.message || String(err),
+    };
+  }
+
+  const relaunchEnv =
+    !hostInfo.found && hostProc.appBundlePath
+      ? { ...env, USAGE_MONITOR_HOST_EXE: hostProc.appBundlePath }
+      : env;
+  const relaunchRes = await triggerDesktopHostRelaunch({
+    env: relaunchEnv,
+    platform,
+    homeDir,
+    stalePortFiles,
+    execFileFn,
+    spawnFn,
+    existsFn: !hostInfo.found && hostProc.appBundlePath
+      ? (p) => p === hostProc.appBundlePath || existsFn(p)
+      : existsFn,
+    allowInTest,
+  });
+  return {
+    attempted: true,
+    ok: Boolean(relaunchRes?.ok),
+    reason: relaunchRes?.ok ? 'triggered' : 'relaunch_failed',
+    pid: hostProc.pid,
+    elapsedSec: hostProc.elapsedSec,
+    relaunchResult: relaunchRes,
   };
 }

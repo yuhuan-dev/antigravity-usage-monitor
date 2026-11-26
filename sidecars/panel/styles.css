@@ -7337,8 +7337,15 @@ html[data-standalone="true"] .app-shell {
 }
 
 .cli-statusline-group[hidden],
-.cli-statusline-detail[hidden] {
+.cli-statusline-detail[hidden],
+.mac-auto-relaunch-group[hidden] {
   display: none !important;
+}
+
+.mac-auto-relaunch-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .cli-statusline-detail {

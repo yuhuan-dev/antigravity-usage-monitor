@@ -2879,19 +2879,20 @@ test('P2 regressions: bundler regex-after-paren lexer, shared URI/prompt/atomic 
   assert.equal(latestQuery, '');
   assert.equal(sBox.clearBtnEl.hasAttribute('hidden'), true);
 
-  // 4. Declarative settingsBackup round-trips all 31 portable keys + coupled legacy flags
+  // 4. Declarative settingsBackup round-trips all 32 portable keys + coupled legacy flags
   const exported = buildExportableSettingsJson({
     language: 'en-US',
     modernUi: false,
     modelDisplayMode: 'upstream_compact',
     pluginUpdateMode: 'auto',
     windowMountMode: 'composer',
+    autoRelaunchOnMissingDebugPort: true,
     showStepFilterToolbar: true,
     experimentalQuotaReservation: true,
     accountQuotaRefreshMinutes: 180,
   });
   const parsedExport = JSON.parse(exported);
-  assert.equal(Object.keys(parsedExport.settings).length, 31);
+  assert.equal(Object.keys(parsedExport.settings).length, 32);
   const reimported = parseImportedSettingsJson(exported);
   assert.equal(reimported.ok, true);
   assert.equal(reimported.patch.modernUi, false);
@@ -2902,6 +2903,7 @@ test('P2 regressions: bundler regex-after-paren lexer, shared URI/prompt/atomic 
   assert.equal(reimported.patch.autoUpdatePlugin, true);
   assert.equal(reimported.patch.windowMountMode, 'composer');
   assert.equal(reimported.patch.enableWindowOverlay, true);
+  assert.equal(reimported.patch.autoRelaunchOnMissingDebugPort, true);
   assert.equal(reimported.patch.showStepFilterToolbar, true);
   assert.equal(reimported.patch.experimentalQuotaReservation, true);
   assert.equal(reimported.patch.accountQuotaRefreshMinutes, 180);

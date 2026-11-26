@@ -625,6 +625,12 @@ export function isEquivalentTelemetry(prev, next) {
     return false;
   }
   if (pSet?.enableWindowOverlay !== nSet?.enableWindowOverlay) return false;
+  if (
+    Boolean(pSet?.autoRelaunchOnMissingDebugPort) !==
+    Boolean(nSet?.autoRelaunchOnMissingDebugPort)
+  ) {
+    return false;
+  }
   if ((pSet?.enableCliStatusLine !== false) !== (nSet?.enableCliStatusLine !== false)) {
     return false;
   }
