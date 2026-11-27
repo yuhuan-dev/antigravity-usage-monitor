@@ -2430,6 +2430,7 @@ html[data-standalone="true"] .app-shell {
   width: var(--fill-w, 0%);
   background: var(--accent-primary);
   transition: width var(--dur-normal) var(--ease-fast);
+  order: 1;
 }
 
 .progress-fill.tone-warn {
@@ -2438,6 +2439,30 @@ html[data-standalone="true"] .app-shell {
 
 .progress-fill.tone-danger {
   background: var(--metric-danger);
+}
+
+.progress-fill-external {
+  height: 100%;
+  width: var(--external-w, 0%);
+  background: repeating-linear-gradient(
+      90deg,
+      var(--accent-primary) 0 4px,
+      transparent 4px 7px
+    )
+    left center / 100% 2px no-repeat;
+  transition:
+    width var(--dur-normal) var(--ease-fast),
+    margin-left var(--dur-fast) var(--ease-fast);
+  flex-shrink: 0;
+  order: 2;
+}
+
+.progress-fill-external.is-active {
+  min-width: 6px;
+}
+
+.progress-fill-external.is-active.has-sep {
+  margin-left: 2px;
 }
 
 .progress-fill-reserved {
@@ -2452,6 +2477,7 @@ html[data-standalone="true"] .app-shell {
     width var(--dur-normal) var(--ease-fast),
     margin-left var(--dur-fast) var(--ease-fast);
   flex-shrink: 0;
+  order: 3;
 }
 
 .progress-fill-reserved.is-active {
@@ -2460,6 +2486,18 @@ html[data-standalone="true"] .app-shell {
 
 .progress-fill-reserved.is-active.has-sep {
   margin-left: 1px;
+}
+
+.progress-track.is-remaining-mode .progress-fill-reserved {
+  order: 2;
+}
+
+.progress-track.is-remaining-mode .progress-fill-external {
+  order: 3;
+}
+
+.progress-track.is-remaining-mode .progress-fill-external.is-active {
+  margin-left: auto;
 }
 
 .quota-reserve-legend {
@@ -2483,6 +2521,10 @@ html[data-standalone="true"] .app-shell {
   white-space: nowrap;
 }
 
+.quota-legend-item[hidden] {
+  display: none;
+}
+
 .quota-legend-line {
   display: inline-block;
   width: 14px;
@@ -2493,6 +2535,14 @@ html[data-standalone="true"] .app-shell {
 
 .quota-legend-line.is-actual {
   background: var(--accent-primary);
+}
+
+.quota-legend-line.is-external {
+  background: repeating-linear-gradient(
+    90deg,
+    var(--accent-primary) 0 4px,
+    transparent 4px 7px
+  );
 }
 
 .quota-legend-line.is-reserved {

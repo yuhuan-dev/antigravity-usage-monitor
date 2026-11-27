@@ -56,6 +56,8 @@ export const QR_LEASE_REJECT_SURPLUS_RATIO = 0.06;
 export const QR_EXTERNAL_SCAN_LAG_RECONCILE_MS = 2 * 60 * 1000;
 export const QR_CO_MOVE_MIN_5H_EXCESS_PCT = 0.35;
 export const QR_CO_MOVE_MIN_WK_EXCESS_PCT = 0.1;
+export const QR_CO_MOVE_SHARED_MIN_5H_EXCESS_PCT = 0.2;
+export const QR_CO_MOVE_SHARED_MIN_WK_EXCESS_PCT = 0.05;
 export const QR_CO_MOVE_SOLO_MIN_5H_EXCESS_PCT = 0.8;
 export const QR_CO_MOVE_SOLO_MIN_WK_EXCESS_PCT = 0.2;
 export const QR_CO_MOVE_SOLO_MIN_EXCESS_RATIO = 2.5;
@@ -331,7 +333,7 @@ function qrComputeMedian(values) {
   return sorted.length % 2 === 1 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 }
 
-function qrRecordRateSample(state, sampleRate) {
+function qrRecordRateSample(state, sampleRate, { blockUpwardDriftReset = false } = {}) {
   const clamped = qrClampRate(sampleRate);
   if (clamped === null) return false;
   const win = Array.isArray(state.rateWindow) ? state.rateWindow : (state.rateWindow = []);
@@ -342,6 +344,10 @@ function qrRecordRateSample(state, sampleRate) {
     const highBound = med * QR_RATE_OUTLIER_MAX_RATIO;
     if (clamped < lowBound || clamped > highBound) {
       const side = clamped > highBound ? 1 : -1;
+      if (blockUpwardDriftReset && side === 1) {
+        // 共享活跃期内外部并发扣费只会把表观费率向上拉偏，禁止向上离群连续触发漂移重置
+        return false;
+      }
       if (state.rateOutlierSide !== side) {
         state.rateOutlierSide = side;
         state.rateOutlierBuf = [clamped];
@@ -389,7 +395,12 @@ function qrResolveEffectiveRate(state, officialUsedPct, cycleCostUsd) {
 }
 
 function qrPruneExpiredLeases(state, nowMs) {
-  if (state.activeLeases.length === 0) return;
+  if (state.activeLeases.length === 0) {
+    return { prunedCount: 0, expiredTentativePct: 0, latestTentativeCreatedAtMs: 0 };
+  }
+  let prunedCount = 0;
+  let expiredTentativePct = 0;
+  let latestTentativeCreatedAtMs = 0;
   for (let i = state.activeLeases.length - 1; i >= 0; i -= 1) {
     const lease = state.activeLeases[i];
     const lastActiveMs = lease.lastTouchedMs || lease.createdAtMs || 0;
@@ -400,12 +411,23 @@ function qrPruneExpiredLeases(state, nowMs) {
     const idleExpired = lastActiveMs > 0 && nowMs - lastActiveMs >= QR_LEASE_IDLE_EXPIRY_MS;
     const maxAgeExpired = nowMs - (lease.createdAtMs || 0) >= QR_LEASE_MAX_AGE_MS;
     if (tentativeExpired || idleExpired || maxAgeExpired) {
+      if (lease.tentative) {
+        expiredTentativePct += Math.max(0, Number(lease.remainingPct) || 0);
+        const createdMs = Math.max(0, Number(lease.createdAtMs) || 0);
+        if (createdMs > latestTentativeCreatedAtMs) {
+          latestTentativeCreatedAtMs = createdMs;
+        }
+      }
       state.activeLeases.splice(i, 1);
+      prunedCount += 1;
     }
   }
+  return { prunedCount, expiredTentativePct, latestTentativeCreatedAtMs };
 }
 
 function qrFormatOutput(state, officialUsedPct) {
+  const safeOfficial = qrClamp(Number(officialUsedPct) || 0, 0, 100);
+  const roundedOfficial = qrRound1(safeOfficial);
   const rawSum = qrSumLeases(state.activeLeases, { includeTentative: false });
   let dropOffset = 0;
   if (state.pendingDrop && Number.isFinite(state.pendingDrop.preDropUsedPct)) {
@@ -417,34 +439,44 @@ function qrFormatOutput(state, officialUsedPct) {
       state.ratePctPerUsd !== null && Number.isFinite(state.ratePctPerUsd)
         ? costSinceDrop * state.ratePctPerUsd
         : 0;
-    dropOffset = Math.max(0, state.pendingDrop.preDropUsedPct + expectedSinceDrop - officialUsedPct);
+    dropOffset = Math.max(0, state.pendingDrop.preDropUsedPct + expectedSinceDrop - safeOfficial);
   }
   const visibleRaw = Math.max(0, rawSum - dropOffset);
-  const rawReserved = qrClamp(visibleRaw, 0, officialUsedPct);
-  if (rawReserved < QR_MIN_DISPLAY_RESERVED_PCT) {
-    return {
-      reservedPct: 0,
-      reservedLeaseCount: 0,
-      reservedExpiresAtMs: null,
-    };
-  }
-  const rounded = qrClamp(qrRound1(rawReserved), 0, qrRound1(officialUsedPct));
+  const rawReserved = qrClamp(visibleRaw, 0, safeOfficial);
+  const hasVisibleReserved = rawReserved >= QR_MIN_DISPLAY_RESERVED_PCT;
+  const reservedPct = hasVisibleReserved
+    ? qrClamp(qrRound1(rawReserved), 0, roundedOfficial)
+    : 0;
+
   let earliestExpiresAtMs = null;
   let visibleCount = 0;
-  for (let i = 0; i < state.activeLeases.length; i += 1) {
-    if (state.activeLeases[i]?.tentative) continue;
-    visibleCount += 1;
-    const exp =
-      (state.activeLeases[i].lastTouchedMs || state.activeLeases[i].createdAtMs || 0) +
-      QR_LEASE_TTL_MS;
-    if (exp > 0 && (earliestExpiresAtMs === null || exp < earliestExpiresAtMs)) {
-      earliestExpiresAtMs = exp;
+  if (hasVisibleReserved) {
+    for (let i = 0; i < state.activeLeases.length; i += 1) {
+      if (state.activeLeases[i]?.tentative) continue;
+      visibleCount += 1;
+      const exp =
+        (state.activeLeases[i].lastTouchedMs || state.activeLeases[i].createdAtMs || 0) +
+        QR_LEASE_TTL_MS;
+      if (exp > 0 && (earliestExpiresAtMs === null || exp < earliestExpiresAtMs)) {
+        earliestExpiresAtMs = exp;
+      }
     }
   }
+
+  // 严格守恒：externalUsedPct >= 0 且 externalUsedPct + reservedPct <= officialUsedPct
+  const maxExtRaw = Math.max(0, safeOfficial - (hasVisibleReserved ? rawReserved : 0));
+  const rawExternal = qrClamp(Number(state.externalUsedPct) || 0, 0, maxExtRaw);
+  const maxExtRounded = Math.max(0, qrRound1(roundedOfficial - reservedPct));
+  const externalUsedPct =
+    rawExternal >= QR_MIN_DISPLAY_RESERVED_PCT
+      ? qrClamp(qrRound1(rawExternal), 0, maxExtRounded)
+      : 0;
+
   return {
-    reservedPct: rounded,
-    reservedLeaseCount: visibleCount,
-    reservedExpiresAtMs: earliestExpiresAtMs,
+    reservedPct,
+    reservedLeaseCount: hasVisibleReserved ? visibleCount : 0,
+    reservedExpiresAtMs: hasVisibleReserved ? earliestExpiresAtMs : null,
+    externalUsedPct,
   };
 }
 
@@ -670,7 +702,7 @@ function qrResolveBucketDisplayRate(st, win) {
   };
 }
 
-function qrBuildPoolRateEstimate(st5h, stWk, nowMs = Date.now()) {
+function qrBuildPoolRateEstimate(st5h, stWk, nowMs = Date.now(), { out5h = null, outWk = null } = {}) {
   const resolved5h = qrResolveBucketDisplayRate(st5h, '5h');
   const resolvedWk = qrResolveBucketDisplayRate(stWk, 'weekly');
   const raw5hPool = resolved5h ? resolved5h.rate : null;
@@ -758,8 +790,14 @@ function qrBuildPoolRateEstimate(st5h, stWk, nowMs = Date.now()) {
   );
   const extActiveRecently =
     lastExtAtMs > 0 && nowMs >= lastExtAtMs && nowMs - lastExtAtMs <= QR_EXTERNAL_ACTIVE_WINDOW_MS;
-  const ext5hPct = +(Number(st5h?.externalUsedPct) || 0).toFixed(1);
-  const extWkPct = +(Number(stWk?.externalUsedPct) || 0).toFixed(1);
+  const ext5hPct =
+    out5h && Number.isFinite(Number(out5h.externalUsedPct))
+      ? +Number(out5h.externalUsedPct).toFixed(1)
+      : +(Number(st5h?.externalUsedPct) || 0).toFixed(1);
+  const extWkPct =
+    outWk && Number.isFinite(Number(outWk.externalUsedPct))
+      ? +Number(outWk.externalUsedPct).toFixed(1)
+      : +(Number(stWk?.externalUsedPct) || 0).toFixed(1);
   const extEvents = (Number(st5h?.externalEvents) || 0) + (Number(stWk?.externalEvents) || 0);
   const externalUsage = extDetected
     ? {
@@ -951,10 +989,10 @@ function qrDetectProportionalExternalJump(
   }
   if (p5.rate / pw.rate < QR_CO_MOVE_MIN_RATE_RATIO) return false;
   const min5hExcess = externalActiveRecently
-    ? QR_CO_MOVE_MIN_5H_EXCESS_PCT
+    ? QR_CO_MOVE_SHARED_MIN_5H_EXCESS_PCT
     : QR_CO_MOVE_SOLO_MIN_5H_EXCESS_PCT;
   const minWkExcess = externalActiveRecently
-    ? QR_CO_MOVE_MIN_WK_EXCESS_PCT
+    ? QR_CO_MOVE_SHARED_MIN_WK_EXCESS_PCT
     : QR_CO_MOVE_SOLO_MIN_WK_EXCESS_PCT;
   if (p5.excessPct < min5hExcess) return false;
   if (pw.excessPct < minWkExcess) return false;
@@ -981,6 +1019,80 @@ function qrDetectProportionalExternalJump(
   }
   const usdRatio = impliedUsd5h / impliedUsdWk;
   return usdRatio >= QR_CO_MOVE_MIN_USD_RATIO && usdRatio <= QR_CO_MOVE_MAX_USD_RATIO;
+}
+
+function qrComputeBaselineExternalPct(st, safeUsed, safeCost, safeModelCosts, safeUnpriced = 0) {
+  if (safeUsed < QR_EXTERNAL_BASELINE_USED_PCT) return 0;
+  if (
+    st &&
+    safeCost > 0 &&
+    safeUnpriced === 0 &&
+    Number.isFinite(st.ratePctPerUsd) &&
+    st.ratePctPerUsd > 0
+  ) {
+    const localExpected = qrEstimateModelWeightedPct(st, safeModelCosts, safeCost, st.ratePctPerUsd);
+    const unexplained = Math.max(0, safeUsed - localExpected);
+    return unexplained >= QR_MIN_DISPLAY_RESERVED_PCT ? qrClamp(unexplained, 0, safeUsed) : 0;
+  }
+  return qrClamp(safeUsed, 0, 100);
+}
+
+function qrReconcileExpiredTentativeLeases(
+  st,
+  {
+    expiredTentativePct = 0,
+    latestTentativeCreatedAtMs = 0,
+    safeUsed = 0,
+    safeCost = 0,
+    safeModelCosts = null,
+    safeUnpriced = 0,
+    localScanIncomplete = false,
+    nowMs = Date.now(),
+  } = {}
+) {
+  if (
+    !st ||
+    expiredTentativePct < QR_MIN_DISPLAY_RESERVED_PCT ||
+    localScanIncomplete ||
+    st.pendingDrop !== null ||
+    safeUnpriced > 0
+  ) {
+    return 0;
+  }
+  const remainingLeaseSum = qrSumLeases(st.activeLeases || [], { includeTentative: true });
+  const curExtPct = Math.max(0, Number(st.externalUsedPct) || 0);
+  let attrPct = 0;
+
+  if (st.ratePctPerUsd !== null && Number.isFinite(st.ratePctPerUsd) && st.ratePctPerUsd > 0) {
+    const localExpectedPct = qrEstimateModelWeightedPct(
+      st,
+      safeModelCosts,
+      safeCost,
+      st.ratePctPerUsd
+    );
+    const unexplainedTotal = Math.max(0, safeUsed - remainingLeaseSum - localExpectedPct);
+    const soloTol = qrResolveSoloDriftTolerance(localExpectedPct);
+    const maxAddable = Math.max(0, safeUsed - remainingLeaseSum - localExpectedPct - curExtPct);
+    if (unexplainedTotal > soloTol && maxAddable >= QR_MIN_DISPLAY_RESERVED_PCT) {
+      attrPct = Math.min(expiredTentativePct, maxAddable);
+    }
+  } else if (st.hasExternalUsage && safeCost < QR_EXTERNAL_BASELINE_MAX_LOCAL_COST_USD) {
+    const maxAddable = Math.max(0, safeUsed - remainingLeaseSum - curExtPct);
+    if (maxAddable >= QR_MIN_DISPLAY_RESERVED_PCT) {
+      attrPct = Math.min(expiredTentativePct, maxAddable);
+    }
+  }
+
+  if (attrPct < QR_MIN_DISPLAY_RESERVED_PCT) {
+    return 0;
+  }
+  const eventTs =
+    latestTentativeCreatedAtMs > 0 ? Math.min(nowMs, latestTentativeCreatedAtMs) : nowMs;
+  st.hasExternalUsage = true;
+  st.externalUsedPct = qrClamp(curExtPct + attrPct, 0, Math.max(0, safeUsed - remainingLeaseSum));
+  st.externalEvents = (Number(st.externalEvents) || 0) + 1;
+  st.lastExternalUsageAtMs = Math.max(Number(st.lastExternalUsageAtMs) || 0, eventTs);
+  return attrPct;
 }
 
 function qrReconcileExternalUsageBound(st, safeUsed, safeCost, safeModelCosts, nowMs) {
@@ -1340,7 +1452,12 @@ export function createQuotaReservationTracker({ loadState = null, saveState = nu
     nowMs = Date.now(),
   }) {
     if (officialUsedPct === null || !Number.isFinite(officialUsedPct)) {
-      return { reservedPct: 0, reservedLeaseCount: 0, reservedExpiresAtMs: null };
+      return {
+        reservedPct: 0,
+        reservedLeaseCount: 0,
+        reservedExpiresAtMs: null,
+        externalUsedPct: 0,
+      };
     }
     ensureHydrated();
     const safeUsed = qrClamp(Number(officialUsedPct), 0, 100);
@@ -1426,16 +1543,21 @@ export function createQuotaReservationTracker({ loadState = null, saveState = nu
       st.activeLeases = [];
       st.pendingDrop = null;
       st.lastRefundHighWaterPct = 0;
-      st.hasExternalUsage =
+      const isResetBaselineExternal =
         !localScanIncomplete &&
         !hasRunningLocalSession &&
         safeCalls === 0 &&
         safeUsed >= QR_EXTERNAL_BASELINE_USED_PCT &&
         safeCost < QR_EXTERNAL_BASELINE_MAX_LOCAL_COST_USD;
-      st.externalUsedPct = 0;
+      const resetExtPct = isResetBaselineExternal
+        ? qrComputeBaselineExternalPct(st, safeUsed, safeCost, safeModelCosts, safeUnpriced)
+        : 0;
+      st.hasExternalUsage = resetExtPct >= QR_MIN_DISPLAY_RESERVED_PCT;
+      st.externalUsedPct = st.hasExternalUsage ? resetExtPct : 0;
       st.externalEvents = 0;
       st.lastExternalUsageAtMs = 0;
       st.idleUnexplainedAccumPct = 0;
+      qrReconcileExternalUsageBound(st, safeUsed, safeCost, safeModelCosts, nowMs);
       qrRefreshBucketDensities(st, safeCost, safePricedTokens, safeModelCosts, safeModelTokens);
       qrUpdateSlopeSamples(
         st,
@@ -1467,7 +1589,16 @@ export function createQuotaReservationTracker({ loadState = null, saveState = nu
         safeUsed >= QR_EXTERNAL_BASELINE_USED_PCT &&
         safeCost < QR_EXTERNAL_BASELINE_MAX_LOCAL_COST_USD
       ) {
-        st.hasExternalUsage = true;
+        const baselineExtPct = qrComputeBaselineExternalPct(
+          st,
+          safeUsed,
+          safeCost,
+          safeModelCosts,
+          safeUnpriced
+        );
+        st.hasExternalUsage = baselineExtPct >= QR_MIN_DISPLAY_RESERVED_PCT;
+        st.externalUsedPct = st.hasExternalUsage ? baselineExtPct : 0;
+        qrReconcileExternalUsageBound(st, safeUsed, safeCost, safeModelCosts, nowMs);
       } else if (
         !st.hasExternalUsage &&
         safeUnpriced === 0 &&
@@ -1510,6 +1641,20 @@ export function createQuotaReservationTracker({ loadState = null, saveState = nu
       st.lastPricedTokens = safePricedTokens;
       const prevDensity = st.usdPerMTok;
       qrRefreshBucketDensities(st, safeCost, safePricedTokens, safeModelCosts, safeModelTokens);
+      const cachePrune = qrPruneExpiredLeases(st, nowMs);
+      const cacheTentativeExtPct =
+        cachePrune.expiredTentativePct > 0
+          ? qrReconcileExpiredTentativeLeases(st, {
+              expiredTentativePct: cachePrune.expiredTentativePct,
+              latestTentativeCreatedAtMs: cachePrune.latestTentativeCreatedAtMs,
+              safeUsed,
+              safeCost: st.lastCycleCostUsd,
+              safeModelCosts: st.lastModelCostsUsd,
+              safeUnpriced: st.lastUnpricedCalls,
+              localScanIncomplete,
+              nowMs,
+            })
+          : 0;
       const extReconciled = qrReconcileExternalUsageBound(
         st,
         safeUsed,
@@ -1517,10 +1662,8 @@ export function createQuotaReservationTracker({ loadState = null, saveState = nu
         st.lastModelCostsUsd,
         nowMs
       );
-      const beforeCachePrune = st.activeLeases.length;
-      qrPruneExpiredLeases(st, nowMs);
       const out = qrFormatOutput(st, safeUsed);
-      if (beforeCachePrune > st.activeLeases.length) {
+      if (cachePrune.prunedCount > 0) {
         qrResetSlopeAnchor(
           st,
           qrComputeNetLocalUsedPct(st, safeUsed),
@@ -1528,7 +1671,7 @@ export function createQuotaReservationTracker({ loadState = null, saveState = nu
           st.lastCycleCalls,
           st.lastUnpricedCalls
         );
-        recordLog('expire', out);
+        recordLog(cacheTentativeExtPct > 0 ? 'external_usage' : 'expire', out);
       } else if (extReconciled) {
         persistIfNeeded('external_usage', nowMs);
       } else if (prevDensity === null && st.usdPerMTok !== null) {
@@ -1603,6 +1746,7 @@ export function createQuotaReservationTracker({ loadState = null, saveState = nu
       nowMs >= latestExternalTs &&
       nowMs - latestExternalTs <= QR_EXTERNAL_ACTIVE_WINDOW_MS;
     let eventKind = 'idle';
+    let skipSlopeUpdate = false;
 
     const recordExternalDelta = (pct) => {
       st.hasExternalUsage = true;
@@ -1738,7 +1882,7 @@ export function createQuotaReservationTracker({ loadState = null, saveState = nu
               eventKind = 'replica_flip';
             }
           } else {
-            const isTentative = externalActiveRecently;
+            const isTentative = externalActiveRecently || (st.hasExternalUsage && rate === null);
             st.activeLeases.push({
               amountPct: excessAboveHighWater,
               remainingPct: excessAboveHighWater,
@@ -1873,7 +2017,7 @@ export function createQuotaReservationTracker({ loadState = null, saveState = nu
         eventKind = 'idle';
       } else if (detectedWithRate || detectedColdStart) {
         const leaseRemaining = detectedWithRate ? excessPct : deltaOfficial;
-        const isTentative = externalActiveRecently;
+        const isTentative = externalActiveRecently || (st.hasExternalUsage && rate === null);
         st.activeLeases.push({
           amountPct: leaseRemaining,
           remainingPct: leaseRemaining,
@@ -1942,7 +2086,14 @@ export function createQuotaReservationTracker({ loadState = null, saveState = nu
                 effectiveUnexplained !== null &&
                 effectiveUnexplained >= leaseRejectTol;
               if (hasRealUnexplainedSurplus) {
-                recordExternalDelta(droppedPct);
+                const curExtPct = Math.max(0, Number(st.externalUsedPct) || 0);
+                const addableExt = Math.min(
+                  droppedPct,
+                  Math.max(0, effectiveUnexplained - curExtPct)
+                );
+                if (addableExt >= QR_MIN_DISPLAY_RESERVED_PCT) {
+                  recordExternalDelta(addableExt);
+                }
               }
               rejectedLease = true;
             }
@@ -1951,8 +2102,19 @@ export function createQuotaReservationTracker({ loadState = null, saveState = nu
 
         const outsideBounceCooldown =
           st.lastBounceAtMs === 0 || nowMs - st.lastBounceAtMs >= QR_RATE_BOUNCE_COOLDOWN_MS;
+        const suspiciousExternalInflation = Boolean(
+          externalActiveRecently &&
+            rate !== null &&
+            expectedDeltaPct > 0 &&
+            excessPct >= (logWin === 'weekly' ? 0.02 : 0.05) &&
+            deltaOfficial > expectedDeltaPct * 1.45
+        );
+        if (suspiciousExternalInflation) {
+          skipSlopeUpdate = true;
+        }
         if (
           !rejectedLease &&
+          !suspiciousExternalInflation &&
           st.activeLeases.length === 0 &&
           outsideBounceCooldown &&
           !pendingValid &&
@@ -1962,10 +2124,14 @@ export function createQuotaReservationTracker({ loadState = null, saveState = nu
           deltaOfficial < QR_MIN_JUMP_EXCESS_PCT
         ) {
           // 纯净未租约且无近期副本抖动的单步消耗：进入滚动中位数费率校准池；纯单模型步同步校准该模型费率
-          qrRecordRateSample(st, deltaOfficial / rawDeltaCost);
+          qrRecordRateSample(st, deltaOfficial / rawDeltaCost, {
+            blockUpwardDriftReset: externalActiveRecently,
+          });
           if (isPureSingleModelStep) {
             const mr = qrGetOrCreateModelRate(st, dominantModelKey, nowMs);
-            qrRecordRateSample(mr, deltaOfficial / dominantModelDeltaUsd);
+            qrRecordRateSample(mr, deltaOfficial / dominantModelDeltaUsd, {
+              blockUpwardDriftReset: externalActiveRecently,
+            });
             mr.lastSeenMs = nowMs;
           }
         }
@@ -2086,11 +2252,25 @@ export function createQuotaReservationTracker({ loadState = null, saveState = nu
     st.lastModelCostsUsd = safeModelCosts;
     st.lastUnpricedCalls = safeUnpriced;
 
-    // 5. 租约 TTL 超时兜底（租约本身超过 60 分钟无实质扣减或满 90 分钟自动清理）
-    const beforePrune = st.activeLeases.length;
-    qrPruneExpiredLeases(st, nowMs);
-    const prunedExpiredLeases = beforePrune > st.activeLeases.length;
-    if (prunedExpiredLeases && eventKind === 'idle') {
+    // 5. 租约 TTL 超时兜底（试探租约到期后若存在未退还且超出本机容差的盈余，自动核销入非自用外部消耗）
+    const pruneRes = qrPruneExpiredLeases(st, nowMs);
+    const prunedExpiredLeases = pruneRes.prunedCount > 0;
+    const tentativeAttributedPct =
+      pruneRes.expiredTentativePct > 0
+        ? qrReconcileExpiredTentativeLeases(st, {
+            expiredTentativePct: pruneRes.expiredTentativePct,
+            latestTentativeCreatedAtMs: pruneRes.latestTentativeCreatedAtMs,
+            safeUsed,
+            safeCost,
+            safeModelCosts,
+            safeUnpriced,
+            localScanIncomplete,
+            nowMs,
+          })
+        : 0;
+    if (tentativeAttributedPct > 0 && eventKind === 'idle') {
+      eventKind = 'external_usage';
+    } else if (prunedExpiredLeases && eventKind === 'idle') {
       eventKind = 'expire';
     }
 
@@ -2106,7 +2286,7 @@ export function createQuotaReservationTracker({ loadState = null, saveState = nu
     const netLocalUsed = qrComputeNetLocalUsedPct(st, safeUsed);
     if (prunedExpiredLeases) {
       qrResetSlopeAnchor(st, netLocalUsed, safeCost, safeCalls, safeUnpriced);
-    } else {
+    } else if (!skipSlopeUpdate) {
       qrUpdateSlopeSamples(st, netLocalUsed, safeCost, safeCalls, safeUnpriced);
     }
 
@@ -2241,7 +2421,7 @@ export function createQuotaReservationTracker({ loadState = null, saveState = nu
             usedWkExact - prevWkSt.lastOfficialUsedPct <= 0.005
         );
 
-        const res5h =
+        let res5h =
           used5hExact !== null
             ? observeBucket({
                 bucketKey: key5h,
@@ -2266,7 +2446,12 @@ export function createQuotaReservationTracker({ loadState = null, saveState = nu
                 peerLastExternalUsageAtMs: peerExtTs5h,
                 nowMs,
               })
-            : { reservedPct: 0, reservedLeaseCount: 0, reservedExpiresAtMs: null };
+            : {
+                reservedPct: 0,
+                reservedLeaseCount: 0,
+                reservedExpiresAtMs: null,
+                externalUsedPct: 0,
+              };
 
         const updated5hExtTs = Math.max(
           peerExtTsWk,
@@ -2297,19 +2482,56 @@ export function createQuotaReservationTracker({ loadState = null, saveState = nu
                 peerLastExternalUsageAtMs: updated5hExtTs,
                 nowMs,
               })
-            : { reservedPct: 0, reservedLeaseCount: 0, reservedExpiresAtMs: null };
+            : {
+                reservedPct: 0,
+                reservedLeaseCount: 0,
+                reservedExpiresAtMs: null,
+                externalUsedPct: 0,
+              };
+
+        // 对称补齐：若周限在本轮确认空闲外部消耗，而 5h 因单桶微增暂存在 idleUnexplainedAccumPct 中，同步记入 5h 非自用
+        const st5hNow = used5hExact !== null ? buckets.get(key5h) || null : null;
+        const stWkNow = usedWkExact !== null ? buckets.get(keyWk) || null : null;
+        if (
+          st5hNow &&
+          stWkNow &&
+          !localScanIncomplete &&
+          !isFiveHOnlyServerLease &&
+          stWkNow.lastExternalUsageAtMs === nowMs &&
+          (Number(st5hNow.idleUnexplainedAccumPct) || 0) >= QR_MIN_DISPLAY_RESERVED_PCT
+        ) {
+          const symAmt = Number(st5hNow.idleUnexplainedAccumPct) || 0;
+          st5hNow.idleUnexplainedAccumPct = 0;
+          st5hNow.hasExternalUsage = true;
+          st5hNow.lastExternalUsageAtMs = nowMs;
+          st5hNow.externalUsedPct = Math.min(
+            100,
+            (Number(st5hNow.externalUsedPct) || 0) + symAmt
+          );
+          st5hNow.externalEvents = (Number(st5hNow.externalEvents) || 0) + 1;
+          qrReconcileExternalUsageBound(
+            st5hNow,
+            used5hExact,
+            st5hNow.lastCycleCostUsd,
+            st5hNow.lastModelCostsUsd,
+            nowMs
+          );
+          res5h = qrFormatOutput(st5hNow, used5hExact);
+          persistIfNeeded('external_usage', nowMs);
+        }
 
         poolObj.reservedPct = res5h.reservedPct;
         poolObj.reservedLeaseCount = res5h.reservedLeaseCount;
         poolObj.reservedExpiresAtMs = res5h.reservedExpiresAtMs;
+        poolObj.externalUsedPct = res5h.externalUsedPct;
         poolObj.weeklyReservedPct = resWk.reservedPct;
         poolObj.weeklyReservedLeaseCount = resWk.reservedLeaseCount;
         poolObj.weeklyReservedExpiresAtMs = resWk.reservedExpiresAtMs;
-        poolObj.rateEstimate = qrBuildPoolRateEstimate(
-          buckets.get(key5h) || null,
-          buckets.get(keyWk) || null,
-          nowMs
-        );
+        poolObj.weeklyExternalUsedPct = resWk.externalUsedPct;
+        poolObj.rateEstimate = qrBuildPoolRateEstimate(st5hNow, stWkNow, nowMs, {
+          out5h: res5h,
+          outWk: resWk,
+        });
       }
     } finally {
       batchingDepth = Math.max(0, batchingDepth - 1);
@@ -2346,10 +2568,10 @@ export function createQuotaReservationTracker({ loadState = null, saveState = nu
         rateSamples: st.rateSamples,
         reservedPct: out.reservedPct,
         leases: out.reservedLeaseCount,
-        ...(st.hasExternalUsage
+        ...(st.hasExternalUsage || out.externalUsedPct > 0
           ? {
               hasExternalUsage: true,
-              externalUsedPct: +(Number(st.externalUsedPct) || 0).toFixed(1),
+              externalUsedPct: out.externalUsedPct,
               externalEvents: Number(st.externalEvents) || 0,
             }
           : {}),

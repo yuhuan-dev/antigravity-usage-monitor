@@ -333,6 +333,12 @@ test('telemetryStore isEquivalentTelemetry detects quota changes in non-active p
     ],
   };
   assert.equal(ctx.compare(a, e), false, 'Pool rateEstimate change must trigger store update');
+  const f = structuredClone(a);
+  f.quotas.pools[0].externalUsedPct = 4.2;
+  assert.equal(ctx.compare(a, f), false, 'Pool externalUsedPct change must trigger store update');
+  const g = structuredClone(a);
+  g.quotas.pools[0].weeklyExternalUsedPct = 9.5;
+  assert.equal(ctx.compare(a, g), false, 'Pool weeklyExternalUsedPct change must trigger store update');
   assert.equal(ctx.compare(a, structuredClone(a)), true);
 });
 

@@ -86,8 +86,13 @@ export function createPoolQuotaRow() {
   const left5h = h('span', { className: 'quota-win-left' }, [title5h, usage5h]);
   const meta5h = h('span', { className: 'panel-meta quota-win-meta text-mono', text: '--' });
   const fill5h = h('div', { className: 'progress-fill' });
+  const fillExternal5h = h('div', { className: 'progress-fill-external' });
   const fillReserved5h = h('div', { className: 'progress-fill-reserved' });
-  const track5h = h('div', { className: 'progress-track' }, [fill5h, fillReserved5h]);
+  const track5h = h('div', { className: 'progress-track' }, [
+    fill5h,
+    fillExternal5h,
+    fillReserved5h,
+  ]);
   const row5h = h('div', { style: 'display: flex; flex-direction: column; gap: 4px;' }, [
     h('div', { className: 'panel-header quota-win-head' }, [left5h, meta5h]),
     track5h,
@@ -98,8 +103,13 @@ export function createPoolQuotaRow() {
   const leftWk = h('span', { className: 'quota-win-left' }, [titleWk, usageWk]);
   const metaWk = h('span', { className: 'panel-meta quota-win-meta text-mono', text: '--' });
   const fillWk = h('div', { className: 'progress-fill' });
+  const fillExternalWk = h('div', { className: 'progress-fill-external' });
   const fillReservedWk = h('div', { className: 'progress-fill-reserved' });
-  const trackWk = h('div', { className: 'progress-track' }, [fillWk, fillReservedWk]);
+  const trackWk = h('div', { className: 'progress-track' }, [
+    fillWk,
+    fillExternalWk,
+    fillReservedWk,
+  ]);
   const rowWk = h('div', { style: 'display: flex; flex-direction: column; gap: 4px;' }, [
     h('div', { className: 'panel-header quota-win-head' }, [leftWk, metaWk]),
     trackWk,
@@ -120,6 +130,7 @@ export function createPoolQuotaRow() {
       meta5h,
       track5h,
       fill5h,
+      fillExternal5h,
       fillReserved5h,
       rowWk,
       leftWk,
@@ -128,6 +139,7 @@ export function createPoolQuotaRow() {
       metaWk,
       trackWk,
       fillWk,
+      fillExternalWk,
       fillReservedWk,
     },
   };
@@ -164,9 +176,12 @@ function syncQuotaWindowMeter({
   showReserved,
   rawReservedPct,
   leaseCount,
+  showExternal = false,
+  rawExternalPct = 0,
   metaEl,
   trackEl,
   fillEl,
+  fillExternalEl = null,
   fillReservedEl,
 }) {
   const isRemaining = quotaDisplayMode === 'remaining';
@@ -176,8 +191,15 @@ function syncQuotaWindowMeter({
   const numReserved = showReserved && hasData ? Number(rawReservedPct || 0) : 0;
   const rsvVal =
     Number.isFinite(numReserved) && numReserved >= 0.05 ? Math.min(usedVal, numReserved) : 0;
-  const actualVal = Math.max(0, usedVal - rsvVal);
+  const numExternal = showExternal && hasData ? Number(rawExternalPct || 0) : 0;
+  const extVal =
+    Number.isFinite(numExternal) && numExternal >= 0.05
+      ? Math.min(Math.max(0, usedVal - rsvVal), numExternal)
+      : 0;
+  const selfUsedVal = Math.max(0, usedVal - rsvVal - extVal);
   const resetStr = hasData ? formatCountdown(resetTime) : '';
+
+  patchClasses(trackEl, { 'is-remaining-mode': isRemaining });
 
   patchText(
     metaEl,
@@ -194,23 +216,79 @@ function syncQuotaWindowMeter({
       : fallbackMetaText
   );
 
-  if (hasData && rsvVal > 0) {
+  if (hasData && (rsvVal > 0 || extVal > 0)) {
     const rsvStr = formatPctNumber(rsvVal);
-    const actualStr = formatPctNumber(actualVal);
+    const extStr = formatPctNumber(extVal);
+    const selfStr = formatPctNumber(selfUsedVal);
     const leases = Math.max(1, Number(leaseCount) || 1);
-    const tipText =
-      leases >= 2
-        ? t('quota.reservedTipMulti', { rsv: rsvStr, leases, actual: actualStr })
-        : t('quota.reservedTip', { rsv: rsvStr, actual: actualStr });
+    let tipText = null;
+    if (extVal > 0 && rsvVal > 0) {
+      tipText =
+        leases >= 2
+          ? t('quota.externalReservedTipMulti', {
+              self: selfStr,
+              ext: extStr,
+              rsv: rsvStr,
+              leases,
+            })
+          : t('quota.externalReservedTip', { self: selfStr, ext: extStr, rsv: rsvStr });
+    } else if (extVal > 0) {
+      tipText = t('quota.externalTip', { self: selfStr, ext: extStr });
+    } else {
+      tipText =
+        leases >= 2
+          ? t('quota.reservedTipMulti', { rsv: rsvStr, leases, actual: selfStr })
+          : t('quota.reservedTip', { rsv: rsvStr, actual: selfStr });
+    }
     patchAttr(metaEl, 'title', tipText);
     patchAttr(trackEl, 'title', tipText);
-    const primaryWidth = isRemaining
-      ? +Math.min(100, remVal).toFixed(2)
-      : +Math.min(100, actualVal).toFixed(2);
-    const rsvWidth = +Math.min(Math.max(0, 100 - primaryWidth), rsvVal).toFixed(2);
-    patchStyleVar(fillEl, '--fill-w', `${primaryWidth}%`);
-    patchStyleVar(fillReservedEl, '--reserved-w', `${rsvWidth}%`);
-    patchClasses(fillReservedEl, { 'is-active': true, 'has-sep': primaryWidth > 0 });
+
+    if (isRemaining) {
+      const primaryWidth = +Math.min(100, remVal).toFixed(2);
+      const rsvWidth =
+        rsvVal > 0 ? +Math.min(Math.max(0, 100 - primaryWidth), rsvVal).toFixed(2) : 0;
+      const extWidth =
+        extVal > 0
+          ? +Math.min(Math.max(0, 100 - primaryWidth - rsvWidth), extVal).toFixed(2)
+          : 0;
+      patchStyleVar(fillEl, '--fill-w', `${primaryWidth}%`);
+      patchStyleVar(fillReservedEl, '--reserved-w', `${rsvWidth}%`);
+      patchClasses(fillReservedEl, {
+        'is-active': rsvWidth > 0,
+        'has-sep': rsvWidth > 0 && primaryWidth > 0,
+      });
+      if (fillExternalEl) {
+        patchStyleVar(fillExternalEl, '--external-w', `${extWidth}%`);
+        patchClasses(fillExternalEl, {
+          'is-active': extWidth > 0,
+          'has-sep':
+            extWidth > 0 &&
+            primaryWidth + rsvWidth > 0 &&
+            primaryWidth + rsvWidth + extWidth >= 99.95,
+        });
+      }
+    } else {
+      const primaryWidth = +Math.min(100, selfUsedVal).toFixed(2);
+      const extWidth =
+        extVal > 0 ? +Math.min(Math.max(0, 100 - primaryWidth), extVal).toFixed(2) : 0;
+      const rsvWidth =
+        rsvVal > 0
+          ? +Math.min(Math.max(0, 100 - primaryWidth - extWidth), rsvVal).toFixed(2)
+          : 0;
+      patchStyleVar(fillEl, '--fill-w', `${primaryWidth}%`);
+      if (fillExternalEl) {
+        patchStyleVar(fillExternalEl, '--external-w', `${extWidth}%`);
+        patchClasses(fillExternalEl, {
+          'is-active': extWidth > 0,
+          'has-sep': extWidth > 0 && primaryWidth > 0,
+        });
+      }
+      patchStyleVar(fillReservedEl, '--reserved-w', `${rsvWidth}%`);
+      patchClasses(fillReservedEl, {
+        'is-active': rsvWidth > 0,
+        'has-sep': rsvWidth > 0 && primaryWidth + extWidth > 0,
+      });
+    }
   } else {
     patchAttr(metaEl, 'title', null);
     patchAttr(trackEl, 'title', null);
@@ -220,6 +298,10 @@ function syncQuotaWindowMeter({
         : 0
       : Math.min(100, usedVal);
     patchStyleVar(fillEl, '--fill-w', `${barWidth}%`);
+    if (fillExternalEl) {
+      patchStyleVar(fillExternalEl, '--external-w', '0%');
+      patchClasses(fillExternalEl, { 'is-active': false, 'has-sep': false });
+    }
     patchStyleVar(fillReservedEl, '--reserved-w', '0%');
     patchClasses(fillReservedEl, { 'is-active': false, 'has-sep': false });
   }
@@ -309,9 +391,12 @@ export function syncPoolQuotaRow(refs, item, idx, rowEl) {
     showReserved: allowReserved,
     rawReservedPct: poolData?.reservedPct,
     leaseCount: poolData?.reservedLeaseCount,
+    showExternal: !isPending,
+    rawExternalPct: poolData?.externalUsedPct,
     metaEl: refs.meta5h,
     trackEl: refs.track5h,
     fillEl: refs.fill5h,
+    fillExternalEl: refs.fillExternal5h,
     fillReservedEl: refs.fillReserved5h,
   });
 
@@ -360,9 +445,12 @@ export function syncPoolQuotaRow(refs, item, idx, rowEl) {
     showReserved: allowReserved && !useCustomWeekly,
     rawReservedPct: poolData?.weeklyReservedPct,
     leaseCount: poolData?.weeklyReservedLeaseCount,
+    showExternal: !isPending && !useCustomWeekly,
+    rawExternalPct: poolData?.weeklyExternalUsedPct,
     metaEl: refs.metaWk,
     trackEl: refs.trackWk,
     fillEl: refs.fillWk,
+    fillExternalEl: refs.fillExternalWk,
     fillReservedEl: refs.fillReservedWk,
   });
 }
@@ -372,7 +460,7 @@ export function quotaPoolRowSig(item, idx) {
   const cWk = item.poolData?.cycleWeekly;
   const est = item.poolData?.rateEstimate;
   const fw = item.fallbackWeekly;
-  return `${getEffectiveLocale()}:${idx}:${item.poolLabel}:${item.isActivePool}:${Boolean(item.isPending)}:${Boolean(item.showReserved)}:${item.quotaDisplayMode || 'used'}:${item.minuteTick}:${item.poolData?.usedPct}:${item.poolData?.remainingPct}:${item.poolData?.reservedPct}:${item.poolData?.reservedLeaseCount}:${item.poolData?.resetTime}:${item.poolData?.weeklyUsedPct}:${item.poolData?.weeklyRemainingPct}:${item.poolData?.weeklyReservedPct}:${item.poolData?.weeklyReservedLeaseCount}:${item.poolData?.weeklyResetTime}:${c5h?.tokens}:${c5h?.costUsd}:${c5h?.calls}:${cWk?.tokens}:${cWk?.costUsd}:${cWk?.calls}:${est?.eqFull5hUsd}:${est?.eqFull5hTokens}:${est?.eqFullWeeklyUsd}:${est?.eqFullWeeklyTokens}:${fw?.isOfficial}:${fw?.usedPct}:${fw?.remainingPct}:${fw?.resetTime}:${fw?.title}:${fw?.tokens}:${fw?.costUsd}:${fw?.calls}`;
+  return `${getEffectiveLocale()}:${idx}:${item.poolLabel}:${item.isActivePool}:${Boolean(item.isPending)}:${Boolean(item.showReserved)}:${item.quotaDisplayMode || 'used'}:${item.minuteTick}:${item.poolData?.usedPct}:${item.poolData?.remainingPct}:${item.poolData?.reservedPct}:${item.poolData?.reservedLeaseCount}:${item.poolData?.externalUsedPct}:${item.poolData?.resetTime}:${item.poolData?.weeklyUsedPct}:${item.poolData?.weeklyRemainingPct}:${item.poolData?.weeklyReservedPct}:${item.poolData?.weeklyReservedLeaseCount}:${item.poolData?.weeklyExternalUsedPct}:${item.poolData?.weeklyResetTime}:${c5h?.tokens}:${c5h?.costUsd}:${c5h?.calls}:${cWk?.tokens}:${cWk?.costUsd}:${cWk?.calls}:${est?.eqFull5hUsd}:${est?.eqFull5hTokens}:${est?.eqFullWeeklyUsd}:${est?.eqFullWeeklyTokens}:${fw?.isOfficial}:${fw?.usedPct}:${fw?.remainingPct}:${fw?.resetTime}:${fw?.title}:${fw?.tokens}:${fw?.costUsd}:${fw?.calls}`;
 }
 
 /**
@@ -846,19 +934,35 @@ export const QuotaPoolsWidget = defineComponent({
     }
 
     const legendActualTextEl = h('span', { text: t('quota.legendActual') });
+    const legendExternalTextEl = h('span', { text: t('quota.legendExternal') });
     const legendReservedTextEl = h('span', { text: t('quota.legendReserved') });
+    const legendExternalItemEl = h(
+      'span',
+      { className: 'quota-legend-item is-external-item', hidden: true },
+      [
+        h('span', { className: 'quota-legend-line is-external', 'aria-hidden': 'true' }),
+        legendExternalTextEl,
+      ]
+    );
+    legendExternalItemEl.hidden = true;
+    const legendReservedItemEl = h(
+      'span',
+      { className: 'quota-legend-item is-reserved-item' },
+      [
+        h('span', { className: 'quota-legend-line is-reserved', 'aria-hidden': 'true' }),
+        legendReservedTextEl,
+      ]
+    );
     const reserveLegendEl = h(
       'div',
       { className: 'quota-reserve-legend', hidden: true },
       [
-        h('span', { className: 'quota-legend-item' }, [
+        h('span', { className: 'quota-legend-item is-actual-item' }, [
           h('span', { className: 'quota-legend-line is-actual', 'aria-hidden': 'true' }),
           legendActualTextEl,
         ]),
-        h('span', { className: 'quota-legend-item' }, [
-          h('span', { className: 'quota-legend-line is-reserved', 'aria-hidden': 'true' }),
-          legendReservedTextEl,
-        ]),
+        legendExternalItemEl,
+        legendReservedItemEl,
       ]
     );
 
@@ -885,10 +989,14 @@ export const QuotaPoolsWidget = defineComponent({
         legendActualTextEl,
         quotaDisplayMode === 'remaining' ? t('quota.legendRemaining') : t('quota.legendActual')
       );
+      patchText(legendExternalTextEl, t('quota.legendExternal'));
       patchText(legendReservedTextEl, t('quota.legendReserved'));
       syncRatePopoverContent(data);
       if (!data) {
         reserveLegendEl.hidden = true;
+        patchAttr(reserveLegendEl, 'hidden', true);
+        legendExternalItemEl.hidden = true;
+        patchAttr(legendExternalItemEl, 'hidden', true);
         if (compactHover) {
           patchKeyedList(poolsListEl, buildQuotaPoolItems(null, 0, { isPending: true }), {
             keyFn: (item) => item.key,
@@ -902,12 +1010,30 @@ export const QuotaPoolsWidget = defineComponent({
 
       const quotas = data.quotas || {};
       const showReserved = data.settings?.experimentalQuotaReservation !== false;
-      reserveLegendEl.hidden = !showReserved;
       const effTick = Number.isFinite(minuteTick) ? minuteTick : Math.floor(Date.now() / 30000);
+      const poolItems = buildQuotaPoolItems(quotas, effTick, { showReserved, quotaDisplayMode });
+      const hasExternal = poolItems.some((item) => {
+        if (item.isPending) return false;
+        const pd = item.poolData;
+        const has5hExt = pd?.usedPct != null && Number(pd?.externalUsedPct || 0) >= 0.05;
+        const useCustomWk = Boolean(item.isActivePool && item.fallbackWeekly?.isOfficial === false);
+        const hasWkExt =
+          !useCustomWk &&
+          pd?.weeklyUsedPct != null &&
+          Number(pd?.weeklyExternalUsedPct || 0) >= 0.05;
+        return has5hExt || hasWkExt;
+      });
+      const showLegend = showReserved || hasExternal;
+      reserveLegendEl.hidden = !showLegend;
+      patchAttr(reserveLegendEl, 'hidden', !showLegend);
+      legendExternalItemEl.hidden = !hasExternal;
+      patchAttr(legendExternalItemEl, 'hidden', !hasExternal);
+      legendReservedItemEl.hidden = !showReserved;
+      patchAttr(legendReservedItemEl, 'hidden', !showReserved);
       patchText(tierBadge, formatAccountTierBadge(data.account));
       patchKeyedList(
         poolsListEl,
-        buildQuotaPoolItems(quotas, effTick, { showReserved, quotaDisplayMode }),
+        poolItems,
         {
           keyFn: (item) => item.key,
           sigFn: quotaPoolRowSig,
