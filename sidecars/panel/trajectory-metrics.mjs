@@ -2275,6 +2275,180 @@ function isAuxiliaryMetaStep(step) {
   return t.includes('MEMENTO') || t.includes('EPHEMERAL');
 }
 
+const MAX_EXTRACTED_TASK_STEPS = 12;
+
+function normalizeTaskStepStatus(rawStatus) {
+  const s = String(rawStatus ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, '_');
+  if (s === 'done' || s === 'completed' || s === 'complete') return 'done';
+  if (s === 'in_progress' || s === 'inprogress' || s === 'running' || s === 'active') {
+    return 'in_progress';
+  }
+  if (s === 'failed' || s === 'fail' || s === 'error') return 'failed';
+  if (s === 'skipped' || s === 'skip') return 'skipped';
+  return 'pending';
+}
+
+function unescapePartialJsonStr(raw) {
+  return String(raw || '')
+    .replace(/\\"/g, '"')
+    .replace(/\\\\/g, '\\')
+    .replace(/\\n/g, ' ')
+    .replace(/\\r/g, '')
+    .trim();
+}
+
+function cleanTaskStepTitle(raw, maxLen = 60) {
+  const s = String(raw || '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!s) return '';
+  if (s.length <= maxLen) return s;
+  return `${s.slice(0, Math.max(1, maxLen - 1)).trimEnd()}…`;
+}
+
+function parsePartialTaskStepsFromJson(rawArgsStr) {
+  if (typeof rawArgsStr !== 'string' || !rawArgsStr.includes('"title"')) return [];
+  const items = [];
+  const objRe = /\{[^{}]*\}/g;
+  let match;
+  while ((match = objRe.exec(rawArgsStr)) !== null && items.length < MAX_EXTRACTED_TASK_STEPS) {
+    const chunk = match[0];
+    const titleM = chunk.match(/"title"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"/i);
+    const statusM = chunk.match(/"status"\s*:\s*"([^"\\]*)"/i);
+    const title = titleM ? cleanTaskStepTitle(unescapePartialJsonStr(titleM[1]), 60) : '';
+    if (!title) continue;
+    items.push({
+      title,
+      status: normalizeTaskStepStatus(statusM ? statusM[1] : 'pending'),
+    });
+  }
+  return items;
+}
+
+function buildTaskStepsSummary(rawStepsVal, rawArgsStr = '') {
+  const unwrapped = unwrapArgValue(rawStepsVal);
+  let allItems = [];
+  if (Array.isArray(unwrapped)) {
+    for (let i = 0; i < unwrapped.length; i += 1) {
+      const entry = unwrapped[i];
+      if (!entry || typeof entry !== 'object') continue;
+      const title = cleanTaskStepTitle(
+        unwrapArgString(entry.title ?? entry.Title ?? entry.label ?? entry.name),
+        60
+      );
+      if (!title) continue;
+      const status = normalizeTaskStepStatus(entry.status ?? entry.Status);
+      allItems.push({ title, status });
+    }
+  } else if (rawArgsStr) {
+    allItems = parsePartialTaskStepsFromJson(rawArgsStr);
+  }
+  if (allItems.length === 0) return null;
+
+  let done = 0;
+  let inProgress = 0;
+  let failed = 0;
+  let skipped = 0;
+  let firstInProgressTitle = '';
+  let firstPendingTitle = '';
+  let lastFailedTitle = '';
+  let lastDoneTitle = '';
+
+  for (const item of allItems) {
+    if (item.status === 'done') {
+      done += 1;
+      lastDoneTitle = item.title;
+    } else if (item.status === 'in_progress') {
+      inProgress += 1;
+      if (!firstInProgressTitle) firstInProgressTitle = item.title;
+    } else if (item.status === 'failed') {
+      failed += 1;
+      lastFailedTitle = item.title;
+    } else if (item.status === 'skipped') {
+      skipped += 1;
+    } else if (!firstPendingTitle) {
+      firstPendingTitle = item.title;
+    }
+  }
+
+  const currentTitle =
+    firstInProgressTitle || firstPendingTitle || lastFailedTitle || lastDoneTitle || '';
+  return {
+    total: allItems.length,
+    done,
+    inProgress,
+    failed,
+    skipped,
+    currentTitle,
+    items: allItems.slice(0, MAX_EXTRACTED_TASK_STEPS),
+  };
+}
+
+function extractTaskStepsFromToolCall(rawToolCall, fallbackStep = null) {
+  const stepToolCall = fallbackStep?.metadata?.toolCall || {};
+  const stepType = String(fallbackStep?.type || '').toUpperCase();
+  const rawName = String(
+    rawToolCall?.name ||
+      rawToolCall?.toolName ||
+      rawToolCall?.function?.name ||
+      stepToolCall?.name ||
+      ''
+  )
+    .trim()
+    .toLowerCase()
+    .replace(/^default_api:/, '');
+  const isStepsTool =
+    rawName === 'update_steps' ||
+    (!rawName && (stepType.includes('UPDATE_STEPS') || Boolean(fallbackStep?.updateSteps)));
+  if (!isStepsTool) return null;
+
+  const candidateArgs =
+    rawToolCall?.args ??
+    rawToolCall?.arguments ??
+    rawToolCall?.argumentsJson ??
+    rawToolCall?.function?.arguments ??
+    stepToolCall?.argumentsJson;
+
+  let args = {};
+  let rawArgsStr = '';
+  if (candidateArgs && typeof candidateArgs === 'object') {
+    args = candidateArgs;
+  } else if (typeof candidateArgs === 'string' && candidateArgs.trim()) {
+    rawArgsStr = candidateArgs.trim();
+    try {
+      const parsed = JSON.parse(rawArgsStr);
+      if (parsed && typeof parsed === 'object') args = parsed;
+    } catch {
+      // 半流式 JSON 将回退至正则提取已完成条目
+    }
+  }
+
+  const rawSteps = args?.steps ?? args?.Steps ?? fallbackStep?.updateSteps?.steps;
+  return buildTaskStepsSummary(rawSteps, rawArgsStr);
+}
+
+function extractLatestTaskSteps(rawSteps = [], minIdx = 0) {
+  if (!Array.isArray(rawSteps) || rawSteps.length === 0) return null;
+  const floor = Math.max(0, minIdx, rawSteps.length - 200);
+  for (let i = rawSteps.length - 1; i >= floor; i -= 1) {
+    const st = rawSteps[i];
+    if (!st || typeof st !== 'object') continue;
+    if (st.metadata?.toolCall || st.updateSteps || String(st.type || '').toUpperCase().includes('UPDATE_STEPS')) {
+      const direct = extractTaskStepsFromToolCall(st.metadata?.toolCall || null, st);
+      if (direct) return direct;
+    }
+    const plannerCalls = getStepPlannerToolCalls(st);
+    for (let j = plannerCalls.length - 1; j >= 0; j -= 1) {
+      const fromPlanner = extractTaskStepsFromToolCall(plannerCalls[j], null);
+      if (fromPlanner) return fromPlanner;
+    }
+  }
+  return null;
+}
+
 /**
  * 解析工具调用对象或半流式 JSON 参数，返回适合界面单行展示的中文动作标签与详情描述。
  *
@@ -2328,6 +2502,10 @@ export function summarizeToolCall(rawToolCall, fallbackStep = null) {
       rawName = 'search_web';
     } else if (stepType.includes('GENERATE_IMAGE') || fallbackStep?.generateImage) {
       rawName = 'generate_image';
+    } else if (stepType.includes('UPDATE_STEPS') || fallbackStep?.updateSteps) {
+      rawName = 'update_steps';
+    } else if (stepType.includes('UPDATE_FOCUS') || fallbackStep?.updateFocus) {
+      rawName = 'update_focus';
     }
   }
 
@@ -2723,6 +2901,38 @@ export function summarizeToolCall(rawToolCall, fallbackStep = null) {
     };
   }
 
+  if (nameLower === 'update_steps') {
+    const summary = buildTaskStepsSummary(
+      args?.steps ?? args?.Steps ?? fallbackStep?.updateSteps?.steps,
+      rawArgsStr
+    );
+    const detail = summary
+      ? summary.currentTitle
+        ? `${summary.done}/${summary.total} · ${summary.currentTitle}`
+        : `${summary.done}/${summary.total}`
+      : '';
+    return {
+      toolName: nameLower,
+      actionKey: 'update_steps',
+      isAskUser: false,
+      label: '更新进度',
+      detail,
+    };
+  }
+
+  if (nameLower === 'update_focus') {
+    const focusText =
+      pickField(['focus', 'Focus', 'status', 'Status']) ||
+      unwrapArgString(fallbackStep?.updateFocus?.focus);
+    return {
+      toolName: nameLower,
+      actionKey: 'update_focus',
+      isAskUser: false,
+      label: '更新状态',
+      detail: cleanTaskStepTitle(focusText, 56) || '',
+    };
+  }
+
   if (nameLower === 'ask_question') {
     const rawQuestions = unwrapArgValue(args?.questions);
     const qText =
@@ -2852,7 +3062,9 @@ export function extractLiveActivity(rawSteps = [], isRunning = false, fallbackSt
   const lastStep = rawSteps[lastIdx];
   const lastStepId = getStepStableId(lastStep, lastIdx);
   const lastComplete = isRawStepComplete(lastStep);
+  const taskSteps = extractLatestTaskSteps(rawSteps, lastUserIdx >= 0 ? lastUserIdx + 1 : 0);
 
+  const resolveActivity = () => {
   // 情况 A：最后一个有效步骤本身尚未完成（正在流式生成、正在上下文压缩或正在执行工具）
   if (!lastComplete) {
     const prevStepEndMs =
@@ -3215,6 +3427,10 @@ export function extractLiveActivity(rawSteps = [], isRunning = false, fallbackSt
     startedAtMs: startMs,
     signature: `post-step-think:${lastStepId}`,
   };
+  };
+
+  const activity = resolveActivity();
+  return taskSteps ? { ...activity, taskSteps } : activity;
 }
 
 /**

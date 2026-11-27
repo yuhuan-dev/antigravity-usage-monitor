@@ -1458,6 +1458,37 @@ export function formatLiveActivityDetail(act) {
 }
 
 /**
+ * 为 `liveActivity.taskSteps` 生成稳定的轻量级变更签名，供遥测等价判断与列表键控复用。
+ *
+ * @param {object|null|undefined} taskSteps
+ * @returns {string}
+ */
+export function getTaskStepsSignature(taskSteps) {
+  if (!taskSteps || typeof taskSteps !== 'object' || !(Number(taskSteps.total) > 0)) {
+    return '';
+  }
+  const items = Array.isArray(taskSteps.items) ? taskSteps.items : [];
+  const itemsPart = items
+    .map((it) => `${String(it?.status || 'pending')[0] || 'p'}:${String(it?.title || '')}`)
+    .join('|');
+  return `${Number(taskSteps.done || 0)}/${Number(taskSteps.total || 0)}:${Number(taskSteps.inProgress || 0)}:${Number(taskSteps.failed || 0)}:${Number(taskSteps.skipped || 0)}:${String(taskSteps.currentTitle || '')}:${itemsPart}`;
+}
+
+/**
+ * 格式化任务步骤清单的紧凑状态文案（如 `步骤 2/5`）。
+ *
+ * @param {object|null|undefined} taskSteps
+ * @returns {string}
+ */
+export function formatLiveTaskStepsProgress(taskSteps) {
+  if (!taskSteps || !(Number(taskSteps.total) > 0)) return '';
+  return t('live.stepsProgress', {
+    done: Math.max(0, Number(taskSteps.done || 0)),
+    total: Math.max(1, Number(taskSteps.total || 0)),
+  });
+}
+
+/**
  * 20 色感知均匀色环（无特定模型绑定，兼顾亮/暗背景可读性，彻底消除标准 HSL 绿色/暗红区过度聚集撞色）。
  * 每项为 `[hue, saturationPct, lightnessPct]`。
  */

@@ -700,6 +700,49 @@ export function normalizeModernUi(val) {
 export const CONTEXT_AGENT_MODES = Object.freeze(['main', 'auto']);
 export const DEFAULT_CONTEXT_AGENT_MODE = 'main';
 
+export const TOPBAR_MULTI_SESSION_MODES = Object.freeze(['show', 'running_only', 'hide']);
+export const DEFAULT_TOPBAR_MULTI_SESSION_MODE = 'show';
+
+/**
+ * 归一化顶栏/输入框实时运行会话入口展示模式（`'show'` | `'running_only'` | `'hide'`），
+ * 兼容历史布尔开关 `showTopbarMultiSession`。
+ *
+ * @param {unknown} mode
+ * @param {unknown} [legacyShowMulti]
+ * @returns {'show'|'running_only'|'hide'}
+ */
+export function normalizeTopbarMultiSessionMode(mode, legacyShowMulti) {
+  const m = String(mode ?? '').trim().toLowerCase();
+  if (m === 'running_only' || m === 'running' || m === 'active_only' || m === 'when_running') {
+    return 'running_only';
+  }
+  if (m === 'hide' || m === 'hidden' || m === 'off' || m === 'false') {
+    return 'hide';
+  }
+  if (m === 'show' || m === 'always' || m === 'on' || m === 'true') {
+    return 'show';
+  }
+  if (legacyShowMulti === false) {
+    return 'hide';
+  }
+  return DEFAULT_TOPBAR_MULTI_SESSION_MODE;
+}
+
+/**
+ * 根据实时运行会话展示模式与当前运行中会话数量，判断入口按钮是否应当显示。
+ *
+ * @param {unknown} mode
+ * @param {number} [runningCount=0]
+ * @param {unknown} [legacyShowMulti]
+ * @returns {boolean}
+ */
+export function isTopbarMultiSessionVisible(mode, runningCount = 0, legacyShowMulti = undefined) {
+  const normalized = normalizeTopbarMultiSessionMode(mode, legacyShowMulti);
+  if (normalized === 'hide') return false;
+  if (normalized === 'running_only') return Number(runningCount) > 0;
+  return true;
+}
+
 export const QUOTA_DISPLAY_MODES = Object.freeze(['used', 'remaining']);
 export const DEFAULT_QUOTA_DISPLAY_MODE = 'used';
 

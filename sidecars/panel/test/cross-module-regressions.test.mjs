@@ -2343,3 +2343,246 @@ test('Conversation undo UI & SQLite persistence: reverted steps keep distinct ke
   assert.match(stylesCss, /\.data-table\s+tbody\s+tr\.is-reverted\s+td\s*\{[^}]*opacity:\s*0\.62/);
   assert.match(stylesCss, /\[data-modern-ui="true"\]\s+\.data-table\s+tbody\s+tr\.is-reverted/);
 });
+
+test('Running sessions 3-way mode, update_steps forwarding/UI, bracketless progress pills, and 7-locale i18n', async () => {
+  const {
+    TOPBAR_MULTI_SESSION_MODES,
+    normalizeTopbarMultiSessionMode,
+    isTopbarMultiSessionVisible,
+    SUPPORTED_LOCALES,
+  } = await import('../shared/settings-normalization.mjs');
+  const { normalizeFullSettings } = await import('../backend/settings-schema.mjs');
+  const { formatCliStatusLineCapsule } = await import('../backend/cli-statusline-config.mjs');
+  const { I18N_DICTIONARIES, setI18nLanguage } = await import('../src/i18n/index.js');
+  const { LiveActivityWidget } = await import('../src/components/widgets/LiveActivityWidget.js');
+  const { createMockDom } = await import('./mock-dom.mjs');
+
+  // 1. Shared normalization & legacy showTopbarMultiSession compatibility
+  assert.deepEqual(TOPBAR_MULTI_SESSION_MODES, ['show', 'running_only', 'hide']);
+  assert.equal(normalizeTopbarMultiSessionMode(undefined, undefined), 'show');
+  assert.equal(normalizeTopbarMultiSessionMode(undefined, false), 'hide');
+  assert.equal(normalizeTopbarMultiSessionMode(undefined, true), 'show');
+  assert.equal(normalizeTopbarMultiSessionMode('running_only', false), 'running_only');
+  assert.equal(isTopbarMultiSessionVisible('show', 0), true);
+  assert.equal(isTopbarMultiSessionVisible('running_only', 0), false);
+  assert.equal(isTopbarMultiSessionVisible('running_only', 2), true);
+  assert.equal(isTopbarMultiSessionVisible('hide', 5), false);
+
+  // 2. Settings schema normalizer reconciles explicit mode and legacy boolean configs
+  const sRunOnly = normalizeFullSettings({ topbarMultiSessionMode: 'running_only', showTopbarMultiSession: false });
+  assert.equal(sRunOnly.topbarMultiSessionMode, 'running_only');
+  assert.equal(sRunOnly.showTopbarMultiSession, true);
+  const sLegacyHide = normalizeFullSettings({ showTopbarMultiSession: false });
+  assert.equal(sLegacyHide.topbarMultiSessionMode, 'hide');
+  assert.equal(sLegacyHide.showTopbarMultiSession, false);
+  const sLegacyShow = normalizeFullSettings({ showTopbarMultiSession: true });
+  assert.equal(sLegacyShow.topbarMultiSessionMode, 'show');
+  assert.equal(sLegacyShow.showTopbarMultiSession, true);
+
+  // 3. CLI statusLine omits multiCore when running_only & runningCount === 0, shows when > 0
+  const cliIdle = formatCliStatusLineCapsule(
+    { hasTelemetry: true, runningCount: 0, usedPct: 42 },
+    { language: 'zh-CN', multiSessionMode: 'running_only', slots: ['context'], color: false }
+  );
+  assert.equal(cliIdle.includes('运行中'), false, 'running_only hides 0 running badge in CLI statusLine');
+  assert.match(cliIdle, /42%/);
+
+  const cliBusy = formatCliStatusLineCapsule(
+    { hasTelemetry: true, runningCount: 2, usedPct: 42 },
+    { language: 'zh-CN', multiSessionMode: 'running_only', slots: ['context'], color: false }
+  );
+  assert.match(cliBusy, /2 运行中/, 'running_only shows running badge when runningCount > 0');
+
+  // 4. Backend telemetry-builder forwards taskSteps into activeConversation & runningConversations and invalidates cache on update
+  const stepUpdate1 = {
+    type: 'CORTEX_STEP_TYPE_PLANNER_RESPONSE',
+    status: 'CORTEX_STEP_STATUS_DONE',
+    metadata: { createdAt: '2026-01-01T00:00:05Z' },
+    plannerResponse: {
+      toolCalls: [
+        {
+          name: 'update_steps',
+          argumentsJson: JSON.stringify({
+            steps: [
+              { title: 'Audit anchors', status: 'done' },
+              { title: 'Render steps bar', status: 'in_progress' },
+            ],
+          }),
+        },
+      ],
+    },
+  };
+  const stepUpdate2 = {
+    type: 'CORTEX_STEP_TYPE_PLANNER_RESPONSE',
+    status: 'CORTEX_STEP_STATUS_DONE',
+    metadata: { createdAt: '2026-01-01T00:00:12Z' },
+    plannerResponse: {
+      toolCalls: [
+        {
+          name: 'update_steps',
+          argumentsJson: JSON.stringify({
+            steps: [
+              { title: 'Audit anchors', status: 'done' },
+              { title: 'Render steps bar', status: 'done' },
+            ],
+          }),
+        },
+      ],
+    },
+  };
+  const stepsRef = [stepUpdate1];
+  const h = backendHarness({
+    summaries: {
+      'conv-steps': {
+        summary: 'Steps Pipeline Session',
+        stepCount: 2,
+        lastModifiedTime: new Date().toISOString(),
+        status: 'CASCADE_RUN_STATUS_RUNNING',
+      },
+    },
+    trajectories: {
+      'conv-steps': { trajectory: { steps: stepsRef } },
+    },
+  });
+  const payload1 = await h.buildTelemetryPayloadInternal('conv-steps', false, {});
+  assert.equal(payload1.activeConversation.liveActivity?.taskSteps?.done, 1);
+  assert.equal(payload1.activeConversation.liveActivity?.taskSteps?.total, 2);
+  assert.equal(payload1.runningConversations[0]?.mainActivity?.taskSteps?.currentTitle, 'Render steps bar');
+
+  stepsRef.push(stepUpdate2);
+  const payload2 = await h.buildTelemetryPayloadInternal('conv-steps', false, {});
+  assert.equal(payload2.activeConversation.liveActivity?.taskSteps?.done, 2);
+  assert.equal(payload2.runningConversations[0]?.mainActivity?.taskSteps?.done, 2);
+
+  // 5. All 7 locales have updated multiToggle label and new runningOnly/update_steps/update_focus/steps keys
+  assert.equal(I18N_DICTIONARIES['zh-CN']['settings.str.multiToggle'], '实时运行会话');
+  assert.equal(I18N_DICTIONARIES['zh-TW']['settings.str.multiToggle'], '即時執行工作階段');
+  assert.equal(I18N_DICTIONARIES['en-US']['settings.str.multiToggle'], 'Running sessions');
+  for (const loc of SUPPORTED_LOCALES) {
+    const d = I18N_DICTIONARIES[loc];
+    for (const k of [
+      'settings.str.multiToggle',
+      'settings.str.runningOnly',
+      'live.act.update_steps',
+      'live.act.update_focus',
+      'live.stepsProgress',
+      'live.stepsExpandTitle',
+      'live.stepsCollapseTitle',
+      'live.stepsAllDone',
+    ]) {
+      assert.equal(typeof d[k] === 'string' && d[k].length > 0, true, `${loc}.${k} missing`);
+    }
+  }
+
+  // 6. LiveActivityWidget renders bracketless progress (5/5, not [5/5]) and expandable .live-steps-box
+  const prevDoc = globalThis.document;
+  const prevWin = globalThis.window;
+  const { document: doc } = createMockDom();
+  globalThis.document = doc;
+  globalThis.window = {
+    innerWidth: 960,
+    innerHeight: 720,
+    getComputedStyle: () => ({}),
+    addEventListener() {},
+    removeEventListener() {},
+  };
+  try {
+    setI18nLanguage('zh-CN');
+    const widget = LiveActivityWidget({
+      interactive: true,
+      defaultExpandRunningSubs: true,
+      showSessionExtras: true,
+    });
+    doc.body.appendChild(widget.el);
+    widget.refs.update({
+      items: [
+        {
+          cascadeId: 'conv-ui-steps',
+          title: 'Long Running Refactor Session',
+          isRunning: true,
+          isMainRunning: true,
+          latestTokPerSec: 88.4,
+          contextUsedPct: 41,
+          subagentCount: 1,
+          runningSubagentCount: 1,
+          mainActivity: {
+            phase: 'tool',
+            actionKey: 'edit_file',
+            label: '修改文件',
+            detail: 'LiveActivityWidget.js',
+            stepProgress: '5/5',
+            startedAtMs: Date.now() - 5000,
+            signature: 'edit:5/5',
+            taskSteps: {
+              total: 3,
+              done: 1,
+              inProgress: 1,
+              failed: 0,
+              skipped: 0,
+              currentTitle: 'Fix progress pill alignment',
+              items: [
+                { title: 'Rename running sessions toggle', status: 'done' },
+                { title: 'Fix progress pill alignment', status: 'in_progress' },
+                { title: 'Verify build and tests', status: 'pending' },
+              ],
+            },
+          },
+          subagents: [
+            {
+              cascadeId: 'conv-ui-steps:sub1',
+              index: 1,
+              role: 'UI Verifier',
+              isRunning: true,
+              stepCount: 4,
+              liveActivity: {
+                phase: 'tool',
+                actionKey: 'read_file',
+                label: '读取文件',
+                detail: 'overlay.css',
+                stepProgress: '2/3',
+                startedAtMs: Date.now() - 2000,
+                signature: 'sub:2/3',
+              },
+            },
+          ],
+        },
+      ],
+    });
+
+    const card = widget.el.querySelector('.live-task-card');
+    assert.ok(card);
+    // Bracketless progress on both main pill and subagent summary
+    assert.equal(card.querySelector('.live-activity-progress').textContent, '5/5');
+    assert.equal(card.querySelector('.live-activity-progress').textContent.includes('['), false);
+    const subSummaryText = card.querySelector('.live-sub-summary').textContent;
+    assert.match(subSummaryText, /读取文件 2\/3 · overlay\.css/);
+    assert.equal(subSummaryText.includes('['), false);
+
+    // Compact header keeps metrics + subagent toggle in secondary .live-task-meta-row
+    assert.equal(card.querySelector('.live-task-header-right').querySelector('.wm-task-metrics'), null);
+    assert.equal(card.querySelector('.live-task-header-right').querySelector('.live-sub-toggle'), null);
+    assert.equal(card.querySelector('.live-task-meta-row .wm-task-metrics').textContent, '88.4 t/s · 41%');
+    assert.ok(card.querySelector('.live-task-meta-row .live-sub-toggle'));
+
+    // Expandable .live-steps-box
+    const stepsBox = card.querySelector('.live-steps-box');
+    assert.equal(stepsBox.hasAttribute('hidden'), false);
+    assert.equal(stepsBox.querySelector('.live-steps-count').textContent, '步骤 1/3');
+    assert.equal(stepsBox.querySelector('.live-steps-current').textContent, 'Fix progress pill alignment');
+    assert.equal(stepsBox.querySelector('.live-steps-list').hasAttribute('hidden'), true, 'Steps list collapsed by default');
+
+    stepsBox.querySelector('.live-steps-summary').onclick({ stopPropagation() {} });
+    assert.equal(stepsBox.querySelector('.live-steps-list').hasAttribute('hidden'), false, 'Clicking steps summary expands checklist');
+    const stepRows = stepsBox.querySelectorAll('.live-step-item');
+    assert.equal(stepRows.length, 3);
+    assert.equal(stepRows[0].classList.contains('is-done'), true);
+    assert.equal(stepRows[1].classList.contains('is-in-progress'), true);
+    assert.equal(stepRows[2].classList.contains('is-pending'), true);
+
+    widget.destroy();
+  } finally {
+    setI18nLanguage('zh-CN');
+    globalThis.document = prevDoc;
+    globalThis.window = prevWin;
+  }
+});

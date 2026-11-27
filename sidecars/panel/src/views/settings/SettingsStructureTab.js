@@ -35,10 +35,12 @@ import {
   DEFAULT_CLIENT_QUOTA_DISPLAY_MODE,
   DEFAULT_CLIENT_STEP_COLUMNS,
   DEFAULT_CLIENT_STEP_TOKEN_COMBO_FORMAT,
+  DEFAULT_CLIENT_TOPBAR_MULTI_SESSION_MODE,
   DEFAULT_CLIENT_TOPBAR_SLOTS,
   MAX_CLIENT_LARGE_METRIC_SLOTS,
   MAX_CLIENT_POPOVER_WIDTH,
   MIN_CLIENT_POPOVER_WIDTH,
+  isClientTopbarMultiSessionVisible,
   normalizeClientCliStatusLineSlots,
   normalizeClientContextAgentMode,
   normalizeClientHoverMetricStyle,
@@ -53,6 +55,7 @@ import {
   normalizeClientQuotaDisplayMode,
   normalizeClientStepColumns,
   normalizeClientStepTokenComboFormat,
+  normalizeClientTopbarMultiSessionMode,
   normalizeClientTopbarSlots,
   normalizeClientWindowMountMode,
   resolveEffectiveClientCliStatusLineSlots,
@@ -107,6 +110,14 @@ function getContextAgentModeOptions() {
   return [
     { value: 'main', label: t('settings.str.contextAgentMain') },
     { value: 'auto', label: t('settings.str.contextAgentAuto') },
+  ];
+}
+
+function getMultiSessionModeOptions() {
+  return [
+    { value: 'show', label: t('settings.str.show') },
+    { value: 'running_only', label: t('settings.str.runningOnly') },
+    { value: 'hide', label: t('settings.str.hide') },
   ];
 }
 
@@ -261,7 +272,7 @@ export const SettingsStructureTab = defineComponent({
     let draftPopoverWidth = DEFAULT_CLIENT_POPOVER_WIDTH;
     let draftEnableCliStatusLine = true;
     let draftCliStatusLineSlots = null;
-    let draftShowTopbarMulti = true;
+    let draftTopbarMultiSessionMode = DEFAULT_CLIENT_TOPBAR_MULTI_SESSION_MODE;
     let draftContextAgentMode = DEFAULT_CLIENT_CONTEXT_AGENT_MODE;
     let draftTopbarSlots = [...DEFAULT_CLIENT_TOPBAR_SLOTS];
     let draftHoverModules = [...DEFAULT_CLIENT_HOVER_MODULES];
@@ -311,7 +322,8 @@ export const SettingsStructureTab = defineComponent({
           popoverWidthMode: draftPopoverWidthMode,
           popoverWidth: draftPopoverWidth,
           enableCliStatusLine: draftEnableCliStatusLine,
-          showTopbarMultiSession: draftShowTopbarMulti,
+          topbarMultiSessionMode: draftTopbarMultiSessionMode,
+          showTopbarMultiSession: draftTopbarMultiSessionMode !== 'hide',
           contextAgentMode: draftContextAgentMode,
           topbarCapsuleSlots: draftTopbarSlots,
           hoverModules: draftHoverModules,
@@ -552,15 +564,17 @@ export const SettingsStructureTab = defineComponent({
       },
     });
 
-    const multiSessionToggle = ToggleSwitch({
-      ariaLabelKey: 'settings.str.multiToggle',
-      preset: 'visibility',
-      modelValue: 'show',
+    const multiSessionToggle = SegmentedControl({
+      ariaLabel: t('settings.str.multiToggle'),
+      modelValue: draftTopbarMultiSessionMode,
+      options: getMultiSessionModeOptions(),
       onUpdateModelValue: (val) => {
-        draftShowTopbarMulti = val !== 'hide';
+        const nextMode = normalizeClientTopbarMultiSessionMode(val);
+        draftTopbarMultiSessionMode = nextMode;
         syncMountSectionMeta();
         void persistStructurePatch(mountSection, {
-          showTopbarMultiSession: draftShowTopbarMulti,
+          topbarMultiSessionMode: nextMode,
+          showTopbarMultiSession: nextMode !== 'hide',
         });
       },
     });
@@ -718,7 +732,7 @@ export const SettingsStructureTab = defineComponent({
         draftPopoverWidthMode = 'auto';
         draftPopoverWidth = DEFAULT_CLIENT_POPOVER_WIDTH;
         popoverWidthStepper.setProps({ modelValue: DEFAULT_CLIENT_POPOVER_WIDTH });
-        draftShowTopbarMulti = true;
+        draftTopbarMultiSessionMode = DEFAULT_CLIENT_TOPBAR_MULTI_SESSION_MODE;
         draftContextAgentMode = DEFAULT_CLIENT_CONTEXT_AGENT_MODE;
         draftTopbarSlots = [...DEFAULT_CLIENT_TOPBAR_SLOTS];
         uiStore.setState({ ctxInspectorAgentId: DEFAULT_CLIENT_CONTEXT_AGENT_MODE });
@@ -731,6 +745,7 @@ export const SettingsStructureTab = defineComponent({
             enableWindowOverlay: true,
             popoverWidthMode: 'auto',
             popoverWidth: DEFAULT_CLIENT_POPOVER_WIDTH,
+            topbarMultiSessionMode: DEFAULT_CLIENT_TOPBAR_MULTI_SESSION_MODE,
             showTopbarMultiSession: true,
             contextAgentMode: DEFAULT_CLIENT_CONTEXT_AGENT_MODE,
             topbarCapsuleSlots: [...DEFAULT_CLIENT_TOPBAR_SLOTS],
@@ -776,7 +791,11 @@ export const SettingsStructureTab = defineComponent({
         1,
         Array.isArray(mockData?.runningConversations) ? mockData.runningConversations.length : 1
       );
-      patchAttr(cliPreviewMultiEl, 'hidden', !draftShowTopbarMulti);
+      patchAttr(
+        cliPreviewMultiEl,
+        'hidden',
+        !isClientTopbarMultiSessionVisible(draftTopbarMultiSessionMode, runningCount)
+      );
       patchText(cliPreviewMultiTextEl, t('settings.str.cliPreviewRunning', { count: runningCount }));
       for (let i = 0; i < cliPreviewSlotParts.length; i += 1) {
         const parts = cliPreviewSlotParts[i];
@@ -897,7 +916,9 @@ export const SettingsStructureTab = defineComponent({
         });
       }
       multiSessionToggle.setProps({
-        modelValue: draftShowTopbarMulti ? 'show' : 'hide',
+        modelValue: draftTopbarMultiSessionMode,
+        options: getMultiSessionModeOptions(),
+        ariaLabel: t('settings.str.multiToggle'),
       });
       contextAgentModeToggle.setProps({
         modelValue: draftContextAgentMode,
@@ -912,7 +933,7 @@ export const SettingsStructureTab = defineComponent({
         draftWindowMountMode === 'dual' &&
         draftPopoverWidthMode === 'auto' &&
         draftPopoverWidth === DEFAULT_CLIENT_POPOVER_WIDTH &&
-        draftShowTopbarMulti === true &&
+        draftTopbarMultiSessionMode === DEFAULT_CLIENT_TOPBAR_MULTI_SESSION_MODE &&
         draftContextAgentMode === DEFAULT_CLIENT_CONTEXT_AGENT_MODE &&
         isSameList(draftTopbarSlots, DEFAULT_CLIENT_TOPBAR_SLOTS);
       mountSection.refs.setResetDisabled(isDefault);
@@ -1834,7 +1855,10 @@ export const SettingsStructureTab = defineComponent({
       draftPopoverWidth = normalizeClientPopoverWidth(settings.popoverWidth);
       draftEnableCliStatusLine = settings.enableCliStatusLine !== false;
       draftCliStatusLineSlots = normalizeClientCliStatusLineSlots(settings.cliStatusLineSlots);
-      draftShowTopbarMulti = settings.showTopbarMultiSession !== false;
+      draftTopbarMultiSessionMode = normalizeClientTopbarMultiSessionMode(
+        settings.topbarMultiSessionMode,
+        settings.showTopbarMultiSession
+      );
       draftContextAgentMode = normalizeClientContextAgentMode(settings.contextAgentMode);
       draftTopbarSlots = normalizeClientTopbarSlots(settings.topbarCapsuleSlots);
       draftHoverModules = normalizeClientHoverModules(settings.hoverModules);

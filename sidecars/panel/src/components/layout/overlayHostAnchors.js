@@ -871,6 +871,78 @@ export function getLeftSidebarRightEdge(vw) {
 }
 
 /**
+ * 检测主窗口右侧辅助栏（Antigravity 2.0 `aux-pane` / `用量监控` 侧栏或 IDE `.part.auxiliarybar`）的左边界 X 坐标，
+ * 供顶栏浮动面板（如 `.wm-multi-panel`）做右边界避让，防止跨过分栏线遮挡右侧栏内容。
+ * 未展开右侧栏或边界不合理时返回 `0`。
+ *
+ * @param {number} vw
+ * @returns {number}
+ */
+export function getRightSidebarLeftEdge(vw) {
+  try {
+    if (typeof document === 'undefined' || typeof document.querySelector !== 'function') {
+      return 0;
+    }
+    const safeVw = Number(vw || 0);
+    if (!(safeVw > 320)) return 0;
+
+    const sashEl = document.querySelector('[data-testid="aux-pane-sash"]');
+    if (sashEl && !isNodeHiddenByStyle(sashEl) && sashEl.getBoundingClientRect) {
+      const sr = sashEl.getBoundingClientRect();
+      if (
+        (sr.width > 0 || sr.height > 0) &&
+        sr.left > 240 &&
+        sr.left < safeVw - 40
+      ) {
+        return Math.floor(sr.left);
+      }
+    }
+
+    const auxSelectors = [
+      '.monaco-workbench .part.auxiliarybar',
+      '.monaco-workbench .part.sidebar.right',
+      '[data-testid="aux-pane"]',
+      '[data-testid="aux-sidebar"]',
+      'aside[data-side="right"]',
+      'iframe[src*="usage-monitor"]',
+      'webview[src*="usage-monitor"]',
+    ];
+    let minLeftEdge = 0;
+    for (const sel of auxSelectors) {
+      const el = document.querySelector(sel);
+      if (!el || el.id === CAPSULE_HOST_ID || el.id === PORTAL_HOST_ID) continue;
+      if (isNodeHiddenByStyle(el) || !el.getBoundingClientRect) continue;
+      const r = el.getBoundingClientRect();
+      if (
+        r.width >= 120 &&
+        r.height > 0 &&
+        r.left > 240 &&
+        r.left < safeVw - 40 &&
+        r.right >= safeVw - 24
+      ) {
+        const edge = Math.floor(r.left);
+        if (minLeftEdge === 0 || edge < minLeftEdge) {
+          minLeftEdge = edge;
+        }
+      }
+    }
+    if (minLeftEdge > 0) return minLeftEdge;
+
+    const tbEl = findHostTitlebar();
+    if (tbEl && !isNodeHiddenByStyle(tbEl) && tbEl.getBoundingClientRect) {
+      const tr = tbEl.getBoundingClientRect();
+      if (tr.width >= 300 && tr.height > 0 && tr.right > 300 && tr.right < safeVw - 160) {
+        return Math.floor(tr.right);
+      }
+    }
+    return 0;
+  } catch {
+    // 忽略右侧栏测量异常
+  }
+  return 0;
+}
+
+/**
  * 在主窗口挂载双栖顶栏胶囊和完整四标签悬浮面板，并注册 `window.__AGUsageMonitorOverlay` 生命周期句柄。
  */
 const CAPSULE_EXCLUDED_CSS_SECTIONS = new Set([

@@ -49,6 +49,7 @@ import {
   normalizeModelDisplayMode,
   normalizeModernUi,
   normalizePluginUpdateMode,
+  normalizeTopbarMultiSessionMode,
   normalizeWindowMountMode,
   saveJson,
 } from './config.mjs';
@@ -398,10 +399,26 @@ export function executeSettingsAction(data) {
       : payload.experimentalModernUi !== undefined
         ? normalizeModernUi(payload.experimentalModernUi)
         : normalizeModernUi(current.modernUi);
+  const nextTopbarMultiSessionMode =
+    payload.topbarMultiSessionMode !== undefined
+      ? normalizeTopbarMultiSessionMode(
+          payload.topbarMultiSessionMode,
+          payload.showTopbarMultiSession
+        )
+      : typeof payload.showTopbarMultiSession === 'boolean'
+        ? payload.showTopbarMultiSession
+          ? 'show'
+          : 'hide'
+        : normalizeTopbarMultiSessionMode(
+            current.topbarMultiSessionMode,
+            current.showTopbarMultiSession
+          );
   const updated = normalizeFullSettings({
     ...current,
     ...payload,
     modernUi: nextModernUi,
+    topbarMultiSessionMode: nextTopbarMultiSessionMode,
+    showTopbarMultiSession: nextTopbarMultiSessionMode !== 'hide',
     modelContextWindows: current.modelContextWindows,
     weeklyTokenBudget: sanitizePositiveSettingNumber(
       payload.weeklyTokenBudget ?? payload.weeklyTokenLimit,

@@ -23,7 +23,11 @@ import {
   normalizeLanguageSetting,
   normalizeTopbarCapsuleSlots,
 } from './config.mjs';
-import { resolveLocaleFromLanguageTag } from '../shared/settings-normalization.mjs';
+import {
+  isTopbarMultiSessionVisible,
+  normalizeTopbarMultiSessionMode,
+  resolveLocaleFromLanguageTag,
+} from '../shared/settings-normalization.mjs';
 import {
   classifyCacheTier,
   classifySpeedTier,
@@ -1314,7 +1318,16 @@ function cliStatusShedLowestPrioritySlot(slotKeys) {
 export function formatCliStatusLineCapsule(slotCtx = {}, options = {}) {
   const normalizedCliSlots = normalizeCliStatusLineSlots(options.slots);
   const rawSlots = normalizedCliSlots || normalizeTopbarCapsuleSlots(options.slots);
-  const showMulti = options.showMultiSession !== false;
+  const runningCount = Math.max(0, Math.floor(Number(slotCtx.runningCount) || 0));
+  const multiSessionMode =
+    options.multiSessionMode !== undefined
+      ? normalizeTopbarMultiSessionMode(options.multiSessionMode, options.showMultiSession)
+      : typeof options.showMultiSession === 'string'
+        ? normalizeTopbarMultiSessionMode(options.showMultiSession)
+        : options.showMultiSession === false
+          ? 'hide'
+          : 'show';
+  const showMulti = isTopbarMultiSessionVisible(multiSessionMode, runningCount);
   const showAnomaly = options.showAnomaly !== false;
   const normLang = normalizeLanguageSetting(options.language);
   const locale = normLang === 'auto' ? detectCliHostLocale() : normLang;
@@ -1338,7 +1351,6 @@ export function formatCliStatusLineCapsule(slotCtx = {}, options = {}) {
     }
   }
 
-  const runningCount = Math.max(0, Math.floor(Number(slotCtx.runningCount) || 0));
   const runningSubCount = Math.max(0, Math.floor(Number(slotCtx.runningSubCount) || 0));
   const hasWaiting = Boolean(slotCtx.hasWaiting);
 

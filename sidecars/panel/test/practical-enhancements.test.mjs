@@ -2896,7 +2896,7 @@ test('P2 regressions: bundler regex-after-paren lexer, shared URI/prompt/atomic 
   assert.equal(latestQuery, '');
   assert.equal(sBox.clearBtnEl.hasAttribute('hidden'), true);
 
-  // 4. Declarative settingsBackup round-trips all 38 portable keys + coupled legacy flags
+  // 4. Declarative settingsBackup round-trips all 39 portable keys + coupled legacy flags
   const exported = buildExportableSettingsJson({
     language: 'en-US',
     displayCurrency: 'MYR',
@@ -2904,6 +2904,7 @@ test('P2 regressions: bundler regex-after-paren lexer, shared URI/prompt/atomic 
     modelDisplayMode: 'upstream_compact',
     pluginUpdateMode: 'auto',
     windowMountMode: 'composer',
+    topbarMultiSessionMode: 'running_only',
     hoverSyncOverviewMetrics: false,
     hoverMetricStyle: 'large',
     hoverMetrics: ['tps', 'cache_hit', 'ttft', 'step_cost'],
@@ -2914,9 +2915,11 @@ test('P2 regressions: bundler regex-after-paren lexer, shared URI/prompt/atomic 
     accountQuotaRefreshMinutes: 180,
   });
   const parsedExport = JSON.parse(exported);
-  assert.equal(Object.keys(parsedExport.settings).length, 38);
+  assert.equal(Object.keys(parsedExport.settings).length, 39);
   assert.equal(parsedExport.settings.displayCurrency, 'MYR');
   assert.equal(parsedExport.settings.quotaDisplayMode, 'remaining');
+  assert.equal(parsedExport.settings.topbarMultiSessionMode, 'running_only');
+  assert.equal(parsedExport.settings.showTopbarMultiSession, true);
   assert.equal('orchestratorIdMode' in parsedExport.settings, false);
   const reimported = parseImportedSettingsJson(
     JSON.stringify({
@@ -2926,6 +2929,17 @@ test('P2 regressions: bundler regex-after-paren lexer, shared URI/prompt/atomic 
   );
   assert.equal(reimported.ok, true);
   assert.equal('orchestratorIdMode' in reimported.patch, false);
+  assert.equal(reimported.patch.topbarMultiSessionMode, 'running_only');
+  assert.equal(reimported.patch.showTopbarMultiSession, true);
+  const legacyMultiImport = parseImportedSettingsJson(
+    JSON.stringify({
+      schemaVersion: parsedExport.schemaVersion,
+      settings: { showTopbarMultiSession: false },
+    })
+  );
+  assert.equal(legacyMultiImport.ok, true);
+  assert.equal(legacyMultiImport.patch.topbarMultiSessionMode, 'hide');
+  assert.equal(legacyMultiImport.patch.showTopbarMultiSession, false);
   assert.equal(reimported.patch.hoverSyncOverviewMetrics, false);
   assert.equal(reimported.patch.hoverMetricStyle, 'large');
   assert.deepEqual(reimported.patch.hoverMetrics, ['tps', 'cache_hit', 'ttft', 'step_cost']);

@@ -21,6 +21,8 @@ import { t } from '../../i18n/index.js';
 import { createSvgIcon, SVG_NS } from '../../icons/SvgIcon.js';
 import { resolveCapsuleMetricPresentation } from '../../registries/metricRegistry.js';
 import {
+  isClientTopbarMultiSessionVisible,
+  normalizeClientTopbarMultiSessionMode,
   normalizeClientTopbarSlots,
   normalizeClientWindowMountMode,
   resolveOverlayCtxInspectorAgentId,
@@ -745,7 +747,10 @@ export const CapsuleBarWidget = defineComponent({
         settings.windowMountMode,
         settings.enableWindowOverlay
       );
-      const showMulti = settings.showTopbarMultiSession !== false;
+      const multiMode = normalizeClientTopbarMultiSessionMode(
+        settings.topbarMultiSessionMode,
+        settings.showTopbarMultiSession
+      );
       const slotKeys = normalizeClientTopbarSlots(settings.topbarCapsuleSlots);
       currentSlotKeys = [...slotKeys];
 
@@ -763,9 +768,8 @@ export const CapsuleBarWidget = defineComponent({
       patchAttr(sidebarHintEl, 'hidden', !isSidebar);
       patchText(sidebarHintEl, t('settings.str.previewMountSidebarHint'));
 
-      patchAttr(multiBtn, 'hidden', !showMulti);
-
       if (!data) {
+        patchAttr(multiBtn, 'hidden', !isClientTopbarMultiSessionVisible(multiMode, 0));
         patchClasses(multiBtn, { 'is-running': false, 'is-waiting': false });
         patchCapsuleOdometerText(multiLabel, t('capsule.multiZero'), { resetKey: 'multi' });
         syncCapsuleSlotNodes(capsuleSlots, capsuleSeps, slotKeys, { hasTelemetry: false });
@@ -785,6 +789,7 @@ export const CapsuleBarWidget = defineComponent({
         contextUsedPct: slotCtx.usedPct,
       });
 
+      patchAttr(multiBtn, 'hidden', !isClientTopbarMultiSessionVisible(multiMode, runningCount));
       patchClasses(multiBtn, {
         'is-running': runningCount > 0 && !hasWaiting,
         'is-waiting': runningCount > 0 && hasWaiting,

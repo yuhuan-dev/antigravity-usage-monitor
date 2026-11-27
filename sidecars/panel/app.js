@@ -2,7 +2,7 @@
 'use strict';
 
 // --- shared/settings-normalization.mjs ---
-const { SUPPORTED_LOCALE_ENTRIES, SUPPORTED_LOCALES, SUPPORTED_LANGUAGES, THEME_ACCENT_KEYS, FONT_SCALE_KEYS, TOPBAR_SLOT_KEYS, DEFAULT_TOPBAR_SLOTS, MIN_TOPBAR_SLOTS, MAX_TOPBAR_SLOTS, DEFAULT_CLI_STATUSLINE_SLOTS, MIN_CLI_STATUSLINE_SLOTS, MAX_CLI_STATUSLINE_SLOTS, CLI_STATUSLINE_PRESETS, OVERVIEW_MODULE_KEYS, DEFAULT_OVERVIEW_MODULES, DEFAULT_HOVER_MODULES, METRIC_CARD_STYLES, HOVER_METRIC_STYLES, DEFAULT_OVERVIEW_METRIC_STYLE, DEFAULT_HOVER_METRIC_STYLE, DEFAULT_HOVER_SYNC_OVERVIEW_METRICS, MAX_LARGE_METRIC_SLOTS, OVERVIEW_METRIC_KEYS, DEFAULT_OVERVIEW_METRICS, DEFAULT_HOVER_METRICS, STEP_TABLE_COLUMN_KEYS, DEFAULT_STEP_TABLE_COLUMNS, DEFAULT_STEP_TOKEN_COMBO_FORMAT, STEP_TOKEN_SEGMENT_ALIASES, POPOVER_WIDTH_MODES, MIN_POPOVER_WIDTH, MAX_POPOVER_WIDTH, DEFAULT_POPOVER_WIDTH, resolveLocaleFromLanguageTag, normalizeLanguageSetting, normalizeThemeAccent, normalizeFontScale, normalizeModelDisplayMode, normalizePopoverWidthMode, normalizePopoverWidth, parseStepTokenComboSegments, normalizeStepTokenComboFormat, normalizePluginUpdateMode, normalizeWindowMountMode, normalizeWeeklyLimitMode, normalizeTopbarCapsuleSlots, normalizeCliStatusLineSlots, resolveEffectiveCliStatusLineSlots, normalizeOverviewMetrics, normalizeOverviewModules, normalizeHoverModules, normalizeMetricCardStyle, normalizeOverviewMetricStyle, normalizeHoverMetricStyle, normalizeHoverSyncOverviewMetrics, normalizeHoverMetrics, resolveEffectiveMetricMatrixConfig, normalizeStepTableColumns, normalizeStandalonePort, normalizeModernUi, CONTEXT_AGENT_MODES, DEFAULT_CONTEXT_AGENT_MODE, QUOTA_DISPLAY_MODES, DEFAULT_QUOTA_DISPLAY_MODE, normalizeQuotaDisplayMode, ACCOUNT_QUOTA_REFRESH_MINUTES, DEFAULT_ACCOUNT_QUOTA_REFRESH_MINUTES, normalizeAccountQuotaRefreshMinutes, normalizeContextAgentMode, normalizeExperimentalQuotaReservation, normalizeExperimentalModernUi, normalizeAutoConfigureLaunch, normalizeEnableRemoteSshTelemetry, normalizeDeveloperModeEnabled, normalizeRiskyFeaturesEnabled, isRiskyFeaturesGateOpen, isContextWindowFeatureActive, isAccountSwitchFeatureActive } = (() => {
+const { SUPPORTED_LOCALE_ENTRIES, SUPPORTED_LOCALES, SUPPORTED_LANGUAGES, THEME_ACCENT_KEYS, FONT_SCALE_KEYS, TOPBAR_SLOT_KEYS, DEFAULT_TOPBAR_SLOTS, MIN_TOPBAR_SLOTS, MAX_TOPBAR_SLOTS, DEFAULT_CLI_STATUSLINE_SLOTS, MIN_CLI_STATUSLINE_SLOTS, MAX_CLI_STATUSLINE_SLOTS, CLI_STATUSLINE_PRESETS, OVERVIEW_MODULE_KEYS, DEFAULT_OVERVIEW_MODULES, DEFAULT_HOVER_MODULES, METRIC_CARD_STYLES, HOVER_METRIC_STYLES, DEFAULT_OVERVIEW_METRIC_STYLE, DEFAULT_HOVER_METRIC_STYLE, DEFAULT_HOVER_SYNC_OVERVIEW_METRICS, MAX_LARGE_METRIC_SLOTS, OVERVIEW_METRIC_KEYS, DEFAULT_OVERVIEW_METRICS, DEFAULT_HOVER_METRICS, STEP_TABLE_COLUMN_KEYS, DEFAULT_STEP_TABLE_COLUMNS, DEFAULT_STEP_TOKEN_COMBO_FORMAT, STEP_TOKEN_SEGMENT_ALIASES, POPOVER_WIDTH_MODES, MIN_POPOVER_WIDTH, MAX_POPOVER_WIDTH, DEFAULT_POPOVER_WIDTH, resolveLocaleFromLanguageTag, normalizeLanguageSetting, normalizeThemeAccent, normalizeFontScale, normalizeModelDisplayMode, normalizePopoverWidthMode, normalizePopoverWidth, parseStepTokenComboSegments, normalizeStepTokenComboFormat, normalizePluginUpdateMode, normalizeWindowMountMode, normalizeWeeklyLimitMode, normalizeTopbarCapsuleSlots, normalizeCliStatusLineSlots, resolveEffectiveCliStatusLineSlots, normalizeOverviewMetrics, normalizeOverviewModules, normalizeHoverModules, normalizeMetricCardStyle, normalizeOverviewMetricStyle, normalizeHoverMetricStyle, normalizeHoverSyncOverviewMetrics, normalizeHoverMetrics, resolveEffectiveMetricMatrixConfig, normalizeStepTableColumns, normalizeStandalonePort, normalizeModernUi, CONTEXT_AGENT_MODES, DEFAULT_CONTEXT_AGENT_MODE, TOPBAR_MULTI_SESSION_MODES, DEFAULT_TOPBAR_MULTI_SESSION_MODE, normalizeTopbarMultiSessionMode, isTopbarMultiSessionVisible, QUOTA_DISPLAY_MODES, DEFAULT_QUOTA_DISPLAY_MODE, normalizeQuotaDisplayMode, ACCOUNT_QUOTA_REFRESH_MINUTES, DEFAULT_ACCOUNT_QUOTA_REFRESH_MINUTES, normalizeAccountQuotaRefreshMinutes, normalizeContextAgentMode, normalizeExperimentalQuotaReservation, normalizeExperimentalModernUi, normalizeAutoConfigureLaunch, normalizeEnableRemoteSshTelemetry, normalizeDeveloperModeEnabled, normalizeRiskyFeaturesEnabled, isRiskyFeaturesGateOpen, isContextWindowFeatureActive, isAccountSwitchFeatureActive } = (() => {
 const SUPPORTED_LOCALE_ENTRIES = Object.freeze([
   Object.freeze({
     locale: 'zh-CN',
@@ -535,6 +535,33 @@ function normalizeModernUi(val) {
 const CONTEXT_AGENT_MODES = Object.freeze(['main', 'auto']);
 const DEFAULT_CONTEXT_AGENT_MODE = 'main';
 
+const TOPBAR_MULTI_SESSION_MODES = Object.freeze(['show', 'running_only', 'hide']);
+const DEFAULT_TOPBAR_MULTI_SESSION_MODE = 'show';
+
+function normalizeTopbarMultiSessionMode(mode, legacyShowMulti) {
+  const m = String(mode ?? '').trim().toLowerCase();
+  if (m === 'running_only' || m === 'running' || m === 'active_only' || m === 'when_running') {
+    return 'running_only';
+  }
+  if (m === 'hide' || m === 'hidden' || m === 'off' || m === 'false') {
+    return 'hide';
+  }
+  if (m === 'show' || m === 'always' || m === 'on' || m === 'true') {
+    return 'show';
+  }
+  if (legacyShowMulti === false) {
+    return 'hide';
+  }
+  return DEFAULT_TOPBAR_MULTI_SESSION_MODE;
+}
+
+function isTopbarMultiSessionVisible(mode, runningCount = 0, legacyShowMulti = undefined) {
+  const normalized = normalizeTopbarMultiSessionMode(mode, legacyShowMulti);
+  if (normalized === 'hide') return false;
+  if (normalized === 'running_only') return Number(runningCount) > 0;
+  return true;
+}
+
 const QUOTA_DISPLAY_MODES = Object.freeze(['used', 'remaining']);
 const DEFAULT_QUOTA_DISPLAY_MODE = 'used';
 
@@ -626,7 +653,7 @@ function isAccountSwitchFeatureActive(settings) {
     isRiskyFeaturesGateOpen(settings) && settings.accountSwitchRiskAccepted === true
   );
 }
-return { SUPPORTED_LOCALE_ENTRIES, SUPPORTED_LOCALES, SUPPORTED_LANGUAGES, THEME_ACCENT_KEYS, FONT_SCALE_KEYS, TOPBAR_SLOT_KEYS, DEFAULT_TOPBAR_SLOTS, MIN_TOPBAR_SLOTS, MAX_TOPBAR_SLOTS, DEFAULT_CLI_STATUSLINE_SLOTS, MIN_CLI_STATUSLINE_SLOTS, MAX_CLI_STATUSLINE_SLOTS, CLI_STATUSLINE_PRESETS, OVERVIEW_MODULE_KEYS, DEFAULT_OVERVIEW_MODULES, DEFAULT_HOVER_MODULES, METRIC_CARD_STYLES, HOVER_METRIC_STYLES, DEFAULT_OVERVIEW_METRIC_STYLE, DEFAULT_HOVER_METRIC_STYLE, DEFAULT_HOVER_SYNC_OVERVIEW_METRICS, MAX_LARGE_METRIC_SLOTS, OVERVIEW_METRIC_KEYS, DEFAULT_OVERVIEW_METRICS, DEFAULT_HOVER_METRICS, STEP_TABLE_COLUMN_KEYS, DEFAULT_STEP_TABLE_COLUMNS, DEFAULT_STEP_TOKEN_COMBO_FORMAT, STEP_TOKEN_SEGMENT_ALIASES, POPOVER_WIDTH_MODES, MIN_POPOVER_WIDTH, MAX_POPOVER_WIDTH, DEFAULT_POPOVER_WIDTH, resolveLocaleFromLanguageTag, normalizeLanguageSetting, normalizeThemeAccent, normalizeFontScale, normalizeModelDisplayMode, normalizePopoverWidthMode, normalizePopoverWidth, parseStepTokenComboSegments, normalizeStepTokenComboFormat, normalizePluginUpdateMode, normalizeWindowMountMode, normalizeWeeklyLimitMode, normalizeTopbarCapsuleSlots, normalizeCliStatusLineSlots, resolveEffectiveCliStatusLineSlots, normalizeOverviewMetrics, normalizeOverviewModules, normalizeHoverModules, normalizeMetricCardStyle, normalizeOverviewMetricStyle, normalizeHoverMetricStyle, normalizeHoverSyncOverviewMetrics, normalizeHoverMetrics, resolveEffectiveMetricMatrixConfig, normalizeStepTableColumns, normalizeStandalonePort, normalizeModernUi, CONTEXT_AGENT_MODES, DEFAULT_CONTEXT_AGENT_MODE, QUOTA_DISPLAY_MODES, DEFAULT_QUOTA_DISPLAY_MODE, normalizeQuotaDisplayMode, ACCOUNT_QUOTA_REFRESH_MINUTES, DEFAULT_ACCOUNT_QUOTA_REFRESH_MINUTES, normalizeAccountQuotaRefreshMinutes, normalizeContextAgentMode, normalizeExperimentalQuotaReservation, normalizeExperimentalModernUi, normalizeAutoConfigureLaunch, normalizeEnableRemoteSshTelemetry, normalizeDeveloperModeEnabled, normalizeRiskyFeaturesEnabled, isRiskyFeaturesGateOpen, isContextWindowFeatureActive, isAccountSwitchFeatureActive };
+return { SUPPORTED_LOCALE_ENTRIES, SUPPORTED_LOCALES, SUPPORTED_LANGUAGES, THEME_ACCENT_KEYS, FONT_SCALE_KEYS, TOPBAR_SLOT_KEYS, DEFAULT_TOPBAR_SLOTS, MIN_TOPBAR_SLOTS, MAX_TOPBAR_SLOTS, DEFAULT_CLI_STATUSLINE_SLOTS, MIN_CLI_STATUSLINE_SLOTS, MAX_CLI_STATUSLINE_SLOTS, CLI_STATUSLINE_PRESETS, OVERVIEW_MODULE_KEYS, DEFAULT_OVERVIEW_MODULES, DEFAULT_HOVER_MODULES, METRIC_CARD_STYLES, HOVER_METRIC_STYLES, DEFAULT_OVERVIEW_METRIC_STYLE, DEFAULT_HOVER_METRIC_STYLE, DEFAULT_HOVER_SYNC_OVERVIEW_METRICS, MAX_LARGE_METRIC_SLOTS, OVERVIEW_METRIC_KEYS, DEFAULT_OVERVIEW_METRICS, DEFAULT_HOVER_METRICS, STEP_TABLE_COLUMN_KEYS, DEFAULT_STEP_TABLE_COLUMNS, DEFAULT_STEP_TOKEN_COMBO_FORMAT, STEP_TOKEN_SEGMENT_ALIASES, POPOVER_WIDTH_MODES, MIN_POPOVER_WIDTH, MAX_POPOVER_WIDTH, DEFAULT_POPOVER_WIDTH, resolveLocaleFromLanguageTag, normalizeLanguageSetting, normalizeThemeAccent, normalizeFontScale, normalizeModelDisplayMode, normalizePopoverWidthMode, normalizePopoverWidth, parseStepTokenComboSegments, normalizeStepTokenComboFormat, normalizePluginUpdateMode, normalizeWindowMountMode, normalizeWeeklyLimitMode, normalizeTopbarCapsuleSlots, normalizeCliStatusLineSlots, resolveEffectiveCliStatusLineSlots, normalizeOverviewMetrics, normalizeOverviewModules, normalizeHoverModules, normalizeMetricCardStyle, normalizeOverviewMetricStyle, normalizeHoverMetricStyle, normalizeHoverSyncOverviewMetrics, normalizeHoverMetrics, resolveEffectiveMetricMatrixConfig, normalizeStepTableColumns, normalizeStandalonePort, normalizeModernUi, CONTEXT_AGENT_MODES, DEFAULT_CONTEXT_AGENT_MODE, TOPBAR_MULTI_SESSION_MODES, DEFAULT_TOPBAR_MULTI_SESSION_MODE, normalizeTopbarMultiSessionMode, isTopbarMultiSessionVisible, QUOTA_DISPLAY_MODES, DEFAULT_QUOTA_DISPLAY_MODE, normalizeQuotaDisplayMode, ACCOUNT_QUOTA_REFRESH_MINUTES, DEFAULT_ACCOUNT_QUOTA_REFRESH_MINUTES, normalizeAccountQuotaRefreshMinutes, normalizeContextAgentMode, normalizeExperimentalQuotaReservation, normalizeExperimentalModernUi, normalizeAutoConfigureLaunch, normalizeEnableRemoteSshTelemetry, normalizeDeveloperModeEnabled, normalizeRiskyFeaturesEnabled, isRiskyFeaturesGateOpen, isContextWindowFeatureActive, isAccountSwitchFeatureActive };
 })();
 
 // --- shared/currency-catalog.mjs ---
@@ -1847,6 +1874,10 @@ const I18N_MESSAGES_ZH_CN = Object.freeze({
   'live.swarmToggleIdle': '蜂群 ({total})',
   'live.subCollapseTitle': '点击收起子代理列表',
   'live.subExpandTitle': '点击展开查看子代理缩略状态',
+  'live.stepsProgress': '步骤 {done}/{total}',
+  'live.stepsExpandTitle': '点击展开查看任务步骤清单',
+  'live.stepsCollapseTitle': '点击收起任务步骤清单',
+  'live.stepsAllDone': '全部步骤已完成',
 
   'cons.rangeCycle': '周期',
   'cons.cyclePoolAll': '全部池',
@@ -2447,7 +2478,7 @@ const I18N_MESSAGES_ZH_CN = Object.freeze({
   'settings.str.popoverWidthAuto': '自适应',
   'settings.str.popoverWidthCustom': '指定宽度',
   'settings.str.popoverWidthHint': '自适应模式下在调用明细等宽表格视图自动撑宽免水平滚动；指定宽度范围 440~1080 px',
-  'settings.str.multiToggle': '实时运行会话入口',
+  'settings.str.multiToggle': '实时运行会话',
   'settings.str.contextAgentModeLabel': '胶囊及悬浮上下文',
   'settings.str.contextAgentMain': '锁定主代理',
   'settings.str.contextAgentAuto': '跟随活跃',
@@ -2465,6 +2496,7 @@ const I18N_MESSAGES_ZH_CN = Object.freeze({
   'settings.str.cliRestoringBtn': '正在写入...',
   'settings.str.cliPreviewRunning': '{count} 运行中',
   'settings.str.show': '显示',
+  'settings.str.runningOnly': '仅运行',
   'settings.str.hide': '隐藏',
   'settings.str.on': '开启',
   'settings.str.off': '关闭',
@@ -2650,6 +2682,8 @@ const I18N_MESSAGES_ZH_CN = Object.freeze({
   'live.act.swarm_wait': '看板待命',
   'live.act.manage_task': '后台任务',
   'live.act.schedule': '定时任务',
+  'live.act.update_steps': '更新进度',
+  'live.act.update_focus': '更新状态',
   'live.act.ask_question': '等待用户选择',
   'live.act.search_marketplace': '查询插件',
   'live.act.generate_image': '生成图片',
@@ -3100,6 +3134,10 @@ const I18N_MESSAGES_ZH_TW = Object.freeze({
   "live.swarmToggleIdle": "蜂群 ({total})",
   "live.subCollapseTitle": "點擊收合子代理清單",
   "live.subExpandTitle": "點擊展開檢視子代理狀態摘要",
+  "live.stepsProgress": "步驟 {done}/{total}",
+  "live.stepsExpandTitle": "點擊展開檢視任務步驟清單",
+  "live.stepsCollapseTitle": "點擊收合任務步驟清單",
+  "live.stepsAllDone": "全部步驟已完成",
   "cons.rangeCycle": "週期",
   "cons.cyclePoolAll": "全部池",
   "cons.cyclePoolAllShort": "全部",
@@ -3691,7 +3729,7 @@ const I18N_MESSAGES_ZH_TW = Object.freeze({
   "settings.str.popoverWidthAuto": "自動調整",
   "settings.str.popoverWidthCustom": "自訂寬度",
   "settings.str.popoverWidthHint": "自動調整模式下會在呼叫明細等寬表格檢視時自動加寬以避免水平捲動；自訂寬度範圍為 440–1080 px",
-  "settings.str.multiToggle": "執行中工作階段入口",
+  "settings.str.multiToggle": "即時執行工作階段",
   "settings.str.contextAgentModeLabel": "膠囊與懸浮上下文",
   "settings.str.contextAgentMain": "鎖定主代理",
   "settings.str.contextAgentAuto": "跟隨目前活躍",
@@ -3709,6 +3747,7 @@ const I18N_MESSAGES_ZH_TW = Object.freeze({
   "settings.str.cliRestoringBtn": "套用中...",
   "settings.str.cliPreviewRunning": "{count} 執行中",
   "settings.str.show": "顯示",
+  "settings.str.runningOnly": "僅執行",
   "settings.str.hide": "隱藏",
   "settings.str.on": "開啟",
   "settings.str.off": "關閉",
@@ -3892,6 +3931,8 @@ const I18N_MESSAGES_ZH_TW = Object.freeze({
   "live.act.swarm_wait": "看板待命",
   "live.act.manage_task": "管理任務",
   "live.act.schedule": "排程任務",
+  "live.act.update_steps": "更新進度",
+  "live.act.update_focus": "更新狀態",
   "live.act.ask_question": "等待使用者選擇",
   "live.act.search_marketplace": "搜尋外掛程式",
   "live.act.generate_image": "生成圖片",
@@ -4350,6 +4391,10 @@ const I18N_MESSAGES_EN_US = Object.freeze({
   'live.swarmToggleIdle': 'Swarm ({total})',
   'live.subCollapseTitle': 'Collapse subagent list',
   'live.subExpandTitle': 'Expand subagent activity list',
+  'live.stepsProgress': 'Steps {done}/{total}',
+  'live.stepsExpandTitle': 'Expand task steps checklist',
+  'live.stepsCollapseTitle': 'Collapse task steps checklist',
+  'live.stepsAllDone': 'All steps completed',
 
   'cons.rangeCycle': 'Cycle',
   'cons.cyclePoolAll': 'All Pools',
@@ -4950,7 +4995,7 @@ const I18N_MESSAGES_EN_US = Object.freeze({
   'settings.str.popoverWidthAuto': 'Auto Fit',
   'settings.str.popoverWidthCustom': 'Custom',
   'settings.str.popoverWidthHint': 'Auto Fit widens wide tables like Step Records to avoid horizontal scroll; Custom accepts 440–1080 px',
-  'settings.str.multiToggle': 'Active Sessions Pill',
+  'settings.str.multiToggle': 'Running sessions',
   'settings.str.contextAgentModeLabel': 'Capsule & Hover Context',
   'settings.str.contextAgentMain': 'Lock Main Agent',
   'settings.str.contextAgentAuto': 'Follow Active',
@@ -4968,6 +5013,7 @@ const I18N_MESSAGES_EN_US = Object.freeze({
   'settings.str.cliRestoringBtn': 'Applying...',
   'settings.str.cliPreviewRunning': '{count} active',
   'settings.str.show': 'Show',
+  'settings.str.runningOnly': 'Running only',
   'settings.str.hide': 'Hide',
   'settings.str.on': 'On',
   'settings.str.off': 'Off',
@@ -5153,6 +5199,8 @@ const I18N_MESSAGES_EN_US = Object.freeze({
   'live.act.swarm_wait': 'Parked on Board',
   'live.act.manage_task': 'Manage Task',
   'live.act.schedule': 'Schedule Task',
+  'live.act.update_steps': 'Update Steps',
+  'live.act.update_focus': 'Update Focus',
   'live.act.ask_question': 'Waiting for User Choice',
   'live.act.search_marketplace': 'Search Plugins',
   'live.act.generate_image': 'Generate Image',
@@ -5603,6 +5651,10 @@ const I18N_MESSAGES_JA_JP = Object.freeze({
   "live.swarmToggleIdle": "スウォーム ({total})",
   "live.subCollapseTitle": "サブエージェント一覧を折りたたむ",
   "live.subExpandTitle": "サブエージェントの稼働状況を展開",
+  "live.stepsProgress": "手順 {done}/{total}",
+  "live.stepsExpandTitle": "タスク手順リストを展開",
+  "live.stepsCollapseTitle": "タスク手順リストを折りたたむ",
+  "live.stepsAllDone": "すべての手順が完了しました",
   "cons.rangeCycle": "サイクル",
   "cons.cyclePoolAll": "全プール",
   "cons.cyclePoolAllShort": "全て",
@@ -6194,7 +6246,7 @@ const I18N_MESSAGES_JA_JP = Object.freeze({
   "settings.str.popoverWidthAuto": "自動フィット",
   "settings.str.popoverWidthCustom": "固定幅",
   "settings.str.popoverWidthHint": "自動フィット時はステップ一覧などの横広テーブルを自動拡張します。固定幅は 440〜1080 px を指定可能",
-  "settings.str.multiToggle": "実行中セッションバッジ",
+  "settings.str.multiToggle": "実行中のセッション",
   "settings.str.contextAgentModeLabel": "カプセル・ホバーのコンテキスト",
   "settings.str.contextAgentMain": "メイン固定",
   "settings.str.contextAgentAuto": "アクティブ追従",
@@ -6212,6 +6264,7 @@ const I18N_MESSAGES_JA_JP = Object.freeze({
   "settings.str.cliRestoringBtn": "適用中...",
   "settings.str.cliPreviewRunning": "{count} 実行中",
   "settings.str.show": "表示",
+  "settings.str.runningOnly": "実行中のみ",
   "settings.str.hide": "非表示",
   "settings.str.on": "オン",
   "settings.str.off": "オフ",
@@ -6395,6 +6448,8 @@ const I18N_MESSAGES_JA_JP = Object.freeze({
   "live.act.swarm_wait": "ボード待機",
   "live.act.manage_task": "タスク管理",
   "live.act.schedule": "スケジュール設定",
+  "live.act.update_steps": "手順を更新",
+  "live.act.update_focus": "フォーカス更新",
   "live.act.ask_question": "ユーザー選択待ち",
   "live.act.search_marketplace": "プラグイン検索",
   "live.act.generate_image": "画像生成",
@@ -6842,6 +6897,10 @@ const I18N_MESSAGES_KO_KR = Object.freeze({
   "live.swarmToggleIdle": "스웜 ({total})",
   "live.subCollapseTitle": "서브에이전트 목록 접기",
   "live.subExpandTitle": "서브에이전트 활동 목록 펼치기",
+  "live.stepsProgress": "단계 {done}/{total}",
+  "live.stepsExpandTitle": "작업 단계 목록 펼치기",
+  "live.stepsCollapseTitle": "작업 단계 목록 접기",
+  "live.stepsAllDone": "모든 단계 완료",
   "cons.rangeCycle": "주기",
   "cons.cyclePoolAll": "전체 풀",
   "cons.cyclePoolAllShort": "전체",
@@ -7433,7 +7492,7 @@ const I18N_MESSAGES_KO_KR = Object.freeze({
   "settings.str.popoverWidthAuto": "자동 맞춤",
   "settings.str.popoverWidthCustom": "사용자 지정",
   "settings.str.popoverWidthHint": "자동 맞춤 모드에서는 스텝 내역 등 넓은 테이블의 가로 스크롤이 생기지 않도록 자동 확장됩니다. 사용자 지정 범위는 440~1080 px입니다",
-  "settings.str.multiToggle": "활성 세션 배지",
+  "settings.str.multiToggle": "실행 중인 세션",
   "settings.str.contextAgentModeLabel": "캡슐 및 호버 컨텍스트",
   "settings.str.contextAgentMain": "메인 에이전트 고정",
   "settings.str.contextAgentAuto": "활성 에이전트 추적",
@@ -7451,6 +7510,7 @@ const I18N_MESSAGES_KO_KR = Object.freeze({
   "settings.str.cliRestoringBtn": "적용 중...",
   "settings.str.cliPreviewRunning": "{count}개 실행 중",
   "settings.str.show": "표시",
+  "settings.str.runningOnly": "실행 시만",
   "settings.str.hide": "숨김",
   "settings.str.on": "켜짐",
   "settings.str.off": "꺼짐",
@@ -7634,6 +7694,8 @@ const I18N_MESSAGES_KO_KR = Object.freeze({
   "live.act.swarm_wait": "보드 대기 중",
   "live.act.manage_task": "작업 관리",
   "live.act.schedule": "작업 예약",
+  "live.act.update_steps": "단계 업데이트",
+  "live.act.update_focus": "상태 업데이트",
   "live.act.ask_question": "사용자 선택 대기 중",
   "live.act.search_marketplace": "플러그인 검색",
   "live.act.generate_image": "이미지 생성",
@@ -8081,6 +8143,10 @@ const I18N_MESSAGES_DE_DE = Object.freeze({
   "live.swarmToggleIdle": "Schwarm ({total})",
   "live.subCollapseTitle": "Subagenten-Liste einklappen",
   "live.subExpandTitle": "Subagenten-Aktivitätsliste aufklappen",
+  "live.stepsProgress": "Schritte {done}/{total}",
+  "live.stepsExpandTitle": "Aufgabenschritte ausklappen",
+  "live.stepsCollapseTitle": "Aufgabenschritte einklappen",
+  "live.stepsAllDone": "Alle Schritte abgeschlossen",
   "cons.rangeCycle": "Zyklus",
   "cons.cyclePoolAll": "Alle Pools",
   "cons.cyclePoolAllShort": "Alle",
@@ -8672,7 +8738,7 @@ const I18N_MESSAGES_DE_DE = Object.freeze({
   "settings.str.popoverWidthAuto": "Automatisch",
   "settings.str.popoverWidthCustom": "Manuell",
   "settings.str.popoverWidthHint": "Automatisch verbreitert breite Tabellen wie Schritttabellen ohne horizontales Scrollen; Manuell erlaubt 440–1080 px",
-  "settings.str.multiToggle": "Aktive-Sitzungen-Pill",
+  "settings.str.multiToggle": "Aktive Sitzungen",
   "settings.str.contextAgentModeLabel": "Kapsel- & Hover-Kontext",
   "settings.str.contextAgentMain": "Hauptagent fixieren",
   "settings.str.contextAgentAuto": "Aktivem folgen",
@@ -8690,6 +8756,7 @@ const I18N_MESSAGES_DE_DE = Object.freeze({
   "settings.str.cliRestoringBtn": "Wird angewendet…",
   "settings.str.cliPreviewRunning": "{count} aktiv",
   "settings.str.show": "Anzeigen",
+  "settings.str.runningOnly": "Nur aktiv",
   "settings.str.hide": "Ausblenden",
   "settings.str.on": "Ein",
   "settings.str.off": "Aus",
@@ -8873,6 +8940,8 @@ const I18N_MESSAGES_DE_DE = Object.freeze({
   "live.act.swarm_wait": "Auf Board geparkt",
   "live.act.manage_task": "Aufgabe verwalten",
   "live.act.schedule": "Aufgabe planen",
+  "live.act.update_steps": "Schritte aktualisieren",
+  "live.act.update_focus": "Fokus aktualisieren",
   "live.act.ask_question": "Wartet auf Auswahl",
   "live.act.search_marketplace": "Plugins suchen",
   "live.act.generate_image": "Bild generieren",
@@ -9320,6 +9389,10 @@ const I18N_MESSAGES_FR_FR = Object.freeze({
   "live.swarmToggleIdle": "Essaim ({total})",
   "live.subCollapseTitle": "Replier la liste des sous-agents",
   "live.subExpandTitle": "Déplier l'activité des sous-agents",
+  "live.stepsProgress": "Étapes {done}/{total}",
+  "live.stepsExpandTitle": "Afficher la liste des étapes",
+  "live.stepsCollapseTitle": "Réduire la liste des étapes",
+  "live.stepsAllDone": "Toutes les étapes terminées",
   "cons.rangeCycle": "Cycle",
   "cons.cyclePoolAll": "Tous les pools",
   "cons.cyclePoolAllShort": "Tous",
@@ -9911,7 +9984,7 @@ const I18N_MESSAGES_FR_FR = Object.freeze({
   "settings.str.popoverWidthAuto": "Auto",
   "settings.str.popoverWidthCustom": "Personnalisée",
   "settings.str.popoverWidthHint": "Auto élargit les tables comme Étapes pour éviter le défilement horizontal ; Personnalisée accepte 440–1080 px",
-  "settings.str.multiToggle": "Pastille sessions actives",
+  "settings.str.multiToggle": "Sessions actives",
   "settings.str.contextAgentModeLabel": "Contexte capsule et survol",
   "settings.str.contextAgentMain": "Agent principal",
   "settings.str.contextAgentAuto": "Suivre l’actif",
@@ -9929,6 +10002,7 @@ const I18N_MESSAGES_FR_FR = Object.freeze({
   "settings.str.cliRestoringBtn": "Application…",
   "settings.str.cliPreviewRunning": "{count} actif(s)",
   "settings.str.show": "Afficher",
+  "settings.str.runningOnly": "Si actif",
   "settings.str.hide": "Masquer",
   "settings.str.on": "Activé",
   "settings.str.off": "Désactivé",
@@ -10112,6 +10186,8 @@ const I18N_MESSAGES_FR_FR = Object.freeze({
   "live.act.swarm_wait": "En veille tableau",
   "live.act.manage_task": "Gérer tâche",
   "live.act.schedule": "Planifier tâche",
+  "live.act.update_steps": "Maj étapes",
+  "live.act.update_focus": "Maj focus",
   "live.act.ask_question": "Attente choix utilisateur",
   "live.act.search_marketplace": "Chercher plugins",
   "live.act.generate_image": "Générer image",
@@ -12260,7 +12336,7 @@ return { defineComponent };
 })();
 
 // --- src/core/formatters.js ---
-const { formatShortMonthName, formatShortWeekdayName, formatMetric, formatSpeedMetric, formatCachePct, formatPctNumber, getSpeedToneClass, getCacheToneClass, getStepCostToneClass, getTtftToneClass, formatTokens, formatTokensPrecise, formatCnyApprox, formatSecondaryCostApprox, formatFxRateCaption, formatDateSpanBadge, formatTrendSlotFullLabel, formatUsd, speedReasonText, formatAnomalyKindLabel, formatAnomalyTagText, resolveModelAnomalySummary, formatStepAnomalyInlineSummary, buildStepAnomalyDiagnostic, buildStepCompactionDiagnostic, buildStepRevertedDiagnostic, formatTimingDetailSec, hasStepTimingData, buildStepTimingDiagnostic, buildModelAnomalyDiagnostic, sampleSummary, formatCountdown, formatCompactDateTime, formatElapsedSec, stripVendorModelPrefix, resolveModelDisplayInfo, mergeModelsByDisplayName, getAgentBadgeClass, formatQuotaPoolLabel, formatAgentBadgeText, formatAgentLabel, formatConversationMeta, formatLiveActivityLabel, formatLiveActivityDetail, getCanonicalModelColorSeed, resolveDeterministicModelColor, buildDeterministicModelColorMap } = (() => {
+const { formatShortMonthName, formatShortWeekdayName, formatMetric, formatSpeedMetric, formatCachePct, formatPctNumber, getSpeedToneClass, getCacheToneClass, getStepCostToneClass, getTtftToneClass, formatTokens, formatTokensPrecise, formatCnyApprox, formatSecondaryCostApprox, formatFxRateCaption, formatDateSpanBadge, formatTrendSlotFullLabel, formatUsd, speedReasonText, formatAnomalyKindLabel, formatAnomalyTagText, resolveModelAnomalySummary, formatStepAnomalyInlineSummary, buildStepAnomalyDiagnostic, buildStepCompactionDiagnostic, buildStepRevertedDiagnostic, formatTimingDetailSec, hasStepTimingData, buildStepTimingDiagnostic, buildModelAnomalyDiagnostic, sampleSummary, formatCountdown, formatCompactDateTime, formatElapsedSec, stripVendorModelPrefix, resolveModelDisplayInfo, mergeModelsByDisplayName, getAgentBadgeClass, formatQuotaPoolLabel, formatAgentBadgeText, formatAgentLabel, formatConversationMeta, formatLiveActivityLabel, formatLiveActivityDetail, getTaskStepsSignature, formatLiveTaskStepsProgress, getCanonicalModelColorSeed, resolveDeterministicModelColor, buildDeterministicModelColorMap } = (() => {
 const LOCALE_MONTH_SHORT = Object.freeze({
   'en-US': Object.freeze(['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']),
   'de-DE': Object.freeze(['Jan.', 'Feb.', 'Mär.', 'Apr.', 'Mai', 'Jun.', 'Jul.', 'Aug.', 'Sep.', 'Okt.', 'Nov.', 'Dez.']),
@@ -13601,6 +13677,25 @@ function formatLiveActivityDetail(act) {
   return String(act.detail || '');
 }
 
+function getTaskStepsSignature(taskSteps) {
+  if (!taskSteps || typeof taskSteps !== 'object' || !(Number(taskSteps.total) > 0)) {
+    return '';
+  }
+  const items = Array.isArray(taskSteps.items) ? taskSteps.items : [];
+  const itemsPart = items
+    .map((it) => `${String(it?.status || 'pending')[0] || 'p'}:${String(it?.title || '')}`)
+    .join('|');
+  return `${Number(taskSteps.done || 0)}/${Number(taskSteps.total || 0)}:${Number(taskSteps.inProgress || 0)}:${Number(taskSteps.failed || 0)}:${Number(taskSteps.skipped || 0)}:${String(taskSteps.currentTitle || '')}:${itemsPart}`;
+}
+
+function formatLiveTaskStepsProgress(taskSteps) {
+  if (!taskSteps || !(Number(taskSteps.total) > 0)) return '';
+  return t('live.stepsProgress', {
+    done: Math.max(0, Number(taskSteps.done || 0)),
+    total: Math.max(1, Number(taskSteps.total || 0)),
+  });
+}
+
 const PERCEPTUAL_MODEL_COLOR_RING = [
   [217, 82, 53],
   [14, 80, 52],
@@ -13732,7 +13827,7 @@ function buildDeterministicModelColorMap(models = []) {
 
   return colorMap;
 }
-return { formatShortMonthName, formatShortWeekdayName, formatMetric, formatSpeedMetric, formatCachePct, formatPctNumber, getSpeedToneClass, getCacheToneClass, getStepCostToneClass, getTtftToneClass, formatTokens, formatTokensPrecise, formatCnyApprox, formatSecondaryCostApprox, formatFxRateCaption, formatDateSpanBadge, formatTrendSlotFullLabel, formatUsd, speedReasonText, formatAnomalyKindLabel, formatAnomalyTagText, resolveModelAnomalySummary, formatStepAnomalyInlineSummary, buildStepAnomalyDiagnostic, buildStepCompactionDiagnostic, buildStepRevertedDiagnostic, formatTimingDetailSec, hasStepTimingData, buildStepTimingDiagnostic, buildModelAnomalyDiagnostic, sampleSummary, formatCountdown, formatCompactDateTime, formatElapsedSec, stripVendorModelPrefix, resolveModelDisplayInfo, mergeModelsByDisplayName, getAgentBadgeClass, formatQuotaPoolLabel, formatAgentBadgeText, formatAgentLabel, formatConversationMeta, formatLiveActivityLabel, formatLiveActivityDetail, getCanonicalModelColorSeed, resolveDeterministicModelColor, buildDeterministicModelColorMap };
+return { formatShortMonthName, formatShortWeekdayName, formatMetric, formatSpeedMetric, formatCachePct, formatPctNumber, getSpeedToneClass, getCacheToneClass, getStepCostToneClass, getTtftToneClass, formatTokens, formatTokensPrecise, formatCnyApprox, formatSecondaryCostApprox, formatFxRateCaption, formatDateSpanBadge, formatTrendSlotFullLabel, formatUsd, speedReasonText, formatAnomalyKindLabel, formatAnomalyTagText, resolveModelAnomalySummary, formatStepAnomalyInlineSummary, buildStepAnomalyDiagnostic, buildStepCompactionDiagnostic, buildStepRevertedDiagnostic, formatTimingDetailSec, hasStepTimingData, buildStepTimingDiagnostic, buildModelAnomalyDiagnostic, sampleSummary, formatCountdown, formatCompactDateTime, formatElapsedSec, stripVendorModelPrefix, resolveModelDisplayInfo, mergeModelsByDisplayName, getAgentBadgeClass, formatQuotaPoolLabel, formatAgentBadgeText, formatAgentLabel, formatConversationMeta, formatLiveActivityLabel, formatLiveActivityDetail, getTaskStepsSignature, formatLiveTaskStepsProgress, getCanonicalModelColorSeed, resolveDeterministicModelColor, buildDeterministicModelColorMap };
 })();
 
 // --- src/core/stepInspector.js ---
@@ -14243,7 +14338,26 @@ const PORTABLE_SETTING_DESCRIPTORS = Object.freeze([
   normField('standalonePort', normalizeStandalonePort),
   normField('autoConfigureLaunch', normalizeAutoConfigureLaunch),
   normField('enableRemoteSshTelemetry', normalizeEnableRemoteSshTelemetry),
-  boolField('showTopbarMultiSession', true),
+  {
+    exportTo: (src, out) => {
+      const mode = normalizeTopbarMultiSessionMode(
+        src.topbarMultiSessionMode,
+        src.showTopbarMultiSession
+      );
+      out.topbarMultiSessionMode = mode;
+      out.showTopbarMultiSession = mode !== 'hide';
+    },
+    importTo: (src, hasKey, patch) => {
+      if (hasKey('topbarMultiSessionMode') || hasKey('showTopbarMultiSession')) {
+        const mode = normalizeTopbarMultiSessionMode(
+          src.topbarMultiSessionMode,
+          src.showTopbarMultiSession
+        );
+        patch.topbarMultiSessionMode = mode;
+        patch.showTopbarMultiSession = mode !== 'hide';
+      }
+    },
+  },
   normField('contextAgentMode', normalizeContextAgentMode),
   arrayField('topbarCapsuleSlots', normalizeTopbarCapsuleSlots),
   arrayField('hoverModules', normalizeHoverModules),
@@ -16981,7 +17095,7 @@ return { fetchHostI18nStatus, refreshHostI18nManifest, selectHostI18nLanguage, u
 })();
 
 // --- src/store/telemetryStore.js ---
-const { extractHostRouteCascadeId, telemetryStore, clearConsumptionRangeCache, clearConversationViewCache, CLIENT_TOPBAR_SLOT_KEYS, DEFAULT_CLIENT_TOPBAR_SLOTS, DEFAULT_CLIENT_CONTEXT_AGENT_MODE, CLIENT_CLI_STATUSLINE_PRESETS, DEFAULT_CLIENT_CLI_STATUSLINE_SLOTS, CLIENT_OVERVIEW_MODULE_KEYS, DEFAULT_CLIENT_OVERVIEW_MODULES, DEFAULT_CLIENT_HOVER_MODULES, DEFAULT_CLIENT_HOVER_SYNC_OVERVIEW_METRICS, DEFAULT_CLIENT_HOVER_METRIC_STYLE, DEFAULT_CLIENT_HOVER_METRICS, DEFAULT_CLIENT_OVERVIEW_METRIC_STYLE, MAX_CLIENT_LARGE_METRIC_SLOTS, CLIENT_OVERVIEW_METRIC_KEYS, DEFAULT_CLIENT_OVERVIEW_METRICS, CLIENT_STEP_COLUMN_KEYS, DEFAULT_CLIENT_STEP_COLUMNS, DEFAULT_CLIENT_STEP_TOKEN_COMBO_FORMAT, MIN_CLIENT_POPOVER_WIDTH, MAX_CLIENT_POPOVER_WIDTH, DEFAULT_CLIENT_POPOVER_WIDTH, DEFAULT_CLIENT_QUOTA_DISPLAY_MODE, parseClientStepTokenComboSegments, normalizeClientStepTokenComboFormat, normalizeClientPopoverWidthMode, normalizeClientPopoverWidth, normalizeClientModelDisplayMode, normalizeClientTopbarSlots, normalizeClientContextAgentMode, normalizeClientQuotaDisplayMode, normalizeClientExperimentalQuotaReservation, normalizeClientAccountQuotaRefreshMinutes, normalizeClientCliStatusLineSlots, getDefaultCtxInspectorAgentId, resolveOverlayCtxInspectorAgentId, resolveEffectiveClientCliStatusLineSlots, normalizeClientHoverModules, normalizeClientHoverSyncOverviewMetrics, normalizeClientHoverMetricStyle, normalizeClientHoverMetrics, normalizeClientOverviewModules, normalizeClientOverviewMetricStyle, normalizeClientOverviewMetrics, resolveEffectiveClientMetricMatrixConfig, normalizeClientStepColumns, normalizeClientUpdateMode, normalizeClientWindowMountMode, normalizeClientDisplayCurrency, isEquivalentTelemetry, resetTelemetryForEndpointSwitch, fetchTelemetry, selectConversation, selectConsumptionTimeRange, selectConsumptionCyclePool, prefetchConsumptionPresets, saveSettingsPatch, saveModelContextWindow, resetAllSettings, rebuildTrajectoryCache, triggerCloudSync, triggerFxSync, normalizeClientAutoConfigureLaunch, normalizeClientEnableRemoteSshTelemetry, triggerBridgeHostRelaunch, triggerCliStatusLineAction, fetchSessionMigrationCatalog, fetchQuotaReservationLog, executeSessionMigration, fetchLocalSessionsList, fetchSessionCleanupPreview, deleteLocalSessionsAction, redactLocalLedgerPrivacy, revealLocalSessionPathAction, triggerPluginUpdate, startAsyncTelemetryLoop, stopAsyncTelemetryLoop, resolveHostRouteMatch, resolveScopedConversation, isMacHostPlatform } = (() => {
+const { extractHostRouteCascadeId, telemetryStore, clearConsumptionRangeCache, clearConversationViewCache, CLIENT_TOPBAR_SLOT_KEYS, DEFAULT_CLIENT_TOPBAR_SLOTS, CLIENT_TOPBAR_MULTI_SESSION_MODES, DEFAULT_CLIENT_TOPBAR_MULTI_SESSION_MODE, DEFAULT_CLIENT_CONTEXT_AGENT_MODE, CLIENT_CLI_STATUSLINE_PRESETS, DEFAULT_CLIENT_CLI_STATUSLINE_SLOTS, CLIENT_OVERVIEW_MODULE_KEYS, DEFAULT_CLIENT_OVERVIEW_MODULES, DEFAULT_CLIENT_HOVER_MODULES, DEFAULT_CLIENT_HOVER_SYNC_OVERVIEW_METRICS, DEFAULT_CLIENT_HOVER_METRIC_STYLE, DEFAULT_CLIENT_HOVER_METRICS, DEFAULT_CLIENT_OVERVIEW_METRIC_STYLE, MAX_CLIENT_LARGE_METRIC_SLOTS, CLIENT_OVERVIEW_METRIC_KEYS, DEFAULT_CLIENT_OVERVIEW_METRICS, CLIENT_STEP_COLUMN_KEYS, DEFAULT_CLIENT_STEP_COLUMNS, DEFAULT_CLIENT_STEP_TOKEN_COMBO_FORMAT, MIN_CLIENT_POPOVER_WIDTH, MAX_CLIENT_POPOVER_WIDTH, DEFAULT_CLIENT_POPOVER_WIDTH, DEFAULT_CLIENT_QUOTA_DISPLAY_MODE, parseClientStepTokenComboSegments, normalizeClientStepTokenComboFormat, normalizeClientPopoverWidthMode, normalizeClientPopoverWidth, normalizeClientModelDisplayMode, normalizeClientTopbarSlots, normalizeClientTopbarMultiSessionMode, isClientTopbarMultiSessionVisible, normalizeClientContextAgentMode, normalizeClientQuotaDisplayMode, normalizeClientExperimentalQuotaReservation, normalizeClientAccountQuotaRefreshMinutes, normalizeClientCliStatusLineSlots, getDefaultCtxInspectorAgentId, resolveOverlayCtxInspectorAgentId, resolveEffectiveClientCliStatusLineSlots, normalizeClientHoverModules, normalizeClientHoverSyncOverviewMetrics, normalizeClientHoverMetricStyle, normalizeClientHoverMetrics, normalizeClientOverviewModules, normalizeClientOverviewMetricStyle, normalizeClientOverviewMetrics, resolveEffectiveClientMetricMatrixConfig, normalizeClientStepColumns, normalizeClientUpdateMode, normalizeClientWindowMountMode, normalizeClientDisplayCurrency, isEquivalentTelemetry, resetTelemetryForEndpointSwitch, fetchTelemetry, selectConversation, selectConsumptionTimeRange, selectConsumptionCyclePool, prefetchConsumptionPresets, saveSettingsPatch, saveModelContextWindow, resetAllSettings, rebuildTrajectoryCache, triggerCloudSync, triggerFxSync, normalizeClientAutoConfigureLaunch, normalizeClientEnableRemoteSshTelemetry, triggerBridgeHostRelaunch, triggerCliStatusLineAction, fetchSessionMigrationCatalog, fetchQuotaReservationLog, executeSessionMigration, fetchLocalSessionsList, fetchSessionCleanupPreview, deleteLocalSessionsAction, redactLocalLedgerPrivacy, revealLocalSessionPathAction, triggerPluginUpdate, startAsyncTelemetryLoop, stopAsyncTelemetryLoop, resolveHostRouteMatch, resolveScopedConversation, isMacHostPlatform } = (() => {
 const CASCADE_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function extractHostRouteCascadeId() {
@@ -17381,6 +17495,8 @@ function reconcileIncomingTelemetrySettings(payload, reqSettingsRev) {
 
 const CLIENT_TOPBAR_SLOT_KEYS = TOPBAR_SLOT_KEYS;
 const DEFAULT_CLIENT_TOPBAR_SLOTS = DEFAULT_TOPBAR_SLOTS;
+const CLIENT_TOPBAR_MULTI_SESSION_MODES = TOPBAR_MULTI_SESSION_MODES;
+const DEFAULT_CLIENT_TOPBAR_MULTI_SESSION_MODE = DEFAULT_TOPBAR_MULTI_SESSION_MODE;
 const DEFAULT_CLIENT_CONTEXT_AGENT_MODE = DEFAULT_CONTEXT_AGENT_MODE;
 const CLIENT_CLI_STATUSLINE_PRESETS = CLI_STATUSLINE_PRESETS;
 const DEFAULT_CLIENT_CLI_STATUSLINE_SLOTS = DEFAULT_CLI_STATUSLINE_SLOTS;
@@ -17408,6 +17524,8 @@ const normalizeClientPopoverWidthMode = normalizePopoverWidthMode;
 const normalizeClientPopoverWidth = normalizePopoverWidth;
 const normalizeClientModelDisplayMode = normalizeModelDisplayMode;
 const normalizeClientTopbarSlots = normalizeTopbarCapsuleSlots;
+const normalizeClientTopbarMultiSessionMode = normalizeTopbarMultiSessionMode;
+const isClientTopbarMultiSessionVisible = isTopbarMultiSessionVisible;
 const normalizeClientContextAgentMode = normalizeContextAgentMode;
 const normalizeClientQuotaDisplayMode = normalizeQuotaDisplayMode;
 const normalizeClientExperimentalQuotaReservation = normalizeExperimentalQuotaReservation;
@@ -17540,6 +17658,18 @@ function isEquivalentTelemetry(prev, next) {
     return false;
   }
   if (!sameArr(pSet?.cliStatusLineSlots, nSet?.cliStatusLineSlots)) return false;
+  if (
+    normalizeClientTopbarMultiSessionMode(
+      pSet?.topbarMultiSessionMode,
+      pSet?.showTopbarMultiSession
+    ) !==
+    normalizeClientTopbarMultiSessionMode(
+      nSet?.topbarMultiSessionMode,
+      nSet?.showTopbarMultiSession
+    )
+  ) {
+    return false;
+  }
   if ((pSet?.showTopbarMultiSession !== false) !== (nSet?.showTopbarMultiSession !== false)) {
     return false;
   }
@@ -17709,7 +17839,9 @@ function isEquivalentTelemetry(prev, next) {
   }
   if (
     pAct?.liveActivity?.signature !== nAct?.liveActivity?.signature ||
-    pAct?.liveActivity?.startedAtMs !== nAct?.liveActivity?.startedAtMs
+    pAct?.liveActivity?.startedAtMs !== nAct?.liveActivity?.startedAtMs ||
+    getTaskStepsSignature(pAct?.liveActivity?.taskSteps) !==
+      getTaskStepsSignature(nAct?.liveActivity?.taskSteps)
   ) {
     return false;
   }
@@ -17724,7 +17856,9 @@ function isEquivalentTelemetry(prev, next) {
   }
   if (
     pAct?.aggregated?.liveActivity?.signature !== nAct?.aggregated?.liveActivity?.signature ||
-    pAct?.aggregated?.liveActivity?.startedAtMs !== nAct?.aggregated?.liveActivity?.startedAtMs
+    pAct?.aggregated?.liveActivity?.startedAtMs !== nAct?.aggregated?.liveActivity?.startedAtMs ||
+    getTaskStepsSignature(pAct?.aggregated?.liveActivity?.taskSteps) !==
+      getTaskStepsSignature(nAct?.aggregated?.liveActivity?.taskSteps)
   ) {
     return false;
   }
@@ -17782,6 +17916,8 @@ function isEquivalentTelemetry(prev, next) {
       pa?.stepCount !== na?.stepCount ||
       pa?.isRunning !== na?.isRunning ||
       pa?.liveActivity?.signature !== na?.liveActivity?.signature ||
+      getTaskStepsSignature(pa?.liveActivity?.taskSteps) !==
+        getTaskStepsSignature(na?.liveActivity?.taskSteps) ||
       pa?.latestTokPerSec !== na?.latestTokPerSec ||
       pa?.latestTtftSec !== na?.latestTtftSec ||
       pa?.lastKnownTtftSec !== na?.lastKnownTtftSec ||
@@ -18171,7 +18307,9 @@ function isEquivalentTelemetry(prev, next) {
       pr?.runningSubagentCount !== nr?.runningSubagentCount ||
       (pr?.runningSwarmCount || 0) !== (nr?.runningSwarmCount || 0) ||
       pr?.mainActivity?.signature !== nr?.mainActivity?.signature ||
-      pr?.mainActivity?.startedAtMs !== nr?.mainActivity?.startedAtMs
+      pr?.mainActivity?.startedAtMs !== nr?.mainActivity?.startedAtMs ||
+      getTaskStepsSignature(pr?.mainActivity?.taskSteps) !==
+        getTaskStepsSignature(nr?.mainActivity?.taskSteps)
     ) {
       return false;
     }
@@ -18187,7 +18325,9 @@ function isEquivalentTelemetry(prev, next) {
         pSubs[j]?.isRunning !== nSubs[j]?.isRunning ||
         pSubs[j]?.stepCount !== nSubs[j]?.stepCount ||
         pSubs[j]?.liveActivity?.signature !== nSubs[j]?.liveActivity?.signature ||
-        pSubs[j]?.liveActivity?.startedAtMs !== nSubs[j]?.liveActivity?.startedAtMs
+        pSubs[j]?.liveActivity?.startedAtMs !== nSubs[j]?.liveActivity?.startedAtMs ||
+        getTaskStepsSignature(pSubs[j]?.liveActivity?.taskSteps) !==
+          getTaskStepsSignature(nSubs[j]?.liveActivity?.taskSteps)
       ) {
         return false;
       }
@@ -18871,8 +19011,17 @@ async function saveSettingsPatch(patch) {
   if (Object.prototype.hasOwnProperty.call(safePatch, 'enableCliStatusLine')) {
     safePatch.enableCliStatusLine = Boolean(safePatch.enableCliStatusLine);
   }
-  if (Object.prototype.hasOwnProperty.call(safePatch, 'showTopbarMultiSession')) {
-    safePatch.showTopbarMultiSession = Boolean(safePatch.showTopbarMultiSession);
+  if (Object.prototype.hasOwnProperty.call(safePatch, 'topbarMultiSessionMode')) {
+    const normMultiMode = normalizeClientTopbarMultiSessionMode(
+      safePatch.topbarMultiSessionMode,
+      safePatch.showTopbarMultiSession
+    );
+    safePatch.topbarMultiSessionMode = normMultiMode;
+    safePatch.showTopbarMultiSession = normMultiMode !== 'hide';
+  } else if (Object.prototype.hasOwnProperty.call(safePatch, 'showTopbarMultiSession')) {
+    const nextShowMulti = Boolean(safePatch.showTopbarMultiSession);
+    safePatch.showTopbarMultiSession = nextShowMulti;
+    safePatch.topbarMultiSessionMode = nextShowMulti ? 'show' : 'hide';
   }
   if (Object.prototype.hasOwnProperty.call(safePatch, 'contextAgentMode')) {
     safePatch.contextAgentMode = normalizeClientContextAgentMode(safePatch.contextAgentMode);
@@ -19646,7 +19795,7 @@ function isMacHostPlatform(telemetry) {
   }
   return false;
 }
-return { extractHostRouteCascadeId, telemetryStore, clearConsumptionRangeCache, clearConversationViewCache, CLIENT_TOPBAR_SLOT_KEYS, DEFAULT_CLIENT_TOPBAR_SLOTS, DEFAULT_CLIENT_CONTEXT_AGENT_MODE, CLIENT_CLI_STATUSLINE_PRESETS, DEFAULT_CLIENT_CLI_STATUSLINE_SLOTS, CLIENT_OVERVIEW_MODULE_KEYS, DEFAULT_CLIENT_OVERVIEW_MODULES, DEFAULT_CLIENT_HOVER_MODULES, DEFAULT_CLIENT_HOVER_SYNC_OVERVIEW_METRICS, DEFAULT_CLIENT_HOVER_METRIC_STYLE, DEFAULT_CLIENT_HOVER_METRICS, DEFAULT_CLIENT_OVERVIEW_METRIC_STYLE, MAX_CLIENT_LARGE_METRIC_SLOTS, CLIENT_OVERVIEW_METRIC_KEYS, DEFAULT_CLIENT_OVERVIEW_METRICS, CLIENT_STEP_COLUMN_KEYS, DEFAULT_CLIENT_STEP_COLUMNS, DEFAULT_CLIENT_STEP_TOKEN_COMBO_FORMAT, MIN_CLIENT_POPOVER_WIDTH, MAX_CLIENT_POPOVER_WIDTH, DEFAULT_CLIENT_POPOVER_WIDTH, DEFAULT_CLIENT_QUOTA_DISPLAY_MODE, parseClientStepTokenComboSegments, normalizeClientStepTokenComboFormat, normalizeClientPopoverWidthMode, normalizeClientPopoverWidth, normalizeClientModelDisplayMode, normalizeClientTopbarSlots, normalizeClientContextAgentMode, normalizeClientQuotaDisplayMode, normalizeClientExperimentalQuotaReservation, normalizeClientAccountQuotaRefreshMinutes, normalizeClientCliStatusLineSlots, getDefaultCtxInspectorAgentId, resolveOverlayCtxInspectorAgentId, resolveEffectiveClientCliStatusLineSlots, normalizeClientHoverModules, normalizeClientHoverSyncOverviewMetrics, normalizeClientHoverMetricStyle, normalizeClientHoverMetrics, normalizeClientOverviewModules, normalizeClientOverviewMetricStyle, normalizeClientOverviewMetrics, resolveEffectiveClientMetricMatrixConfig, normalizeClientStepColumns, normalizeClientUpdateMode, normalizeClientWindowMountMode, normalizeClientDisplayCurrency, isEquivalentTelemetry, resetTelemetryForEndpointSwitch, fetchTelemetry, selectConversation, selectConsumptionTimeRange, selectConsumptionCyclePool, prefetchConsumptionPresets, saveSettingsPatch, saveModelContextWindow, resetAllSettings, rebuildTrajectoryCache, triggerCloudSync, triggerFxSync, normalizeClientAutoConfigureLaunch, normalizeClientEnableRemoteSshTelemetry, triggerBridgeHostRelaunch, triggerCliStatusLineAction, fetchSessionMigrationCatalog, fetchQuotaReservationLog, executeSessionMigration, fetchLocalSessionsList, fetchSessionCleanupPreview, deleteLocalSessionsAction, redactLocalLedgerPrivacy, revealLocalSessionPathAction, triggerPluginUpdate, startAsyncTelemetryLoop, stopAsyncTelemetryLoop, resolveHostRouteMatch, resolveScopedConversation, isMacHostPlatform };
+return { extractHostRouteCascadeId, telemetryStore, clearConsumptionRangeCache, clearConversationViewCache, CLIENT_TOPBAR_SLOT_KEYS, DEFAULT_CLIENT_TOPBAR_SLOTS, CLIENT_TOPBAR_MULTI_SESSION_MODES, DEFAULT_CLIENT_TOPBAR_MULTI_SESSION_MODE, DEFAULT_CLIENT_CONTEXT_AGENT_MODE, CLIENT_CLI_STATUSLINE_PRESETS, DEFAULT_CLIENT_CLI_STATUSLINE_SLOTS, CLIENT_OVERVIEW_MODULE_KEYS, DEFAULT_CLIENT_OVERVIEW_MODULES, DEFAULT_CLIENT_HOVER_MODULES, DEFAULT_CLIENT_HOVER_SYNC_OVERVIEW_METRICS, DEFAULT_CLIENT_HOVER_METRIC_STYLE, DEFAULT_CLIENT_HOVER_METRICS, DEFAULT_CLIENT_OVERVIEW_METRIC_STYLE, MAX_CLIENT_LARGE_METRIC_SLOTS, CLIENT_OVERVIEW_METRIC_KEYS, DEFAULT_CLIENT_OVERVIEW_METRICS, CLIENT_STEP_COLUMN_KEYS, DEFAULT_CLIENT_STEP_COLUMNS, DEFAULT_CLIENT_STEP_TOKEN_COMBO_FORMAT, MIN_CLIENT_POPOVER_WIDTH, MAX_CLIENT_POPOVER_WIDTH, DEFAULT_CLIENT_POPOVER_WIDTH, DEFAULT_CLIENT_QUOTA_DISPLAY_MODE, parseClientStepTokenComboSegments, normalizeClientStepTokenComboFormat, normalizeClientPopoverWidthMode, normalizeClientPopoverWidth, normalizeClientModelDisplayMode, normalizeClientTopbarSlots, normalizeClientTopbarMultiSessionMode, isClientTopbarMultiSessionVisible, normalizeClientContextAgentMode, normalizeClientQuotaDisplayMode, normalizeClientExperimentalQuotaReservation, normalizeClientAccountQuotaRefreshMinutes, normalizeClientCliStatusLineSlots, getDefaultCtxInspectorAgentId, resolveOverlayCtxInspectorAgentId, resolveEffectiveClientCliStatusLineSlots, normalizeClientHoverModules, normalizeClientHoverSyncOverviewMetrics, normalizeClientHoverMetricStyle, normalizeClientHoverMetrics, normalizeClientOverviewModules, normalizeClientOverviewMetricStyle, normalizeClientOverviewMetrics, resolveEffectiveClientMetricMatrixConfig, normalizeClientStepColumns, normalizeClientUpdateMode, normalizeClientWindowMountMode, normalizeClientDisplayCurrency, isEquivalentTelemetry, resetTelemetryForEndpointSwitch, fetchTelemetry, selectConversation, selectConsumptionTimeRange, selectConsumptionCyclePool, prefetchConsumptionPresets, saveSettingsPatch, saveModelContextWindow, resetAllSettings, rebuildTrajectoryCache, triggerCloudSync, triggerFxSync, normalizeClientAutoConfigureLaunch, normalizeClientEnableRemoteSshTelemetry, triggerBridgeHostRelaunch, triggerCliStatusLineAction, fetchSessionMigrationCatalog, fetchQuotaReservationLog, executeSessionMigration, fetchLocalSessionsList, fetchSessionCleanupPreview, deleteLocalSessionsAction, redactLocalLedgerPrivacy, revealLocalSessionPathAction, triggerPluginUpdate, startAsyncTelemetryLoop, stopAsyncTelemetryLoop, resolveHostRouteMatch, resolveScopedConversation, isMacHostPlatform };
 })();
 
 // --- src/components/ui/TopLongPillNav.js ---
@@ -31908,6 +32057,8 @@ function buildFallbackRunningConversations(
       isCurrentSelected: true,
       isMainRunning: Boolean(activeConv.isRunning),
       isRunning: true,
+      stepCount: Number(activeConv.stepCount || 0),
+      totalStepCount: Number(activeConv.totalStepCount || activeConv.stepCount || 0),
       mainActivity: activeConv.liveActivity || aggregated?.liveActivity || null,
       subagentCount: childAgents.length,
       swarmCount: swarmChildren.length,
@@ -31989,6 +32140,7 @@ const LiveActivityWidget = defineComponent({
     });
 
     const manualSubExpandMap = new Map();
+    const manualStepsExpandMap = new Map();
     const activityTimersMap = new Map();
     let liveTickTimer = null;
     let latestUpdateArgs = null;
@@ -32137,12 +32289,19 @@ const LiveActivityWidget = defineComponent({
           titleEl,
           ...(hereTagEl ? [hereTagEl] : []),
         ]),
-        h('div', { className: 'live-task-header-right' }, [
-          ...(metricsEl ? [metricsEl] : []),
-          subToggleBtn,
-          elapsedEl,
-        ]),
+        h(
+          'div',
+          { className: 'live-task-header-right' },
+          showSessionExtras ? [elapsedEl] : [subToggleBtn, elapsedEl]
+        ),
       ]);
+
+      const metaRowEl = showSessionExtras
+        ? h('div', { className: 'live-task-meta-row', hidden: true }, [
+            metricsEl,
+            subToggleBtn,
+          ])
+        : null;
 
       const mainBadge = h('span', {
         className: 'agent-badge badge-main',
@@ -32173,6 +32332,33 @@ const LiveActivityWidget = defineComponent({
         mainDetail,
       ]);
 
+      const stepsCountBadge = h('span', {
+        className: 'live-steps-count text-mono',
+        text: '',
+      });
+      const stepsCurrentEl = h('span', {
+        className: 'live-steps-current',
+        hidden: true,
+        text: '',
+      });
+      const stepsChevron = createSvgIcon('chevron-down', {
+        size: 10,
+        className: 'live-steps-chevron',
+      });
+      const stepsSummaryBtn = h(
+        'button',
+        {
+          type: 'button',
+          className: 'live-steps-summary',
+        },
+        [stepsCountBadge, stepsCurrentEl, stepsChevron]
+      );
+      const stepsListEl = h('div', { className: 'live-steps-list', hidden: true });
+      const stepsBoxEl = h('div', { className: 'live-steps-box', hidden: true }, [
+        stepsSummaryBtn,
+        stepsListEl,
+      ]);
+
       const subListEl = h('div', { className: 'live-sub-list', hidden: true });
       const subScroll = CustomScrollbar({
         contentEl: subListEl,
@@ -32182,6 +32368,8 @@ const LiveActivityWidget = defineComponent({
       const cardEl = h('div', { className: 'live-task-card' }, [
         headerEl,
         mainRowEl,
+        stepsBoxEl,
+        ...(metaRowEl ? [metaRowEl] : []),
         subScroll.el,
       ]);
 
@@ -32193,6 +32381,7 @@ const LiveActivityWidget = defineComponent({
           titleEl,
           hereTagEl,
           metricsEl,
+          metaRowEl,
           subToggleBtn,
           subToggleLabel,
           subToggleChevron,
@@ -32202,11 +32391,27 @@ const LiveActivityWidget = defineComponent({
           mainProgress,
           mainSep,
           mainDetail,
+          stepsBoxEl,
+          stepsSummaryBtn,
+          stepsCountBadge,
+          stepsCurrentEl,
+          stepsChevron,
+          stepsListEl,
           subListEl,
           subScroll,
           subAnimTimer: null,
           isCollapsingSubs: false,
         },
+      };
+    }
+
+    function createLiveStepItemRow() {
+      const dotEl = h('span', { className: 'live-step-dot', 'aria-hidden': 'true' });
+      const titleEl = h('span', { className: 'live-step-title', text: '' });
+      const rowEl = h('div', { className: 'live-step-item' }, [dotEl, titleEl]);
+      return {
+        el: rowEl,
+        refs: { rowEl, dotEl, titleEl },
       };
     }
 
@@ -32254,11 +32459,16 @@ const LiveActivityWidget = defineComponent({
         rawRunningList = buildFallbackRunningConversations(data, { agents, aggregated });
       }
 
-      if (manualSubExpandMap.size > 0) {
+      if (manualSubExpandMap.size > 0 || manualStepsExpandMap.size > 0) {
         const runningIdsSet = new Set(rawRunningList.map((item) => item.cascadeId));
         for (const id of [...manualSubExpandMap.keys()]) {
           if (!runningIdsSet.has(id)) {
             manualSubExpandMap.delete(id);
+          }
+        }
+        for (const id of [...manualStepsExpandMap.keys()]) {
+          if (!runningIdsSet.has(id)) {
+            manualStepsExpandMap.delete(id);
           }
         }
       }
@@ -32311,13 +32521,15 @@ const LiveActivityWidget = defineComponent({
               (item.subagents || []).some(
                 (s) => String(s?.cascadeId || '').toLowerCase() === hostRouteLower
               ));
+          const stepsSig = getTaskStepsSignature(item.mainActivity?.taskSteps);
+          const isStepsExp = Boolean(manualStepsExpandMap.get(item.cascadeId));
           const subSig = (item.subagents || [])
             .map(
               (s) =>
                 `${s.cascadeId}:${s.isRunning}:${s.swarmState || ''}:${s.stepCount}:${s.liveActivity?.signature || ''}:${s.liveActivity?.startedAtMs || 0}`
             )
             .join('|');
-          return `${locale}:${item.cascadeId}:${item.title}:${isHere}:${item.isMainRunning}:${item.subagentCount}:${item.swarmCount || 0}:${item.runningSubagentCount}:${isExp}:${item.latestTokPerSec ?? ''}:${item.contextUsedPct ?? ''}:${item.mainActivity?.signature || ''}:${item.mainActivity?.startedAtMs || 0}:${subSig}`;
+          return `${locale}:${item.cascadeId}:${item.title}:${isHere}:${item.isMainRunning}:${item.subagentCount}:${item.swarmCount || 0}:${item.runningSubagentCount}:${isExp}:${isStepsExp}:${stepsSig}:${item.latestTokPerSec ?? ''}:${item.contextUsedPct ?? ''}:${item.mainActivity?.signature || ''}:${item.mainActivity?.startedAtMs || 0}:${subSig}`;
         },
         createRow: createLiveTaskCard,
         updateRow: (refs, item) => {
@@ -32360,6 +32572,7 @@ const LiveActivityWidget = defineComponent({
             };
           }
 
+          let hasExtrasMetrics = false;
           if (showSessionExtras && refs.hereTagEl && refs.metricsEl) {
             const isHere =
               Boolean(hostRouteLower) &&
@@ -32380,6 +32593,7 @@ const LiveActivityWidget = defineComponent({
               metricParts.push(`${Math.round(Number(item.contextUsedPct))}%`);
             }
             const metricsStr = metricParts.join(' · ');
+            hasExtrasMetrics = Boolean(metricsStr);
             patchAttr(refs.metricsEl, 'hidden', !metricsStr);
             if (metricsStr) {
               patchText(refs.metricsEl, metricsStr);
@@ -32387,6 +32601,9 @@ const LiveActivityWidget = defineComponent({
           }
 
           const subCount = Number(item.subagentCount || item.subagents?.length || 0);
+          if (refs.metaRowEl) {
+            patchAttr(refs.metaRowEl, 'hidden', !hasExtrasMetrics && subCount === 0);
+          }
           const swarmCount = Number(
             item.swarmCount ??
               (item.subagents || []).filter((s) => s?.agentKind === 'swarm_worker').length
@@ -32533,7 +32750,9 @@ const LiveActivityWidget = defineComponent({
           );
 
           patchText(refs.mainPhase, mainLabel);
-          const progText = act.stepProgress ? `[${act.stepProgress}]` : '';
+          const progText = act.stepProgress
+            ? String(act.stepProgress).replace(/^\[|\]$/g, '').trim()
+            : '';
           patchAttr(refs.mainProgress, 'hidden', !progText);
           if (progText) {
             patchText(refs.mainProgress, progText);
@@ -32543,8 +32762,93 @@ const LiveActivityWidget = defineComponent({
           patchAttr(refs.mainDetail, 'hidden', !detailStr);
           patchText(refs.mainDetail, detailStr);
 
+          const taskSteps =
+            act.taskSteps && Number(act.taskSteps.total) > 0 ? act.taskSteps : null;
+          patchAttr(refs.stepsBoxEl, 'hidden', !taskSteps);
+          if (taskSteps) {
+            const stepsDone = Math.max(0, Number(taskSteps.done || 0));
+            const stepsTotal = Math.max(1, Number(taskSteps.total || 0));
+            const allDone = stepsDone >= stepsTotal && Number(taskSteps.failed || 0) === 0;
+            const hasFailed = Number(taskSteps.failed || 0) > 0;
+            const stepItems = Array.isArray(taskSteps.items) ? taskSteps.items : [];
+            const canExpandSteps = interactive && stepItems.length > 0;
+            const stepsExpanded = canExpandSteps && Boolean(manualStepsExpandMap.get(item.cascadeId));
+
+            patchText(refs.stepsCountBadge, formatLiveTaskStepsProgress(taskSteps));
+            patchClasses(refs.stepsCountBadge, {
+              'is-done': allDone,
+              'is-failed': hasFailed,
+            });
+            const currentStepText =
+              String(taskSteps.currentTitle || '').trim() || (allDone ? t('live.stepsAllDone') : '');
+            patchAttr(refs.stepsCurrentEl, 'hidden', !currentStepText);
+            if (currentStepText) {
+              patchText(refs.stepsCurrentEl, currentStepText);
+            }
+            patchAttr(refs.stepsChevron, 'hidden', !canExpandSteps);
+            patchClasses(refs.stepsSummaryBtn, {
+              'is-expanded': stepsExpanded,
+              'is-static': !canExpandSteps,
+            });
+            patchAttr(
+              refs.stepsSummaryBtn,
+              'aria-expanded',
+              canExpandSteps ? (stepsExpanded ? 'true' : 'false') : null
+            );
+            patchAttr(
+              refs.stepsSummaryBtn,
+              'title',
+              canExpandSteps
+                ? stepsExpanded
+                  ? t('live.stepsCollapseTitle')
+                  : t('live.stepsExpandTitle')
+                : null
+            );
+            refs.stepsSummaryBtn.onclick = canExpandSteps
+              ? (e) => {
+                  e?.stopPropagation?.();
+                  manualStepsExpandMap.set(
+                    item.cascadeId,
+                    !Boolean(manualStepsExpandMap.get(item.cascadeId))
+                  );
+                  if (latestUpdateArgs) update(latestUpdateArgs);
+                  onLayoutChange?.();
+                }
+              : null;
+
+            const showStepsList = canExpandSteps && stepsExpanded;
+            patchAttr(refs.stepsListEl, 'hidden', !showStepsList);
+            if (showStepsList) {
+              patchKeyedList(refs.stepsListEl, stepItems, {
+                keyFn: (st, idx) => `${idx}:${st.title}`,
+                sigFn: (st) => `${st.status}:${st.title}`,
+                createRow: createLiveStepItemRow,
+                updateRow: (stepRefs, st) => {
+                  const status = String(st?.status || 'pending');
+                  patchClasses(stepRefs.rowEl, {
+                    'is-done': status === 'done',
+                    'is-in-progress': status === 'in_progress',
+                    'is-failed': status === 'failed',
+                    'is-skipped': status === 'skipped',
+                    'is-pending':
+                      status !== 'done' &&
+                      status !== 'in_progress' &&
+                      status !== 'failed' &&
+                      status !== 'skipped',
+                  });
+                  patchText(stepRefs.titleEl, st?.title || '');
+                },
+              });
+            }
+          } else {
+            refs.stepsSummaryBtn.onclick = null;
+          }
+
           if (interactive && !showSessionExtras) {
-            const fullTooltip = `[${convTitle}] ${t('fmt.mainAgent')} · ${mainLabel}${progText ? ` ${progText}` : ''}${detailStr ? ` · ${detailStr}` : ''}`;
+            const stepsSummarySuffix = taskSteps
+              ? ` · ${formatLiveTaskStepsProgress(taskSteps)}${taskSteps.currentTitle ? ` ${taskSteps.currentTitle}` : ''}`
+              : '';
+            const fullTooltip = `[${convTitle}] ${t('fmt.mainAgent')} · ${mainLabel}${progText ? ` ${progText}` : ''}${detailStr ? ` · ${detailStr}` : ''}${stepsSummarySuffix}`;
             patchAttr(refs.cardEl, 'title', fullTooltip);
           }
 
@@ -32636,7 +32940,10 @@ const LiveActivityWidget = defineComponent({
                   ? formatLiveActivityLabel(subAct, 'live.running')
                   : formatLiveActivityLabel(subAct, idleFallbackKey);
                 const subDetail = formatLiveActivityDetail(subAct);
-                const subProg = subAct.stepProgress ? ` [${subAct.stepProgress}]` : '';
+                const subProgClean = subAct.stepProgress
+                  ? String(subAct.stepProgress).replace(/^\[|\]$/g, '').trim()
+                  : '';
+                const subProg = subProgClean ? ` ${subProgClean}` : '';
                 const summaryStr = showSessionExtras
                   ? sub.isRunning
                     ? `${subLabel}${subProg}${subDetail ? ` · ${subDetail}` : ''}`
@@ -34255,7 +34562,10 @@ const CapsuleBarWidget = defineComponent({
         settings.windowMountMode,
         settings.enableWindowOverlay
       );
-      const showMulti = settings.showTopbarMultiSession !== false;
+      const multiMode = normalizeClientTopbarMultiSessionMode(
+        settings.topbarMultiSessionMode,
+        settings.showTopbarMultiSession
+      );
       const slotKeys = normalizeClientTopbarSlots(settings.topbarCapsuleSlots);
       currentSlotKeys = [...slotKeys];
 
@@ -34273,9 +34583,8 @@ const CapsuleBarWidget = defineComponent({
       patchAttr(sidebarHintEl, 'hidden', !isSidebar);
       patchText(sidebarHintEl, t('settings.str.previewMountSidebarHint'));
 
-      patchAttr(multiBtn, 'hidden', !showMulti);
-
       if (!data) {
+        patchAttr(multiBtn, 'hidden', !isClientTopbarMultiSessionVisible(multiMode, 0));
         patchClasses(multiBtn, { 'is-running': false, 'is-waiting': false });
         patchCapsuleOdometerText(multiLabel, t('capsule.multiZero'), { resetKey: 'multi' });
         syncCapsuleSlotNodes(capsuleSlots, capsuleSeps, slotKeys, { hasTelemetry: false });
@@ -34295,6 +34604,7 @@ const CapsuleBarWidget = defineComponent({
         contextUsedPct: slotCtx.usedPct,
       });
 
+      patchAttr(multiBtn, 'hidden', !isClientTopbarMultiSessionVisible(multiMode, runningCount));
       patchClasses(multiBtn, {
         'is-running': runningCount > 0 && !hasWaiting,
         'is-waiting': runningCount > 0 && hasWaiting,
@@ -42272,6 +42582,14 @@ function getContextAgentModeOptions() {
   ];
 }
 
+function getMultiSessionModeOptions() {
+  return [
+    { value: 'show', label: t('settings.str.show') },
+    { value: 'running_only', label: t('settings.str.runningOnly') },
+    { value: 'hide', label: t('settings.str.hide') },
+  ];
+}
+
 function getHoverMetricStyleOptions() {
   return [
     { value: 'medium', label: t('settings.str.hoverMetricStyleMedium') },
@@ -42423,7 +42741,7 @@ const SettingsStructureTab = defineComponent({
     let draftPopoverWidth = DEFAULT_CLIENT_POPOVER_WIDTH;
     let draftEnableCliStatusLine = true;
     let draftCliStatusLineSlots = null;
-    let draftShowTopbarMulti = true;
+    let draftTopbarMultiSessionMode = DEFAULT_CLIENT_TOPBAR_MULTI_SESSION_MODE;
     let draftContextAgentMode = DEFAULT_CLIENT_CONTEXT_AGENT_MODE;
     let draftTopbarSlots = [...DEFAULT_CLIENT_TOPBAR_SLOTS];
     let draftHoverModules = [...DEFAULT_CLIENT_HOVER_MODULES];
@@ -42473,7 +42791,8 @@ const SettingsStructureTab = defineComponent({
           popoverWidthMode: draftPopoverWidthMode,
           popoverWidth: draftPopoverWidth,
           enableCliStatusLine: draftEnableCliStatusLine,
-          showTopbarMultiSession: draftShowTopbarMulti,
+          topbarMultiSessionMode: draftTopbarMultiSessionMode,
+          showTopbarMultiSession: draftTopbarMultiSessionMode !== 'hide',
           contextAgentMode: draftContextAgentMode,
           topbarCapsuleSlots: draftTopbarSlots,
           hoverModules: draftHoverModules,
@@ -42712,15 +43031,17 @@ const SettingsStructureTab = defineComponent({
       },
     });
 
-    const multiSessionToggle = ToggleSwitch({
-      ariaLabelKey: 'settings.str.multiToggle',
-      preset: 'visibility',
-      modelValue: 'show',
+    const multiSessionToggle = SegmentedControl({
+      ariaLabel: t('settings.str.multiToggle'),
+      modelValue: draftTopbarMultiSessionMode,
+      options: getMultiSessionModeOptions(),
       onUpdateModelValue: (val) => {
-        draftShowTopbarMulti = val !== 'hide';
+        const nextMode = normalizeClientTopbarMultiSessionMode(val);
+        draftTopbarMultiSessionMode = nextMode;
         syncMountSectionMeta();
         void persistStructurePatch(mountSection, {
-          showTopbarMultiSession: draftShowTopbarMulti,
+          topbarMultiSessionMode: nextMode,
+          showTopbarMultiSession: nextMode !== 'hide',
         });
       },
     });
@@ -42878,7 +43199,7 @@ const SettingsStructureTab = defineComponent({
         draftPopoverWidthMode = 'auto';
         draftPopoverWidth = DEFAULT_CLIENT_POPOVER_WIDTH;
         popoverWidthStepper.setProps({ modelValue: DEFAULT_CLIENT_POPOVER_WIDTH });
-        draftShowTopbarMulti = true;
+        draftTopbarMultiSessionMode = DEFAULT_CLIENT_TOPBAR_MULTI_SESSION_MODE;
         draftContextAgentMode = DEFAULT_CLIENT_CONTEXT_AGENT_MODE;
         draftTopbarSlots = [...DEFAULT_CLIENT_TOPBAR_SLOTS];
         uiStore.setState({ ctxInspectorAgentId: DEFAULT_CLIENT_CONTEXT_AGENT_MODE });
@@ -42891,6 +43212,7 @@ const SettingsStructureTab = defineComponent({
             enableWindowOverlay: true,
             popoverWidthMode: 'auto',
             popoverWidth: DEFAULT_CLIENT_POPOVER_WIDTH,
+            topbarMultiSessionMode: DEFAULT_CLIENT_TOPBAR_MULTI_SESSION_MODE,
             showTopbarMultiSession: true,
             contextAgentMode: DEFAULT_CLIENT_CONTEXT_AGENT_MODE,
             topbarCapsuleSlots: [...DEFAULT_CLIENT_TOPBAR_SLOTS],
@@ -42936,7 +43258,11 @@ const SettingsStructureTab = defineComponent({
         1,
         Array.isArray(mockData?.runningConversations) ? mockData.runningConversations.length : 1
       );
-      patchAttr(cliPreviewMultiEl, 'hidden', !draftShowTopbarMulti);
+      patchAttr(
+        cliPreviewMultiEl,
+        'hidden',
+        !isClientTopbarMultiSessionVisible(draftTopbarMultiSessionMode, runningCount)
+      );
       patchText(cliPreviewMultiTextEl, t('settings.str.cliPreviewRunning', { count: runningCount }));
       for (let i = 0; i < cliPreviewSlotParts.length; i += 1) {
         const parts = cliPreviewSlotParts[i];
@@ -43057,7 +43383,9 @@ const SettingsStructureTab = defineComponent({
         });
       }
       multiSessionToggle.setProps({
-        modelValue: draftShowTopbarMulti ? 'show' : 'hide',
+        modelValue: draftTopbarMultiSessionMode,
+        options: getMultiSessionModeOptions(),
+        ariaLabel: t('settings.str.multiToggle'),
       });
       contextAgentModeToggle.setProps({
         modelValue: draftContextAgentMode,
@@ -43072,7 +43400,7 @@ const SettingsStructureTab = defineComponent({
         draftWindowMountMode === 'dual' &&
         draftPopoverWidthMode === 'auto' &&
         draftPopoverWidth === DEFAULT_CLIENT_POPOVER_WIDTH &&
-        draftShowTopbarMulti === true &&
+        draftTopbarMultiSessionMode === DEFAULT_CLIENT_TOPBAR_MULTI_SESSION_MODE &&
         draftContextAgentMode === DEFAULT_CLIENT_CONTEXT_AGENT_MODE &&
         isSameList(draftTopbarSlots, DEFAULT_CLIENT_TOPBAR_SLOTS);
       mountSection.refs.setResetDisabled(isDefault);
@@ -43991,7 +44319,10 @@ const SettingsStructureTab = defineComponent({
       draftPopoverWidth = normalizeClientPopoverWidth(settings.popoverWidth);
       draftEnableCliStatusLine = settings.enableCliStatusLine !== false;
       draftCliStatusLineSlots = normalizeClientCliStatusLineSlots(settings.cliStatusLineSlots);
-      draftShowTopbarMulti = settings.showTopbarMultiSession !== false;
+      draftTopbarMultiSessionMode = normalizeClientTopbarMultiSessionMode(
+        settings.topbarMultiSessionMode,
+        settings.showTopbarMultiSession
+      );
       draftContextAgentMode = normalizeClientContextAgentMode(settings.contextAgentMode);
       draftTopbarSlots = normalizeClientTopbarSlots(settings.topbarCapsuleSlots);
       draftHoverModules = normalizeClientHoverModules(settings.hoverModules);
@@ -52136,7 +52467,7 @@ return { App };
 })();
 
 // --- src/components/layout/overlayHostAnchors.js ---
-const { CAPSULE_HOST_ID, PORTAL_HOST_ID, computeCapsuleLayoutMode, isImmediatelyBeforeNode, isIdeExtensionChatFrame, resolveActiveDockTarget, findNativeTopRightAnchor, getLeftSidebarRightEdge, attachShadowStyles } = (() => {
+const { CAPSULE_HOST_ID, PORTAL_HOST_ID, computeCapsuleLayoutMode, isImmediatelyBeforeNode, isIdeExtensionChatFrame, resolveActiveDockTarget, findNativeTopRightAnchor, getLeftSidebarRightEdge, getRightSidebarLeftEdge, attachShadowStyles } = (() => {
 const CAPSULE_HOST_ID = 'ag-usage-monitor-capsule';
 const PORTAL_HOST_ID = 'ag-usage-monitor-portal';
 
@@ -52980,6 +53311,70 @@ function getLeftSidebarRightEdge(vw) {
   return 0;
 }
 
+function getRightSidebarLeftEdge(vw) {
+  try {
+    if (typeof document === 'undefined' || typeof document.querySelector !== 'function') {
+      return 0;
+    }
+    const safeVw = Number(vw || 0);
+    if (!(safeVw > 320)) return 0;
+
+    const sashEl = document.querySelector('[data-testid="aux-pane-sash"]');
+    if (sashEl && !isNodeHiddenByStyle(sashEl) && sashEl.getBoundingClientRect) {
+      const sr = sashEl.getBoundingClientRect();
+      if (
+        (sr.width > 0 || sr.height > 0) &&
+        sr.left > 240 &&
+        sr.left < safeVw - 40
+      ) {
+        return Math.floor(sr.left);
+      }
+    }
+
+    const auxSelectors = [
+      '.monaco-workbench .part.auxiliarybar',
+      '.monaco-workbench .part.sidebar.right',
+      '[data-testid="aux-pane"]',
+      '[data-testid="aux-sidebar"]',
+      'aside[data-side="right"]',
+      'iframe[src*="usage-monitor"]',
+      'webview[src*="usage-monitor"]',
+    ];
+    let minLeftEdge = 0;
+    for (const sel of auxSelectors) {
+      const el = document.querySelector(sel);
+      if (!el || el.id === CAPSULE_HOST_ID || el.id === PORTAL_HOST_ID) continue;
+      if (isNodeHiddenByStyle(el) || !el.getBoundingClientRect) continue;
+      const r = el.getBoundingClientRect();
+      if (
+        r.width >= 120 &&
+        r.height > 0 &&
+        r.left > 240 &&
+        r.left < safeVw - 40 &&
+        r.right >= safeVw - 24
+      ) {
+        const edge = Math.floor(r.left);
+        if (minLeftEdge === 0 || edge < minLeftEdge) {
+          minLeftEdge = edge;
+        }
+      }
+    }
+    if (minLeftEdge > 0) return minLeftEdge;
+
+    const tbEl = findHostTitlebar();
+    if (tbEl && !isNodeHiddenByStyle(tbEl) && tbEl.getBoundingClientRect) {
+      const tr = tbEl.getBoundingClientRect();
+      if (tr.width >= 300 && tr.height > 0 && tr.right > 300 && tr.right < safeVw - 160) {
+        return Math.floor(tr.right);
+      }
+    }
+    return 0;
+  } catch {
+
+  }
+  return 0;
+}
+
 const CAPSULE_EXCLUDED_CSS_SECTIONS = new Set([
   'src/styles/views-overview.css',
   'src/styles/views-consumption.css',
@@ -53024,7 +53419,7 @@ function attachShadowStyles(shadowRoot, fullCss, { slimCapsule = false } = {}) {
   styleEl.textContent = slimCapsule ? buildSlimCapsuleCss(fullCss) : fullCss;
   shadowRoot.appendChild(styleEl);
 }
-return { CAPSULE_HOST_ID, PORTAL_HOST_ID, computeCapsuleLayoutMode, isImmediatelyBeforeNode, isIdeExtensionChatFrame, resolveActiveDockTarget, findNativeTopRightAnchor, getLeftSidebarRightEdge, attachShadowStyles };
+return { CAPSULE_HOST_ID, PORTAL_HOST_ID, computeCapsuleLayoutMode, isImmediatelyBeforeNode, isIdeExtensionChatFrame, resolveActiveDockTarget, findNativeTopRightAnchor, getLeftSidebarRightEdge, getRightSidebarLeftEdge, attachShadowStyles };
 })();
 
 // --- src/components/layout/WindowOverlayShell.js ---
@@ -53032,7 +53427,8 @@ const { mountWindowOverlay } = (() => {
 const FLOATING_CARD_WIDTH = 522;
 const POPOVER_BASE_WIDTH = 540;
 const POPOVER_MAX_AUTO_WIDTH = 960;
-const MULTI_PANEL_WIDTH = 464;
+const MULTI_PANEL_WIDTH = 376;
+const MULTI_PANEL_EMPTY_WIDTH = 256;
 
 function mountWindowOverlay() {
   if (typeof window === 'undefined' || typeof document === 'undefined') return null;
@@ -53282,8 +53678,18 @@ function mountWindowOverlay() {
   ];
   let lastSlotCount = 3;
   let lastShowMulti = true;
+  let lastRunningCount = 0;
   let lastShowUpdate = false;
   let isTopbarUpdating = false;
+
+  function resolveEffectiveShowMulti(telemetry, runningCountOverride = null) {
+    const mode = normalizeClientTopbarMultiSessionMode(
+      telemetry?.settings?.topbarMultiSessionMode,
+      telemetry?.settings?.showTopbarMultiSession
+    );
+    const count = runningCountOverride !== null ? runningCountOverride : lastRunningCount;
+    return isClientTopbarMultiSessionVisible(mode, count);
+  }
 
   const updateDot = h('span', { className: 'wm-update-dot', hidden: true });
   const topbarUpdateIcon = createSvgIcon('arrow-down', { size: 10 });
@@ -54046,24 +54452,30 @@ function mountWindowOverlay() {
         Math.round(FLOATING_CARD_WIDTH * panelScale),
         Math.max(280, vw - 24)
       );
-      const defaultMultiW = Math.min(
-        Math.round(MULTI_PANEL_WIDTH * panelScale),
-        Math.max(280, vw - 24)
-      );
       const isDockComposer = capsuleHost.getAttribute('data-dock') === 'composer';
 
       if (multiOpen) {
         const mRect = multiBtn.getBoundingClientRect?.() || bRect;
         const anchorRect = mRect.width > 0 || mRect.height > 0 ? mRect : bRect;
-        const rawW =
+        const rightEdge = getRightSidebarLeftEdge(vw);
+        const hasUsableRightBound = rightEdge > 0 && rightEdge - 10 - minLeft >= 240;
+        const maxRight = hasUsableRightBound ? Math.min(vw - 12, rightEdge - 10) : vw - 12;
+        const availMultiW = Math.max(240, maxRight - minLeft);
+        const isEmptyMulti = Boolean(multiPanelEl.classList?.contains?.('is-empty'));
+        const targetMultiW = Math.min(
+          Math.round((isEmptyMulti ? MULTI_PANEL_EMPTY_WIDTH : MULTI_PANEL_WIDTH) * panelScale),
+          availMultiW
+        );
+        multiPanelEl.style.maxWidth = `${availMultiW}px`;
+        const measuredW =
           Number(multiPanelEl.offsetWidth) ||
           Number(multiPanelEl.getBoundingClientRect?.().width) ||
-          defaultMultiW;
-        const panelW = Math.min(rawW, Math.max(280, vw - minLeft - 12));
+          0;
+        const panelW = measuredW > 0 ? Math.min(measuredW, availMultiW) : targetMultiW;
         const panelH =
           Number(multiPanelEl.offsetHeight) ||
           Number(multiPanelEl.getBoundingClientRect?.().height) ||
-          320;
+          (isEmptyMulti ? 92 : 320);
         const spaceBelowMulti = vh - anchorRect.bottom - 12;
         const spaceAboveMulti = anchorRect.top - 16;
         const openMultiAbove =
@@ -54084,7 +54496,7 @@ function mountWindowOverlay() {
         }
         patchClasses(multiPanelEl, { 'is-above': openMultiAbove });
         let left = Math.round(anchorRect.left);
-        left = Math.min(left, vw - panelW - 12);
+        left = Math.min(left, maxRight - panelW);
         left = Math.max(minLeft, left);
         multiPanelEl.style.top = `${top}px`;
         multiPanelEl.style.left = `${left}px`;
@@ -54258,7 +54670,7 @@ function mountWindowOverlay() {
     const dockTarget = dockOverride === undefined ? resolveRuntimeDockTarget() : dockOverride;
     const avail = measureAvailableTitlebarWidth(dockTarget);
     const curTel = telemetryStore.getState().telemetry;
-    const showMulti = curTel?.settings?.showTopbarMultiSession !== false;
+    const showMulti = resolveEffectiveShowMulti(curTel);
     const curUpdateMode = normalizeClientUpdateMode(
       curTel?.settings?.pluginUpdateMode,
       curTel?.settings?.autoUpdatePlugin
@@ -54439,6 +54851,9 @@ function mountWindowOverlay() {
 
   function setMultiOpen(nextOpen, { pinned = false, instant = false } = {}) {
     const targetOpen = Boolean(nextOpen);
+    if (targetOpen && multiBtn.hasAttribute('hidden')) {
+      return;
+    }
     if (targetOpen && multiLeaveTimer) {
       clearTimeout(multiLeaveTimer);
       multiLeaveTimer = null;
@@ -54551,27 +54966,34 @@ function mountWindowOverlay() {
     hostRouteConversationId,
     runningSwarmCount = 0
   ) {
-    if (!multiOpen || document.hidden) {
-      multiRunningWidget.refs.pauseTicker();
-      return;
-    }
-    const isPureSwarm = runningSubCount > 0 && runningSwarmCount === runningSubCount;
-    patchText(
-      multiRunningMetaEl,
-      runningCount > 0
-        ? runningSubCount > 0
+    const isEmpty = runningCount === 0;
+    const wasEmpty = Boolean(multiPanelEl.classList?.contains?.('is-empty'));
+    patchClasses(multiPanelEl, { 'is-empty': isEmpty });
+    patchAttr(multiRunningMetaEl, 'hidden', isEmpty);
+    if (!isEmpty) {
+      const isPureSwarm = runningSubCount > 0 && runningSwarmCount === runningSubCount;
+      patchText(
+        multiRunningMetaEl,
+        runningSubCount > 0
           ? t(isPureSwarm ? 'multi.metaWithSwarm' : 'multi.metaWithSubs', {
               main: runningCount,
               subs: runningSubCount,
             })
           : t('multi.metaMainOnly', { main: runningCount })
-        : t('multi.allIdle')
-    );
-    patchAttr(multiEmptyEl, 'hidden', runningCount > 0);
+      );
+    }
+    patchAttr(multiEmptyEl, 'hidden', !isEmpty);
+    if (!multiOpen || document.hidden) {
+      multiRunningWidget.refs.pauseTicker();
+      return;
+    }
     multiRunningWidget.refs.update({
       items: rawRunningList,
       hostRouteConversationId,
     });
+    if (wasEmpty !== isEmpty) {
+      positionFloatingElements();
+    }
   }
 
   function renderHoverWidgets() {
@@ -54593,26 +55015,27 @@ function mountWindowOverlay() {
     syncPortalAppearance(telemetry?.settings);
     syncCapsuleOsAttr();
 
-    const showMulti = telemetry?.settings?.showTopbarMultiSession !== false;
-    patchAttr(multiBtn, 'hidden', !showMulti);
-    patchAttr(capsuleHost, 'data-multi', showMulti ? 'on' : 'off');
-    if (!showMulti && multiOpen) {
-      setMultiOpen(false);
-    }
-
     const slotKeys = normalizeClientTopbarSlots(telemetry?.settings?.topbarCapsuleSlots);
-    const layoutInputsChanged =
-      showMulti !== lastShowMulti || slotKeys.length !== lastSlotCount;
-    if (layoutInputsChanged) {
-      lastShowMulti = showMulti;
-      lastSlotCount = slotKeys.length;
-      updateResponsiveLayout();
-    }
 
     if (!telemetry) {
+      lastRunningCount = 0;
+      const showMulti = resolveEffectiveShowMulti(null, 0);
+      patchAttr(multiBtn, 'hidden', !showMulti);
+      patchAttr(capsuleHost, 'data-multi', showMulti ? 'on' : 'off');
+      if (!showMulti && multiOpen) {
+        setMultiOpen(false);
+      }
+      if (showMulti !== lastShowMulti || slotKeys.length !== lastSlotCount) {
+        lastShowMulti = showMulti;
+        lastSlotCount = slotKeys.length;
+        updateResponsiveLayout();
+      }
       patchClasses(multiBtn, { 'is-running': false, 'is-waiting': false });
       patchCapsuleOdometerText(multiLabel, t('capsule.multiZero'), { resetKey: 'multi' });
+      patchClasses(multiPanelEl, { 'is-empty': true });
+      patchAttr(multiRunningMetaEl, 'hidden', false);
       patchText(multiRunningMetaEl, t('multi.loading'));
+      patchAttr(multiEmptyEl, 'hidden', false);
       multiRunningWidget.refs.stopLiveTicker();
 
       applyCapsuleSlots(slotKeys, { hasTelemetry: false });
@@ -54650,6 +55073,22 @@ function mountWindowOverlay() {
       latestTokPerSec: overviewActive.latestTokPerSec ?? null,
       contextUsedPct: slotCtx.usedPct,
     });
+
+    lastRunningCount = runningCount;
+    const showMulti = resolveEffectiveShowMulti(telemetry, runningCount);
+    patchAttr(multiBtn, 'hidden', !showMulti);
+    patchAttr(capsuleHost, 'data-multi', showMulti ? 'on' : 'off');
+    if (!showMulti && multiOpen) {
+      setMultiOpen(false);
+    }
+
+    const layoutInputsChanged =
+      showMulti !== lastShowMulti || slotKeys.length !== lastSlotCount;
+    if (layoutInputsChanged) {
+      lastShowMulti = showMulti;
+      lastSlotCount = slotKeys.length;
+      updateResponsiveLayout();
+    }
 
     patchClasses(multiBtn, {
       'is-running': runningCount > 0 && !hasWaiting,
@@ -54984,8 +55423,7 @@ function mountWindowOverlay() {
 
   ensureCapsuleDocked();
   renderCapsuleTelemetry();
-  const allowMultiCarryOver =
-    telemetryStore.getState().telemetry?.settings?.showTopbarMultiSession !== false;
+  const allowMultiCarryOver = !multiBtn.hasAttribute('hidden');
   if (carryOverPopoverOpen) {
     setPopoverOpen(true, { instant: true });
   } else if (carryOverMultiPinnedOpen && allowMultiCarryOver) {

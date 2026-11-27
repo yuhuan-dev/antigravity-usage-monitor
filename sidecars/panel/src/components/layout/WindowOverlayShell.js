@@ -49,10 +49,12 @@ import {
   extractHostRouteCascadeId,
   fetchTelemetry,
   getDefaultCtxInspectorAgentId,
+  isClientTopbarMultiSessionVisible,
   isMacHostPlatform,
   normalizeClientHoverModules,
   normalizeClientPopoverWidth,
   normalizeClientPopoverWidthMode,
+  normalizeClientTopbarMultiSessionMode,
   normalizeClientTopbarSlots,
   normalizeClientUpdateMode,
   normalizeClientWindowMountMode,
@@ -75,6 +77,7 @@ import {
   computeCapsuleLayoutMode,
   findNativeTopRightAnchor,
   getLeftSidebarRightEdge,
+  getRightSidebarLeftEdge,
   isIdeExtensionChatFrame,
   isImmediatelyBeforeNode,
   resolveActiveDockTarget,
@@ -85,7 +88,8 @@ export { computeCapsuleLayoutMode };
 const FLOATING_CARD_WIDTH = 522;
 const POPOVER_BASE_WIDTH = 540;
 const POPOVER_MAX_AUTO_WIDTH = 960;
-const MULTI_PANEL_WIDTH = 464;
+const MULTI_PANEL_WIDTH = 376;
+const MULTI_PANEL_EMPTY_WIDTH = 256;
 
 
 export function mountWindowOverlay() {
@@ -340,8 +344,18 @@ export function mountWindowOverlay() {
   ];
   let lastSlotCount = 3;
   let lastShowMulti = true;
+  let lastRunningCount = 0;
   let lastShowUpdate = false;
   let isTopbarUpdating = false;
+
+  function resolveEffectiveShowMulti(telemetry, runningCountOverride = null) {
+    const mode = normalizeClientTopbarMultiSessionMode(
+      telemetry?.settings?.topbarMultiSessionMode,
+      telemetry?.settings?.showTopbarMultiSession
+    );
+    const count = runningCountOverride !== null ? runningCountOverride : lastRunningCount;
+    return isClientTopbarMultiSessionVisible(mode, count);
+  }
 
   const updateDot = h('span', { className: 'wm-update-dot', hidden: true });
   const topbarUpdateIcon = createSvgIcon('arrow-down', { size: 10 });
@@ -1109,24 +1123,30 @@ export function mountWindowOverlay() {
         Math.round(FLOATING_CARD_WIDTH * panelScale),
         Math.max(280, vw - 24)
       );
-      const defaultMultiW = Math.min(
-        Math.round(MULTI_PANEL_WIDTH * panelScale),
-        Math.max(280, vw - 24)
-      );
       const isDockComposer = capsuleHost.getAttribute('data-dock') === 'composer';
 
       if (multiOpen) {
         const mRect = multiBtn.getBoundingClientRect?.() || bRect;
         const anchorRect = mRect.width > 0 || mRect.height > 0 ? mRect : bRect;
-        const rawW =
+        const rightEdge = getRightSidebarLeftEdge(vw);
+        const hasUsableRightBound = rightEdge > 0 && rightEdge - 10 - minLeft >= 240;
+        const maxRight = hasUsableRightBound ? Math.min(vw - 12, rightEdge - 10) : vw - 12;
+        const availMultiW = Math.max(240, maxRight - minLeft);
+        const isEmptyMulti = Boolean(multiPanelEl.classList?.contains?.('is-empty'));
+        const targetMultiW = Math.min(
+          Math.round((isEmptyMulti ? MULTI_PANEL_EMPTY_WIDTH : MULTI_PANEL_WIDTH) * panelScale),
+          availMultiW
+        );
+        multiPanelEl.style.maxWidth = `${availMultiW}px`;
+        const measuredW =
           Number(multiPanelEl.offsetWidth) ||
           Number(multiPanelEl.getBoundingClientRect?.().width) ||
-          defaultMultiW;
-        const panelW = Math.min(rawW, Math.max(280, vw - minLeft - 12));
+          0;
+        const panelW = measuredW > 0 ? Math.min(measuredW, availMultiW) : targetMultiW;
         const panelH =
           Number(multiPanelEl.offsetHeight) ||
           Number(multiPanelEl.getBoundingClientRect?.().height) ||
-          320;
+          (isEmptyMulti ? 92 : 320);
         const spaceBelowMulti = vh - anchorRect.bottom - 12;
         const spaceAboveMulti = anchorRect.top - 16;
         const openMultiAbove =
@@ -1147,7 +1167,7 @@ export function mountWindowOverlay() {
         }
         patchClasses(multiPanelEl, { 'is-above': openMultiAbove });
         let left = Math.round(anchorRect.left);
-        left = Math.min(left, vw - panelW - 12);
+        left = Math.min(left, maxRight - panelW);
         left = Math.max(minLeft, left);
         multiPanelEl.style.top = `${top}px`;
         multiPanelEl.style.left = `${left}px`;
@@ -1321,7 +1341,7 @@ export function mountWindowOverlay() {
     const dockTarget = dockOverride === undefined ? resolveRuntimeDockTarget() : dockOverride;
     const avail = measureAvailableTitlebarWidth(dockTarget);
     const curTel = telemetryStore.getState().telemetry;
-    const showMulti = curTel?.settings?.showTopbarMultiSession !== false;
+    const showMulti = resolveEffectiveShowMulti(curTel);
     const curUpdateMode = normalizeClientUpdateMode(
       curTel?.settings?.pluginUpdateMode,
       curTel?.settings?.autoUpdatePlugin
@@ -1502,6 +1522,9 @@ export function mountWindowOverlay() {
 
   function setMultiOpen(nextOpen, { pinned = false, instant = false } = {}) {
     const targetOpen = Boolean(nextOpen);
+    if (targetOpen && multiBtn.hasAttribute('hidden')) {
+      return;
+    }
     if (targetOpen && multiLeaveTimer) {
       clearTimeout(multiLeaveTimer);
       multiLeaveTimer = null;
@@ -1614,27 +1637,34 @@ export function mountWindowOverlay() {
     hostRouteConversationId,
     runningSwarmCount = 0
   ) {
-    if (!multiOpen || document.hidden) {
-      multiRunningWidget.refs.pauseTicker();
-      return;
-    }
-    const isPureSwarm = runningSubCount > 0 && runningSwarmCount === runningSubCount;
-    patchText(
-      multiRunningMetaEl,
-      runningCount > 0
-        ? runningSubCount > 0
+    const isEmpty = runningCount === 0;
+    const wasEmpty = Boolean(multiPanelEl.classList?.contains?.('is-empty'));
+    patchClasses(multiPanelEl, { 'is-empty': isEmpty });
+    patchAttr(multiRunningMetaEl, 'hidden', isEmpty);
+    if (!isEmpty) {
+      const isPureSwarm = runningSubCount > 0 && runningSwarmCount === runningSubCount;
+      patchText(
+        multiRunningMetaEl,
+        runningSubCount > 0
           ? t(isPureSwarm ? 'multi.metaWithSwarm' : 'multi.metaWithSubs', {
               main: runningCount,
               subs: runningSubCount,
             })
           : t('multi.metaMainOnly', { main: runningCount })
-        : t('multi.allIdle')
-    );
-    patchAttr(multiEmptyEl, 'hidden', runningCount > 0);
+      );
+    }
+    patchAttr(multiEmptyEl, 'hidden', !isEmpty);
+    if (!multiOpen || document.hidden) {
+      multiRunningWidget.refs.pauseTicker();
+      return;
+    }
     multiRunningWidget.refs.update({
       items: rawRunningList,
       hostRouteConversationId,
     });
+    if (wasEmpty !== isEmpty) {
+      positionFloatingElements();
+    }
   }
 
   function renderHoverWidgets() {
@@ -1657,26 +1687,27 @@ export function mountWindowOverlay() {
     syncPortalAppearance(telemetry?.settings);
     syncCapsuleOsAttr();
 
-    const showMulti = telemetry?.settings?.showTopbarMultiSession !== false;
-    patchAttr(multiBtn, 'hidden', !showMulti);
-    patchAttr(capsuleHost, 'data-multi', showMulti ? 'on' : 'off');
-    if (!showMulti && multiOpen) {
-      setMultiOpen(false);
-    }
-
     const slotKeys = normalizeClientTopbarSlots(telemetry?.settings?.topbarCapsuleSlots);
-    const layoutInputsChanged =
-      showMulti !== lastShowMulti || slotKeys.length !== lastSlotCount;
-    if (layoutInputsChanged) {
-      lastShowMulti = showMulti;
-      lastSlotCount = slotKeys.length;
-      updateResponsiveLayout();
-    }
 
     if (!telemetry) {
+      lastRunningCount = 0;
+      const showMulti = resolveEffectiveShowMulti(null, 0);
+      patchAttr(multiBtn, 'hidden', !showMulti);
+      patchAttr(capsuleHost, 'data-multi', showMulti ? 'on' : 'off');
+      if (!showMulti && multiOpen) {
+        setMultiOpen(false);
+      }
+      if (showMulti !== lastShowMulti || slotKeys.length !== lastSlotCount) {
+        lastShowMulti = showMulti;
+        lastSlotCount = slotKeys.length;
+        updateResponsiveLayout();
+      }
       patchClasses(multiBtn, { 'is-running': false, 'is-waiting': false });
       patchCapsuleOdometerText(multiLabel, t('capsule.multiZero'), { resetKey: 'multi' });
+      patchClasses(multiPanelEl, { 'is-empty': true });
+      patchAttr(multiRunningMetaEl, 'hidden', false);
       patchText(multiRunningMetaEl, t('multi.loading'));
+      patchAttr(multiEmptyEl, 'hidden', false);
       multiRunningWidget.refs.stopLiveTicker();
 
       applyCapsuleSlots(slotKeys, { hasTelemetry: false });
@@ -1714,6 +1745,22 @@ export function mountWindowOverlay() {
       latestTokPerSec: overviewActive.latestTokPerSec ?? null,
       contextUsedPct: slotCtx.usedPct,
     });
+
+    lastRunningCount = runningCount;
+    const showMulti = resolveEffectiveShowMulti(telemetry, runningCount);
+    patchAttr(multiBtn, 'hidden', !showMulti);
+    patchAttr(capsuleHost, 'data-multi', showMulti ? 'on' : 'off');
+    if (!showMulti && multiOpen) {
+      setMultiOpen(false);
+    }
+
+    const layoutInputsChanged =
+      showMulti !== lastShowMulti || slotKeys.length !== lastSlotCount;
+    if (layoutInputsChanged) {
+      lastShowMulti = showMulti;
+      lastSlotCount = slotKeys.length;
+      updateResponsiveLayout();
+    }
 
     patchClasses(multiBtn, {
       'is-running': runningCount > 0 && !hasWaiting,
@@ -2050,8 +2097,7 @@ export function mountWindowOverlay() {
 
   ensureCapsuleDocked();
   renderCapsuleTelemetry();
-  const allowMultiCarryOver =
-    telemetryStore.getState().telemetry?.settings?.showTopbarMultiSession !== false;
+  const allowMultiCarryOver = !multiBtn.hasAttribute('hidden');
   if (carryOverPopoverOpen) {
     setPopoverOpen(true, { instant: true });
   } else if (carryOverMultiPinnedOpen && allowMultiCarryOver) {

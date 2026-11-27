@@ -1165,6 +1165,10 @@ function buildActiveConversationAssembly({
     }
   }
 
+  const taskStepsMetaSig = (ts) =>
+    ts && Number(ts.total) > 0
+      ? `${ts.done}/${ts.total}:${ts.inProgress || 0}:${ts.failed || 0}:${ts.skipped || 0}:${ts.currentTitle || ''}:${(ts.items || []).map((x) => `${x.status}:${x.title}`).join('|')}`
+      : '';
   const assemblyMetaSig = JSON.stringify([
     activeCascadeId || '',
     activeConvSummary?.title || '',
@@ -1173,6 +1177,7 @@ function buildActiveConversationAssembly({
     activeConvSummary?.lastModifiedMs || activeEntry?.lastModifiedMs || 0,
     activeConvSummary?.liveActivity?.signature || '',
     activeConvSummary?.liveActivity?.startedAtMs || 0,
+    taskStepsMetaSig(activeConvSummary?.liveActivity?.taskSteps),
     activeEntry?.lastKnownStaticContext || null,
     subagentSummaries.map((subSum, idx) => {
       const subEntry = subEntries[idx];
@@ -1190,6 +1195,7 @@ function buildActiveConversationAssembly({
         subSum.lastModifiedMs || subEntry?.lastModifiedMs || 0,
         subSum.liveActivity?.signature || '',
         subSum.liveActivity?.startedAtMs || 0,
+        taskStepsMetaSig(subSum.liveActivity?.taskSteps),
         subEntry?.lastKnownStaticContext || null,
         subSpec?.role || '',
         subSpec?.typeName || '',

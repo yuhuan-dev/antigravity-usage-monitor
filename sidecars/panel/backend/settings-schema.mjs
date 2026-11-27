@@ -28,6 +28,7 @@ import {
   DEFAULT_QUOTA_DISPLAY_MODE,
   DEFAULT_STEP_TABLE_COLUMNS,
   DEFAULT_STEP_TOKEN_COMBO_FORMAT,
+  DEFAULT_TOPBAR_MULTI_SESSION_MODE,
   DEFAULT_TOPBAR_SLOTS,
   FONT_SCALE_KEYS,
   HOVER_METRIC_STYLES,
@@ -47,10 +48,12 @@ import {
   STEP_TOKEN_SEGMENT_ALIASES,
   SUPPORTED_LANGUAGES,
   THEME_ACCENT_KEYS,
+  TOPBAR_MULTI_SESSION_MODES,
   TOPBAR_SLOT_KEYS,
   isAccountSwitchFeatureActive,
   isContextWindowFeatureActive,
   isRiskyFeaturesGateOpen,
+  isTopbarMultiSessionVisible,
   normalizeAccountQuotaRefreshMinutes,
   normalizeAutoConfigureLaunch,
   normalizeCliStatusLineSlots,
@@ -81,6 +84,7 @@ import {
   normalizeStepTokenComboFormat,
   normalizeThemeAccent,
   normalizeTopbarCapsuleSlots,
+  normalizeTopbarMultiSessionMode,
   normalizeWeeklyLimitMode,
   normalizeWindowMountMode,
   parseStepTokenComboSegments,
@@ -107,6 +111,7 @@ export {
   DEFAULT_QUOTA_DISPLAY_MODE,
   DEFAULT_STEP_TABLE_COLUMNS,
   DEFAULT_STEP_TOKEN_COMBO_FORMAT,
+  DEFAULT_TOPBAR_MULTI_SESSION_MODE,
   DEFAULT_TOPBAR_SLOTS,
   FONT_SCALE_KEYS,
   HOVER_METRIC_STYLES,
@@ -127,10 +132,12 @@ export {
   SUPPORTED_DISPLAY_CURRENCIES,
   SUPPORTED_LANGUAGES,
   THEME_ACCENT_KEYS,
+  TOPBAR_MULTI_SESSION_MODES,
   TOPBAR_SLOT_KEYS,
   isAccountSwitchFeatureActive,
   isContextWindowFeatureActive,
   isRiskyFeaturesGateOpen,
+  isTopbarMultiSessionVisible,
   normalizeAccountQuotaRefreshMinutes,
   normalizeAutoConfigureLaunch,
   normalizeCliStatusLineSlots,
@@ -162,6 +169,7 @@ export {
   normalizeStepTokenComboFormat,
   normalizeThemeAccent,
   normalizeTopbarCapsuleSlots,
+  normalizeTopbarMultiSessionMode,
   normalizeWeeklyLimitMode,
   normalizeWindowMountMode,
   parseStepTokenComboSegments,
@@ -209,6 +217,7 @@ export const DEFAULT_SETTINGS_SCHEMA = Object.freeze({
   standalonePort: 0,
   autoConfigureLaunch: true,
   enableRemoteSshTelemetry: true,
+  topbarMultiSessionMode: DEFAULT_TOPBAR_MULTI_SESSION_MODE,
   showTopbarMultiSession: true,
   contextAgentMode: DEFAULT_CONTEXT_AGENT_MODE,
   topbarCapsuleSlots: DEFAULT_TOPBAR_SLOTS,
@@ -272,6 +281,10 @@ export function normalizeFullSettings(rawInput) {
     safeRaw.modelDisplayMode,
     safeRaw.showUpstreamModel
   );
+  const topbarMultiSessionMode = normalizeTopbarMultiSessionMode(
+    safeRaw.topbarMultiSessionMode,
+    safeRaw.showTopbarMultiSession
+  );
   const modernUi =
     safeRaw.modernUi !== undefined ? normalizeModernUi(safeRaw.modernUi) : true;
   const developerModeEnabled = normalizeDeveloperModeEnabled(safeRaw.developerModeEnabled);
@@ -308,7 +321,8 @@ export function normalizeFullSettings(rawInput) {
     standalonePort: normalizeStandalonePort(safeRaw.standalonePort),
     autoConfigureLaunch: normalizeAutoConfigureLaunch(safeRaw.autoConfigureLaunch),
     enableRemoteSshTelemetry: normalizeEnableRemoteSshTelemetry(safeRaw.enableRemoteSshTelemetry),
-    showTopbarMultiSession: safeRaw.showTopbarMultiSession !== false,
+    topbarMultiSessionMode,
+    showTopbarMultiSession: topbarMultiSessionMode !== 'hide',
     contextAgentMode: normalizeContextAgentMode(safeRaw.contextAgentMode),
     topbarCapsuleSlots: normalizeTopbarCapsuleSlots(safeRaw.topbarCapsuleSlots),
     hoverModules: normalizeHoverModules(safeRaw.hoverModules),
