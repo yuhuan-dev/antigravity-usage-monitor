@@ -888,8 +888,8 @@ test('StepsDetailView total summary cards, session anomaly strip, click-to-filte
       metric: 'tps',
     });
     const fitAnomalyDots = fitChart.el.querySelectorAll('.sstep-scatter-dot.is-anomaly');
-    assert.equal(fitAnomalyDots.length, 1, 'Fit scatter chart renders solid matching-size anomaly dot without overdraw drop');
-    assert.equal(fitAnomalyDots[0].getAttribute('r'), '2.1');
+    assert.equal(fitAnomalyDots.length, 1, 'Fit scatter chart renders the anomaly dot without overdraw drop');
+    assert.equal(fitAnomalyDots[0].getAttribute('r'), '3.4');
     assert.equal(fitAnomalyDots[0].classList.contains('is-danger'), true);
     assert.ok(fitChart.el.querySelector('.trend-tip-anomaly'), 'Fit chart tooltip mounts linked anomaly diagnostic row');
   } finally {

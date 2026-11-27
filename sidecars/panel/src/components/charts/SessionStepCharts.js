@@ -1132,6 +1132,12 @@ export function createModelFitChart() {
 
   let viewW = DEFAULT_VIEW_W;
 
+  function formatTrendAmount(metric, value) {
+    return metric === 'cache'
+      ? t('chart.fit.percentPoints', { value: value.toFixed(1) })
+      : formatChartMetricValue(metric, value);
+  }
+
   function resolveFitBounds(w) {
     const plotLeft = 2;
     const plotRight = Math.max(plotLeft + 20, w - 2);
@@ -1149,11 +1155,14 @@ export function createModelFitChart() {
 
   const axesGroup = document.createElementNS(SVG_NS, 'g');
   axesGroup.setAttribute('class', 'sstep-sci-axes');
-  svg.appendChild(axesGroup);
 
   const multiBandGroup = document.createElementNS(SVG_NS, 'g');
   multiBandGroup.setAttribute('class', 'sstep-multi-band-group');
   svg.appendChild(multiBandGroup);
+
+  const ciBandPath = document.createElementNS(SVG_NS, 'path');
+  ciBandPath.setAttribute('class', 'sstep-ci-band');
+  svg.appendChild(ciBandPath);
 
   const scatterGroup = document.createElementNS(SVG_NS, 'g');
   scatterGroup.setAttribute('class', 'sstep-scatter-group');
@@ -1163,19 +1172,22 @@ export function createModelFitChart() {
   multiCurveGroup.setAttribute('class', 'sstep-multi-curve-group');
   svg.appendChild(multiCurveGroup);
 
-  const ciBandPath = document.createElementNS(SVG_NS, 'path');
-  ciBandPath.setAttribute('class', 'sstep-ci-band');
-  svg.appendChild(ciBandPath);
-
   const olsLine = document.createElementNS(SVG_NS, 'line');
   olsLine.setAttribute('class', 'sstep-ols-line');
   olsLine.setAttribute('hidden', 'true');
   svg.appendChild(olsLine);
 
   const fitPath = document.createElementNS(SVG_NS, 'path');
-  fitPath.setAttribute('class', 'sstep-fit-line');
+  fitPath.setAttribute('class', 'sstep-fit-line is-primary');
   fitPath.setAttribute('fill', 'none');
   svg.appendChild(fitPath);
+
+  const fitAnomalyGroup = document.createElementNS(SVG_NS, 'g');
+  fitAnomalyGroup.setAttribute('class', 'sstep-fit-anomaly-group');
+  svg.appendChild(fitAnomalyGroup);
+
+  // 坐标轴和刻度字放在点和曲线之上：刻度字自带底色描边，边缘小三角压上来时仍能看清
+  svg.appendChild(axesGroup);
 
   const hoverLine = document.createElementNS(SVG_NS, 'line');
   hoverLine.setAttribute('class', 'trend-hover-line');
@@ -1217,10 +1229,22 @@ export function createModelFitChart() {
 
   const fitMethodLabelEl = h('span', { text: t('chart.fit.loess') });
   const olsLegendTextEl = h('span', { text: t('chart.fit.olsLinear') });
-  const olsLegendWrapEl = h('span', { className: 'sstep-fit-legend-ols' }, [
+  const olsLegendWrapEl = h('span', { className: 'sstep-fit-legend-ols', hidden: true }, [
     h('span', { className: 'sstep-fit-swatch is-ols' }),
     olsLegendTextEl,
   ]);
+  const singleExtraLegend = [
+    ['caret', 'chart.fit.outOfRange'],
+    ['anomaly', 'chart.fit.legendAnomaly'],
+    ['danger', 'chart.fit.legendAnomalyDanger'],
+  ].map(([swatch, key]) => {
+    const label = h('span');
+    const wrap = h('span', { hidden: true }, [
+      h('span', { className: `sstep-fit-swatch is-${swatch}` }),
+      label,
+    ]);
+    return { wrap, label, key };
+  });
   const obsLegendTextEl = h('span', { text: t('chart.fit.observed') });
   const singleLegendEl = h('span', { className: 'sstep-fit-legend' }, [
     h('span', { className: 'sstep-fit-swatch is-scatter' }),
@@ -1230,6 +1254,7 @@ export function createModelFitChart() {
     h('span', { className: 'sstep-fit-swatch is-ci' }),
     h('span', { text: '95% CI' }),
     olsLegendWrapEl,
+    ...singleExtraLegend.map(({ wrap }) => wrap),
   ]);
   const multiLegendEl = h('div', { className: 'sstep-model-legend', hidden: true });
   const fitStatsEl = h('span', { className: 'sstep-fit-delta text-mono text-muted' });
@@ -1310,16 +1335,19 @@ export function createModelFitChart() {
       lastFitPointer = pointer;
     }
     const sp = currentSamples[idx];
+    const hasFit = sp.fitVal !== null;
 
     if (changedIdx) {
       patchAttr(hoverLine, 'hidden', false);
       patchAttr(hoverLine, 'x1', sp.x.toFixed(1));
       patchAttr(hoverLine, 'x2', sp.x.toFixed(1));
 
-      patchAttr(hoverFitDot, 'hidden', false);
-      patchAttr(hoverFitDot, 'cx', sp.x.toFixed(1));
-      patchAttr(hoverFitDot, 'cy', sp.fitY.toFixed(1));
-      patchStyleVar(hoverFitDot, '--hover-dot-color', sp.seriesColor || 'var(--accent-primary)');
+      patchAttr(hoverFitDot, 'hidden', !hasFit);
+      if (hasFit) {
+        patchAttr(hoverFitDot, 'cx', sp.x.toFixed(1));
+        patchAttr(hoverFitDot, 'cy', sp.fitY.toFixed(1));
+        patchStyleVar(hoverFitDot, '--hover-dot-color', sp.seriesColor || 'var(--accent-primary)');
+      }
 
       patchAttr(hoverRawDot, 'hidden', false);
       patchAttr(hoverRawDot, 'cx', sp.x.toFixed(1));
@@ -1331,14 +1359,12 @@ export function createModelFitChart() {
 
       patchText(tipHeadLeft, sp.stepTag);
       patchText(tipHeadRight, sp.modelText);
+      const observation = t('chart.fit.tipObs', { val: formatChartMetricValue(currentMetric, sp.rawVal) });
       patchText(
         tipMainLeft,
-        t('chart.fit.tipFit', { val: formatChartMetricValue(currentMetric, sp.fitVal) })
+        hasFit ? t('chart.fit.tipFit', { val: formatChartMetricValue(currentMetric, sp.fitVal) }) : observation
       );
-      patchText(
-        tipMainRight,
-        t('chart.fit.tipObs', { val: formatChartMetricValue(currentMetric, sp.rawVal) })
-      );
+      patchText(tipMainRight, hasFit ? observation : '');
 
       patchAttr(tipSub, 'hidden', false);
       if (sp.compareHint) {
@@ -1376,10 +1402,10 @@ export function createModelFitChart() {
       fallbackX,
       fallbackY,
       pointer: pointer || lastFitPointer,
-      trackedDots: [hoverFitDot, hoverRawDot],
+      trackedDots: hasFit ? [hoverFitDot, hoverRawDot] : [hoverRawDot],
       viewWidth: viewW,
       viewHeight: VIEW_H,
-      sizeKey: sp.anomalySummary ? 'fit:a' : 'fit:0',
+      sizeKey: `${sp.anomalySummary ? 'fit:a' : 'fit:0'}${hasFit ? '' : ':obs'}`,
     });
   }
 
@@ -1687,6 +1713,11 @@ export function createModelFitChart() {
       if (isMultiCompare ? !targetKeySet.has(key) : key !== null) fitCache.delete(key);
     }
 
+    if (isMultiCompare || matchedItems.length === 0) {
+      while (fitAnomalyGroup.firstChild) fitAnomalyGroup.removeChild(fitAnomalyGroup.firstChild);
+      for (const { wrap } of singleExtraLegend) patchAttr(wrap, 'hidden', true);
+    }
+
     if (matchedItems.length === 0) {
       fitCache.clear();
       fitMorphCtrl.reset();
@@ -1709,6 +1740,7 @@ export function createModelFitChart() {
       patchAttr(emptyHintEl, 'hidden', false);
       patchText(fitMethodLabelEl, t('chart.fit.loess'));
       patchText(fitStatsEl, 'n = 0');
+      patchAttr(fitStatsEl, 'title', '');
       clearHover();
       return { sampleCount: 0, summaryBadge: t('chart.fit.zeroSamples') };
     }
@@ -2068,24 +2100,37 @@ export function createModelFitChart() {
     patchAttr(singleLegendEl, 'hidden', false);
     patchAttr(multiLegendEl, 'hidden', true);
 
-    const filtered = matchedItems;
-    const xs = filtered.map((d) => d.xVal);
-    const rawYs = filtered.map((d) => d.rawVal);
-    const pubFit = reusePublicationFit(null, xs, rawYs, maxBound, false);
+    // 重试、断连会让这一步的速度和首字失真，只标出不参与拟合
+    const normalItems = matchedItems.filter((item) => !item.anomalySummary);
+    const fitItems = normalItems.length >= 3 ? normalItems : matchedItems;
+    const fitXs = fitItems.map((item) => item.xVal);
+    const fitYs = fitItems.map((item) => item.rawVal);
+    const pubFit = reusePublicationFit(null, fitXs, fitYs, maxBound, false);
+    const { grid } = pubFit;
 
     patchText(
       fitMethodLabelEl,
       pubFit.method === 'LOESS' ? t('chart.fit.loess') : t('chart.fit.olsReg')
     );
-    patchAttr(olsLegendWrapEl, 'hidden', filtered.length < 6);
-
+    // 按 3%–97% 分位定纵轴，少数离群点画成边缘小三角，避免整条趋势被压扁
     let dataMin = Infinity;
     let dataMax = -Infinity;
-    for (let i = 0; i < filtered.length; i++) {
-      if (rawYs[i] < dataMin) dataMin = rawYs[i];
-      if (rawYs[i] > dataMax) dataMax = rawYs[i];
+    if (fitItems.length >= 20) {
+      const sortedYs = [...fitYs].sort((a, b) => a - b);
+      const quantile = (p) => {
+        const index = (sortedYs.length - 1) * p;
+        const lo = Math.floor(index);
+        return sortedYs[lo] + (index - lo) * (sortedYs[Math.ceil(index)] - sortedYs[lo]);
+      };
+      dataMin = quantile(0.03);
+      dataMax = quantile(0.97);
+    } else {
+      for (const rawVal of fitYs) {
+        if (rawVal < dataMin) dataMin = rawVal;
+        if (rawVal > dataMax) dataMax = rawVal;
+      }
     }
-    for (const g of pubFit.grid) {
+    for (const g of grid) {
       if (g.ciLow < dataMin) dataMin = g.ciLow;
       if (g.ciHigh > dataMax) dataMax = g.ciHigh;
     }
@@ -2100,28 +2145,41 @@ export function createModelFitChart() {
       BOTTOM_Y - ((clampValue(v, yScale.min, yScale.max) - yScale.min) / yRange) * SPAN_Y;
 
     const { plotLeft, plotRight, plotSpanX } = resolveFitBounds(viewW);
+    const xs = matchedItems.map((item) => item.xVal);
     const xMin = xs[0];
     const xMax = xs[xs.length - 1];
-    const isSingle = filtered.length === 1 || xMax - xMin <= 1e-9;
+    const isSingle = matchedItems.length === 1 || xMax - xMin <= 1e-9;
     const mapX = (xv) =>
       isSingle
         ? (plotLeft + plotRight) / 2
         : plotLeft + ((xv - xMin) / (xMax - xMin)) * plotSpanX;
 
-    const samples = filtered.map((item, i) => {
-      const x = mapX(item.xVal);
+    const gridMinX = grid[0].x;
+    const gridMaxX = grid[grid.length - 1].x;
+    let gridIdx = 0;
+    const samples = matchedItems.map((item) => {
       const rawY = mapY(item.rawVal);
-      const fitVal = pubFit.sampleFits[i];
-      const fitY = mapY(fitVal);
+      let fitVal = null;
+      let ciLow = null;
+      let ciHigh = null;
+      if (item.xVal >= gridMinX && item.xVal <= gridMaxX) {
+        while (gridIdx < grid.length - 2 && item.xVal > grid[gridIdx + 1].x) gridIdx++;
+        const a = grid[gridIdx];
+        const b = grid[gridIdx + 1] || a;
+        const frac = b.x > a.x ? clampValue((item.xVal - a.x) / (b.x - a.x), 0, 1) : 0;
+        fitVal = a.fit + frac * (b.fit - a.fit);
+        ciLow = a.ciLow + frac * (b.ciLow - a.ciLow);
+        ciHigh = a.ciHigh + frac * (b.ciHigh - a.ciHigh);
+      }
       return {
         ...item,
-        x,
+        x: mapX(item.xVal),
         rawY,
         fitVal,
-        fitY,
-        ciLow: pubFit.sampleCiLow[i],
-        ciHigh: pubFit.sampleCiHigh[i],
-        ciHalf: pubFit.sampleCiHalf[i],
+        fitY: fitVal === null ? rawY : mapY(fitVal),
+        ciLow,
+        ciHigh,
+        ciHalf: fitVal === null ? 0 : (ciHigh - ciLow) / 2,
         seriesColor: 'var(--accent-primary)',
         compareHint: '',
       };
@@ -2132,7 +2190,7 @@ export function createModelFitChart() {
       `single|${locale}|${viewW}|${targetKeys[0]}|${metric}|${showAgentPrefix}|${yScale.min.toFixed(4)}|${yScale.max.toFixed(4)}|` +
       samples
         .map(
-          (s) => `${s.xVal}:${s.rawVal.toFixed(4)}:${s.fitVal.toFixed(4)}:${s.st?.anomalySig || ''}`
+          (s) => `${s.xVal}:${s.rawVal}:${s.anomalySummary ? s.anomalySeverity || 'anomaly' : ''}`
         )
         .join('|');
 
@@ -2150,18 +2208,33 @@ export function createModelFitChart() {
         showAgentPrefix,
       });
 
-      // 2. 绘制半透明冷蓝灰实心观测散点（自然呈现局部密度，不抢夺拟合曲线焦点）
       while (scatterGroup.firstChild) scatterGroup.removeChild(scatterGroup.firstChild);
-      const dotRadius = samples.length > 80 ? '1.8' : samples.length > 36 ? '2.1' : '2.4';
+      while (fitAnomalyGroup.firstChild) fitAnomalyGroup.removeChild(fitAnomalyGroup.firstChild);
+      const dotRadius = samples.length > 80 ? '2.0' : samples.length > 36 ? '2.3' : '2.6';
       const binCounts = samples.length > 200 ? new Map() : null;
       const scatterTarget =
         typeof document.createDocumentFragment === 'function'
           ? document.createDocumentFragment()
           : scatterGroup;
       const singleAnomalyDots = [];
+      let outOfRangeCount = 0;
       for (const s of samples) {
         if (s.anomalySummary) {
           singleAnomalyDots.push(s);
+          continue;
+        }
+        const above = s.rawVal > yScale.max;
+        if (above || s.rawVal < yScale.min) {
+          const caret = document.createElementNS(SVG_NS, 'path');
+          const tipY = above ? TOP_Y - 5 : BOTTOM_Y - 1;
+          const baseY = above ? TOP_Y + 1 : BOTTOM_Y - 7;
+          caret.setAttribute('class', 'sstep-outlier-caret');
+          caret.setAttribute(
+            'd',
+            `M ${s.x.toFixed(1)} ${tipY} L ${(s.x - 3.5).toFixed(1)} ${baseY} L ${(s.x + 3.5).toFixed(1)} ${baseY} Z`
+          );
+          scatterTarget.appendChild(caret);
+          outOfRangeCount++;
           continue;
         }
         if (binCounts) {
@@ -2178,30 +2251,37 @@ export function createModelFitChart() {
         scatterTarget.appendChild(dot);
       }
       singleAnomalyDots.sort((a, b) =>
-        a.anomalySeverity === 'danger' ? 1 : b.anomalySeverity === 'danger' ? -1 : 0
+        Number(a.anomalySeverity === 'danger') - Number(b.anomalySeverity === 'danger')
       );
+      let dangerCount = 0;
       for (const s of singleAnomalyDots) {
+        const isDanger = s.anomalySeverity === 'danger';
+        if (isDanger) dangerCount++;
         const aDot = document.createElementNS(SVG_NS, 'circle');
         aDot.setAttribute('cx', s.x.toFixed(1));
         aDot.setAttribute('cy', s.rawY.toFixed(1));
-        aDot.setAttribute('r', dotRadius);
+        aDot.setAttribute('r', isDanger ? '3.4' : '3.2');
         aDot.setAttribute(
           'class',
-          `sstep-scatter-dot is-anomaly${s.anomalySeverity === 'danger' ? ' is-danger' : ''}`
+          `sstep-scatter-dot is-anomaly${isDanger ? ' is-danger' : ''}`
         );
-        scatterTarget.appendChild(aDot);
+        fitAnomalyGroup.appendChild(aDot);
       }
       if (scatterTarget !== scatterGroup) {
         scatterGroup.appendChild(scatterTarget);
       }
+      const legendCounts = [outOfRangeCount, singleAnomalyDots.length - dangerCount, dangerCount];
+      singleExtraLegend.forEach(({ wrap, label, key }, i) => {
+        const count = legendCounts[i];
+        patchAttr(wrap, 'hidden', count === 0);
+        if (count > 0) patchText(label, t(key, { count }));
+      });
 
-      // 3. 绘制 95% CI 置信带闭合多边形和回归拟合曲线（支持 240ms 平滑连续形变，绝不向底部 X 轴填充面积）
       if (isSingle) {
         const yVal = samples[0].fitY;
         const yStr = yVal.toFixed(1);
         const flatCurveD = `M ${plotLeft.toFixed(1)} ${yStr} L ${plotRight.toFixed(1)} ${yStr}`;
         patchAttr(ciBandPath, 'd', '');
-        patchAttr(olsLine, 'hidden', true);
         const flatGrid = Array.from({ length: 64 }, (_, gi) => ({
           x: plotLeft + (gi / 63) * plotSpanX,
           fitY: yVal,
@@ -2224,7 +2304,7 @@ export function createModelFitChart() {
           skipMorph: _skipMorph,
         });
       } else {
-        const gridPts = pubFit.grid.map((g) => ({
+        const gridPts = grid.map((g) => ({
           x: mapX(g.x),
           fitY: mapY(g.fit),
           lowY: mapY(g.ciLow),
@@ -2233,7 +2313,7 @@ export function createModelFitChart() {
 
         const curveD = buildPolylinePath(gridPts.map((p) => ({ x: p.x, y: p.fitY })));
         let bandD = '';
-        if (samples.length >= 3) {
+        if (fitItems.length >= 3) {
           bandD = `M ${gridPts[0].x.toFixed(1)} ${gridPts[0].highY.toFixed(1)}`;
           for (let i = 1; i < gridPts.length; i++) {
             bandD += ` L ${gridPts[i].x.toFixed(1)} ${gridPts[i].highY.toFixed(1)}`;
@@ -2246,20 +2326,6 @@ export function createModelFitChart() {
           patchAttr(ciBandPath, 'd', '');
         }
 
-        const showOlsRef = samples.length >= 6;
-        patchAttr(olsLine, 'hidden', !showOlsRef);
-        let olsCoords = null;
-        if (showOlsRef) {
-          const olsStartVal = clampValue(pubFit.intercept + pubFit.slope * xMin, minBound, maxBound);
-          const olsEndVal = clampValue(pubFit.intercept + pubFit.slope * xMax, minBound, maxBound);
-          olsCoords = {
-            x1: plotLeft,
-            y1: mapY(olsStartVal),
-            x2: plotRight,
-            y2: mapY(olsEndVal),
-          };
-        }
-
         fitMorphCtrl.morphFits({
           items: [
             {
@@ -2267,8 +2333,8 @@ export function createModelFitChart() {
               gridPts,
               curveEl: fitPath,
               bandEl: bandD ? ciBandPath : null,
-              olsEl: showOlsRef ? olsLine : null,
-              olsCoords,
+              olsEl: null,
+              olsCoords: null,
               finalCurveD: curveD,
               finalBandD: bandD,
             },
@@ -2278,22 +2344,48 @@ export function createModelFitChart() {
       }
     }
 
+    const mean =
+      fitItems.length === matchedItems.length
+        ? pubFit.mean
+        : matchedItems.reduce((sum, item) => sum + item.rawVal, 0) / matchedItems.length;
     const summaryBadge = t('chart.fit.singleBadge', {
       steps: samples.length,
-      mean: formatChartMetricCompact(metric, pubFit.mean),
+      mean: formatChartMetricCompact(metric, mean),
     });
-    if (samples.length >= 2) {
+    if (fitItems.length >= 2) {
+      const d = grid[grid.length - 1].fit - grid[0].fit;
+      const sse = samples.reduce(
+        (sum, s) => (fitItems === matchedItems || !s.anomalySummary ? sum + (s.rawVal - s.fitVal) ** 2 : sum),
+        0
+      );
+      const sd = Math.sqrt(sse / Math.max(1, fitItems.length - 2));
+      const formattedSd = formatTrendAmount(metric, sd);
+      const delta = formatTrendAmount(metric, Math.abs(d));
+      if (delta === formatTrendAmount(metric, 0) || Math.abs(d) < 0.25 * sd) {
+        patchText(fitStatsEl, t('chart.fit.trendFlat', { sd: formattedSd }));
+      } else {
+        const rising = d > 0;
+        const higherIsBetter = metric === 'tps' || metric === 'cache';
+        patchText(
+          fitStatsEl,
+          t(rising ? 'chart.fit.trendRise' : 'chart.fit.trendFall', {
+            delta,
+            verdict: t(rising === higherIsBetter ? 'chart.fit.verdictBetter' : 'chart.fit.verdictWorse'),
+            sd: formattedSd,
+          })
+        );
+      }
       const rSign = pubFit.r >= 0 ? '+' : '';
       const slopeSign = pubFit.slope >= 0 ? '+' : '';
-      patchText(fitStatsEl, `r = ${rSign}${pubFit.r.toFixed(2)} · R² = ${pubFit.r2.toFixed(2)}`);
+      const diagnostics = `r = ${rSign}${pubFit.r.toFixed(2)} · R² = ${pubFit.r2.toFixed(2)}`;
       patchAttr(
         fitStatsEl,
         'title',
-        t('chart.fit.olsTitle', {
+        `${diagnostics} · ${t('chart.fit.olsTitle', {
           slope: `${slopeSign}${pubFit.slope.toFixed(3)}`,
           intercept: pubFit.intercept.toFixed(2),
           sd: pubFit.sd.toFixed(2),
-        })
+        })}`
       );
     } else {
       patchText(fitStatsEl, `n = ${samples.length}`);

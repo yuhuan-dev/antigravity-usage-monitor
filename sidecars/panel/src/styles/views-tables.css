@@ -866,7 +866,6 @@
 .sstep-sci-grid line {
   stroke: var(--border-hairline);
   stroke-width: 0.9;
-  stroke-dasharray: 2 3;
 }
 
 .sstep-axis-spine {
@@ -964,6 +963,11 @@
   stroke-linejoin: round;
 }
 
+.sstep-fit-line.is-primary {
+  stroke-width: 2.25;
+  filter: drop-shadow(0 0 1px var(--surface-panel)) drop-shadow(0 0 1px var(--surface-panel));
+}
+
 .sstep-ols-line {
   stroke: color-mix(in srgb, var(--text-secondary) 72%, var(--surface-panel));
   stroke-width: 1.1;
@@ -971,8 +975,8 @@
 }
 
 .sstep-scatter-dot {
-  fill: color-mix(in srgb, var(--sstep-fit-accent, var(--ctx-cached)) 48%, var(--text-secondary) 52%);
-  fill-opacity: 0.42;
+  fill: color-mix(in srgb, var(--text-secondary) 78%, var(--surface-panel));
+  fill-opacity: 0.65;
   stroke: none;
 }
 
@@ -1015,15 +1019,21 @@
 }
 
 .sstep-scatter-dot.is-anomaly {
-  fill: var(--metric-warn);
-  fill-opacity: 0.88;
-  stroke: none;
+  fill: var(--surface-panel);
+  fill-opacity: 1;
+  stroke: var(--metric-warn);
+  stroke-width: 1.6;
   pointer-events: none;
 }
 
 .sstep-scatter-dot.is-anomaly.is-danger {
   fill: var(--metric-danger);
-  fill-opacity: 0.92;
+  stroke: var(--surface-panel);
+  stroke-width: 1.2;
+}
+
+.sstep-outlier-caret {
+  fill: var(--text-muted);
 }
 
 .trend-tip-anomaly {
@@ -1115,13 +1125,13 @@
   color: var(--text-secondary);
 }
 
-.sstep-fit-legend-ols {
+.sstep-fit-legend > span:has(> .sstep-fit-swatch) {
   display: inline-flex;
   align-items: center;
   gap: 4px;
 }
 
-.sstep-fit-legend-ols[hidden] {
+.sstep-fit-legend > span[hidden] {
   display: none;
 }
 
@@ -1134,7 +1144,7 @@
   width: 5.5px;
   height: 5.5px;
   border-radius: var(--radius-pill);
-  background: color-mix(in srgb, var(--sstep-fit-accent, var(--ctx-cached)) 48%, var(--text-secondary) 52%);
+  background: color-mix(in srgb, var(--text-secondary) 78%, var(--surface-panel));
   opacity: 0.68;
 }
 
@@ -1160,6 +1170,29 @@
   height: 0;
   border-top: 1.2px dashed color-mix(in srgb, var(--text-secondary) 75%, var(--surface-panel));
   margin-left: 3px;
+}
+
+.sstep-fit-swatch.is-caret {
+  width: 0;
+  height: 0;
+  border-left: 3.5px solid transparent;
+  border-right: 3.5px solid transparent;
+  border-bottom: 5.5px solid var(--text-muted);
+}
+
+.sstep-fit-swatch.is-anomaly {
+  width: 7px;
+  height: 7px;
+  border-radius: var(--radius-pill);
+  border: 1.5px solid var(--metric-warn);
+  box-sizing: border-box;
+}
+
+.sstep-fit-swatch.is-danger {
+  width: 7px;
+  height: 7px;
+  border-radius: var(--radius-pill);
+  background: var(--metric-danger);
 }
 
 .sstep-fit-delta {

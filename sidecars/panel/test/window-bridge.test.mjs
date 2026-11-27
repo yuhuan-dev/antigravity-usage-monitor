@@ -2920,11 +2920,13 @@ test('Compiled app.js mounts dual Shadow DOM hosts, tracks /c/<uuid> routes, pro
       'var(--ctx-cached)',
       'Model fit chart uses project calm blue accent instead of fiery orange'
     );
+    const fitStats = fitCard.querySelector('.sstep-fit-delta');
     assert.match(
-      fitCard.querySelector('.sstep-fit-delta').textContent,
-      /^r = [+-]\d+\.\d{2} · R² = \d+\.\d{2}$/,
-      'Statistical r and R² diagnostics rendered in footer'
+      fitStats.textContent,
+      /^(?:整体平稳|(?:上升|下降) \d+(?:\.\d+)? tok\/s（(?:变好|变差)）) · 波动 ±\d+(?:\.\d+)? tok\/s$/,
+      'Plain-language trend and spread rendered in footer'
     );
+    assert.match(fitStats.getAttribute('title'), /R²/);
 
     // Filter to Subagent #1 via multi-select inlineScopeSelect -> single-model scope auto-hides model dropdowns!
     const inlineScopeSelectEl = stepsPane.querySelector('.steps-inline-scope-select');

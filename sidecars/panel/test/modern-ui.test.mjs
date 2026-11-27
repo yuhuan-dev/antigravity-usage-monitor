@@ -972,6 +972,102 @@ test('SegmentedControl variable-width glider snaps cleanly on reveal and glides 
   document.documentElement.removeAttribute('data-modern-ui');
 });
 
+test('Model fit marks off-scale observations and keeps severe anomalies out of the fit', (t) => {
+  const prevDoc = globalThis.document;
+  const { document } = createMockDom();
+  globalThis.document = document;
+  const chart = createModelFitChart();
+  t.after(() => {
+    chart.destroy();
+    globalThis.document = prevDoc;
+  });
+
+  const steps = Array.from({ length: 40 }, (_, i) => ({
+    stepIndex: i + 1,
+    modelShort: 'Gemini',
+    tokPerSec: i === 20 ? 1000 : 80 + (i + 1) / 2 + ((i + 1) % 4),
+  }));
+  steps[33].tokPerSec = 5000;
+  steps[33].anomaly = { count: 1, primaryKind: 'timeout', severity: 'danger' };
+  const update = () => chart.update({ steps, metric: 'tps', _skipMorph: true });
+
+  update();
+  assert.equal(chart.el.querySelectorAll('.sstep-outlier-caret').length, 1);
+  const anomalies = chart.el.querySelector('.sstep-fit-anomaly-group');
+  assert.equal(anomalies.querySelectorAll('.is-danger').length, 1);
+  const fitPath = chart.el.querySelector('.sstep-fit-line.is-primary');
+  const fitD = fitPath.getAttribute('d');
+  assert.match(fitD, /^M /);
+
+  steps[33].tokPerSec = 20000;
+  update();
+  assert.equal(fitPath.getAttribute('d'), fitD);
+  assert.doesNotMatch(chart.el.querySelector('.sstep-fit-delta').textContent, /^r =/);
+});
+
+test('Model fit uses the fitted sample set for trends and hides fits outside the grid', (t) => {
+  const prevDoc = globalThis.document;
+  const prevLocale = i18nStore.getState().locale;
+  const { document } = createMockDom();
+  globalThis.document = document;
+  setI18nLanguage('zh-CN');
+  const chart = createModelFitChart();
+  t.after(() => {
+    chart.destroy();
+    globalThis.document = prevDoc;
+    setI18nLanguage(prevLocale);
+  });
+
+  const tpsSteps = (values) => values.map((tokPerSec, i) => ({
+    stepIndex: i + 1,
+    modelShort: 'Gemini',
+    tokPerSec,
+  }));
+  const update = (steps, metric = 'tps') => chart.update({ steps, metric, _skipMorph: true });
+  const stats = chart.el.querySelector('.sstep-fit-delta');
+  const anomaly = { count: 1, primaryKind: 'timeout', severity: 'danger' };
+
+  update(tpsSteps(Array(8).fill(100)));
+  assert.match(stats.textContent, /^整体平稳 · 波动 ±/);
+
+  const allAnomalies = tpsSteps(Array.from({ length: 19 }, (_, i) => i === 4 ? 960 : 100));
+  for (const step of allAnomalies) step.anomaly = anomaly;
+  update(allAnomalies);
+  const spread = stats.textContent.match(/ · 波动 ±([\d.]+) tok\/s$/);
+  assert.ok(Number(spread?.[1]) > 0, stats.textContent);
+  const markers = chart.el.querySelectorAll('.sstep-fit-anomaly-group .is-danger');
+  assert.equal(markers.length, allAnomalies.length);
+  assert.ok(markers.every((marker) => Number(marker.getAttribute('cy')) > 16));
+
+  const firstAnomaly = tpsSteps([160, 70, 78, 83, 91, 98]);
+  firstAnomaly[0].anomaly = anomaly;
+  update(firstAnomaly);
+  const svg = chart.el.querySelector('.sstep-fit-svg');
+  const [, , width, height] = svg.getAttribute('viewBox').split(' ').map(Number);
+  svg.getBoundingClientRect = () => ({ left: 0, top: 0, width, height, right: width, bottom: height });
+  const plot = chart.el.querySelector('.sstep-plot-stage');
+  const moveTo = (clientX) => plot.dispatchEvent({ type: 'mousemove', clientX, clientY: 40 });
+  const hoverFitDot = svg.querySelector('.trend-hover-dot');
+  const tooltip = chart.el.querySelector('.trend-tooltip');
+  moveTo(width / 2);
+  assert.equal(hoverFitDot.hasAttribute('hidden'), false);
+  moveTo(2);
+  assert.equal(hoverFitDot.hasAttribute('hidden'), true);
+  assert.doesNotMatch(tooltip.textContent, /拟合|95% CI/);
+  assert.match(tooltip.querySelector('.trend-tip-tokens').textContent, /^观测 /);
+  assert.equal(tooltip.querySelector('.trend-tip-cost').textContent, '');
+  assert.match(tooltip.querySelector('.trend-tip-sub').textContent, /^上下文 /);
+  assert.equal(tooltip.querySelector('.trend-tip-anomaly').hasAttribute('hidden'), false);
+  plot.dispatchEvent({ type: 'mouseleave' });
+
+  update([40, 45, 50, 55, 60].map((cacheHitPct, i) => ({
+    stepIndex: i + 1,
+    modelShort: 'Gemini',
+    cacheHitPct,
+  })), 'cache');
+  assert.equal(stats.textContent, '上升 20.0 个百分点（变好） · 波动 ±0.0 个百分点');
+});
+
 test('saveSettingsPatch prevents stale in-flight telemetry polls from snapping settings back and commits UI preferences without blocking on forced telemetry', async (t) => {
   const prevDoc = globalThis.document;
   const prevWin = globalThis.window;
