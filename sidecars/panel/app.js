@@ -50311,21 +50311,27 @@ const StepsDetailView = defineComponent({
       inlineScopeSelect.el,
       stepsModelSelect.el,
     ]);
+    const headerRightEl = h('div', { className: 'steps-header-right', hidden: true }, [
+      headerFiltersEl,
+      stepsExportMenu.el,
+    ]);
+    function syncHeaderRightVisibility() {
+      const hasVisibleRightControl =
+        !headerFiltersEl.hasAttribute('hidden') || !stepsExportMenu.el.hasAttribute('hidden');
+      patchAttr(headerRightEl, 'hidden', !hasVisibleRightControl);
+    }
 
     const panelEl = h(
       'section',
       {
-        className: 'panel',
+        className: 'panel steps-panel',
         style: 'flex: 1; min-height: 0; display: flex; flex-direction: column; position: relative;',
       },
       [
         h('div', { className: 'panel-header steps-panel-header' }, [
           h('div', { className: 'steps-header-controls' }, [
             subTabSwitch.el,
-            h('div', { className: 'steps-header-right' }, [
-              headerFiltersEl,
-              stepsExportMenu.el,
-            ]),
+            headerRightEl,
           ]),
         ]),
         stepsFilterToolbarEl,
@@ -50670,6 +50676,7 @@ const StepsDetailView = defineComponent({
       const showFilterToolbar = filterToolbarEnabled && !showModels && steps.length > 0;
       patchAttr(stepsFilterToolbarEl, 'hidden', !showFilterToolbar);
       stepsExportMenu.refs.setHidden(showModels || steps.length === 0);
+      syncHeaderRightVisibility();
       if (showFilterToolbar) {
         const activeFilterOpts = [];
         for (const def of QUICK_CHIP_DEFS) {
@@ -51338,7 +51345,12 @@ const StepsDetailView = defineComponent({
           'hidden',
           tab !== 'steps' || !toolbarAllowed || (currentTableSteps.length === 0 && !stepSearchQuery && !stepQuickChip)
         );
+        if (tab !== 'steps') {
+          patchAttr(stepsModelSelect.el, 'hidden', true);
+          patchAttr(headerFiltersEl, 'hidden', inlineScopeSelect.el.hasAttribute('hidden'));
+        }
         stepsExportMenu.refs.setHidden(tab !== 'steps' || currentAllConvSteps.length === 0);
+        syncHeaderRightVisibility();
         patchAttr(stepsScroll.el, 'hidden', tab !== 'steps');
         patchAttr(modelsScroll.el, 'hidden', tab !== 'models');
         if (getVisibleMonitorView() === 'steps' && latestSlice) {

@@ -3027,3 +3027,153 @@ test('Direct preview drag-to-reorder works for module stacks, 1D/2D metric grids
   sortableStepTable.refs.renderStepTable(sampleSteps, 'live-steps', ['time', 'model', 'tps'], 'zh-CN');
   assert.equal(sortableStepTable.refs.stepsTableEl.classList.contains('is-col-reorderable'), false);
 });
+
+test('StepsDetailView eliminates stacked vertical top gaps across filter toolbar, anomaly bar, and summary tab in Classic and Modern UI', (t) => {
+  const prevDoc = globalThis.document;
+  const prevWin = globalThis.window;
+  const prevUi = { ...uiStore.getState() };
+  const prevTel = { ...telemetryStore.getState() };
+  const prevLocale = i18nStore.getState().locale;
+
+  const { document } = createMockDom();
+  globalThis.document = document;
+  globalThis.window = {
+    innerWidth: 960,
+    innerHeight: 720,
+    addEventListener() {},
+    removeEventListener() {},
+    requestAnimationFrame: (cb) => {
+      cb();
+      return 1;
+    },
+    cancelAnimationFrame() {},
+  };
+  setI18nLanguage('zh-CN');
+
+  let view = null;
+  t.after(() => {
+    view?.destroy?.();
+    uiStore.setState(prevUi, { sync: true });
+    telemetryStore.setState(prevTel, { sync: true });
+    setI18nLanguage(prevLocale);
+    globalThis.document = prevDoc;
+    globalThis.window = prevWin;
+  });
+
+  const sampleSteps = [
+    {
+      stepIndex: 1,
+      createdAtMs: 1795600010000,
+      modelShort: '4-neon',
+      modelLabel: 'Gemini 4 Neon',
+      tokPerSec: 64.2,
+      ttftSec: 1.2,
+      inputTokens: 4000,
+      cacheReadTokens: 16000,
+      outputTokens: 600,
+      totalTokens: 20600,
+      cacheHitPct: 80,
+      costUsd: 0.03,
+    },
+  ];
+
+  uiStore.setState({ activeView: 'steps', stepsSubTab: 'steps', monitorVisible: true }, { sync: true });
+  telemetryStore.setState(
+    {
+      telemetry: {
+        settings: {
+          modernUi: true,
+          showStepFilterToolbar: true,
+          stepTableColumns: ['step', 'model', 'tps', 'cost'],
+        },
+        activeConversation: {
+          cascadeId: 'cid-steps-spacing-1',
+          stepCount: 1,
+          recentSteps: sampleSteps,
+          modelBreakdown: [
+            {
+              label: 'Gemini 4 Neon',
+              shortName: '4-neon',
+              calls: 1,
+              inputTokens: 4000,
+              cacheReadTokens: 16000,
+              outputTokens: 600,
+              totalTokens: 20600,
+              costUsd: 0.03,
+              avgTokPerSec: 64.2,
+              avgTtftSec: 1.2,
+              cacheHitPct: 80,
+            },
+          ],
+        },
+      },
+    },
+    { sync: true }
+  );
+
+  view = StepsDetailView();
+  document.body.appendChild(view.el);
+
+  const panelEl = view.el.querySelector('.steps-panel');
+  const headerRightEl = view.el.querySelector('.steps-header-right');
+  assert.ok(panelEl, 'StepsDetailView root panel carries .steps-panel spacing class');
+  assert.equal(view.refs.stepsFilterToolbarEl.hasAttribute('hidden'), false);
+  assert.equal(
+    headerRightEl.hasAttribute('hidden'),
+    false,
+    'steps-header-right stays visible on Steps tab when export menu is visible'
+  );
+
+  // Switching to Summary ('models') tab hides filter toolbar and collapses empty right header container
+  uiStore.setState({ stepsSubTab: 'models' }, { sync: true });
+  assert.equal(view.refs.stepsFilterToolbarEl.hasAttribute('hidden'), true);
+  assert.equal(view.refs.stepsScroll.el.hasAttribute('hidden'), true);
+  assert.equal(view.refs.modelsScroll.el.hasAttribute('hidden'), false);
+  assert.equal(
+    headerRightEl.hasAttribute('hidden'),
+    true,
+    'Empty steps-header-right is hidden on Summary tab so it cannot introduce phantom header row-gap'
+  );
+
+  // Compiled CSS bundle guards against stacked top spacing in Classic & Modern UI
+  const builtStyles = fs.readFileSync(new URL('../styles.css', import.meta.url), 'utf8');
+  assert.match(builtStyles, /\.steps-panel\s*\{[^}]*gap:\s*var\(--space-2\);/);
+  assert.match(builtStyles, /\.steps-panel-header\s*\{[^}]*flex-shrink:\s*0;/);
+  assert.match(builtStyles, /\.steps-header-right\[hidden\]/);
+  assert.match(builtStyles, /\.table-scroll-host\[hidden\]\s*\{[^}]*display:\s*none\s*!important;/);
+  assert.match(
+    builtStyles,
+    /\.steps-filter-toolbar\s*\{[^}]*flex-shrink:\s*0;[^}]*padding:\s*0;/s,
+    'Filter toolbar removes stacked vertical padding on top of panel flex gap'
+  );
+  assert.match(
+    builtStyles,
+    /\.steps-quick-chips\s*\{[^}]*align-self:\s*center;/,
+    'Quick filter chips center vertically alongside search input'
+  );
+  assert.match(
+    builtStyles,
+    /\[data-modern-ui="true"\]\s+\.table-scroll-host\s*\{[^}]*border-top:\s*none;[^}]*padding-top:\s*0;/s,
+    'Modern UI borderless table-scroll-host resets padding-top to 0'
+  );
+  assert.match(
+    builtStyles,
+    /\[data-modern-ui="true"\]\s+\.models-analytics-pane\s*\{[^}]*padding-top:\s*0;/s,
+    'Modern UI models-analytics-pane removes redundant top padding without overriding right scrollbar inset'
+  );
+  assert.doesNotMatch(
+    builtStyles,
+    /\[data-modern-ui="true"\]\s+\.models-analytics-pane\s*\{[^}]*\bpadding\s*:/,
+    'Modern UI models-analytics-pane must not use shorthand padding: that clobbers scrollbar padding-right'
+  );
+  assert.match(
+    builtStyles,
+    /\[data-modern-ui="true"\]\s+\.sstep-card\s*\{[^}]*padding:\s*0\s+2px;/s,
+    'Modern UI borderless sstep-card removes stacked vertical card padding above session trend header'
+  );
+  assert.match(
+    builtStyles,
+    /\[data-modern-ui="true"\]\s+\.steps-anomaly-filterbar\s*\{[^}]*margin:\s*0;/s,
+    'Modern UI anomaly filter bar removes stacked top/bottom margin on top of panel gap'
+  );
+});

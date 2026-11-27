@@ -528,6 +528,7 @@ html[data-standalone="true"][data-modern-ui="true"] .app-shell {
 /* --- 5. 调用记录表格与模型分析区去横线边框且不套内层背景 --- */
 [data-modern-ui="true"] .table-scroll-host {
   border-top: none;
+  padding-top: 0;
   background: transparent;
 }
 
@@ -634,7 +635,17 @@ html[data-standalone="true"][data-modern-ui="true"] .app-shell {
   background: var(--modern-pill-select-open);
 }
 
-[data-modern-ui="true"] .sstep-card,
+[data-modern-ui="true"] .models-analytics-pane {
+  padding-top: 0;
+  gap: var(--space-5);
+}
+
+[data-modern-ui="true"] .sstep-card {
+  border: none;
+  background: transparent;
+  padding: 0 2px;
+}
+
 [data-modern-ui="true"] .smodel-empty {
   border: none;
   background: transparent;
@@ -665,7 +676,7 @@ html[data-standalone="true"][data-modern-ui="true"] .app-shell {
   border: none;
   border-radius: var(--radius-xs);
   background: var(--modern-surface-subtle);
-  margin: 4px 2px 2px;
+  margin: 0;
 }
 
 [data-modern-ui="true"] .steps-anomaly-strip {
