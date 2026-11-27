@@ -30,14 +30,19 @@ export {
   DEFAULT_CONTEXT_AGENT_MODE,
   DEFAULT_DISPLAY_CURRENCY,
   DEFAULT_HOVER_METRICS,
-  DEFAULT_HOVER_METRIC_HYBRID_RATIO,
+  DEFAULT_HOVER_METRIC_ROWS,
+  DEFAULT_HOVER_METRIC_SIZES,
   DEFAULT_HOVER_METRIC_STYLE,
+  DEFAULT_HOVER_METRIC_TEXT_MODE,
   DEFAULT_HOVER_MODULES,
   DEFAULT_HOVER_SYNC_OVERVIEW_METRICS,
-  DEFAULT_METRIC_HYBRID_RATIO,
+  DEFAULT_METRIC_ROWS,
+  DEFAULT_METRIC_TEXT_MODE,
   DEFAULT_OVERVIEW_METRICS,
-  DEFAULT_OVERVIEW_METRIC_HYBRID_RATIO,
+  DEFAULT_OVERVIEW_METRIC_ROWS,
+  DEFAULT_OVERVIEW_METRIC_SIZES,
   DEFAULT_OVERVIEW_METRIC_STYLE,
+  DEFAULT_OVERVIEW_METRIC_TEXT_MODE,
   DEFAULT_OVERVIEW_MODULES,
   DEFAULT_POPOVER_WIDTH,
   DEFAULT_QUOTA_DISPLAY_MODE,
@@ -50,12 +55,15 @@ export {
   HOVER_METRIC_STYLES,
   MAX_CLI_STATUSLINE_SLOTS,
   MAX_LARGE_METRIC_SLOTS,
-  MAX_METRIC_HYBRID_RATIO,
+  MAX_OVERVIEW_METRICS,
   MAX_POPOVER_WIDTH,
   MAX_TOPBAR_SLOTS,
+  METRIC_CARD_SIZES,
   METRIC_CARD_STYLES,
+  METRIC_GRID_COLS,
+  METRIC_GRID_ROWS,
+  METRIC_TEXT_MODES,
   MIN_CLI_STATUSLINE_SLOTS,
-  MIN_METRIC_HYBRID_RATIO,
   MIN_POPOVER_WIDTH,
   MIN_TOPBAR_SLOTS,
   OVERVIEW_METRIC_KEYS,
@@ -68,6 +76,7 @@ export {
   TOPBAR_MULTI_SESSION_MODES,
   TOPBAR_SLOT_KEYS,
   createDefaultSettingsObject,
+  deriveMetricCardStyleFromLayout,
   isAccountSwitchFeatureActive,
   isContextWindowFeatureActive,
   isRiskyFeaturesGateOpen,
@@ -81,18 +90,25 @@ export {
   normalizeExperimentalQuotaReservation,
   normalizeFontScale,
   normalizeFullSettings,
-  normalizeHoverMetricHybridRatio,
+  normalizeHoverMetricRows,
+  normalizeHoverMetricSizes,
   normalizeHoverMetricStyle,
+  normalizeHoverMetricTextMode,
   normalizeHoverMetrics,
   normalizeHoverModules,
   normalizeHoverSyncOverviewMetrics,
   normalizeLanguageSetting,
+  normalizeMetricCardSize,
+  normalizeMetricCardSizes,
   normalizeMetricCardStyle,
-  normalizeMetricHybridRatio,
+  normalizeMetricGridRows,
+  normalizeMetricTextMode,
   normalizeModelDisplayMode,
   normalizeModernUi,
-  normalizeOverviewMetricHybridRatio,
+  normalizeOverviewMetricRows,
+  normalizeOverviewMetricSizes,
   normalizeOverviewMetricStyle,
+  normalizeOverviewMetricTextMode,
   normalizeOverviewMetrics,
   normalizeOverviewModules,
   normalizePluginUpdateMode,
@@ -108,8 +124,10 @@ export {
   normalizeTopbarMultiSessionMode,
   normalizeWeeklyLimitMode,
   normalizeWindowMountMode,
+  packMetricBentoLayout,
   parseStepTokenComboSegments,
   resolveEffectiveCliStatusLineSlots,
+  resolveEffectiveMetricMatrixConfig,
 } from './settings-schema.mjs';
 
 /**
@@ -437,18 +455,29 @@ export function computeRuntimeCodeVersion(options = {}) {
       // 忽略目录列举异常
     }
   }
+  candidates.sort();
+  let hash = 0x811c9dc5;
+  let counted = 0;
   for (const file of candidates) {
     try {
       const st = statSync(file, { throwIfNoEntry: false });
       if (st) {
         const mtime = Math.floor(st.mtimeMs || 0);
+        const size = Math.floor(st.size || 0);
         if (mtime > maxMtime) maxMtime = mtime;
+        counted += 1;
+        const entry = `${file}|${mtime}|${size}`;
+        for (let i = 0; i < entry.length; i += 1) {
+          hash ^= entry.charCodeAt(i);
+          hash = Math.imul(hash, 0x01000193);
+        }
       }
     } catch {
       // 忽略单文件 stat 异常
     }
   }
-  cachedRuntimeCodeVersion = String(maxMtime || nowMs);
+  const digest = (hash >>> 0).toString(16).padStart(8, '0');
+  cachedRuntimeCodeVersion = `${maxMtime || nowMs}-${counted}-${digest}`;
   cachedRuntimeCodeVersionExpiresAt = nowMs + RUNTIME_CODE_VERSION_TTL_MS;
   return cachedRuntimeCodeVersion;
 }

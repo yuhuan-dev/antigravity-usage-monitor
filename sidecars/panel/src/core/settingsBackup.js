@@ -5,6 +5,7 @@
 
 import { normalizeDisplayCurrency } from '../../shared/currency-catalog.mjs';
 import {
+  deriveMetricCardStyleFromLayout,
   normalizeAccountQuotaRefreshMinutes,
   normalizeAutoConfigureLaunch,
   normalizeCliStatusLineSlots,
@@ -12,16 +13,20 @@ import {
   normalizeEnableRemoteSshTelemetry,
   normalizeExperimentalQuotaReservation,
   normalizeFontScale,
-  normalizeHoverMetricHybridRatio,
+  normalizeHoverMetricRows,
+  normalizeHoverMetricSizes,
   normalizeHoverMetricStyle,
+  normalizeHoverMetricTextMode,
   normalizeHoverMetrics,
   normalizeHoverModules,
   normalizeHoverSyncOverviewMetrics,
   normalizeLanguageSetting,
   normalizeModelDisplayMode,
   normalizeModernUi,
-  normalizeOverviewMetricHybridRatio,
+  normalizeOverviewMetricRows,
+  normalizeOverviewMetricSizes,
   normalizeOverviewMetricStyle,
+  normalizeOverviewMetricTextMode,
   normalizeOverviewMetrics,
   normalizeOverviewModules,
   normalizePluginUpdateMode,
@@ -236,13 +241,127 @@ const PORTABLE_SETTING_DESCRIPTORS = Object.freeze([
   arrayField('topbarCapsuleSlots', normalizeTopbarCapsuleSlots),
   arrayField('hoverModules', normalizeHoverModules),
   boolField('hoverSyncOverviewMetrics', true),
-  normField('hoverMetricStyle', normalizeHoverMetricStyle),
-  normField('hoverMetricHybridRatio', normalizeHoverMetricHybridRatio),
-  arrayField('hoverMetrics', normalizeHoverMetrics),
+  {
+    exportTo: (src, out) => {
+      const metrics = normalizeHoverMetrics(src.hoverMetrics);
+      const hasExplicit =
+        src.hoverMetricRows !== undefined || src.hoverMetricSizes !== undefined;
+      const rows = normalizeHoverMetricRows(
+        src.hoverMetricRows,
+        hasExplicit ? undefined : src.hoverMetricStyle
+      );
+      const sizes = normalizeHoverMetricSizes(
+        src.hoverMetricSizes,
+        metrics,
+        hasExplicit ? undefined : src.hoverMetricStyle
+      );
+      out.hoverMetricStyle = deriveMetricCardStyleFromLayout(rows, metrics, sizes);
+      out.hoverMetricRows = rows;
+      out.hoverMetricSizes = sizes;
+      out.hoverMetricTextMode = normalizeHoverMetricTextMode(src.hoverMetricTextMode);
+      out.hoverMetrics = metrics;
+    },
+    importTo: (src, hasKey, patch) => {
+      const hasMetrics = hasKey('hoverMetrics') && Array.isArray(src.hoverMetrics);
+      const hasRows = hasKey('hoverMetricRows');
+      const hasSizes =
+        hasKey('hoverMetricSizes') &&
+        src.hoverMetricSizes &&
+        typeof src.hoverMetricSizes === 'object' &&
+        !Array.isArray(src.hoverMetricSizes);
+      const hasStyle = hasKey('hoverMetricStyle');
+      if (hasKey('hoverMetricTextMode')) {
+        patch.hoverMetricTextMode = normalizeHoverMetricTextMode(src.hoverMetricTextMode);
+      }
+      if (hasMetrics) {
+        patch.hoverMetrics = normalizeHoverMetrics(src.hoverMetrics);
+      }
+      if (hasRows || hasSizes) {
+        const rows = hasRows
+          ? normalizeHoverMetricRows(src.hoverMetricRows)
+          : undefined;
+        const sizes = hasSizes
+          ? normalizeHoverMetricSizes(src.hoverMetricSizes)
+          : undefined;
+        if (rows !== undefined) patch.hoverMetricRows = rows;
+        if (sizes !== undefined) patch.hoverMetricSizes = sizes;
+        if (rows !== undefined && sizes !== undefined) {
+          patch.hoverMetricStyle = deriveMetricCardStyleFromLayout(
+            rows,
+            patch.hoverMetrics || normalizeHoverMetrics(src.hoverMetrics),
+            sizes
+          );
+        }
+      } else if (hasStyle) {
+        const style = normalizeHoverMetricStyle(src.hoverMetricStyle);
+        const metrics = patch.hoverMetrics || normalizeHoverMetrics(src.hoverMetrics);
+        patch.hoverMetricStyle = style;
+        patch.hoverMetricRows = normalizeHoverMetricRows(undefined, style);
+        patch.hoverMetricSizes = normalizeHoverMetricSizes(undefined, metrics, style);
+      }
+    },
+  },
   arrayField('overviewModules', normalizeOverviewModules),
-  normField('overviewMetricStyle', normalizeOverviewMetricStyle),
-  normField('overviewMetricHybridRatio', normalizeOverviewMetricHybridRatio),
-  arrayField('overviewMetrics', normalizeOverviewMetrics),
+  {
+    exportTo: (src, out) => {
+      const metrics = normalizeOverviewMetrics(src.overviewMetrics);
+      const hasExplicit =
+        src.overviewMetricRows !== undefined || src.overviewMetricSizes !== undefined;
+      const rows = normalizeOverviewMetricRows(
+        src.overviewMetricRows,
+        hasExplicit ? undefined : src.overviewMetricStyle
+      );
+      const sizes = normalizeOverviewMetricSizes(
+        src.overviewMetricSizes,
+        metrics,
+        hasExplicit ? undefined : src.overviewMetricStyle
+      );
+      out.overviewMetricStyle = deriveMetricCardStyleFromLayout(rows, metrics, sizes);
+      out.overviewMetricRows = rows;
+      out.overviewMetricSizes = sizes;
+      out.overviewMetricTextMode = normalizeOverviewMetricTextMode(src.overviewMetricTextMode);
+      out.overviewMetrics = metrics;
+    },
+    importTo: (src, hasKey, patch) => {
+      const hasMetrics = hasKey('overviewMetrics') && Array.isArray(src.overviewMetrics);
+      const hasRows = hasKey('overviewMetricRows');
+      const hasSizes =
+        hasKey('overviewMetricSizes') &&
+        src.overviewMetricSizes &&
+        typeof src.overviewMetricSizes === 'object' &&
+        !Array.isArray(src.overviewMetricSizes);
+      const hasStyle = hasKey('overviewMetricStyle');
+      if (hasKey('overviewMetricTextMode')) {
+        patch.overviewMetricTextMode = normalizeOverviewMetricTextMode(src.overviewMetricTextMode);
+      }
+      if (hasMetrics) {
+        patch.overviewMetrics = normalizeOverviewMetrics(src.overviewMetrics);
+      }
+      if (hasRows || hasSizes) {
+        const rows = hasRows
+          ? normalizeOverviewMetricRows(src.overviewMetricRows)
+          : undefined;
+        const sizes = hasSizes
+          ? normalizeOverviewMetricSizes(src.overviewMetricSizes)
+          : undefined;
+        if (rows !== undefined) patch.overviewMetricRows = rows;
+        if (sizes !== undefined) patch.overviewMetricSizes = sizes;
+        if (rows !== undefined && sizes !== undefined) {
+          patch.overviewMetricStyle = deriveMetricCardStyleFromLayout(
+            rows,
+            patch.overviewMetrics || normalizeOverviewMetrics(src.overviewMetrics),
+            sizes
+          );
+        }
+      } else if (hasStyle) {
+        const style = normalizeOverviewMetricStyle(src.overviewMetricStyle);
+        const metrics = patch.overviewMetrics || normalizeOverviewMetrics(src.overviewMetrics);
+        patch.overviewMetricStyle = style;
+        patch.overviewMetricRows = normalizeOverviewMetricRows(undefined, style);
+        patch.overviewMetricSizes = normalizeOverviewMetricSizes(undefined, metrics, style);
+      }
+    },
+  },
   normField('quotaDisplayMode', normalizeQuotaDisplayMode),
   boolField('showStepTurnRail', false),
   boolField('showStepAgentBadge', true),

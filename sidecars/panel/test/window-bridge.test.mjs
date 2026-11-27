@@ -724,12 +724,14 @@ test('Compiled app.js mounts dual Shadow DOM hosts, tracks /c/<uuid> routes, pro
     topbarCapsuleSlots: ['tps', 'ttft', 'context'],
     hoverModules: ['metrics', 'context', 'quotas'],
     hoverSyncOverviewMetrics: true,
+    hoverMetricRows: 1,
+    hoverMetricSizes: {},
     hoverMetricStyle: 'medium',
-    hoverMetricHybridRatio: 50,
     hoverMetrics: ['tps', 'ttft', 'avg_tps', 'step_cost'],
     overviewModules: ['metrics', 'context', 'quotas', 'live_tasks'],
+    overviewMetricRows: 1,
+    overviewMetricSizes: {},
     overviewMetricStyle: 'medium',
-    overviewMetricHybridRatio: 50,
     overviewMetrics: ['tps', 'ttft', 'avg_tps', 'step_cost'],
     stepTableColumns: ['step', 'model', 'tps', 'ttft', 'tokens_combo', 'cache', 'cost'],
     showStepTurnRail: false,
@@ -1427,8 +1429,10 @@ test('Compiled app.js mounts dual Shadow DOM hosts, tracks /c/<uuid> routes, pro
     const hoverLegendGrid = hoverTipEl.querySelector('.ctx-legend-grid');
     const hoverQuotaPools = hoverTipEl.querySelector('.wm-hover-quota-pools');
     assert.equal(hoverMatrix.children.length, 4);
-    assert.equal(hoverMatrix.children[0].children[1].textContent, '92.4 tok/s');
-    assert.equal(hoverMatrix.children[3].children[1].textContent, '$0.040');
+    assert.equal(hoverMatrix.children[0].querySelector('.cell-value-main').textContent, '92.4');
+    assert.equal(hoverMatrix.children[0].querySelector('.cell-value-unit').textContent, 'tok/s');
+    assert.equal(hoverMatrix.children[3].querySelector('.cell-value-main').textContent, '$0.040');
+    assert.equal(hoverMatrix.children[3].querySelector('.cell-value-unit').hasAttribute('hidden'), true);
     assert.equal(hoverLegendGrid.children.length, 10, 'All 10 context legend slots pre-reserved');
     const firstLegendSlotBefore = hoverLegendGrid.children[0];
     assert.equal(firstLegendSlotBefore.children[0].children[1].textContent, '工具结果');
@@ -2056,82 +2060,99 @@ test('Compiled app.js mounts dual Shadow DOM hosts, tracks /c/<uuid> routes, pro
     await new Promise((r) => setTimeout(r, 40));
     assert.deepEqual(mockSettings.hoverModules, ['metrics', 'context', 'quotas']);
 
-    // Switch real-time metrics style to Hybrid and Large while synced with Live Overview -> updates overviewMetricStyle & hybrid ratio
-    const [hoverStyleGroup, hoverSyncGroup] = sec1.querySelectorAll('.segmented');
-    const hoverStyleBtns = hoverStyleGroup.querySelectorAll('.seg-btn');
+    // Switch real-time metrics height, card text mode, and resize Bento cards while synced/detached
+    const [hoverRowsGroup, hoverTextModeGroup, hoverSyncGroup] = sec1.querySelectorAll('.segmented');
+    const hoverRowsBtns = hoverRowsGroup.querySelectorAll('.seg-btn');
+    const hoverTextModeBtns = hoverTextModeGroup.querySelectorAll('.seg-btn');
     const hoverSyncBtns = hoverSyncGroup.querySelectorAll('.seg-btn');
-    assert.equal(hoverStyleBtns.length, 3, 'Hover metric style segmented switch has Medium, Hybrid, and Large options');
+    assert.equal(hoverRowsBtns.length, 2, 'Hover metric height segmented switch has 1 Row and 2 Rows options');
+    assert.equal(hoverTextModeBtns.length, 4, 'Hover metric card text mode switch has 4 options (both/title/sub/none)');
     assert.equal(hoverSyncBtns.length, 2, 'Hover sync toggle has On and Off options');
 
-    // Switch to Hybrid while synced -> updates overviewMetricStyle='hybrid', renders 1 hero + 3 compact cells + draggable splitter, keeps 4th metric undimmed
-    hoverStyleBtns[1].dispatchEvent({ type: 'click', stopPropagation() {} });
+    // Switch card text mode while synced -> defaults to 'title', updates overviewMetricTextMode & toggles header/subtext in preview
+    assert.equal(hoverPreviewWidgets.children[0].getAttribute('data-metric-text'), 'title');
+    assert.equal(hoverPreviewWidgets.children[0].querySelector('.cell-label').hasAttribute('hidden'), false);
+    assert.equal(hoverPreviewWidgets.children[0].querySelector('.cell-sub').hasAttribute('hidden'), true);
+    hoverTextModeBtns[3].dispatchEvent({ type: 'click', stopPropagation() {} });
+    await new Promise((r) => setTimeout(r, 30));
+    assert.equal(mockSettings.overviewMetricTextMode, 'none');
+    assert.equal(hoverPreviewWidgets.children[0].getAttribute('data-metric-text'), 'none');
+    assert.equal(hoverPreviewWidgets.children[0].querySelector('.cell-label').hasAttribute('hidden'), true);
+    assert.equal(hoverPreviewWidgets.children[0].querySelector('.cell-sub').hasAttribute('hidden'), true);
+    hoverTextModeBtns[0].dispatchEvent({ type: 'click', stopPropagation() {} });
+    await new Promise((r) => setTimeout(r, 30));
+    assert.equal(mockSettings.overviewMetricTextMode, 'both');
+
+    // Switch to 2 Rows while synced -> updates overviewMetricRows=2, shows Row-2 ghost cells, and drags card 0 handle to tall (2x2)
+    hoverRowsBtns[1].dispatchEvent({ type: 'click', stopPropagation() {} });
     await new Promise((r) => setTimeout(r, 30));
     assert.equal(mockSettings.hoverSyncOverviewMetrics, true);
-    assert.equal(mockSettings.overviewMetricStyle, 'hybrid');
-    const hoverHybridMatrix = hoverPreviewWidgets.children[0];
-    assert.equal(hoverHybridMatrix.classList.contains('is-hybrid'), true, 'Hover preview switches to hybrid layout');
-    assert.equal(hoverHybridMatrix.getAttribute('data-cols'), '4');
-    assert.equal(hoverHybridMatrix.querySelectorAll('.matrix-cell.is-trend-card.is-hybrid-hero').length, 1);
-    assert.equal(hoverHybridMatrix.querySelectorAll('.matrix-cell').length, 4);
+    assert.equal(mockSettings.overviewMetricRows, 2);
+    const hoverBentoMatrix = hoverPreviewWidgets.children[0];
+    assert.equal(hoverBentoMatrix.classList.contains('is-bento'), true, 'Hover preview uses Bento layout');
+    assert.equal(hoverBentoMatrix.classList.contains('is-two-row'), true, 'Hover preview switches to 2-row height');
+    assert.equal(hoverBentoMatrix.querySelectorAll('.matrix-ghost-cell').length, 4, 'Empty Row 2 shows 4 edit ghost cells');
     const hoverMetricRows = hoverMetricsWrap.querySelectorAll('.editable-slot-row');
-    assert.equal(hoverMetricRows[3].classList.contains('is-dimmed'), false, '4th metric row stays visible in Hybrid mode');
-    const syncedHoverSplitter = hoverHybridMatrix.querySelector('.matrix-hybrid-splitter');
-    assert.ok(syncedHoverSplitter, 'Hybrid hover preview mounts draggable border splitter');
-    hoverHybridMatrix.getBoundingClientRect = () => ({ left: 0, top: 0, right: 400, bottom: 120, width: 400, height: 120 });
-    syncedHoverSplitter.dispatchEvent({ type: 'pointerdown', button: 0, clientX: 200, clientY: 60, preventDefault() {}, stopPropagation() {} });
-    mockDocument.dispatchEvent({ type: 'pointermove', clientX: 248, clientY: 60, preventDefault() {} });
-    mockDocument.dispatchEvent({ type: 'pointerup', clientX: 248, clientY: 60 });
+    assert.equal(hoverMetricRows[3].classList.contains('is-dimmed'), false, '4th metric row stays visible in 2-row mode');
+    const syncedHandle0 = hoverBentoMatrix.querySelectorAll('.matrix-cell-resize-handle')[0];
+    assert.ok(syncedHandle0, 'Edit hover preview mounts corner resize handles');
+    hoverBentoMatrix.getBoundingClientRect = () => ({ left: 0, top: 0, right: 400, bottom: 144, width: 400, height: 144 });
+    syncedHandle0.dispatchEvent({ type: 'pointerdown', button: 0, clientX: 96, clientY: 68, preventDefault() {}, stopPropagation() {} });
+    mockDocument.dispatchEvent({ type: 'pointermove', clientX: 160, clientY: 120, preventDefault() {} });
+    mockDocument.dispatchEvent({ type: 'pointerup', clientX: 160, clientY: 120 });
     await new Promise((r) => setTimeout(r, 30));
-    assert.equal(mockSettings.overviewMetricHybridRatio, 62, 'Dragging synced hover hybrid splitter persists overviewMetricHybridRatio');
+    assert.deepEqual(mockSettings.overviewMetricSizes, { tps: 'tall' }, 'Dragging synced hover card corner persists overviewMetricSizes');
+    assert.equal(hoverBentoMatrix.querySelectorAll('.matrix-cell.is-tall-card').length, 1);
+    assert.equal(hoverBentoMatrix.querySelectorAll('.matrix-ghost-cell').length, 1, '7/8 occupied 2-row grid honestly shows 1 open edit ghost slot');
 
-    // Switch to Large while synced with Live Overview -> updates overviewMetricStyle & dims 4th metric row
-    hoverStyleBtns[2].dispatchEvent({ type: 'click', stopPropagation() {} });
+    // Switch back to 1 Row while synced -> tall card downgrades visually to wide (2x1), dimming 4th overflow metric row
+    hoverRowsBtns[0].dispatchEvent({ type: 'click', stopPropagation() {} });
     await new Promise((r) => setTimeout(r, 30));
     assert.equal(mockSettings.hoverSyncOverviewMetrics, true);
-    assert.equal(mockSettings.overviewMetricStyle, 'large');
-    assert.equal(
-      hoverPreviewWidgets.children[0].classList.contains('is-large-trend'),
-      true,
-      'Hover preview MetricMatrixWidget switches to large trend sparkline layout'
-    );
-    assert.equal(hoverPreviewWidgets.children[0].getAttribute('data-cols'), '3');
-    assert.equal(hoverPreviewWidgets.children[0].querySelectorAll('.matrix-cell.is-trend-card').length, 3);
-    assert.equal(hoverPreviewWidgets.children[0].querySelectorAll('.cell-sparkline-svg').length, 3);
-    assert.equal(hoverMetricRows.length, 4, 'Unified 1-4 metric list preserves 4th metric row in Large mode');
-    assert.equal(hoverMetricRows[3].classList.contains('is-dimmed'), true, '4th metric row dimmed in Large mode');
+    assert.equal(mockSettings.overviewMetricRows, 1);
+    assert.deepEqual(mockSettings.overviewMetricSizes, { tps: 'tall' }, 'Switching to 1 Row preserves saved tall preference');
+    assert.equal(hoverPreviewWidgets.children[0].querySelectorAll('.matrix-cell').length, 3);
+    assert.equal(hoverPreviewWidgets.children[0].querySelectorAll('.matrix-cell')[0].getAttribute('data-card-size'), 'wide');
+    assert.equal(hoverMetricRows.length, 4, 'Metric list preserves 4th overflow row');
+    assert.equal(hoverMetricRows[3].classList.contains('is-dimmed'), true, '4th metric row dimmed when overflowing 1-row grid');
 
-    // Turn off Sync with Live Overview -> Hover detaches cleanly while preserving overview style & hybrid ratio
+    // Regression: removing then re-adding 4th metric while 1-row has 2x1 + 1x1 + 1x1 MUST stay 1 row & keep card sizes
+    hoverMetricRows[3].querySelector('.slot-remove-btn').dispatchEvent({ type: 'click', stopPropagation() {} });
+    await new Promise((r) => setTimeout(r, 30));
+    assert.equal(mockSettings.overviewMetricRows, 1, 'Removing 4th metric keeps 1-row height');
+    assert.deepEqual(mockSettings.overviewMetricSizes, { tps: 'tall' }, 'Removing 4th metric keeps saved card sizes');
+    hoverMetricsWrap.querySelector('.slot-add-btn').dispatchEvent({ type: 'click', stopPropagation() {} });
+    await new Promise((r) => setTimeout(r, 30));
+    assert.equal(mockSettings.overviewMetricRows, 1, 'Adding 4th metric onto full 1-row (2x1+1x1+1x1) NEVER forces 2 rows');
+    assert.deepEqual(mockSettings.overviewMetricSizes, { tps: 'tall' }, 'Adding 4th metric preserves card sizes');
+    assert.equal(hoverMetricsWrap.querySelectorAll('.editable-slot-row')[3].classList.contains('is-dimmed'), true, 'Re-added 4th metric stays dimmed as overflow in 1-row mode');
+
+    // Turn off Sync with Live Overview -> Hover detaches cleanly while preserving overview rows & card sizes
     hoverSyncBtns[1].dispatchEvent({ type: 'click', stopPropagation() {} });
     await new Promise((r) => setTimeout(r, 30));
     assert.equal(mockSettings.hoverSyncOverviewMetrics, false);
-    assert.equal(mockSettings.hoverMetricStyle, 'large');
-    assert.equal(mockSettings.hoverMetricHybridRatio, 62, 'Detaching hover carries over current overview hybrid ratio');
-    // Detached Hover switches to Hybrid and drags splitter -> updates hoverMetricHybridRatio only
-    hoverStyleBtns[1].dispatchEvent({ type: 'click', stopPropagation() {} });
-    await new Promise((r) => setTimeout(r, 30));
-    assert.equal(mockSettings.hoverMetricStyle, 'hybrid');
-    const detachedSplitter = hoverPreviewWidgets.children[0].querySelector('.matrix-hybrid-splitter');
-    hoverPreviewWidgets.children[0].getBoundingClientRect = () => ({ left: 0, top: 0, right: 400, bottom: 120, width: 400, height: 120 });
-    detachedSplitter.dispatchEvent({ type: 'pointerdown', button: 0, clientX: 248, clientY: 60, preventDefault() {}, stopPropagation() {} });
-    mockDocument.dispatchEvent({ type: 'pointermove', clientX: 144, clientY: 60, preventDefault() {} });
-    mockDocument.dispatchEvent({ type: 'pointerup', clientX: 144, clientY: 60 });
-    await new Promise((r) => setTimeout(r, 30));
-    assert.equal(mockSettings.hoverMetricHybridRatio, 36, 'Detached hover splitter updates hoverMetricHybridRatio independently');
-    assert.equal(mockSettings.overviewMetricHybridRatio, 62, 'Detached hover splitter does not alter overviewMetricHybridRatio');
+    assert.equal(mockSettings.hoverMetricRows, 1);
+    assert.deepEqual(mockSettings.hoverMetricSizes, { tps: 'tall' }, 'Detaching hover carries over current overview Bento sizes');
 
-    hoverStyleBtns[0].dispatchEvent({ type: 'click', stopPropagation() {} });
+    // Detached Hover switches to 2 Rows and clicks row-0 size pill to cycle tall -> sm -> updates hoverMetricSizes independently
+    hoverRowsBtns[1].dispatchEvent({ type: 'click', stopPropagation() {} });
     await new Promise((r) => setTimeout(r, 30));
-    assert.equal(mockSettings.hoverMetricStyle, 'medium');
-    assert.equal(mockSettings.overviewMetricStyle, 'large', 'Overview stays Large after Hover detaches');
-    assert.equal(hoverPreviewWidgets.children[0].classList.contains('is-large-trend'), false);
-    assert.equal(hoverPreviewWidgets.children[0].getAttribute('data-cols'), '4');
-    assert.equal(hoverMetricRows[3].classList.contains('is-dimmed'), false, '4th metric row restored when switching back to Medium');
-    // Reset hover pane restores sync=true and hover defaults (including hoverMetricHybridRatio=50)
+    assert.equal(mockSettings.hoverMetricRows, 2);
+    assert.equal(mockSettings.overviewMetricRows, 1, 'Detached hover height change does not alter overviewMetricRows');
+    const detachedSizePill0 = hoverMetricsWrap.querySelectorAll('.slot-size-pill')[0];
+    assert.ok(detachedSizePill0, 'Metric list exposes clickable size pill');
+    detachedSizePill0.dispatchEvent({ type: 'click', stopPropagation() {} });
+    await new Promise((r) => setTimeout(r, 30));
+    assert.deepEqual(mockSettings.hoverMetricSizes, {}, 'Clicking size pill cycles tall -> sm on detached hover');
+    assert.deepEqual(mockSettings.overviewMetricSizes, { tps: 'tall' }, 'Detached hover size pill does not alter overviewMetricSizes');
+    assert.equal(hoverMetricRows[3].classList.contains('is-dimmed'), false, '4th metric row undimmed when fitting in grid');
+
+    // Reset hover pane restores sync=true and hover defaults (hoverMetricRows=1, hoverMetricSizes={})
     sec1.querySelector('.btn-ghost-sm').dispatchEvent({ type: 'click', stopPropagation() {} });
     await new Promise((r) => setTimeout(r, 40));
     assert.equal(mockSettings.hoverSyncOverviewMetrics, true);
-    assert.equal(mockSettings.hoverMetricStyle, 'medium');
-    assert.equal(mockSettings.hoverMetricHybridRatio, 50);
+    assert.equal(mockSettings.hoverMetricRows, 1);
+    assert.deepEqual(mockSettings.hoverMetricSizes, {});
 
     // Pane 2 (3rd-level tab 'overview'): Live Overview Layout + real overview UI preview
     const sec2 = accordionSections[3];
@@ -2142,16 +2163,15 @@ test('Compiled app.js mounts dual Shadow DOM hosts, tracks /c/<uuid> routes, pro
     assert.equal(sec2.hasAttribute('hidden'), false);
     const overviewPreviewHostEl = sec2.querySelector('.overview-modules-host');
     assert.equal(overviewPreviewHostEl.children.length, 4, 'Overview preview mounts all 4 real overview widgets');
-    // Overview is currently in Large mode from earlier synced switch -> verify 3 trend cards + dimmed 4th row, then switch back to Medium
-    assert.equal(overviewPreviewHostEl.children[0].classList.contains('is-large-trend'), true, 'Live Overview preview supports Large sparkline trend cards');
-    assert.equal(overviewPreviewHostEl.children[0].getAttribute('data-cols'), '3');
+    // Overview currently has overviewMetricRows=1 + overviewMetricSizes={ tps: 'tall' } (downgraded to wide) -> 3 visible + 4th dimmed
+    assert.equal(overviewPreviewHostEl.children[0].querySelectorAll('.matrix-cell').length, 3);
     const [ovMetricWrap, ovModWrap] = sec2.querySelectorAll('.editable-slot-wrap');
-    assert.equal(ovMetricWrap.querySelectorAll('.editable-slot-row')[3].classList.contains('is-dimmed'), true, 'Overview 4th metric dimmed in Large mode');
-    const ovStyleBtns = sec2.querySelectorAll('.seg-btn');
-    ovStyleBtns[0].dispatchEvent({ type: 'click', stopPropagation() {} });
+    assert.equal(ovMetricWrap.querySelectorAll('.editable-slot-row')[3].classList.contains('is-dimmed'), true, 'Overview 4th metric dimmed when overflowing 1-row Bento grid');
+    // Click size pill on row 0 (wide -> sm in 1-row mode) -> restores all 4 cards and undims 4th row
+    ovMetricWrap.querySelectorAll('.slot-size-pill')[0].dispatchEvent({ type: 'click', stopPropagation() {} });
     await new Promise((r) => setTimeout(r, 30));
-    assert.equal(mockSettings.overviewMetricStyle, 'medium');
-    assert.equal(overviewPreviewHostEl.children[0].classList.contains('is-large-trend'), false);
+    assert.deepEqual(mockSettings.overviewMetricSizes, {});
+    assert.equal(overviewPreviewHostEl.children[0].querySelectorAll('.matrix-cell').length, 4);
     assert.equal(ovMetricWrap.querySelectorAll('.editable-slot-row')[3].classList.contains('is-dimmed'), false);
     assert.equal(
       sec2.querySelector('.structure-preview-canvas').classList.contains('is-scaled'),

@@ -137,11 +137,19 @@ export const DEFAULT_OVERVIEW_METRIC_STYLE = 'medium';
 export const DEFAULT_HOVER_METRIC_STYLE = 'medium';
 export const DEFAULT_HOVER_SYNC_OVERVIEW_METRICS = true;
 export const MAX_LARGE_METRIC_SLOTS = 3;
-export const MIN_METRIC_HYBRID_RATIO = 28;
-export const MAX_METRIC_HYBRID_RATIO = 72;
-export const DEFAULT_METRIC_HYBRID_RATIO = 50;
-export const DEFAULT_OVERVIEW_METRIC_HYBRID_RATIO = DEFAULT_METRIC_HYBRID_RATIO;
-export const DEFAULT_HOVER_METRIC_HYBRID_RATIO = DEFAULT_METRIC_HYBRID_RATIO;
+export const METRIC_GRID_COLS = 4;
+export const METRIC_GRID_ROWS = Object.freeze([1, 2]);
+export const DEFAULT_METRIC_ROWS = 1;
+export const DEFAULT_OVERVIEW_METRIC_ROWS = DEFAULT_METRIC_ROWS;
+export const DEFAULT_HOVER_METRIC_ROWS = DEFAULT_METRIC_ROWS;
+export const METRIC_CARD_SIZES = Object.freeze(['sm', 'wide', 'narrow', 'tall']);
+export const DEFAULT_OVERVIEW_METRIC_SIZES = Object.freeze({});
+export const DEFAULT_HOVER_METRIC_SIZES = Object.freeze({});
+export const METRIC_TEXT_MODES = Object.freeze(['both', 'title', 'sub', 'none']);
+export const DEFAULT_METRIC_TEXT_MODE = 'title';
+export const DEFAULT_OVERVIEW_METRIC_TEXT_MODE = DEFAULT_METRIC_TEXT_MODE;
+export const DEFAULT_HOVER_METRIC_TEXT_MODE = DEFAULT_METRIC_TEXT_MODE;
+export const MAX_OVERVIEW_METRICS = 8;
 
 export const OVERVIEW_METRIC_KEYS = Object.freeze([
   'tps',
@@ -506,7 +514,7 @@ export function resolveEffectiveCliStatusLineSlots(settings) {
 }
 
 /**
- * 归一化实时监控第一行指标矩阵的槽位与顺序（1~4 项，默认 4 项）。
+ * 归一化实时监控指标矩阵的槽位与顺序（1~8 项，默认 4 项）。
  *
  * @param {unknown} raw
  * @returns {string[]}
@@ -523,7 +531,7 @@ export function normalizeOverviewMetrics(raw) {
     if (!OVERVIEW_METRIC_KEYS.includes(val) || seen.has(val)) continue;
     seen.add(val);
     out.push(val);
-    if (out.length >= 4) break;
+    if (out.length >= MAX_OVERVIEW_METRICS) break;
   }
   return out.length > 0 ? out : ['tps'];
 }
@@ -573,7 +581,7 @@ export function normalizeHoverModules(raw) {
 }
 
 /**
- * 归一化实时指标卡片展示尺寸（`'medium'` 紧凑数值 1~4 项、`'hybrid'` 左大右小混合 1~4 项、`'large'` 大号趋势折线 1~3 项）。
+ * 归一化实时指标卡片展示尺寸（兼容旧版 `'medium'` / `'hybrid'` / `'large'` 枚举）。
  *
  * @param {unknown} raw
  * @returns {'medium'|'hybrid'|'large'}
@@ -589,28 +597,433 @@ export const normalizeOverviewMetricStyle = normalizeMetricCardStyle;
 export const normalizeHoverMetricStyle = normalizeMetricCardStyle;
 
 /**
- * 归一化实时指标混合模式下左侧大卡片宽度占比（整数百分比 `28..72`，默认 `50`）。
+ * 归一化实时指标网格层高档位（严格限定 `1` 层或 `2` 层，兼容旧版 `'hybrid'` 自动升级为 `2` 层）。
  *
  * @param {unknown} raw
- * @returns {number}
+ * @param {unknown} [legacyStyle]
+ * @returns {1|2}
  */
-export function normalizeMetricHybridRatio(raw) {
-  if (raw === undefined || raw === null || raw === '' || typeof raw === 'boolean') {
-    return DEFAULT_METRIC_HYBRID_RATIO;
+export function normalizeMetricGridRows(raw, legacyStyle) {
+  if (raw === 2 || raw === '2') return 2;
+  if (raw === 1 || raw === '1') return 1;
+  if (typeof raw === 'string') {
+    const lower = raw.trim().toLowerCase();
+    if (lower === '2' || lower === 'two' || lower === 'double') return 2;
+    if (lower === '1' || lower === 'one' || lower === 'single') return 1;
   }
-  const num = Number(raw);
-  if (!Number.isFinite(num)) return DEFAULT_METRIC_HYBRID_RATIO;
-  return Math.max(
-    MIN_METRIC_HYBRID_RATIO,
-    Math.min(MAX_METRIC_HYBRID_RATIO, Math.round(num))
-  );
+  if (legacyStyle !== undefined && normalizeMetricCardStyle(legacyStyle) === 'hybrid') {
+    return 2;
+  }
+  return DEFAULT_METRIC_ROWS;
 }
 
-export const normalizeOverviewMetricHybridRatio = normalizeMetricHybridRatio;
-export const normalizeHoverMetricHybridRatio = normalizeMetricHybridRatio;
+export const normalizeOverviewMetricRows = normalizeMetricGridRows;
+export const normalizeHoverMetricRows = normalizeMetricGridRows;
 
 /**
- * 归一化鼠标悬浮窗是否同步「实时监控」的实时指标尺寸、混合宽度比例与列表（默认开启）。
+ * 归一化单张实时指标卡片的 Bento 网格尺寸（`'sm'` 1×1、`'wide'` 2×1、`'tall'` 2×2）。
+ *
+ * @param {unknown} raw
+ * @returns {'sm'|'wide'|'tall'}
+ */
+export function normalizeMetricCardSize(raw) {
+  const val = String(raw ?? '').trim().toLowerCase();
+  if (val === 'tall' || val === 'large' || val === 'lg' || val === '2x2' || val === 'hero') {
+    return 'tall';
+  }
+  if (val === 'narrow' || val === 'col' || val === 'slim' || val === 'vertical' || val === '1x2') {
+    return 'narrow';
+  }
+  if (val === 'wide' || val === 'md' || val === '2x1' || val === 'trend') {
+    return 'wide';
+  }
+  return 'sm';
+}
+
+/**
+ * 归一化实时指标单卡尺寸映射表（仅持久化非 `'sm'` 项；兼容旧版 `large` / `hybrid` 样式自动派生）。
+ *
+ * @param {unknown} raw
+ * @param {string[]} [metricsList]
+ * @param {unknown} [legacyStyle]
+ * @returns {Record<string, 'wide'|'narrow'|'tall'>}
+ */
+export function normalizeMetricCardSizes(raw, metricsList = null, legacyStyle = undefined) {
+  if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+    const out = {};
+    for (const [k, v] of Object.entries(raw)) {
+      const cleanKey = String(k ?? '').trim();
+      const mappedKey = cleanKey === 'cost' ? 'step_cost' : cleanKey;
+      if (!OVERVIEW_METRIC_KEYS.includes(mappedKey)) continue;
+      const size = normalizeMetricCardSize(v);
+      if (size !== 'sm') {
+        out[mappedKey] = size;
+      }
+    }
+    return out;
+  }
+  if (legacyStyle !== undefined) {
+    const style = normalizeMetricCardStyle(legacyStyle);
+    const list = Array.isArray(metricsList) && metricsList.length > 0
+      ? metricsList
+      : DEFAULT_OVERVIEW_METRICS;
+    if (style === 'large') {
+      const out = {};
+      for (const key of list) {
+        if (OVERVIEW_METRIC_KEYS.includes(key)) out[key] = 'wide';
+      }
+      return out;
+    }
+    if (style === 'hybrid' && list[0] && OVERVIEW_METRIC_KEYS.includes(list[0])) {
+      const out = { [list[0]]: 'tall' };
+      if (list.length === 3) {
+        if (list[1] && OVERVIEW_METRIC_KEYS.includes(list[1])) out[list[1]] = 'wide';
+        if (list[2] && OVERVIEW_METRIC_KEYS.includes(list[2])) out[list[2]] = 'wide';
+      }
+      return out;
+    }
+  }
+  return {};
+}
+
+export const normalizeOverviewMetricSizes = normalizeMetricCardSizes;
+export const normalizeHoverMetricSizes = normalizeMetricCardSizes;
+
+/**
+ * 归一化实时指标卡片辅助文字显示模式（`'both'` 都有 / `'title'` 仅标题 / `'sub'` 仅副标 / `'none'` 仅数值）。
+ *
+ * @param {unknown} raw
+ * @returns {'both'|'title'|'sub'|'none'}
+ */
+export function normalizeMetricTextMode(raw) {
+  const val = String(raw ?? '').trim().toLowerCase();
+  if (val === 'both' || val === 'all' || val === 'full') {
+    return 'both';
+  }
+  if (val === 'title' || val === 'title_only' || val === 'label' || val === 'label_only') {
+    return 'title';
+  }
+  if (val === 'sub' || val === 'sub_only' || val === 'subtitle' || val === 'meta') {
+    return 'sub';
+  }
+  if (val === 'none' || val === 'minimal' || val === 'value' || val === 'value_only') {
+    return 'none';
+  }
+  return DEFAULT_METRIC_TEXT_MODE;
+}
+
+export const normalizeOverviewMetricTextMode = normalizeMetricTextMode;
+export const normalizeHoverMetricTextMode = normalizeMetricTextMode;
+
+/**
+ * 根据层数与单卡尺寸表反推兼容旧版的 `metricStyle` 摘要值（`'medium'` | `'hybrid'` | `'large'`）。
+ *
+ * @param {number} rows
+ * @param {string[]} metrics
+ * @param {Record<string, string>} sizesMap
+ * @returns {'medium'|'hybrid'|'large'}
+ */
+export function deriveMetricCardStyleFromLayout(rows, metrics, sizesMap) {
+  const safeRows = normalizeMetricGridRows(rows);
+  const list = Array.isArray(metrics) ? metrics : [];
+  if (safeRows === 1 && list.length > 0) {
+    const effSizes = list.map((key) => {
+      const s = normalizeMetricCardSize(sizesMap?.[key]);
+      if (s === 'tall') return 'wide';
+      if (s === 'narrow') return 'sm';
+      return s;
+    });
+    if (effSizes.every((s) => s === 'sm')) return 'medium';
+    const checkLen = Math.min(MAX_LARGE_METRIC_SLOTS, effSizes.length);
+    if (effSizes.slice(0, checkLen).every((s) => s === 'wide')) return 'large';
+  }
+  return 'hybrid';
+}
+
+/**
+ * 将实时指标列表与单卡尺寸打包进 4 列 × (1 或 2) 层固定高度的 Bento 网格：
+ * - 每张卡片严格按真实有效尺寸占格（`sm` 1×1 / `wide` 2×1 / `narrow` 1×2 / `tall` 2×2），绝不偷偷将 1×1 变形伪装成 2×1；
+ * - 1 层模式下 `tall` (2×2) 视觉降级为 `wide` (2×1)、`narrow` (1×2) 降级为 `sm` (1×1)，同时完整保留原始偏好；
+ * - 2 层模式下若前置单行卡占满第 1 行导致后续跨双层卡片（1×2 / 2×2）放不下，自动将前置卡片紧凑折入左侧列区腾出右侧整列；
+ * - 编辑态 (`includeGhostCells: true`) 在所有未占用格位诚实渲染虚线引导空槽。
+ *
+ * @param {{
+ *   rows?: 1|2|number,
+ *   metrics?: string[],
+ *   sizes?: Record<string, string>,
+ *   includeGhostCells?: boolean,
+ * }} options
+ */
+export function packMetricBentoLayout({
+  rows = DEFAULT_METRIC_ROWS,
+  metrics = DEFAULT_OVERVIEW_METRICS,
+  sizes = {},
+  includeGhostCells = false,
+} = {}) {
+  const safeRows = normalizeMetricGridRows(rows);
+  const list = normalizeOverviewMetrics(metrics);
+  const sizesMap = normalizeMetricCardSizes(sizes);
+  const resolveEffSize = (key) => {
+    const rawSize = normalizeMetricCardSize(sizesMap[key]);
+    if (safeRows === 1) {
+      if (rawSize === 'tall') return 'wide';
+      if (rawSize === 'narrow') return 'sm';
+    }
+    return rawSize;
+  };
+
+  // 兼容 1 层 1~3 张全宽趋势卡均匀并排布局（如从旧版 large 升级或前 1~3 项均为宽趋势卡）
+  const uniformWideCount = Math.min(MAX_LARGE_METRIC_SLOTS, list.length);
+  if (
+    safeRows === 1 &&
+    uniformWideCount > 0 &&
+    list.slice(0, uniformWideCount).every((key) => resolveEffSize(key) === 'wide')
+  ) {
+    const placements = list.slice(0, uniformWideCount).map((key, idx) => ({
+      key,
+      index: idx,
+      rawSize: normalizeMetricCardSize(sizesMap[key]),
+      size: 'wide',
+      isTrend: true,
+      isWide: true,
+      isNarrow: false,
+      isTall: false,
+      colStart: idx + 1,
+      colSpan: 1,
+      rowStart: 1,
+      rowSpan: 1,
+    }));
+    return {
+      rows: 1,
+      effectiveRows: 1,
+      gridCols: uniformWideCount,
+      isThreeUpTrend: true,
+      placements,
+      overflowKeys: list.slice(uniformWideCount),
+      ghostCells: [],
+    };
+  }
+
+  const occ = Array.from({ length: safeRows }, () => Array(METRIC_GRID_COLS).fill(false));
+  const placements = [];
+  const overflowKeys = [];
+
+  function tryRepackForTwoRowCard(existingPlacements, newWidth) {
+    if (safeRows !== 2) return null;
+    const leftLimit = METRIC_GRID_COLS - newWidth;
+    if (leftLimit < 1) return null;
+    const leftOcc = [Array(leftLimit).fill(false), Array(leftLimit).fill(false)];
+    const coords = new Array(existingPlacements.length);
+
+    // First preserve/place existing 2-row items inside [0 .. leftLimit - 1]
+    for (let idx = 0; idx < existingPlacements.length; idx += 1) {
+      const item = existingPlacements[idx];
+      if (item.rowSpan !== 2) continue;
+      const w = item.colSpan;
+      if (w > leftLimit) return null;
+      let fitCol = -1;
+      const prefCol = item.colStart - 1;
+      if (prefCol >= 0 && prefCol + w <= leftLimit) {
+        let prefFree = true;
+        for (let dc = 0; dc < w; dc += 1) {
+          if (leftOcc[0][prefCol + dc] || leftOcc[1][prefCol + dc]) {
+            prefFree = false;
+            break;
+          }
+        }
+        if (prefFree) fitCol = prefCol;
+      }
+      if (fitCol < 0) {
+        for (let c = 0; c <= leftLimit - w; c += 1) {
+          let free = true;
+          for (let dc = 0; dc < w; dc += 1) {
+            if (leftOcc[0][c + dc] || leftOcc[1][c + dc]) {
+              free = false;
+              break;
+            }
+          }
+          if (free) {
+            fitCol = c;
+            break;
+          }
+        }
+      }
+      if (fitCol < 0) return null;
+      for (let dc = 0; dc < w; dc += 1) {
+        leftOcc[0][fitCol + dc] = true;
+        leftOcc[1][fitCol + dc] = true;
+      }
+      coords[idx] = { colStart: fitCol + 1, rowStart: 1 };
+    }
+
+    // Then pack all existing 1-row items cleanly into remaining slots of [0 .. leftLimit - 1]
+    for (let idx = 0; idx < existingPlacements.length; idx += 1) {
+      const item = existingPlacements[idx];
+      if (item.rowSpan !== 1) continue;
+      const w = item.colSpan;
+      if (w > leftLimit) return null;
+      let fit = null;
+      for (let r = 0; r < 2 && !fit; r += 1) {
+        for (let c = 0; c <= leftLimit - w && !fit; c += 1) {
+          let free = true;
+          for (let dc = 0; dc < w; dc += 1) {
+            if (leftOcc[r][c + dc]) {
+              free = false;
+              break;
+            }
+          }
+          if (free) {
+            for (let dc = 0; dc < w; dc += 1) {
+              leftOcc[r][c + dc] = true;
+            }
+            fit = { colStart: c + 1, rowStart: r + 1 };
+          }
+        }
+      }
+      if (!fit) return null;
+      coords[idx] = fit;
+    }
+
+    return { leftOcc, leftLimit, coords };
+  }
+
+  for (let i = 0; i < list.length; i += 1) {
+    const key = list[i];
+    const rawSize = normalizeMetricCardSize(sizesMap[key]);
+    const effSize = resolveEffSize(key);
+    const w = effSize === 'wide' || effSize === 'tall' ? 2 : 1;
+    const h = effSize === 'narrow' || effSize === 'tall' ? 2 : 1;
+    let placed = false;
+
+    for (let r = 0; r <= safeRows - h && !placed; r += 1) {
+      for (let c = 0; c <= METRIC_GRID_COLS - w && !placed; c += 1) {
+        let free = true;
+        for (let dr = 0; dr < h && free; dr += 1) {
+          for (let dc = 0; dc < w; dc += 1) {
+            if (occ[r + dr][c + dc]) {
+              free = false;
+              break;
+            }
+          }
+        }
+        if (free) {
+          for (let dr = 0; dr < h; dr += 1) {
+            for (let dc = 0; dc < w; dc += 1) {
+              occ[r + dr][c + dc] = true;
+            }
+          }
+          placements.push({
+            key,
+            index: i,
+            rawSize,
+            size: effSize,
+            isTrend: effSize !== 'sm',
+            isWide: effSize === 'wide',
+            isNarrow: effSize === 'narrow',
+            isTall: effSize === 'tall',
+            colStart: c + 1,
+            colSpan: w,
+            rowStart: r + 1,
+            rowSpan: h,
+          });
+          placed = true;
+        }
+      }
+    }
+
+    // 2 层模式下，若前置单行卡占满第 1 行导致后续跨双层卡片（2×2 或 1×2）放不下，尝试将前置卡片紧凑折入左侧列区，把右侧整列让给跨双层卡片
+    if (!placed && safeRows === 2 && h === 2) {
+      const repacked = tryRepackForTwoRowCard(placements, w);
+      if (repacked) {
+        for (let r = 0; r < 2; r += 1) {
+          for (let c = 0; c < METRIC_GRID_COLS; c += 1) {
+            occ[r][c] = c < repacked.leftLimit ? repacked.leftOcc[r][c] : false;
+          }
+        }
+        for (let k = 0; k < placements.length; k += 1) {
+          placements[k].colStart = repacked.coords[k].colStart;
+          placements[k].rowStart = repacked.coords[k].rowStart;
+        }
+        const targetCol = repacked.leftLimit;
+        for (let dr = 0; dr < 2; dr += 1) {
+          for (let dc = 0; dc < w; dc += 1) {
+            occ[dr][targetCol + dc] = true;
+          }
+        }
+        placements.push({
+          key,
+          index: i,
+          rawSize,
+          size: effSize,
+          isTrend: true,
+          isWide: false,
+          isNarrow: effSize === 'narrow',
+          isTall: effSize === 'tall',
+          colStart: targetCol + 1,
+          colSpan: w,
+          rowStart: 1,
+          rowSpan: 2,
+        });
+        placed = true;
+      }
+    }
+
+    if (!placed) {
+      overflowKeys.push(key);
+    }
+  }
+
+  if (safeRows === 1) {
+    const usedCols = placements.reduce((acc, item) => acc + item.colSpan, 0);
+    return {
+      rows: 1,
+      effectiveRows: 1,
+      gridCols: Math.max(1, Math.min(METRIC_GRID_COLS, usedCols)),
+      isThreeUpTrend: false,
+      placements,
+      overflowKeys,
+      ghostCells: [],
+    };
+  }
+
+  const row2HasAny = occ[1].some(Boolean);
+  if (!row2HasAny && !includeGhostCells) {
+    const usedCols = placements.reduce((acc, item) => acc + item.colSpan, 0);
+    return {
+      rows: 2,
+      effectiveRows: 1,
+      gridCols: Math.max(1, Math.min(METRIC_GRID_COLS, usedCols)),
+      isThreeUpTrend: false,
+      placements,
+      overflowKeys,
+      ghostCells: [],
+    };
+  }
+
+  const ghostCells = [];
+  if (includeGhostCells) {
+    for (let r = 0; r < 2; r += 1) {
+      for (let c = 0; c < METRIC_GRID_COLS; c += 1) {
+        if (!occ[r][c]) {
+          ghostCells.push({ colStart: c + 1, rowStart: r + 1 });
+        }
+      }
+    }
+  }
+
+  return {
+    rows: 2,
+    effectiveRows: 2,
+    gridCols: METRIC_GRID_COLS,
+    isThreeUpTrend: false,
+    placements,
+    overflowKeys,
+    ghostCells,
+  };
+}
+
+/**
+ * 归一化鼠标悬浮窗是否同步「实时监控」的实时指标层高、单卡尺寸与列表（默认开启）。
  *
  * @param {unknown} raw
  * @returns {boolean}
@@ -620,7 +1033,7 @@ export function normalizeHoverSyncOverviewMetrics(raw) {
 }
 
 /**
- * 归一化鼠标悬浮窗独立实时指标列表及左右顺序（1~4 项，与 `overviewMetrics` 共用完整候选集）。
+ * 归一化鼠标悬浮窗独立实时指标列表及左右顺序（1~8 项，与 `overviewMetrics` 共用完整候选集）。
  *
  * @param {unknown} raw
  * @returns {string[]}
@@ -630,38 +1043,62 @@ export function normalizeHoverMetrics(raw) {
 }
 
 /**
- * 解析实时监控 (`overview`) 或鼠标悬浮窗 (`hover`) 当前生效的实时指标尺寸、混合比例与展示项：
- * - `hover` 且开启 `hoverSyncOverviewMetrics` 时直接复用 `overviewMetricStyle` + `overviewMetricHybridRatio` + `overviewMetrics`；
- * - 切至 `'large'` 时保留完整 1~4 项配置，仅截取前 `MAX_LARGE_METRIC_SLOTS`（3）项渲染，第 4 项在设置页自动置灰；
- * - 切至 `'hybrid'` 时完整保留 1~4 项（第 1 项为左侧大趋势卡，其余 1~3 项为右侧紧凑卡）。
+ * 解析实时监控 (`overview`) 或鼠标悬浮窗 (`hover`) 当前生效的实时指标 Bento 布局配置：
+ * - `hover` 且开启 `hoverSyncOverviewMetrics` 时直接复用 `overviewMetricRows` + `overviewMetricSizes` + `overviewMetrics`；
+ * - 无损兼容仅有旧版 `overviewMetricStyle` / `hoverMetricStyle` 的历史配置。
  *
  * @param {'overview'|'hover'|string} mode
  * @param {Record<string, any>|null|undefined} [settings]
+ * @param {{ includeGhostCells?: boolean }} [options]
  */
-export function resolveEffectiveMetricMatrixConfig(mode, settings = {}) {
+export function resolveEffectiveMetricMatrixConfig(
+  mode,
+  settings = {},
+  { includeGhostCells = false } = {}
+) {
   const s = settings && typeof settings === 'object' ? settings : {};
   const isHover = mode === 'hover';
   const syncOverview = !isHover || normalizeHoverSyncOverviewMetrics(s.hoverSyncOverviewMetrics);
-  const style = syncOverview
-    ? normalizeOverviewMetricStyle(s.overviewMetricStyle)
-    : normalizeHoverMetricStyle(s.hoverMetricStyle);
-  const hybridRatio = syncOverview
-    ? normalizeOverviewMetricHybridRatio(s.overviewMetricHybridRatio)
-    : normalizeHoverMetricHybridRatio(s.hoverMetricHybridRatio);
   const allMetrics = syncOverview
     ? normalizeOverviewMetrics(s.overviewMetrics)
     : normalizeHoverMetrics(s.hoverMetrics);
+  const rawRows = syncOverview ? s.overviewMetricRows : s.hoverMetricRows;
+  const rawSizes = syncOverview ? s.overviewMetricSizes : s.hoverMetricSizes;
+  const rawStyle = syncOverview ? s.overviewMetricStyle : s.hoverMetricStyle;
+  const rawTextMode = syncOverview ? s.overviewMetricTextMode : s.hoverMetricTextMode;
+  const hasExplicitBento = rawRows !== undefined || rawSizes !== undefined;
+  const rows = normalizeMetricGridRows(rawRows, hasExplicitBento ? undefined : rawStyle);
+  const sizes = normalizeMetricCardSizes(
+    rawSizes,
+    allMetrics,
+    hasExplicitBento ? undefined : rawStyle
+  );
+  const textMode = normalizeMetricTextMode(rawTextMode);
+  const showTitle = textMode === 'both' || textMode === 'title';
+  const showSub = textMode === 'both' || textMode === 'sub';
+  const style = deriveMetricCardStyleFromLayout(rows, allMetrics, sizes);
+  const layout = packMetricBentoLayout({
+    rows,
+    metrics: allMetrics,
+    sizes,
+    includeGhostCells,
+  });
+  const metrics = layout.placements.map((p) => p.key);
   const isLarge = style === 'large';
   const isHybrid = style === 'hybrid';
-  const metrics = isLarge ? allMetrics.slice(0, MAX_LARGE_METRIC_SLOTS) : allMetrics;
   return {
     syncOverview,
+    rows,
+    sizes,
+    textMode,
+    showTitle,
+    showSub,
     style,
     isLarge,
     isHybrid,
-    hybridRatio,
     allMetrics,
     metrics,
+    layout,
   };
 }
 

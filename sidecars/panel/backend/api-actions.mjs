@@ -46,6 +46,7 @@ import {
   loadSettings,
   lsRuntimeEndpoint,
   normalizeFullSettings,
+  normalizeMetricCardStyle,
   normalizeModelDisplayMode,
   normalizeModernUi,
   normalizePluginUpdateMode,
@@ -413,9 +414,27 @@ export function executeSettingsAction(data) {
             current.topbarMultiSessionMode,
             current.showTopbarMultiSession
           );
-  const updated = normalizeFullSettings({
+  const legacyOverviewStyleOnly =
+    payload.overviewMetricStyle !== undefined &&
+    payload.overviewMetricRows === undefined &&
+    payload.overviewMetricSizes === undefined &&
+    (payload.overviewMetrics === undefined ||
+      normalizeMetricCardStyle(payload.overviewMetricStyle) !== current.overviewMetricStyle);
+  const legacyHoverStyleOnly =
+    payload.hoverMetricStyle !== undefined &&
+    payload.hoverMetricRows === undefined &&
+    payload.hoverMetricSizes === undefined &&
+    (payload.hoverMetrics === undefined ||
+      normalizeMetricCardStyle(payload.hoverMetricStyle) !== current.hoverMetricStyle);
+  const mergedForNorm = {
     ...current,
     ...payload,
+    ...(legacyOverviewStyleOnly
+      ? { overviewMetricRows: undefined, overviewMetricSizes: undefined }
+      : {}),
+    ...(legacyHoverStyleOnly
+      ? { hoverMetricRows: undefined, hoverMetricSizes: undefined }
+      : {}),
     modernUi: nextModernUi,
     topbarMultiSessionMode: nextTopbarMultiSessionMode,
     showTopbarMultiSession: nextTopbarMultiSessionMode !== 'hide',
@@ -431,7 +450,8 @@ export function executeSettingsAction(data) {
     modelDisplayMode: nextModelDisplayMode,
     pluginUpdateMode: nextPluginUpdateMode,
     windowMountMode: nextWindowMountMode,
-  });
+  };
+  const updated = normalizeFullSettings(mergedForNorm);
   if (!saveJson(SETTINGS_FILE, updated)) {
     return {
       ok: false,

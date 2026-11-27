@@ -18,14 +18,19 @@ import {
   DEFAULT_CLI_STATUSLINE_SLOTS,
   DEFAULT_CONTEXT_AGENT_MODE,
   DEFAULT_HOVER_METRICS,
-  DEFAULT_HOVER_METRIC_HYBRID_RATIO,
+  DEFAULT_HOVER_METRIC_ROWS,
+  DEFAULT_HOVER_METRIC_SIZES,
   DEFAULT_HOVER_METRIC_STYLE,
+  DEFAULT_HOVER_METRIC_TEXT_MODE,
   DEFAULT_HOVER_MODULES,
   DEFAULT_HOVER_SYNC_OVERVIEW_METRICS,
-  DEFAULT_METRIC_HYBRID_RATIO,
+  DEFAULT_METRIC_ROWS,
+  DEFAULT_METRIC_TEXT_MODE,
   DEFAULT_OVERVIEW_METRICS,
-  DEFAULT_OVERVIEW_METRIC_HYBRID_RATIO,
+  DEFAULT_OVERVIEW_METRIC_ROWS,
+  DEFAULT_OVERVIEW_METRIC_SIZES,
   DEFAULT_OVERVIEW_METRIC_STYLE,
+  DEFAULT_OVERVIEW_METRIC_TEXT_MODE,
   DEFAULT_OVERVIEW_MODULES,
   DEFAULT_POPOVER_WIDTH,
   DEFAULT_QUOTA_DISPLAY_MODE,
@@ -37,12 +42,15 @@ import {
   HOVER_METRIC_STYLES,
   MAX_CLI_STATUSLINE_SLOTS,
   MAX_LARGE_METRIC_SLOTS,
-  MAX_METRIC_HYBRID_RATIO,
+  MAX_OVERVIEW_METRICS,
   MAX_POPOVER_WIDTH,
   MAX_TOPBAR_SLOTS,
+  METRIC_CARD_SIZES,
   METRIC_CARD_STYLES,
+  METRIC_GRID_COLS,
+  METRIC_GRID_ROWS,
+  METRIC_TEXT_MODES,
   MIN_CLI_STATUSLINE_SLOTS,
-  MIN_METRIC_HYBRID_RATIO,
   MIN_POPOVER_WIDTH,
   MIN_TOPBAR_SLOTS,
   OVERVIEW_METRIC_KEYS,
@@ -55,6 +63,7 @@ import {
   THEME_ACCENT_KEYS,
   TOPBAR_MULTI_SESSION_MODES,
   TOPBAR_SLOT_KEYS,
+  deriveMetricCardStyleFromLayout,
   isAccountSwitchFeatureActive,
   isContextWindowFeatureActive,
   isRiskyFeaturesGateOpen,
@@ -68,18 +77,25 @@ import {
   normalizeExperimentalModernUi,
   normalizeExperimentalQuotaReservation,
   normalizeFontScale,
-  normalizeHoverMetricHybridRatio,
+  normalizeHoverMetricRows,
+  normalizeHoverMetricSizes,
   normalizeHoverMetricStyle,
+  normalizeHoverMetricTextMode,
   normalizeHoverMetrics,
   normalizeHoverModules,
   normalizeHoverSyncOverviewMetrics,
   normalizeLanguageSetting,
+  normalizeMetricCardSize,
+  normalizeMetricCardSizes,
   normalizeMetricCardStyle,
-  normalizeMetricHybridRatio,
+  normalizeMetricGridRows,
+  normalizeMetricTextMode,
   normalizeModelDisplayMode,
   normalizeModernUi,
-  normalizeOverviewMetricHybridRatio,
+  normalizeOverviewMetricRows,
+  normalizeOverviewMetricSizes,
   normalizeOverviewMetricStyle,
+  normalizeOverviewMetricTextMode,
   normalizeOverviewMetrics,
   normalizeOverviewModules,
   normalizePluginUpdateMode,
@@ -95,6 +111,7 @@ import {
   normalizeTopbarMultiSessionMode,
   normalizeWeeklyLimitMode,
   normalizeWindowMountMode,
+  packMetricBentoLayout,
   parseStepTokenComboSegments,
   resolveEffectiveCliStatusLineSlots,
   resolveEffectiveMetricMatrixConfig,
@@ -109,14 +126,19 @@ export {
   DEFAULT_CONTEXT_AGENT_MODE,
   DEFAULT_DISPLAY_CURRENCY,
   DEFAULT_HOVER_METRICS,
-  DEFAULT_HOVER_METRIC_HYBRID_RATIO,
+  DEFAULT_HOVER_METRIC_ROWS,
+  DEFAULT_HOVER_METRIC_SIZES,
   DEFAULT_HOVER_METRIC_STYLE,
+  DEFAULT_HOVER_METRIC_TEXT_MODE,
   DEFAULT_HOVER_MODULES,
   DEFAULT_HOVER_SYNC_OVERVIEW_METRICS,
-  DEFAULT_METRIC_HYBRID_RATIO,
+  DEFAULT_METRIC_ROWS,
+  DEFAULT_METRIC_TEXT_MODE,
   DEFAULT_OVERVIEW_METRICS,
-  DEFAULT_OVERVIEW_METRIC_HYBRID_RATIO,
+  DEFAULT_OVERVIEW_METRIC_ROWS,
+  DEFAULT_OVERVIEW_METRIC_SIZES,
   DEFAULT_OVERVIEW_METRIC_STYLE,
+  DEFAULT_OVERVIEW_METRIC_TEXT_MODE,
   DEFAULT_OVERVIEW_MODULES,
   DEFAULT_POPOVER_WIDTH,
   DEFAULT_QUOTA_DISPLAY_MODE,
@@ -128,12 +150,15 @@ export {
   HOVER_METRIC_STYLES,
   MAX_CLI_STATUSLINE_SLOTS,
   MAX_LARGE_METRIC_SLOTS,
-  MAX_METRIC_HYBRID_RATIO,
+  MAX_OVERVIEW_METRICS,
   MAX_POPOVER_WIDTH,
   MAX_TOPBAR_SLOTS,
+  METRIC_CARD_SIZES,
   METRIC_CARD_STYLES,
+  METRIC_GRID_COLS,
+  METRIC_GRID_ROWS,
+  METRIC_TEXT_MODES,
   MIN_CLI_STATUSLINE_SLOTS,
-  MIN_METRIC_HYBRID_RATIO,
   MIN_POPOVER_WIDTH,
   MIN_TOPBAR_SLOTS,
   OVERVIEW_METRIC_KEYS,
@@ -147,6 +172,7 @@ export {
   THEME_ACCENT_KEYS,
   TOPBAR_MULTI_SESSION_MODES,
   TOPBAR_SLOT_KEYS,
+  deriveMetricCardStyleFromLayout,
   isAccountSwitchFeatureActive,
   isContextWindowFeatureActive,
   isRiskyFeaturesGateOpen,
@@ -161,18 +187,25 @@ export {
   normalizeExperimentalModernUi,
   normalizeExperimentalQuotaReservation,
   normalizeFontScale,
-  normalizeHoverMetricHybridRatio,
+  normalizeHoverMetricRows,
+  normalizeHoverMetricSizes,
   normalizeHoverMetricStyle,
+  normalizeHoverMetricTextMode,
   normalizeHoverMetrics,
   normalizeHoverModules,
   normalizeHoverSyncOverviewMetrics,
   normalizeLanguageSetting,
+  normalizeMetricCardSize,
+  normalizeMetricCardSizes,
   normalizeMetricCardStyle,
-  normalizeMetricHybridRatio,
+  normalizeMetricGridRows,
+  normalizeMetricTextMode,
   normalizeModelDisplayMode,
   normalizeModernUi,
-  normalizeOverviewMetricHybridRatio,
+  normalizeOverviewMetricRows,
+  normalizeOverviewMetricSizes,
   normalizeOverviewMetricStyle,
+  normalizeOverviewMetricTextMode,
   normalizeOverviewMetrics,
   normalizeOverviewModules,
   normalizePluginUpdateMode,
@@ -188,6 +221,7 @@ export {
   normalizeTopbarMultiSessionMode,
   normalizeWeeklyLimitMode,
   normalizeWindowMountMode,
+  packMetricBentoLayout,
   parseStepTokenComboSegments,
   resolveEffectiveCliStatusLineSlots,
   resolveEffectiveMetricMatrixConfig,
@@ -240,11 +274,15 @@ export const DEFAULT_SETTINGS_SCHEMA = Object.freeze({
   hoverModules: DEFAULT_HOVER_MODULES,
   hoverSyncOverviewMetrics: DEFAULT_HOVER_SYNC_OVERVIEW_METRICS,
   hoverMetricStyle: DEFAULT_HOVER_METRIC_STYLE,
-  hoverMetricHybridRatio: DEFAULT_HOVER_METRIC_HYBRID_RATIO,
+  hoverMetricRows: DEFAULT_HOVER_METRIC_ROWS,
+  hoverMetricSizes: DEFAULT_HOVER_METRIC_SIZES,
+  hoverMetricTextMode: DEFAULT_HOVER_METRIC_TEXT_MODE,
   hoverMetrics: DEFAULT_HOVER_METRICS,
   overviewModules: DEFAULT_OVERVIEW_MODULES,
   overviewMetricStyle: DEFAULT_OVERVIEW_METRIC_STYLE,
-  overviewMetricHybridRatio: DEFAULT_OVERVIEW_METRIC_HYBRID_RATIO,
+  overviewMetricRows: DEFAULT_OVERVIEW_METRIC_ROWS,
+  overviewMetricSizes: DEFAULT_OVERVIEW_METRIC_SIZES,
+  overviewMetricTextMode: DEFAULT_OVERVIEW_METRIC_TEXT_MODE,
   overviewMetrics: DEFAULT_OVERVIEW_METRICS,
   quotaDisplayMode: DEFAULT_QUOTA_DISPLAY_MODE,
   showStepTurnRail: false,
@@ -272,8 +310,10 @@ export function createDefaultSettingsObject() {
     ...DEFAULT_SETTINGS_SCHEMA,
     topbarCapsuleSlots: [...DEFAULT_TOPBAR_SLOTS],
     hoverModules: [...DEFAULT_HOVER_MODULES],
+    hoverMetricSizes: {},
     hoverMetrics: [...DEFAULT_HOVER_METRICS],
     overviewModules: [...DEFAULT_OVERVIEW_MODULES],
+    overviewMetricSizes: {},
     overviewMetrics: [...DEFAULT_OVERVIEW_METRICS],
     stepTableColumns: [...DEFAULT_STEP_TABLE_COLUMNS],
     modelContextWindows: {},
@@ -310,6 +350,48 @@ export function normalizeFullSettings(rawInput) {
     safeRaw.riskyFeaturesEnabled,
     developerModeEnabled
   );
+  const hoverMetrics = normalizeHoverMetrics(
+    safeRaw.hoverMetrics !== undefined
+      ? safeRaw.hoverMetrics
+      : Array.isArray(safeRaw.hoverLargeMetrics)
+        ? [...safeRaw.hoverLargeMetrics, ...DEFAULT_HOVER_METRICS]
+        : undefined
+  );
+  const hasExplicitHoverBento =
+    safeRaw.hoverMetricRows !== undefined || safeRaw.hoverMetricSizes !== undefined;
+  const hoverMetricRows = normalizeHoverMetricRows(
+    safeRaw.hoverMetricRows,
+    hasExplicitHoverBento ? undefined : safeRaw.hoverMetricStyle
+  );
+  const hoverMetricSizes = normalizeHoverMetricSizes(
+    safeRaw.hoverMetricSizes,
+    hoverMetrics,
+    hasExplicitHoverBento ? undefined : safeRaw.hoverMetricStyle
+  );
+  const hoverMetricStyle = deriveMetricCardStyleFromLayout(
+    hoverMetricRows,
+    hoverMetrics,
+    hoverMetricSizes
+  );
+  const hoverMetricTextMode = normalizeHoverMetricTextMode(safeRaw.hoverMetricTextMode);
+  const overviewMetrics = normalizeOverviewMetrics(safeRaw.overviewMetrics);
+  const hasExplicitOverviewBento =
+    safeRaw.overviewMetricRows !== undefined || safeRaw.overviewMetricSizes !== undefined;
+  const overviewMetricRows = normalizeOverviewMetricRows(
+    safeRaw.overviewMetricRows,
+    hasExplicitOverviewBento ? undefined : safeRaw.overviewMetricStyle
+  );
+  const overviewMetricSizes = normalizeOverviewMetricSizes(
+    safeRaw.overviewMetricSizes,
+    overviewMetrics,
+    hasExplicitOverviewBento ? undefined : safeRaw.overviewMetricStyle
+  );
+  const overviewMetricStyle = deriveMetricCardStyleFromLayout(
+    overviewMetricRows,
+    overviewMetrics,
+    overviewMetricSizes
+  );
+  const overviewMetricTextMode = normalizeOverviewMetricTextMode(safeRaw.overviewMetricTextMode);
   return {
     language: normalizeLanguageSetting(safeRaw.language),
     displayCurrency: normalizeDisplayCurrency(safeRaw.displayCurrency),
@@ -345,21 +427,17 @@ export function normalizeFullSettings(rawInput) {
     topbarCapsuleSlots: normalizeTopbarCapsuleSlots(safeRaw.topbarCapsuleSlots),
     hoverModules: normalizeHoverModules(safeRaw.hoverModules),
     hoverSyncOverviewMetrics: normalizeHoverSyncOverviewMetrics(safeRaw.hoverSyncOverviewMetrics),
-    hoverMetricStyle: normalizeHoverMetricStyle(safeRaw.hoverMetricStyle),
-    hoverMetricHybridRatio: normalizeHoverMetricHybridRatio(safeRaw.hoverMetricHybridRatio),
-    hoverMetrics: normalizeHoverMetrics(
-      safeRaw.hoverMetrics !== undefined
-        ? safeRaw.hoverMetrics
-        : Array.isArray(safeRaw.hoverLargeMetrics)
-          ? [...safeRaw.hoverLargeMetrics, ...DEFAULT_HOVER_METRICS]
-          : undefined
-    ),
+    hoverMetricStyle,
+    hoverMetricRows,
+    hoverMetricSizes,
+    hoverMetricTextMode,
+    hoverMetrics,
     overviewModules: normalizeOverviewModules(safeRaw.overviewModules),
-    overviewMetricStyle: normalizeOverviewMetricStyle(safeRaw.overviewMetricStyle),
-    overviewMetricHybridRatio: normalizeOverviewMetricHybridRatio(
-      safeRaw.overviewMetricHybridRatio
-    ),
-    overviewMetrics: normalizeOverviewMetrics(safeRaw.overviewMetrics),
+    overviewMetricStyle,
+    overviewMetricRows,
+    overviewMetricSizes,
+    overviewMetricTextMode,
+    overviewMetrics,
     quotaDisplayMode: normalizeQuotaDisplayMode(safeRaw.quotaDisplayMode),
     showStepTurnRail: safeRaw.showStepTurnRail === true,
     showStepAgentBadge: safeRaw.showStepAgentBadge !== false,

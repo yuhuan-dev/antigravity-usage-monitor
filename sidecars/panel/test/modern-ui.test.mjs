@@ -1906,7 +1906,7 @@ test('Large Trend metric cards support unified 1-4 metrics across Hover & Live O
     assert.equal(card0.classList.contains('is-trend-card'), true);
     assert.equal(card0.querySelector('.cell-trend-num').textContent, '68.4');
     assert.equal(card0.querySelector('.cell-trend-unit').textContent, 'tok/s');
-    assert.equal(card0.querySelector('.cell-sparkline-svg').getAttribute('viewBox'), '0 0 74 34');
+    assert.equal(card0.querySelector('.cell-sparkline-svg').getAttribute('viewBox'), '0 0 74 26');
     assert.equal(
       card0.querySelector('.cell-sparkline-line').getAttribute('points').split(' ').length,
       default3Spec.maxPoints
@@ -1923,14 +1923,14 @@ test('Large Trend metric cards support unified 1-4 metrics across Hover & Live O
       { target: wrap1, contentRect: { width: 120 } },
     ]);
     await new Promise((r) => setTimeout(r, 20));
-    assert.equal(card0.querySelector('.cell-sparkline-svg').getAttribute('viewBox'), '0 0 42 34');
+    assert.equal(card0.querySelector('.cell-sparkline-svg').getAttribute('viewBox'), '0 0 42 26');
     assert.equal(
       card0.querySelector('.cell-sparkline-line').getAttribute('points').split(' ').length,
       resolveAdaptiveSparklineSpec(42, 3).maxPoints
     );
     assert.equal(
       hoverMatrix.el.children[1].querySelector('.cell-sparkline-svg').getAttribute('viewBox'),
-      '0 0 120 34'
+      '0 0 120 26'
     );
     assert.equal(
       hoverMatrix.el.children[1].querySelector('.cell-sparkline-line').getAttribute('points').split(' ').length,
@@ -1970,7 +1970,7 @@ test('Large Trend metric cards support unified 1-4 metrics across Hover & Live O
     assert.equal(hoverMatrix.el.getAttribute('data-cols'), '2');
     assert.equal(
       hoverMatrix.el.children[0].querySelector('.cell-sparkline-svg').getAttribute('viewBox'),
-      '0 0 136 34'
+      '0 0 136 26'
     );
     assert.equal(
       hoverMatrix.el.children[0].querySelector('.cell-sparkline-line').getAttribute('points').split(' ').length,
@@ -1987,7 +1987,7 @@ test('Large Trend metric cards support unified 1-4 metrics across Hover & Live O
     assert.equal(hoverMatrix.el.children.length, 1);
     assert.equal(
       hoverMatrix.el.children[0].querySelector('.cell-sparkline-svg').getAttribute('viewBox'),
-      '0 0 248 34'
+      '0 0 248 26'
     );
     assert.equal(
       hoverMatrix.el.children[0].querySelector('.cell-sparkline-line').getAttribute('points').split(' ').length,
@@ -3178,108 +3178,274 @@ test('StepsDetailView eliminates stacked vertical top gaps across filter toolbar
   );
 });
 
-test('Hybrid metric matrix mode: normalization, 1..4 layouts, border drag-to-resize, double-click/keyboard reset, reorder isolation, and LiveOverview persistence', async (t) => {
+test('Bento metric grid (Option A): 2-tier height, 4-col sm/wide/tall packing, edit-only drag-to-snap resize, click/keyboard cycling, and strict read-only live view', async (t) => {
   const {
-    DEFAULT_HOVER_METRIC_HYBRID_RATIO,
-    DEFAULT_METRIC_HYBRID_RATIO,
-    DEFAULT_OVERVIEW_METRIC_HYBRID_RATIO,
-    MAX_METRIC_HYBRID_RATIO,
-    METRIC_CARD_STYLES,
-    MIN_METRIC_HYBRID_RATIO,
-    normalizeHoverMetricHybridRatio,
-    normalizeMetricCardStyle,
-    normalizeMetricHybridRatio,
-    normalizeOverviewMetricHybridRatio,
+    DEFAULT_HOVER_METRIC_ROWS,
+    DEFAULT_HOVER_METRIC_SIZES,
+    DEFAULT_OVERVIEW_METRIC_ROWS,
+    DEFAULT_OVERVIEW_METRIC_SIZES,
+    MAX_OVERVIEW_METRICS,
+    METRIC_CARD_SIZES,
+    METRIC_GRID_COLS,
+    METRIC_GRID_ROWS,
+    normalizeHoverMetricRows,
+    normalizeMetricCardSize,
+    normalizeMetricCardSizes,
+    normalizeMetricGridRows,
+    normalizeOverviewMetricRows,
+    packMetricBentoLayout,
     resolveEffectiveMetricMatrixConfig,
   } = await import('../shared/settings-normalization.mjs');
   const { createDynamicWidgetHost } = await import('../src/registries/widgetRegistry.js');
   const { LiveOverviewView } = await import('../src/views/LiveOverviewView.js');
 
-  // 1) Shared normalization & backend schema checks
-  assert.deepEqual([...METRIC_CARD_STYLES], ['medium', 'hybrid', 'large']);
-  assert.equal(MIN_METRIC_HYBRID_RATIO, 28);
-  assert.equal(MAX_METRIC_HYBRID_RATIO, 72);
-  assert.equal(DEFAULT_METRIC_HYBRID_RATIO, 50);
-  assert.equal(DEFAULT_SETTINGS_SCHEMA.overviewMetricHybridRatio, DEFAULT_OVERVIEW_METRIC_HYBRID_RATIO);
-  assert.equal(DEFAULT_SETTINGS_SCHEMA.hoverMetricHybridRatio, DEFAULT_HOVER_METRIC_HYBRID_RATIO);
+  // 1) Shared normalization, legacy style migration & backend schema checks
+  assert.equal(METRIC_GRID_COLS, 4);
+  assert.deepEqual([...METRIC_GRID_ROWS], [1, 2]);
+  assert.deepEqual([...METRIC_CARD_SIZES], ['sm', 'wide', 'narrow', 'tall']);
+  assert.equal(MAX_OVERVIEW_METRICS, 8);
+  assert.equal(DEFAULT_SETTINGS_SCHEMA.overviewMetricRows, DEFAULT_OVERVIEW_METRIC_ROWS);
+  assert.equal(DEFAULT_SETTINGS_SCHEMA.hoverMetricRows, DEFAULT_HOVER_METRIC_ROWS);
+  assert.deepEqual(DEFAULT_SETTINGS_SCHEMA.overviewMetricSizes, DEFAULT_OVERVIEW_METRIC_SIZES);
+  assert.deepEqual(DEFAULT_SETTINGS_SCHEMA.hoverMetricSizes, DEFAULT_HOVER_METRIC_SIZES);
 
-  assert.equal(normalizeMetricCardStyle('hybrid'), 'hybrid');
-  assert.equal(normalizeMetricCardStyle('MIXED'), 'hybrid');
-  assert.equal(normalizeMetricCardStyle('mix'), 'hybrid');
-  assert.equal(normalizeMetricCardStyle('large'), 'large');
-  assert.equal(normalizeMetricCardStyle('invalid'), 'medium');
+  assert.equal(normalizeMetricGridRows(undefined), 1);
+  assert.equal(normalizeMetricGridRows(2), 2);
+  assert.equal(normalizeMetricGridRows('2'), 2);
+  assert.equal(normalizeMetricGridRows('two'), 2);
+  assert.equal(normalizeMetricGridRows(undefined, 'hybrid'), 2);
+  assert.equal(normalizeMetricGridRows('invalid'), 1);
+  assert.equal(normalizeOverviewMetricRows(2), 2);
+  assert.equal(normalizeHoverMetricRows(1), 1);
 
-  assert.equal(normalizeMetricHybridRatio(undefined), 50);
-  assert.equal(normalizeMetricHybridRatio(null), 50);
-  assert.equal(normalizeMetricHybridRatio(''), 50);
-  assert.equal(normalizeMetricHybridRatio('abc'), 50);
-  assert.equal(normalizeMetricHybridRatio(true), 50);
-  assert.equal(normalizeMetricHybridRatio(0), 28);
-  assert.equal(normalizeMetricHybridRatio(-10), 28);
-  assert.equal(normalizeMetricHybridRatio(15), 28);
-  assert.equal(normalizeMetricHybridRatio(90), 72);
-  assert.equal(normalizeOverviewMetricHybridRatio(43.6), 44);
-  assert.equal(normalizeHoverMetricHybridRatio('61'), 61);
+  assert.equal(normalizeMetricCardSize('sm'), 'sm');
+  assert.equal(normalizeMetricCardSize('wide'), 'wide');
+  assert.equal(normalizeMetricCardSize('2x1'), 'wide');
+  assert.equal(normalizeMetricCardSize('narrow'), 'narrow');
+  assert.equal(normalizeMetricCardSize('1x2'), 'narrow');
+  assert.equal(normalizeMetricCardSize('tall'), 'tall');
+  assert.equal(normalizeMetricCardSize('2x2'), 'tall');
+  assert.equal(normalizeMetricCardSize('unknown'), 'sm');
 
-  const normalizedFull = normalizeFullSettings({
+  assert.deepEqual(
+    normalizeMetricCardSizes({ tps: 'tall', ttft: 'sm', avg_tps: '1x2', cost: 'wide', nope: 'wide' }),
+    { tps: 'tall', avg_tps: 'narrow', step_cost: 'wide' }
+  );
+  assert.deepEqual(
+    normalizeMetricCardSizes(undefined, ['tps', 'ttft', 'avg_tps'], 'large'),
+    { tps: 'wide', ttft: 'wide', avg_tps: 'wide' }
+  );
+  assert.deepEqual(
+    normalizeMetricCardSizes(undefined, ['cache_hit', 'ttft', 'avg_tps'], 'hybrid'),
+    { cache_hit: 'tall', ttft: 'wide', avg_tps: 'wide' }
+  );
+  assert.deepEqual(
+    normalizeMetricCardSizes(undefined, ['cache_hit', 'ttft'], 'hybrid'),
+    { cache_hit: 'tall' }
+  );
+
+  const normalizedLegacy = normalizeFullSettings({
     overviewMetricStyle: 'hybrid',
-    overviewMetricHybridRatio: 88,
-    hoverMetricStyle: 'mixed',
-    hoverMetricHybridRatio: 12,
+    hoverMetricStyle: 'large',
+    hoverMetrics: ['tps', 'ttft', 'avg_tps'],
   });
-  assert.equal(normalizedFull.overviewMetricStyle, 'hybrid');
-  assert.equal(normalizedFull.overviewMetricHybridRatio, 72);
-  assert.equal(normalizedFull.hoverMetricStyle, 'hybrid');
-  assert.equal(normalizedFull.hoverMetricHybridRatio, 28);
+  assert.equal(normalizedLegacy.overviewMetricRows, 2);
+  assert.deepEqual(normalizedLegacy.overviewMetricSizes, { tps: 'tall' });
+  assert.equal(normalizedLegacy.overviewMetricStyle, 'hybrid');
+  assert.equal(normalizedLegacy.hoverMetricRows, 1);
+  assert.deepEqual(normalizedLegacy.hoverMetricSizes, {
+    tps: 'wide',
+    ttft: 'wide',
+    avg_tps: 'wide',
+  });
+  assert.equal(normalizedLegacy.hoverMetricStyle, 'large');
 
+  // 2) Deterministic honest Bento packing (1-row, 2-row, 1x2 narrow, downgrade, zero fake auto-stretch, overflow, ghost cells)
+  const pack1RowDowngrade = packMetricBentoLayout({
+    rows: 1,
+    metrics: ['tps', 'ttft', 'avg_tps', 'step_cost'],
+    sizes: { tps: 'tall', ttft: 'narrow' },
+  });
+  assert.equal(pack1RowDowngrade.effectiveRows, 1);
+  assert.equal(pack1RowDowngrade.gridCols, 4);
+  assert.equal(pack1RowDowngrade.placements.length, 3);
+  assert.equal(pack1RowDowngrade.placements[0].size, 'wide', 'tall downgrades visually to wide in 1-row');
+  assert.equal(pack1RowDowngrade.placements[0].rawSize, 'tall');
+  assert.equal(pack1RowDowngrade.placements[1].size, 'sm', 'narrow (1x2) downgrades visually to sm (1x1) in 1-row');
+  assert.equal(pack1RowDowngrade.placements[1].rawSize, 'narrow');
+  assert.deepEqual(pack1RowDowngrade.overflowKeys, ['step_cost']);
+
+  const pack3Up = packMetricBentoLayout({
+    rows: 1,
+    metrics: ['tps', 'ttft', 'avg_tps', 'step_cost'],
+    sizes: { tps: 'wide', ttft: 'wide', avg_tps: 'wide' },
+  });
+  assert.equal(pack3Up.isThreeUpTrend, true);
+  assert.equal(pack3Up.gridCols, 3);
+  assert.equal(pack3Up.placements.length, 3);
+  assert.deepEqual(pack3Up.overflowKeys, ['step_cost']);
+
+  // Honest sizing: 2x2 + three 1x1 NEVER fakes the 3rd 1x1 into a 2x1 card; edit mode exposes 1 ghost cell at (4,2)
+  const pack2RowHero = packMetricBentoLayout({
+    rows: 2,
+    metrics: ['tps', 'ttft', 'avg_tps', 'step_cost'],
+    sizes: { tps: 'tall' },
+    includeGhostCells: true,
+  });
+  assert.equal(pack2RowHero.effectiveRows, 2);
+  assert.equal(pack2RowHero.gridCols, 4);
+  assert.equal(pack2RowHero.placements.length, 4);
+  assert.deepEqual(pack2RowHero.overflowKeys, []);
+  assert.equal(pack2RowHero.placements[0].colStart, 1);
+  assert.equal(pack2RowHero.placements[0].colSpan, 2);
+  assert.equal(pack2RowHero.placements[0].rowStart, 1);
+  assert.equal(pack2RowHero.placements[0].rowSpan, 2);
+  assert.equal(pack2RowHero.placements[3].colStart, 3);
+  assert.equal(pack2RowHero.placements[3].colSpan, 1, '1x1 card stays honestly 1x1 instead of mutating into fake 2x1');
+  assert.equal(pack2RowHero.placements[3].isTrend, false);
+  assert.deepEqual(pack2RowHero.ghostCells, [{ colStart: 4, rowStart: 2 }]);
+
+  // Explicit 2x2 + two 2x1 fills all 8 cells with 0 ghosts and full sparklines
+  const pack2Row3Cards = packMetricBentoLayout({
+    rows: 2,
+    metrics: ['tps', 'cache_hit', 'ttft'],
+    sizes: { tps: 'tall', cache_hit: 'wide', ttft: 'wide' },
+    includeGhostCells: true,
+  });
+  assert.equal(pack2Row3Cards.placements.length, 3);
+  assert.equal(pack2Row3Cards.ghostCells.length, 0);
+  assert.equal(pack2Row3Cards.placements[1].colSpan, 2);
+  assert.equal(pack2Row3Cards.placements[1].isWide, true);
+  assert.equal(pack2Row3Cards.placements[1].isTrend, true);
+  assert.equal(pack2Row3Cards.placements[2].colSpan, 2);
+  assert.equal(pack2Row3Cards.placements[2].rowStart, 2);
+  assert.equal(pack2Row3Cards.placements[2].isWide, true);
+
+  // Explicit 1x2 narrow cards pack cleanly alongside 2x2 and repack when trailing behind 1-row cards
+  const pack2RowNarrow = packMetricBentoLayout({
+    rows: 2,
+    metrics: ['tps', 'ttft', 'avg_tps', 'cache_hit'],
+    sizes: { tps: 'tall', cache_hit: 'narrow' },
+    includeGhostCells: true,
+  });
+  assert.equal(pack2RowNarrow.placements.length, 4);
+  assert.deepEqual(pack2RowNarrow.overflowKeys, []);
+  assert.equal(pack2RowNarrow.ghostCells.length, 0);
+  assert.deepEqual(
+    pack2RowNarrow.placements.map((p) => `${p.key}:${p.size}@${p.colStart},${p.rowStart},${p.colSpan}x${p.rowSpan}`),
+    ['tps:tall@1,1,2x2', 'ttft:sm@3,1,1x1', 'avg_tps:sm@3,2,1x1', 'cache_hit:narrow@4,1,1x2']
+  );
+  assert.equal(pack2RowNarrow.placements[3].isNarrow, true);
+  assert.equal(pack2RowNarrow.placements[3].isTrend, true);
+
+  // Middle 2x2 hero placement (5 cards) fills all 8 cells cleanly
+  const pack2RowMid5 = packMetricBentoLayout({
+    rows: 2,
+    metrics: ['ttft', 'tps', 'cache_hit', 'avg_tps', 'step_cost'],
+    sizes: { tps: 'tall' },
+  });
+  assert.equal(pack2RowMid5.placements.length, 5);
+  assert.deepEqual(pack2RowMid5.overflowKeys, []);
+  assert.equal(pack2RowMid5.placements[1].colStart, 2, '2x2 hero card sits in middle columns 2-3');
+  assert.equal(pack2RowMid5.placements[1].colSpan, 2);
+  assert.equal(pack2RowMid5.placements[1].rowSpan, 2);
+  assert.deepEqual(
+    pack2RowMid5.placements.map((p) => `${p.key}@${p.colStart},${p.rowStart}`),
+    ['ttft@1,1', 'tps@2,1', 'cache_hit@4,1', 'avg_tps@1,2', 'step_cost@4,2']
+  );
+
+  // Trailing 2x2 after 3 small cards repacks small cards into left 2x2 instead of overflowing the tall card
+  const pack2RowRightTall = packMetricBentoLayout({
+    rows: 2,
+    metrics: ['ttft', 'cache_hit', 'avg_tps', 'tps'],
+    sizes: { tps: 'tall' },
+    includeGhostCells: true,
+  });
+  assert.equal(pack2RowRightTall.placements.length, 4);
+  assert.deepEqual(pack2RowRightTall.overflowKeys, []);
+  assert.equal(pack2RowRightTall.placements[3].colStart, 3, 'Trailing 2x2 lands on right cols 3-4');
+  assert.equal(pack2RowRightTall.placements[2].colSpan, 1, 'Left-bottom 1x1 card stays honest 1x1');
+  assert.deepEqual(pack2RowRightTall.ghostCells, [{ colStart: 2, rowStart: 2 }]);
+
+  const pack2RowEditGhosts = packMetricBentoLayout({
+    rows: 2,
+    metrics: ['tps', 'ttft', 'avg_tps', 'step_cost'],
+    sizes: {},
+    includeGhostCells: true,
+  });
+  assert.equal(pack2RowEditGhosts.effectiveRows, 2);
+  assert.equal(pack2RowEditGhosts.ghostCells.length, 4, 'Edit mode shows 4 Row-2 ghost cells when Row 2 is empty');
+
+  const pack2RowReadonlyCollapse = packMetricBentoLayout({
+    rows: 2,
+    metrics: ['tps', 'ttft', 'avg_tps', 'step_cost'],
+    sizes: {},
+    includeGhostCells: false,
+  });
+  assert.equal(pack2RowReadonlyCollapse.effectiveRows, 1, 'Live mode collapses unused Row 2 cleanly');
+  assert.equal(pack2RowReadonlyCollapse.ghostCells.length, 0);
+
+  const pack8Sm = packMetricBentoLayout({
+    rows: 2,
+    metrics: ['tps', 'ttft', 'avg_tps', 'step_cost', 'session_cost', 'cache_hit', 'session_tokens', 'context_usage'],
+    sizes: {},
+  });
+  assert.equal(pack8Sm.placements.length, 8);
+  assert.deepEqual(pack8Sm.overflowKeys, []);
+
+  // Synced vs detached hover config + isEquivalentTelemetry checks
   const syncedHoverCfg = resolveEffectiveMetricMatrixConfig('hover', {
     hoverSyncOverviewMetrics: true,
-    overviewMetricStyle: 'hybrid',
-    overviewMetricHybridRatio: 64,
+    overviewMetricRows: 2,
+    overviewMetricSizes: { tps: 'tall' },
     overviewMetrics: ['tps', 'ttft', 'avg_tps', 'step_cost'],
-    hoverMetricStyle: 'medium',
-    hoverMetricHybridRatio: 35,
+    hoverMetricRows: 1,
+    hoverMetricSizes: {},
     hoverMetrics: ['ttft', 'tps'],
   });
-  assert.equal(syncedHoverCfg.style, 'hybrid');
-  assert.equal(syncedHoverCfg.isHybrid, true);
-  assert.equal(syncedHoverCfg.isLarge, false);
-  assert.equal(syncedHoverCfg.hybridRatio, 64);
+  assert.equal(syncedHoverCfg.rows, 2);
+  assert.deepEqual(syncedHoverCfg.sizes, { tps: 'tall' });
   assert.deepEqual(syncedHoverCfg.metrics, ['tps', 'ttft', 'avg_tps', 'step_cost']);
 
   const detachedHoverCfg = resolveEffectiveMetricMatrixConfig('hover', {
     hoverSyncOverviewMetrics: false,
-    overviewMetricStyle: 'large',
-    overviewMetricHybridRatio: 64,
+    overviewMetricRows: 1,
+    overviewMetricSizes: { tps: 'wide', ttft: 'wide', avg_tps: 'wide' },
     overviewMetrics: ['tps', 'ttft', 'avg_tps', 'step_cost'],
-    hoverMetricStyle: 'hybrid',
-    hoverMetricHybridRatio: 37,
+    hoverMetricRows: 2,
+    hoverMetricSizes: { cache_hit: 'tall' },
     hoverMetrics: ['cache_hit', 'ttft', 'avg_tps', 'step_cost'],
   });
-  assert.equal(detachedHoverCfg.style, 'hybrid');
-  assert.equal(detachedHoverCfg.isHybrid, true);
-  assert.equal(detachedHoverCfg.isLarge, false);
-  assert.equal(detachedHoverCfg.hybridRatio, 37);
+  assert.equal(detachedHoverCfg.rows, 2);
+  assert.deepEqual(detachedHoverCfg.sizes, { cache_hit: 'tall' });
   assert.deepEqual(detachedHoverCfg.metrics, ['cache_hit', 'ttft', 'avg_tps', 'step_cost']);
 
   assert.equal(
     isEquivalentTelemetry(
-      { settings: { overviewMetricStyle: 'hybrid', overviewMetricHybridRatio: 50 } },
-      { settings: { overviewMetricStyle: 'hybrid', overviewMetricHybridRatio: 60 } }
+      { settings: { overviewMetricRows: 1, overviewMetricSizes: {} } },
+      { settings: { overviewMetricRows: 2, overviewMetricSizes: {} } }
     ),
     false,
-    'isEquivalentTelemetry detects overviewMetricHybridRatio change'
+    'isEquivalentTelemetry detects overviewMetricRows change'
   );
   assert.equal(
     isEquivalentTelemetry(
-      { settings: { hoverMetricStyle: 'hybrid', hoverMetricHybridRatio: 50 } },
-      { settings: { hoverMetricStyle: 'hybrid', hoverMetricHybridRatio: 40 } }
+      { settings: { overviewMetricRows: 2, overviewMetricSizes: {} } },
+      { settings: { overviewMetricRows: 2, overviewMetricSizes: { tps: 'wide' } } }
     ),
     false,
-    'isEquivalentTelemetry detects hoverMetricHybridRatio change'
+    'isEquivalentTelemetry detects overviewMetricSizes change'
+  );
+  assert.equal(
+    isEquivalentTelemetry(
+      { settings: { hoverMetricRows: 1, hoverMetricSizes: {} } },
+      { settings: { hoverMetricRows: 1, hoverMetricSizes: { ttft: 'wide' } } }
+    ),
+    false,
+    'isEquivalentTelemetry detects hoverMetricSizes change'
   );
 
-  // 2) Setup Mock DOM + ResizeObserver + mock sidecar fetch for widget & LiveOverviewView tests
+  // 3) Setup Mock DOM + ResizeObserver for read-only & edit-mode widget tests
   const prevDoc = globalThis.document;
   const prevWin = globalThis.window;
   const prevRaf = globalThis.requestAnimationFrame;
@@ -3291,9 +3457,8 @@ test('Hybrid metric matrix mode: normalization, 1..4 layouts, border drag-to-res
 
   const { document } = createMockDom();
   const winListeners = new Map();
-  const savedPatches = [];
   const roInstances = [];
-  globalThis.ResizeObserver = class MockHybridResizeObserver {
+  globalThis.ResizeObserver = class MockBentoResizeObserver {
     constructor(cb) {
       this.cb = cb;
       this.observed = new Set();
@@ -3326,32 +3491,18 @@ test('Hybrid metric matrix mode: normalization, 1..4 layouts, border drag-to-res
       winListeners.get(type)?.delete(fn);
     },
     sidecar: {
-      fetch: async (_url, opts) => {
-        if (opts?.method === 'POST' && opts?.body) {
-          const parsed = JSON.parse(opts.body);
-          savedPatches.push(parsed);
-          return {
-            ok: true,
-            status: 200,
-            json: async () => ({
-              ok: true,
-              settings: { ...(telemetryStore.getState().telemetry?.settings || {}), ...parsed },
-            }),
-          };
-        }
-        return { ok: true, status: 200, json: async () => ({ ok: true }) };
-      },
+      fetch: async () => ({ ok: true, status: 200, json: async () => ({ ok: true }) }),
     },
   };
   globalThis.requestAnimationFrame = (cb) => setTimeout(cb, 0);
   globalThis.cancelAnimationFrame = (id) => clearTimeout(id);
 
   let host = null;
-  let readonlyHybrid = null;
+  let readonlyHover = null;
   let liveView = null;
   t.after(() => {
     host?.destroy?.();
-    readonlyHybrid?.destroy?.();
+    readonlyHover?.destroy?.();
     liveView?.destroy?.();
     setI18nLanguage(prevLocale);
     telemetryStore.setState(prevTelState, { sync: true });
@@ -3365,30 +3516,54 @@ test('Hybrid metric matrix mode: normalization, 1..4 layouts, border drag-to-res
 
   setI18nLanguage('zh-CN');
 
-  // Non-interactive hover overlay matrix applies hybrid vars cleanly without mounting a splitter
-  readonlyHybrid = MetricMatrixWidget({ mode: 'hover' });
-  readonlyHybrid.refs.update({
+  const makeBentoData = ({ rows = 2, sizes = {}, metrics = ['tps', 'ttft', 'avg_tps', 'step_cost'] } = {}) =>
+    buildStructurePreviewTelemetry(
+      {},
+      {
+        overviewModules: ['metrics', 'context', 'quotas'],
+        overviewMetricRows: rows,
+        overviewMetricSizes: sizes,
+        overviewMetrics: metrics,
+      }
+    );
+
+  // 4) Strict read-only live surfaces: Hover widget & LiveOverviewView mount ZERO resize handles or ghost cells
+  readonlyHover = MetricMatrixWidget({ mode: 'hover' });
+  readonlyHover.refs.update({
     data: buildStructurePreviewTelemetry(
       {},
       {
         hoverSyncOverviewMetrics: false,
-        hoverMetricStyle: 'hybrid',
-        hoverMetricHybridRatio: 58,
+        hoverMetricRows: 2,
+        hoverMetricSizes: { tps: 'tall' },
         hoverMetrics: ['tps', 'ttft', 'avg_tps', 'step_cost'],
       }
     ),
   });
-  assert.equal(readonlyHybrid.el.classList.contains('is-hybrid'), true);
-  assert.equal(readonlyHybrid.el.style.getPropertyValue('--hybrid-left-fr'), '58fr');
-  assert.equal(readonlyHybrid.el.style.getPropertyValue('--hybrid-right-half-fr'), '21fr');
-  assert.equal(readonlyHybrid.el.querySelector('.matrix-hybrid-splitter'), null);
-  assert.equal(readonlyHybrid.el.children.length, 4);
+  assert.equal(readonlyHover.el.classList.contains('is-bento'), true);
+  assert.equal(readonlyHover.el.classList.contains('is-two-row'), true);
+  assert.equal(readonlyHover.el.querySelectorAll('.matrix-cell.is-tall-card').length, 1);
+  assert.equal(readonlyHover.el.querySelectorAll('.matrix-cell-resize-handle').length, 0, 'Read-only hover matrix mounts zero resize handles');
+  assert.equal(readonlyHover.el.querySelectorAll('.matrix-ghost-cell').length, 0, 'Read-only hover matrix mounts zero ghost cells');
 
-  // Interactive host with module reorder + metric reorder + hybrid splitter resize
+  uiStore.setState({ activeView: 'overview' }, { sync: true });
+  liveView = LiveOverviewView({});
+  document.body.appendChild(liveView.el);
+  telemetryStore.setState(
+    { telemetry: makeBentoData({ rows: 2, sizes: { tps: 'tall' } }) },
+    { sync: true }
+  );
+  const liveMatrixEl = liveView.el.querySelector('.telemetry-matrix.is-bento');
+  assert.ok(liveMatrixEl, 'LiveOverviewView renders Bento matrix');
+  assert.equal(liveMatrixEl.classList.contains('is-two-row'), true);
+  assert.equal(liveMatrixEl.querySelectorAll('.matrix-cell-resize-handle').length, 0, 'LiveOverviewView is strictly read-only with zero resize handles');
+  assert.equal(liveMatrixEl.querySelectorAll('.matrix-ghost-cell').length, 0, 'LiveOverviewView mounts zero edit ghost cells');
+
+  // 5) Edit-mode preview host: ghost cells + drag-to-snap resize (sm -> wide -> tall) + Escape revert + click/keyboard cycle + reorder isolation
   const modCommits = [];
   const metCommits = [];
-  const ratioPreviews = [];
-  const ratioCommits = [];
+  const sizePreviews = [];
+  const sizeCommits = [];
   const containerEl = document.createElement('div');
   document.body.appendChild(containerEl);
   host = createDynamicWidgetHost({
@@ -3397,90 +3572,31 @@ test('Hybrid metric matrix mode: normalization, 1..4 layouts, border drag-to-res
     preview: true,
     onReorderModules: (k) => modCommits.push(k),
     onReorderMetrics: (k) => metCommits.push(k),
-    onPreviewHybridRatio: (r) => ratioPreviews.push(r),
-    onResizeHybridRatio: (r) => ratioCommits.push(r),
+    onPreviewMetricSizes: (s) => sizePreviews.push(s),
+    onResizeMetricSizes: (s) => sizeCommits.push(s),
   });
 
-  const makeHybridData = (metrics, ratio = 50) =>
-    buildStructurePreviewTelemetry(
-      {},
-      {
-        overviewModules: ['metrics', 'context', 'quotas'],
-        overviewMetricStyle: 'hybrid',
-        overviewMetricHybridRatio: ratio,
-        overviewMetrics: metrics,
-      }
-    );
-
-  // 1-metric hybrid: 1 hero trend card, NO splitter
-  host.update({ moduleKeys: ['metrics', 'context', 'quotas'], data: makeHybridData(['tps'], 55) });
+  host.update({
+    moduleKeys: ['metrics', 'context', 'quotas'],
+    data: makeBentoData({ rows: 2, sizes: {} }),
+  });
   const matrixEl = host.getInstance('metrics').el;
-  assert.equal(matrixEl.classList.contains('is-hybrid'), true);
-  assert.equal(matrixEl.classList.contains('is-large-trend'), false);
-  assert.equal(matrixEl.getAttribute('data-cols'), '1');
-  assert.equal(matrixEl.querySelectorAll('.matrix-cell').length, 1);
-  assert.equal(matrixEl.querySelectorAll('.matrix-cell.is-trend-card.is-hybrid-hero').length, 1);
-  assert.equal(matrixEl.querySelector('.matrix-hybrid-splitter'), null);
+  assert.equal(matrixEl.classList.contains('is-bento'), true);
+  assert.equal(matrixEl.classList.contains('is-two-row'), true);
+  assert.equal(matrixEl.classList.contains('is-metrics-resizable'), true);
+  assert.equal(matrixEl.querySelectorAll('.matrix-cell').length, 4);
+  assert.equal(matrixEl.querySelectorAll('.matrix-cell-resize-handle').length, 4, 'Edit preview mounts per-card resize handles');
+  assert.equal(matrixEl.querySelectorAll('.matrix-ghost-cell').length, 4, 'Edit preview mounts Row-2 ghost cells');
 
-  // 2-metric hybrid: 1 hero + 1 compact + splitter (--hybrid-col-gaps = 1)
-  host.update({ moduleKeys: ['metrics', 'context', 'quotas'], data: makeHybridData(['tps', 'ttft'], 55) });
-  assert.equal(matrixEl.getAttribute('data-cols'), '2');
-  assert.equal(matrixEl.style.getPropertyValue('--hybrid-col-gaps'), '1');
-  assert.equal(matrixEl.querySelectorAll('.matrix-cell.is-trend-card.is-hybrid-hero').length, 1);
-  assert.equal(
-    matrixEl.querySelectorAll('.matrix-cell').filter((el) => !el.classList.contains('is-trend-card')).length,
-    1
-  );
-  assert.ok(matrixEl.querySelector('.matrix-hybrid-splitter'));
-
-  // 3-metric hybrid: 1 hero + 2 compact + splitter (--hybrid-col-gaps = 1)
-  host.update({
-    moduleKeys: ['metrics', 'context', 'quotas'],
-    data: makeHybridData(['tps', 'ttft', 'avg_tps'], 48),
-  });
-  assert.equal(matrixEl.getAttribute('data-cols'), '3');
-  assert.equal(matrixEl.style.getPropertyValue('--hybrid-col-gaps'), '1');
-  assert.equal(matrixEl.querySelectorAll('.matrix-cell.is-trend-card.is-hybrid-hero').length, 1);
-  assert.equal(
-    matrixEl.querySelectorAll('.matrix-cell').filter((el) => !el.classList.contains('is-trend-card')).length,
-    2
-  );
-
-  // 4-metric hybrid: 1 hero + 3 compact + splitter (--hybrid-col-gaps = 2)
-  host.update({
-    moduleKeys: ['metrics', 'context', 'quotas'],
-    data: makeHybridData(['tps', 'ttft', 'avg_tps', 'step_cost'], 50),
-  });
-  assert.equal(matrixEl.getAttribute('data-cols'), '4');
-  assert.equal(matrixEl.style.getPropertyValue('--hybrid-col-gaps'), '2');
-  assert.equal(matrixEl.style.getPropertyValue('--hybrid-left-fr'), '50fr');
-  assert.equal(matrixEl.style.getPropertyValue('--hybrid-right-fr'), '50fr');
-  assert.equal(matrixEl.style.getPropertyValue('--hybrid-right-half-fr'), '25fr');
-  assert.equal(matrixEl.style.getPropertyValue('--hybrid-split-pct'), '50%');
-  const cells4 = matrixEl.querySelectorAll('.matrix-cell');
-  assert.equal(cells4.length, 4);
-  assert.equal(cells4[0].classList.contains('is-trend-card'), true);
-  assert.equal(cells4[0].classList.contains('is-hybrid-hero'), true);
-  assert.equal(cells4[1].classList.contains('is-trend-card'), false);
-  assert.equal(cells4[2].classList.contains('is-trend-card'), false);
-  assert.equal(cells4[3].classList.contains('is-trend-card'), false);
-
-  const splitterEl = matrixEl.querySelector('.matrix-hybrid-splitter');
-  assert.ok(splitterEl);
-  assert.equal(splitterEl.getAttribute('role'), 'separator');
-  assert.equal(splitterEl.getAttribute('aria-orientation'), 'vertical');
-  assert.equal(splitterEl.getAttribute('aria-valuenow'), '50');
-  assert.equal(matrixEl.lastChild, splitterEl, 'Splitter stays trailing after metric cells');
-
-  // 3) Splitter pointer drag updates ratio live, clamps [28..72], blocks cell/module drag, and commits once on pointerup
-  matrixEl.getBoundingClientRect = () => ({ left: 100, top: 0, right: 500, bottom: 130, width: 400, height: 130 });
+  matrixEl.getBoundingClientRect = () => ({ left: 0, top: 0, right: 400, bottom: 144, width: 400, height: 144 });
+  const firstHandle = matrixEl.querySelectorAll('.matrix-cell-resize-handle')[0];
   let stopPropCalled = false;
   let preventDefaultCalled = false;
-  splitterEl.dispatchEvent({
+  firstHandle.dispatchEvent({
     type: 'pointerdown',
     button: 0,
-    clientX: 300,
-    clientY: 60,
+    clientX: 96,
+    clientY: 68,
     stopPropagation() {
       stopPropCalled = true;
     },
@@ -3488,126 +3604,255 @@ test('Hybrid metric matrix mode: normalization, 1..4 layouts, border drag-to-res
       preventDefaultCalled = true;
     },
   });
-  assert.equal(stopPropCalled, true, 'Splitter pointerdown stops propagation to parent drag handlers');
-  assert.equal(preventDefaultCalled, true, 'Splitter pointerdown prevents text selection');
+  assert.equal(stopPropCalled, true, 'Resize handle pointerdown stops propagation to reorder drag');
+  assert.equal(preventDefaultCalled, true);
 
-  // Drag right to 65% (left=100 + 260 = 360)
-  document.dispatchEvent({ type: 'pointermove', clientX: 360, clientY: 60, preventDefault() {} });
-  assert.equal(matrixEl.classList.contains('is-resizing-hybrid'), true);
-  assert.equal(matrixEl.classList.contains('is-dragging-matrix'), false, 'Splitter drag must not start cell reorder');
-  assert.equal(containerEl.classList.contains('is-dragging-modules'), false, 'Splitter drag must not start module drag');
-  assert.equal(matrixEl.style.getPropertyValue('--hybrid-left-fr'), '65fr');
-  assert.equal(matrixEl.style.getPropertyValue('--hybrid-right-fr'), '35fr');
-  assert.equal(matrixEl.style.getPropertyValue('--hybrid-right-half-fr'), '17.5fr');
-  assert.equal(matrixEl.style.getPropertyValue('--hybrid-split-pct'), '65%');
-  assert.equal(splitterEl.getAttribute('aria-valuenow'), '65');
-  assert.equal(ratioPreviews.at(-1), 65);
-  assert.equal(ratioCommits.length, 0, 'Must not commit before pointerup');
+  // Pull right +60px (unitW=100 -> spanCols=1.60 >= 1.45) -> snaps live to 'wide' (2x1)
+  document.dispatchEvent({ type: 'pointermove', clientX: 156, clientY: 68, preventDefault() {} });
+  assert.equal(matrixEl.classList.contains('is-resizing-metric'), true);
+  assert.equal(matrixEl.classList.contains('is-dragging-matrix'), false, 'Resize drag must not start cell reorder');
+  assert.equal(containerEl.classList.contains('is-dragging-modules'), false, 'Resize drag must not start module drag');
+  assert.equal(matrixEl.querySelectorAll('.matrix-cell')[0].getAttribute('data-card-size'), 'wide');
+  assert.equal(matrixEl.querySelectorAll('.matrix-cell')[0].querySelector('.matrix-cell-size-badge').hasAttribute('hidden'), false);
+  assert.deepEqual(sizePreviews.at(-1), { tps: 'wide' });
+  assert.equal(sizeCommits.length, 0, 'Must not commit before pointerup');
 
-  // Drag past max -> clamps cleanly at 72%
-  document.dispatchEvent({ type: 'pointermove', clientX: 490, clientY: 60, preventDefault() {} });
-  assert.equal(matrixEl.style.getPropertyValue('--hybrid-split-pct'), '72%');
+  // Pull down +50px (unitH=72 -> spanRows=1.69 >= 1.45) -> snaps live to 'tall' (2x2) and leaves 1 honest ghost slot (7/8 occupied)
+  document.dispatchEvent({ type: 'pointermove', clientX: 156, clientY: 118, preventDefault() {} });
+  assert.equal(matrixEl.querySelectorAll('.matrix-cell')[0].getAttribute('data-card-size'), 'tall');
+  assert.equal(matrixEl.querySelectorAll('.matrix-cell')[0].classList.contains('is-tall-card'), true);
+  assert.equal(matrixEl.querySelectorAll('.matrix-ghost-cell').length, 1, '7/8 occupied 2-row grid honestly renders 1 ghost cell');
+  assert.deepEqual(sizePreviews.at(-1), { tps: 'tall' });
 
-  // Drag back to 62% and release
-  document.dispatchEvent({ type: 'pointermove', clientX: 348, clientY: 60, preventDefault() {} });
-  document.dispatchEvent({ type: 'pointerup', clientX: 348, clientY: 60 });
-  assert.equal(matrixEl.classList.contains('is-resizing-hybrid'), false);
-  assert.deepEqual(ratioCommits, [62]);
+  // Release commits once
+  document.dispatchEvent({ type: 'pointerup', clientX: 156, clientY: 118 });
+  assert.equal(matrixEl.classList.contains('is-resizing-metric'), false);
+  assert.deepEqual(sizeCommits, [{ tps: 'tall' }]);
 
   // Escape mid-drag reverts smoothly without committing
-  splitterEl.dispatchEvent({ type: 'pointerdown', button: 0, clientX: 348, clientY: 60, stopPropagation() {}, preventDefault() {} });
-  document.dispatchEvent({ type: 'pointermove', clientX: 160, clientY: 60, preventDefault() {} });
-  assert.equal(matrixEl.style.getPropertyValue('--hybrid-split-pct'), '28%');
+  firstHandle.dispatchEvent({ type: 'pointerdown', button: 0, clientX: 196, clientY: 138, stopPropagation() {}, preventDefault() {} });
+  document.dispatchEvent({ type: 'pointermove', clientX: 60, clientY: 40, preventDefault() {} });
+  assert.equal(matrixEl.querySelectorAll('.matrix-cell')[0].getAttribute('data-card-size'), 'sm');
   document.dispatchEvent({ type: 'keydown', key: 'Escape' });
-  assert.equal(matrixEl.classList.contains('is-resizing-hybrid'), false);
-  assert.equal(matrixEl.style.getPropertyValue('--hybrid-split-pct'), '62%', 'Escape reverts to pre-drag ratio');
-  assert.deepEqual(ratioCommits, [62], 'Cancelled drag does not commit');
+  assert.equal(matrixEl.classList.contains('is-resizing-metric'), false);
+  assert.equal(matrixEl.querySelectorAll('.matrix-cell')[0].getAttribute('data-card-size'), 'tall', 'Escape reverts to pre-drag size');
+  assert.deepEqual(sizeCommits, [{ tps: 'tall' }], 'Cancelled resize does not commit');
 
-  // ResizeObserver updates hero sparkline step density cleanly when ratio widens hero card
-  const heroWrap = cells4[0].querySelector('.cell-sparkline-wrap');
+  // ResizeObserver still updates tall hero sparkline width & height cleanly
+  const tallCell = matrixEl.querySelectorAll('.matrix-cell')[0];
+  const heroWrap = tallCell.querySelector('.cell-sparkline-wrap');
   const hostRO = roInstances.find((ro) => ro.observed.has(heroWrap));
-  assert.ok(hostRO, 'Hybrid hero sparkline wrap is observed by ResizeObserver');
-  hostRO.emit([{ target: heroWrap, contentRect: { width: 210 } }]);
+  assert.ok(hostRO, 'Tall hero sparkline wrap is observed by ResizeObserver');
+  hostRO.emit([{ target: heroWrap, contentRect: { width: 210, height: 76 } }]);
   await new Promise((r) => setTimeout(r, 20));
-  assert.equal(cells4[0].querySelector('.cell-sparkline-svg').getAttribute('viewBox'), '0 0 210 34');
+  assert.equal(tallCell.querySelector('.cell-sparkline-svg').getAttribute('viewBox'), '0 0 210 76');
   assert.equal(
-    cells4[0].querySelector('.cell-sparkline-line').getAttribute('points').split(' ').length,
-    resolveAdaptiveSparklineSpec(210, 2).maxPoints
+    tallCell.querySelector('.cell-sparkline-line').getAttribute('points').split(' ').length,
+    resolveAdaptiveSparklineSpec(210, 2, 76).maxPoints
   );
 
-  // Double-click resets ratio to 50%
-  splitterEl.dispatchEvent({ type: 'dblclick', stopPropagation() {}, preventDefault() {} });
-  assert.equal(matrixEl.style.getPropertyValue('--hybrid-split-pct'), '50%');
-  assert.deepEqual(ratioCommits, [62, 50]);
+  // Click without drag on handle cycles tall -> sm
+  firstHandle.dispatchEvent({ type: 'pointerdown', button: 0, clientX: 196, clientY: 138, stopPropagation() {}, preventDefault() {} });
+  document.dispatchEvent({ type: 'pointerup', clientX: 196, clientY: 138 });
+  assert.equal(matrixEl.querySelectorAll('.matrix-cell')[0].getAttribute('data-card-size'), 'sm');
+  assert.deepEqual(sizeCommits.at(-1), {});
 
-  // Keyboard navigation on separator adjusts and clamps cleanly
-  splitterEl.dispatchEvent({ type: 'keydown', key: 'ArrowRight', shiftKey: true, stopPropagation() {}, preventDefault() {} });
-  assert.equal(matrixEl.style.getPropertyValue('--hybrid-split-pct'), '55%');
-  splitterEl.dispatchEvent({ type: 'keydown', key: 'Home', stopPropagation() {}, preventDefault() {} });
-  assert.equal(matrixEl.style.getPropertyValue('--hybrid-split-pct'), '28%');
-  splitterEl.dispatchEvent({ type: 'keydown', key: 'End', stopPropagation() {}, preventDefault() {} });
-  assert.equal(matrixEl.style.getPropertyValue('--hybrid-split-pct'), '72%');
-  splitterEl.dispatchEvent({ type: 'keydown', key: 'Enter', stopPropagation() {}, preventDefault() {} });
-  assert.equal(matrixEl.style.getPropertyValue('--hybrid-split-pct'), '50%');
-  assert.deepEqual(ratioCommits, [62, 50, 55, 28, 72, 50]);
+  // Dragging straight DOWN on a 1x1 card snaps to 1x2 ('narrow'), NOT 2x2 ('tall')
+  firstHandle.dispatchEvent({ type: 'pointerdown', button: 0, clientX: 96, clientY: 68, stopPropagation() {}, preventDefault() {} });
+  document.dispatchEvent({ type: 'pointermove', clientX: 96, clientY: 120, preventDefault() {} });
+  assert.equal(matrixEl.querySelectorAll('.matrix-cell')[0].getAttribute('data-card-size'), 'narrow', 'Straight-down drag snaps to 1x2 narrow');
+  assert.equal(matrixEl.querySelectorAll('.matrix-cell')[0].classList.contains('is-narrow-card'), true);
+  assert.equal(matrixEl.querySelectorAll('.matrix-cell')[0].classList.contains('is-trend-card'), true);
+  document.dispatchEvent({ type: 'pointerup', clientX: 96, clientY: 120 });
+  assert.deepEqual(sizeCommits.at(-1), { tps: 'narrow' });
 
-  // 4) Metric reorder in hybrid mode still works seamlessly alongside splitter & promotes new index 0 to hero trend card
-  const hybridRects = [
-    { left: 0, right: 200, top: 0, bottom: 120, width: 200, height: 120 },
-    { left: 206, right: 300, top: 0, bottom: 57, width: 94, height: 57 },
-    { left: 306, right: 400, top: 0, bottom: 57, width: 94, height: 57 },
-    { left: 206, right: 400, top: 63, bottom: 120, width: 194, height: 57 },
+  // Keyboard arrows navigate 2D grid sizes cleanly (narrow -> tall -> wide -> sm -> narrow -> sm)
+  firstHandle.dispatchEvent({ type: 'keydown', key: 'ArrowRight', stopPropagation() {}, preventDefault() {} });
+  assert.equal(matrixEl.querySelectorAll('.matrix-cell')[0].getAttribute('data-card-size'), 'tall');
+  firstHandle.dispatchEvent({ type: 'keydown', key: 'ArrowUp', stopPropagation() {}, preventDefault() {} });
+  assert.equal(matrixEl.querySelectorAll('.matrix-cell')[0].getAttribute('data-card-size'), 'wide');
+  firstHandle.dispatchEvent({ type: 'keydown', key: 'ArrowLeft', stopPropagation() {}, preventDefault() {} });
+  assert.equal(matrixEl.querySelectorAll('.matrix-cell')[0].getAttribute('data-card-size'), 'sm');
+  firstHandle.dispatchEvent({ type: 'keydown', key: 'ArrowDown', stopPropagation() {}, preventDefault() {} });
+  assert.equal(matrixEl.querySelectorAll('.matrix-cell')[0].getAttribute('data-card-size'), 'narrow');
+  firstHandle.dispatchEvent({ type: 'keydown', key: 'ArrowUp', stopPropagation() {}, preventDefault() {} });
+  assert.equal(matrixEl.querySelectorAll('.matrix-cell')[0].getAttribute('data-card-size'), 'sm');
+
+  // Reordering cells in Bento mode: explicit 2x1 on Row 2 drags smoothly UP to Row 1 without shrinking to 1x1
+  host.update({
+    moduleKeys: ['metrics', 'context', 'quotas'],
+    data: makeBentoData({ rows: 2, sizes: { tps: 'tall', step_cost: 'wide' } }),
+  });
+  const wideRow2Cell = matrixEl.querySelectorAll('.matrix-cell')[3];
+  assert.equal(wideRow2Cell.getAttribute('data-card-size'), 'wide');
+  assert.equal(wideRow2Cell.classList.contains('is-wide-card'), true);
+  assert.equal(
+    wideRow2Cell.querySelector('.cell-sparkline-line').hasAttribute('hidden'),
+    false,
+    'Explicit 2x1 wide card renders visible sparkline polyline'
+  );
+
+  const bentoRects = [
+    { left: 0, right: 200, top: 0, bottom: 144, width: 200, height: 144 },
+    { left: 204, right: 300, top: 0, bottom: 70, width: 96, height: 70 },
+    { left: 304, right: 400, top: 0, bottom: 70, width: 96, height: 70 },
+    { left: 204, right: 400, top: 74, bottom: 144, width: 196, height: 70 },
   ];
   const currentCells = matrixEl.querySelectorAll('.matrix-cell');
   for (let i = 0; i < 4; i += 1) {
-    currentCells[i].getBoundingClientRect = () => hybridRects[i];
+    currentCells[i].getBoundingClientRect = () => bentoRects[i];
   }
-  currentCells[1].dispatchEvent({
+  // Drag Row-2 2x1 card (step_cost) straight UP to Row-1 Col 3-4
+  currentCells[3].dispatchEvent({
     type: 'pointerdown',
     button: 0,
-    clientX: 250,
-    clientY: 28,
+    clientX: 300,
+    clientY: 108,
     preventDefault() {},
     stopPropagation() {},
   });
-  document.dispatchEvent({ type: 'pointermove', clientX: 80, clientY: 60, preventDefault() {} });
+  document.dispatchEvent({ type: 'pointermove', clientX: 300, clientY: 34, preventDefault() {} });
   assert.equal(matrixEl.classList.contains('is-dragging-matrix'), true);
-  document.dispatchEvent({ type: 'pointerup', clientX: 80, clientY: 60 });
-  assert.deepEqual(metCommits[0], ['ttft', 'tps', 'avg_tps', 'step_cost']);
-  const reorderedCells = matrixEl.querySelectorAll('.matrix-cell');
-  assert.equal(reorderedCells[0].getAttribute('data-metric-key'), 'ttft');
-  assert.equal(reorderedCells[0].classList.contains('is-hybrid-hero'), true);
-  assert.equal(reorderedCells[1].getAttribute('data-metric-key'), 'tps');
-  assert.equal(reorderedCells[1].classList.contains('is-hybrid-hero'), false);
-  assert.equal(matrixEl.lastChild, splitterEl, 'Splitter remains after reordered metric cells');
+  const dropPreviewEl = matrixEl.querySelector('.matrix-drop-preview');
+  assert.ok(
+    dropPreviewEl && !dropPreviewEl.hasAttribute('hidden'),
+    'Dragging 2x1 card shows live Bento drop target preview'
+  );
+  assert.ok(
+    Number.parseFloat(dropPreviewEl.style.width) > 150,
+    'Drop preview keeps full 2x1 width when dragging 2x1 card up to Row 1'
+  );
+  document.dispatchEvent({ type: 'pointerup', clientX: 300, clientY: 34 });
+  assert.deepEqual(
+    metCommits[0],
+    ['tps', 'step_cost', 'ttft', 'avg_tps'],
+    '2x1 card cleanly moves up to Row 1 Col 3-4 while pushing Row-1 1x1 cards down to Row 2'
+  );
+  assert.equal(matrixEl.querySelector('[data-metric-key="step_cost"]').style.getPropertyValue('--cell-row-start'), '1');
+  assert.equal(matrixEl.querySelector('[data-metric-key="step_cost"]').style.getPropertyValue('--cell-col-span'), '2');
   assert.equal(modCommits.length, 0);
 
-  // 5) LiveOverviewView wires splitter drag to saveSettingsPatch({ overviewMetricHybridRatio })
-  uiStore.setState({ activeView: 'overview' }, { sync: true });
-  liveView = LiveOverviewView({});
-  document.body.appendChild(liveView.el);
-  telemetryStore.setState(
-    { telemetry: makeHybridData(['tps', 'ttft', 'avg_tps', 'step_cost'], 50) },
-    { sync: true }
-  );
-  const liveMatrixEl = liveView.el.querySelector('.telemetry-matrix.is-hybrid');
-  assert.ok(liveMatrixEl, 'LiveOverviewView renders hybrid matrix');
-  const liveSplitter = liveMatrixEl.querySelector('.matrix-hybrid-splitter');
-  assert.ok(liveSplitter, 'LiveOverviewView mounts draggable hybrid splitter');
-  liveMatrixEl.getBoundingClientRect = () => ({ left: 0, top: 0, right: 400, bottom: 120, width: 400, height: 120 });
-  liveSplitter.dispatchEvent({ type: 'pointerdown', button: 0, clientX: 200, clientY: 60, preventDefault() {}, stopPropagation() {} });
-  document.dispatchEvent({ type: 'pointermove', clientX: 232, clientY: 60, preventDefault() {} });
-  document.dispatchEvent({ type: 'pointerup', clientX: 232, clientY: 60 });
-  await new Promise((r) => setTimeout(r, 20));
-  assert.equal(savedPatches.length, 1);
-  assert.deepEqual(savedPatches[0], { overviewMetricHybridRatio: 58 });
-
-  // 6) Built styles.css contains hybrid grid layout, splitter styling, and narrow-width media guard
-  const builtStyles = fs.readFileSync(new URL('../styles.css', import.meta.url), 'utf8');
-  assert.match(builtStyles, /\.telemetry-matrix\.is-hybrid\[data-cols="4"\]/);
-  assert.match(builtStyles, /\.matrix-hybrid-splitter\s*\{/);
+  // Dragging 2x2 hero card dead-center (50%) into a 5-card 2-row grid snaps cleanly to middle columns 2-3
+  host.update({
+    moduleKeys: ['metrics', 'context', 'quotas'],
+    data: makeBentoData({
+      rows: 2,
+      sizes: { tps: 'tall' },
+      metrics: ['tps', 'ttft', 'cache_hit', 'avg_tps', 'step_cost'],
+    }),
+  });
+  const fiveCardRects = [
+    { left: 0, right: 197, top: 0, bottom: 144, width: 197, height: 144 },
+    { left: 203, right: 298, top: 0, bottom: 69, width: 95, height: 69 },
+    { left: 304, right: 400, top: 0, bottom: 69, width: 96, height: 69 },
+    { left: 203, right: 298, top: 75, bottom: 144, width: 95, height: 69 },
+    { left: 304, right: 400, top: 75, bottom: 144, width: 96, height: 69 },
+  ];
+  const fiveCells = matrixEl.querySelectorAll('.matrix-cell');
+  for (let i = 0; i < 5; i += 1) {
+    fiveCells[i].getBoundingClientRect = () => fiveCardRects[i];
+  }
+  fiveCells[0].dispatchEvent({
+    type: 'pointerdown',
+    button: 0,
+    clientX: 98,
+    clientY: 72,
+    preventDefault() {},
+    stopPropagation() {},
+  });
+  // Drag hero card straight right to matrix horizontal center (deltaX=+102 -> centerX=200 = 50% of 400px)
+  document.dispatchEvent({ type: 'pointermove', clientX: 200, clientY: 72, preventDefault() {} });
   assert.match(
-    builtStyles,
-    /\.telemetry-matrix:not\(\.is-hybrid\):not\(\[data-cols="1"\]\):not\(\[data-cols="2"\]\)/
+    fiveCells[1].style.transform,
+    /translate3d\(-20[0-9.]+px/,
+    'Top-left sibling (ttft) glides smoothly into Col 1 Row 1'
   );
+  assert.match(
+    fiveCells[3].style.transform,
+    /translate3d\(-20[0-9.]+px/,
+    'Bottom-left sibling (avg_tps) glides smoothly into Col 1 Row 2'
+  );
+  document.dispatchEvent({ type: 'pointerup', clientX: 200, clientY: 72 });
+  assert.deepEqual(
+    metCommits[1],
+    ['ttft', 'tps', 'cache_hit', 'avg_tps', 'step_cost'],
+    'Dropping 2x2 hero at matrix center commits middle placement'
+  );
+  assert.equal(
+    matrixEl.querySelector('[data-metric-key="tps"]').style.getPropertyValue('--cell-col-start'),
+    '2',
+    '2x2 hero card lands in middle columns 2-3'
+  );
+
+  // Default card text mode is 'title' (title + value, subtext hidden), and all 4 modes toggle cleanly with unified 2-column DOM & adaptive sparkline height
+  host.update({
+    moduleKeys: ['metrics', 'context', 'quotas'],
+    data: buildStructurePreviewTelemetry(
+      {},
+      {
+        overviewModules: ['metrics', 'context', 'quotas'],
+        overviewMetricRows: 1,
+        overviewMetricSizes: { tps: 'wide' },
+        overviewMetrics: ['tps', 'ttft', 'avg_tps'],
+      }
+    ),
+  });
+  assert.equal(matrixEl.getAttribute('data-metric-text'), 'title', 'Default metric text mode is title');
+  const defaultWideCard = matrixEl.querySelector('[data-metric-key="tps"]');
+  const defaultSmCard = matrixEl.querySelector('[data-metric-key="ttft"]');
+  assert.equal(defaultWideCard.querySelector('.cell-label').querySelector('svg'), null, 'Metric card title omits decorative SVG icon');
+  assert.equal(defaultSmCard.querySelector('.cell-label').querySelector('svg'), null, 'Compact card title omits decorative SVG icon');
+  assert.equal(defaultWideCard.querySelector('.cell-sparkline-wrap').hasAttribute('hidden'), false, 'Wide card renders full-width sparkline row');
+  assert.equal(defaultSmCard.querySelector('.cell-sparkline-wrap').hasAttribute('hidden'), true, 'Compact card hides sparkline row');
+  assert.equal(defaultSmCard.querySelector('.cell-value-main').textContent, '1.1');
+  assert.equal(defaultSmCard.querySelector('.cell-value-unit').textContent, 's');
+  assert.equal(resolveAdaptiveSparklineSpec(120, 2, 72).height, 72, 'Adaptive sparkline respects measured container height');
+
+  // Metric card text visibility modes (both / title / sub / none) toggle header & subtext cleanly on compact & trend cards
+  for (const [mode, expectTitleVisible, expectSubVisible] of [
+    ['both', true, true],
+    ['title', true, false],
+    ['sub', false, true],
+    ['none', false, false],
+  ]) {
+    host.update({
+      moduleKeys: ['metrics', 'context', 'quotas'],
+      data: buildStructurePreviewTelemetry(
+        {},
+        {
+          overviewModules: ['metrics', 'context', 'quotas'],
+          overviewMetricRows: 2,
+          overviewMetricSizes: { tps: 'tall' },
+          overviewMetricTextMode: mode,
+          overviewMetrics: ['tps', 'ttft', 'avg_tps', 'step_cost'],
+        }
+      ),
+    });
+    assert.equal(matrixEl.getAttribute('data-metric-text'), mode);
+    const tallCard = matrixEl.querySelector('[data-metric-key="tps"]');
+    const smCard = matrixEl.querySelector('[data-metric-key="ttft"]');
+    assert.equal(!tallCard.querySelector('.cell-label').hasAttribute('hidden'), expectTitleVisible, `tall title visibility for ${mode}`);
+    assert.equal(!tallCard.querySelector('.cell-trend-sub').hasAttribute('hidden'), expectSubVisible, `tall sub visibility for ${mode}`);
+    assert.equal(!smCard.querySelector('.cell-label').hasAttribute('hidden'), expectTitleVisible, `compact title visibility for ${mode}`);
+    assert.equal(!smCard.querySelector('.cell-sub').hasAttribute('hidden'), expectSubVisible, `compact sub visibility for ${mode}`);
+  }
+
+  // 6) Built styles.css contains fixed-height Bento grid, full-width wide sparkline grid, edit-only resize handle, ghost cells, FLIP & drop preview
+  const builtStyles = fs.readFileSync(new URL('../styles.css', import.meta.url), 'utf8');
+  assert.match(builtStyles, /--metric-row-h:\s*calc\(/);
+  assert.match(builtStyles, /grid-template-rows:\s*var\(--metric-row-h\)/);
+  assert.match(builtStyles, /grid-template-rows:\s*repeat\(2,\s*var\(--metric-row-h\)\)/);
+  assert.doesNotMatch(builtStyles, /\.telemetry-matrix\.is-two-row\[data-metric-text="none"\]/);
+  assert.match(builtStyles, /\.telemetry-matrix\.is-bento\s*>\s*\.matrix-cell/);
+  assert.match(builtStyles, /\.telemetry-matrix\s*>\s*\.matrix-cell\.is-narrow-card\s*\{/);
+  assert.match(builtStyles, /\.telemetry-matrix\s*>\s*\.matrix-cell\.is-tall-card\s*\{/);
+  assert.match(builtStyles, /\.telemetry-matrix\[data-metric-text="title"\]\s*>\s*\.matrix-cell\.is-wide-card\s+\.cell-sparkline-wrap/);
+  assert.match(builtStyles, /\.matrix-cell-resize-handle\s*\{/);
+  assert.match(builtStyles, /\.matrix-ghost-cell\s*\{/);
+  assert.match(builtStyles, /\.matrix-drop-preview\s*\{/);
+  assert.match(builtStyles, /\.telemetry-matrix\.is-bento-animating\s*>\s*\.matrix-cell\.is-bento-flipping\s*\{/);
+  assert.match(builtStyles, /\.slot-size-pill\s*\{/);
+  assert.match(builtStyles, /\[data-modern-ui="true"\]\s+\.slot-size-pill,\s*\[data-modern-ui="true"\]\s+\.matrix-cell-size-badge\s*\{\s*border:\s*none;/);
+  assert.doesNotMatch(builtStyles, /\.matrix-hybrid-splitter\s*\{/);
+  assert.doesNotMatch(builtStyles, /\.is-resizing-hybrid/);
 });

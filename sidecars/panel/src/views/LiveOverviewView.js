@@ -12,7 +12,6 @@ import { createDynamicWidgetHost } from '../registries/widgetRegistry.js';
 import {
   DEFAULT_CLIENT_OVERVIEW_MODULES,
   normalizeClientOverviewModules,
-  saveSettingsPatch,
   telemetryStore,
 } from '../store/telemetryStore.js';
 import { getVisibleMonitorView, uiStore } from '../store/uiStore.js';
@@ -39,9 +38,6 @@ export const LiveOverviewView = defineComponent({
       mode: 'overview',
       isVisibleFn: () => getVisibleMonitorView() === 'overview',
       initialModuleKeys: DEFAULT_CLIENT_OVERVIEW_MODULES,
-      onResizeHybridRatio: (nextRatio) => {
-        void saveSettingsPatch({ overviewMetricHybridRatio: nextRatio }).catch(() => {});
-      },
     });
 
     const viewScrollbar = CustomScrollbar({

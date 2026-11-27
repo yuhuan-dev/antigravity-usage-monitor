@@ -2,7 +2,7 @@
 'use strict';
 
 // --- shared/settings-normalization.mjs ---
-const { SUPPORTED_LOCALE_ENTRIES, SUPPORTED_LOCALES, SUPPORTED_LANGUAGES, THEME_ACCENT_KEYS, FONT_SCALE_KEYS, TOPBAR_SLOT_KEYS, DEFAULT_TOPBAR_SLOTS, MIN_TOPBAR_SLOTS, MAX_TOPBAR_SLOTS, DEFAULT_CLI_STATUSLINE_SLOTS, MIN_CLI_STATUSLINE_SLOTS, MAX_CLI_STATUSLINE_SLOTS, CLI_STATUSLINE_PRESETS, OVERVIEW_MODULE_KEYS, DEFAULT_OVERVIEW_MODULES, DEFAULT_HOVER_MODULES, METRIC_CARD_STYLES, HOVER_METRIC_STYLES, DEFAULT_OVERVIEW_METRIC_STYLE, DEFAULT_HOVER_METRIC_STYLE, DEFAULT_HOVER_SYNC_OVERVIEW_METRICS, MAX_LARGE_METRIC_SLOTS, MIN_METRIC_HYBRID_RATIO, MAX_METRIC_HYBRID_RATIO, DEFAULT_METRIC_HYBRID_RATIO, DEFAULT_OVERVIEW_METRIC_HYBRID_RATIO, DEFAULT_HOVER_METRIC_HYBRID_RATIO, OVERVIEW_METRIC_KEYS, DEFAULT_OVERVIEW_METRICS, DEFAULT_HOVER_METRICS, STEP_TABLE_COLUMN_KEYS, DEFAULT_STEP_TABLE_COLUMNS, DEFAULT_STEP_TOKEN_COMBO_FORMAT, STEP_TOKEN_SEGMENT_ALIASES, POPOVER_WIDTH_MODES, MIN_POPOVER_WIDTH, MAX_POPOVER_WIDTH, DEFAULT_POPOVER_WIDTH, resolveLocaleFromLanguageTag, normalizeLanguageSetting, normalizeThemeAccent, normalizeFontScale, normalizeModelDisplayMode, normalizePopoverWidthMode, normalizePopoverWidth, parseStepTokenComboSegments, normalizeStepTokenComboFormat, normalizePluginUpdateMode, normalizeWindowMountMode, normalizeWeeklyLimitMode, normalizeTopbarCapsuleSlots, normalizeCliStatusLineSlots, resolveEffectiveCliStatusLineSlots, normalizeOverviewMetrics, normalizeOverviewModules, normalizeHoverModules, normalizeMetricCardStyle, normalizeOverviewMetricStyle, normalizeHoverMetricStyle, normalizeMetricHybridRatio, normalizeOverviewMetricHybridRatio, normalizeHoverMetricHybridRatio, normalizeHoverSyncOverviewMetrics, normalizeHoverMetrics, resolveEffectiveMetricMatrixConfig, normalizeStepTableColumns, normalizeStandalonePort, normalizeModernUi, CONTEXT_AGENT_MODES, DEFAULT_CONTEXT_AGENT_MODE, TOPBAR_MULTI_SESSION_MODES, DEFAULT_TOPBAR_MULTI_SESSION_MODE, normalizeTopbarMultiSessionMode, isTopbarMultiSessionVisible, QUOTA_DISPLAY_MODES, DEFAULT_QUOTA_DISPLAY_MODE, normalizeQuotaDisplayMode, ACCOUNT_QUOTA_REFRESH_MINUTES, DEFAULT_ACCOUNT_QUOTA_REFRESH_MINUTES, normalizeAccountQuotaRefreshMinutes, normalizeContextAgentMode, normalizeExperimentalQuotaReservation, normalizeExperimentalModernUi, normalizeAutoConfigureLaunch, normalizeEnableRemoteSshTelemetry, normalizeDeveloperModeEnabled, normalizeRiskyFeaturesEnabled, isRiskyFeaturesGateOpen, isContextWindowFeatureActive, isAccountSwitchFeatureActive } = (() => {
+const { SUPPORTED_LOCALE_ENTRIES, SUPPORTED_LOCALES, SUPPORTED_LANGUAGES, THEME_ACCENT_KEYS, FONT_SCALE_KEYS, TOPBAR_SLOT_KEYS, DEFAULT_TOPBAR_SLOTS, MIN_TOPBAR_SLOTS, MAX_TOPBAR_SLOTS, DEFAULT_CLI_STATUSLINE_SLOTS, MIN_CLI_STATUSLINE_SLOTS, MAX_CLI_STATUSLINE_SLOTS, CLI_STATUSLINE_PRESETS, OVERVIEW_MODULE_KEYS, DEFAULT_OVERVIEW_MODULES, DEFAULT_HOVER_MODULES, METRIC_CARD_STYLES, HOVER_METRIC_STYLES, DEFAULT_OVERVIEW_METRIC_STYLE, DEFAULT_HOVER_METRIC_STYLE, DEFAULT_HOVER_SYNC_OVERVIEW_METRICS, MAX_LARGE_METRIC_SLOTS, METRIC_GRID_COLS, METRIC_GRID_ROWS, DEFAULT_METRIC_ROWS, DEFAULT_OVERVIEW_METRIC_ROWS, DEFAULT_HOVER_METRIC_ROWS, METRIC_CARD_SIZES, DEFAULT_OVERVIEW_METRIC_SIZES, DEFAULT_HOVER_METRIC_SIZES, METRIC_TEXT_MODES, DEFAULT_METRIC_TEXT_MODE, DEFAULT_OVERVIEW_METRIC_TEXT_MODE, DEFAULT_HOVER_METRIC_TEXT_MODE, MAX_OVERVIEW_METRICS, OVERVIEW_METRIC_KEYS, DEFAULT_OVERVIEW_METRICS, DEFAULT_HOVER_METRICS, STEP_TABLE_COLUMN_KEYS, DEFAULT_STEP_TABLE_COLUMNS, DEFAULT_STEP_TOKEN_COMBO_FORMAT, STEP_TOKEN_SEGMENT_ALIASES, POPOVER_WIDTH_MODES, MIN_POPOVER_WIDTH, MAX_POPOVER_WIDTH, DEFAULT_POPOVER_WIDTH, resolveLocaleFromLanguageTag, normalizeLanguageSetting, normalizeThemeAccent, normalizeFontScale, normalizeModelDisplayMode, normalizePopoverWidthMode, normalizePopoverWidth, parseStepTokenComboSegments, normalizeStepTokenComboFormat, normalizePluginUpdateMode, normalizeWindowMountMode, normalizeWeeklyLimitMode, normalizeTopbarCapsuleSlots, normalizeCliStatusLineSlots, resolveEffectiveCliStatusLineSlots, normalizeOverviewMetrics, normalizeOverviewModules, normalizeHoverModules, normalizeMetricCardStyle, normalizeOverviewMetricStyle, normalizeHoverMetricStyle, normalizeMetricGridRows, normalizeOverviewMetricRows, normalizeHoverMetricRows, normalizeMetricCardSize, normalizeMetricCardSizes, normalizeOverviewMetricSizes, normalizeHoverMetricSizes, normalizeMetricTextMode, normalizeOverviewMetricTextMode, normalizeHoverMetricTextMode, deriveMetricCardStyleFromLayout, packMetricBentoLayout, normalizeHoverSyncOverviewMetrics, normalizeHoverMetrics, resolveEffectiveMetricMatrixConfig, normalizeStepTableColumns, normalizeStandalonePort, normalizeModernUi, CONTEXT_AGENT_MODES, DEFAULT_CONTEXT_AGENT_MODE, TOPBAR_MULTI_SESSION_MODES, DEFAULT_TOPBAR_MULTI_SESSION_MODE, normalizeTopbarMultiSessionMode, isTopbarMultiSessionVisible, QUOTA_DISPLAY_MODES, DEFAULT_QUOTA_DISPLAY_MODE, normalizeQuotaDisplayMode, ACCOUNT_QUOTA_REFRESH_MINUTES, DEFAULT_ACCOUNT_QUOTA_REFRESH_MINUTES, normalizeAccountQuotaRefreshMinutes, normalizeContextAgentMode, normalizeExperimentalQuotaReservation, normalizeExperimentalModernUi, normalizeAutoConfigureLaunch, normalizeEnableRemoteSshTelemetry, normalizeDeveloperModeEnabled, normalizeRiskyFeaturesEnabled, isRiskyFeaturesGateOpen, isContextWindowFeatureActive, isAccountSwitchFeatureActive } = (() => {
 const SUPPORTED_LOCALE_ENTRIES = Object.freeze([
   Object.freeze({
     locale: 'zh-CN',
@@ -138,11 +138,19 @@ const DEFAULT_OVERVIEW_METRIC_STYLE = 'medium';
 const DEFAULT_HOVER_METRIC_STYLE = 'medium';
 const DEFAULT_HOVER_SYNC_OVERVIEW_METRICS = true;
 const MAX_LARGE_METRIC_SLOTS = 3;
-const MIN_METRIC_HYBRID_RATIO = 28;
-const MAX_METRIC_HYBRID_RATIO = 72;
-const DEFAULT_METRIC_HYBRID_RATIO = 50;
-const DEFAULT_OVERVIEW_METRIC_HYBRID_RATIO = DEFAULT_METRIC_HYBRID_RATIO;
-const DEFAULT_HOVER_METRIC_HYBRID_RATIO = DEFAULT_METRIC_HYBRID_RATIO;
+const METRIC_GRID_COLS = 4;
+const METRIC_GRID_ROWS = Object.freeze([1, 2]);
+const DEFAULT_METRIC_ROWS = 1;
+const DEFAULT_OVERVIEW_METRIC_ROWS = DEFAULT_METRIC_ROWS;
+const DEFAULT_HOVER_METRIC_ROWS = DEFAULT_METRIC_ROWS;
+const METRIC_CARD_SIZES = Object.freeze(['sm', 'wide', 'narrow', 'tall']);
+const DEFAULT_OVERVIEW_METRIC_SIZES = Object.freeze({});
+const DEFAULT_HOVER_METRIC_SIZES = Object.freeze({});
+const METRIC_TEXT_MODES = Object.freeze(['both', 'title', 'sub', 'none']);
+const DEFAULT_METRIC_TEXT_MODE = 'title';
+const DEFAULT_OVERVIEW_METRIC_TEXT_MODE = DEFAULT_METRIC_TEXT_MODE;
+const DEFAULT_HOVER_METRIC_TEXT_MODE = DEFAULT_METRIC_TEXT_MODE;
+const MAX_OVERVIEW_METRICS = 8;
 
 const OVERVIEW_METRIC_KEYS = Object.freeze([
   'tps',
@@ -420,7 +428,7 @@ function normalizeOverviewMetrics(raw) {
     if (!OVERVIEW_METRIC_KEYS.includes(val) || seen.has(val)) continue;
     seen.add(val);
     out.push(val);
-    if (out.length >= 4) break;
+    if (out.length >= MAX_OVERVIEW_METRICS) break;
   }
   return out.length > 0 ? out : ['tps'];
 }
@@ -467,20 +475,378 @@ function normalizeMetricCardStyle(raw) {
 const normalizeOverviewMetricStyle = normalizeMetricCardStyle;
 const normalizeHoverMetricStyle = normalizeMetricCardStyle;
 
-function normalizeMetricHybridRatio(raw) {
-  if (raw === undefined || raw === null || raw === '' || typeof raw === 'boolean') {
-    return DEFAULT_METRIC_HYBRID_RATIO;
+function normalizeMetricGridRows(raw, legacyStyle) {
+  if (raw === 2 || raw === '2') return 2;
+  if (raw === 1 || raw === '1') return 1;
+  if (typeof raw === 'string') {
+    const lower = raw.trim().toLowerCase();
+    if (lower === '2' || lower === 'two' || lower === 'double') return 2;
+    if (lower === '1' || lower === 'one' || lower === 'single') return 1;
   }
-  const num = Number(raw);
-  if (!Number.isFinite(num)) return DEFAULT_METRIC_HYBRID_RATIO;
-  return Math.max(
-    MIN_METRIC_HYBRID_RATIO,
-    Math.min(MAX_METRIC_HYBRID_RATIO, Math.round(num))
-  );
+  if (legacyStyle !== undefined && normalizeMetricCardStyle(legacyStyle) === 'hybrid') {
+    return 2;
+  }
+  return DEFAULT_METRIC_ROWS;
 }
 
-const normalizeOverviewMetricHybridRatio = normalizeMetricHybridRatio;
-const normalizeHoverMetricHybridRatio = normalizeMetricHybridRatio;
+const normalizeOverviewMetricRows = normalizeMetricGridRows;
+const normalizeHoverMetricRows = normalizeMetricGridRows;
+
+function normalizeMetricCardSize(raw) {
+  const val = String(raw ?? '').trim().toLowerCase();
+  if (val === 'tall' || val === 'large' || val === 'lg' || val === '2x2' || val === 'hero') {
+    return 'tall';
+  }
+  if (val === 'narrow' || val === 'col' || val === 'slim' || val === 'vertical' || val === '1x2') {
+    return 'narrow';
+  }
+  if (val === 'wide' || val === 'md' || val === '2x1' || val === 'trend') {
+    return 'wide';
+  }
+  return 'sm';
+}
+
+function normalizeMetricCardSizes(raw, metricsList = null, legacyStyle = undefined) {
+  if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+    const out = {};
+    for (const [k, v] of Object.entries(raw)) {
+      const cleanKey = String(k ?? '').trim();
+      const mappedKey = cleanKey === 'cost' ? 'step_cost' : cleanKey;
+      if (!OVERVIEW_METRIC_KEYS.includes(mappedKey)) continue;
+      const size = normalizeMetricCardSize(v);
+      if (size !== 'sm') {
+        out[mappedKey] = size;
+      }
+    }
+    return out;
+  }
+  if (legacyStyle !== undefined) {
+    const style = normalizeMetricCardStyle(legacyStyle);
+    const list = Array.isArray(metricsList) && metricsList.length > 0
+      ? metricsList
+      : DEFAULT_OVERVIEW_METRICS;
+    if (style === 'large') {
+      const out = {};
+      for (const key of list) {
+        if (OVERVIEW_METRIC_KEYS.includes(key)) out[key] = 'wide';
+      }
+      return out;
+    }
+    if (style === 'hybrid' && list[0] && OVERVIEW_METRIC_KEYS.includes(list[0])) {
+      const out = { [list[0]]: 'tall' };
+      if (list.length === 3) {
+        if (list[1] && OVERVIEW_METRIC_KEYS.includes(list[1])) out[list[1]] = 'wide';
+        if (list[2] && OVERVIEW_METRIC_KEYS.includes(list[2])) out[list[2]] = 'wide';
+      }
+      return out;
+    }
+  }
+  return {};
+}
+
+const normalizeOverviewMetricSizes = normalizeMetricCardSizes;
+const normalizeHoverMetricSizes = normalizeMetricCardSizes;
+
+function normalizeMetricTextMode(raw) {
+  const val = String(raw ?? '').trim().toLowerCase();
+  if (val === 'both' || val === 'all' || val === 'full') {
+    return 'both';
+  }
+  if (val === 'title' || val === 'title_only' || val === 'label' || val === 'label_only') {
+    return 'title';
+  }
+  if (val === 'sub' || val === 'sub_only' || val === 'subtitle' || val === 'meta') {
+    return 'sub';
+  }
+  if (val === 'none' || val === 'minimal' || val === 'value' || val === 'value_only') {
+    return 'none';
+  }
+  return DEFAULT_METRIC_TEXT_MODE;
+}
+
+const normalizeOverviewMetricTextMode = normalizeMetricTextMode;
+const normalizeHoverMetricTextMode = normalizeMetricTextMode;
+
+function deriveMetricCardStyleFromLayout(rows, metrics, sizesMap) {
+  const safeRows = normalizeMetricGridRows(rows);
+  const list = Array.isArray(metrics) ? metrics : [];
+  if (safeRows === 1 && list.length > 0) {
+    const effSizes = list.map((key) => {
+      const s = normalizeMetricCardSize(sizesMap?.[key]);
+      if (s === 'tall') return 'wide';
+      if (s === 'narrow') return 'sm';
+      return s;
+    });
+    if (effSizes.every((s) => s === 'sm')) return 'medium';
+    const checkLen = Math.min(MAX_LARGE_METRIC_SLOTS, effSizes.length);
+    if (effSizes.slice(0, checkLen).every((s) => s === 'wide')) return 'large';
+  }
+  return 'hybrid';
+}
+
+function packMetricBentoLayout({
+  rows = DEFAULT_METRIC_ROWS,
+  metrics = DEFAULT_OVERVIEW_METRICS,
+  sizes = {},
+  includeGhostCells = false,
+} = {}) {
+  const safeRows = normalizeMetricGridRows(rows);
+  const list = normalizeOverviewMetrics(metrics);
+  const sizesMap = normalizeMetricCardSizes(sizes);
+  const resolveEffSize = (key) => {
+    const rawSize = normalizeMetricCardSize(sizesMap[key]);
+    if (safeRows === 1) {
+      if (rawSize === 'tall') return 'wide';
+      if (rawSize === 'narrow') return 'sm';
+    }
+    return rawSize;
+  };
+
+  const uniformWideCount = Math.min(MAX_LARGE_METRIC_SLOTS, list.length);
+  if (
+    safeRows === 1 &&
+    uniformWideCount > 0 &&
+    list.slice(0, uniformWideCount).every((key) => resolveEffSize(key) === 'wide')
+  ) {
+    const placements = list.slice(0, uniformWideCount).map((key, idx) => ({
+      key,
+      index: idx,
+      rawSize: normalizeMetricCardSize(sizesMap[key]),
+      size: 'wide',
+      isTrend: true,
+      isWide: true,
+      isNarrow: false,
+      isTall: false,
+      colStart: idx + 1,
+      colSpan: 1,
+      rowStart: 1,
+      rowSpan: 1,
+    }));
+    return {
+      rows: 1,
+      effectiveRows: 1,
+      gridCols: uniformWideCount,
+      isThreeUpTrend: true,
+      placements,
+      overflowKeys: list.slice(uniformWideCount),
+      ghostCells: [],
+    };
+  }
+
+  const occ = Array.from({ length: safeRows }, () => Array(METRIC_GRID_COLS).fill(false));
+  const placements = [];
+  const overflowKeys = [];
+
+  function tryRepackForTwoRowCard(existingPlacements, newWidth) {
+    if (safeRows !== 2) return null;
+    const leftLimit = METRIC_GRID_COLS - newWidth;
+    if (leftLimit < 1) return null;
+    const leftOcc = [Array(leftLimit).fill(false), Array(leftLimit).fill(false)];
+    const coords = new Array(existingPlacements.length);
+
+    for (let idx = 0; idx < existingPlacements.length; idx += 1) {
+      const item = existingPlacements[idx];
+      if (item.rowSpan !== 2) continue;
+      const w = item.colSpan;
+      if (w > leftLimit) return null;
+      let fitCol = -1;
+      const prefCol = item.colStart - 1;
+      if (prefCol >= 0 && prefCol + w <= leftLimit) {
+        let prefFree = true;
+        for (let dc = 0; dc < w; dc += 1) {
+          if (leftOcc[0][prefCol + dc] || leftOcc[1][prefCol + dc]) {
+            prefFree = false;
+            break;
+          }
+        }
+        if (prefFree) fitCol = prefCol;
+      }
+      if (fitCol < 0) {
+        for (let c = 0; c <= leftLimit - w; c += 1) {
+          let free = true;
+          for (let dc = 0; dc < w; dc += 1) {
+            if (leftOcc[0][c + dc] || leftOcc[1][c + dc]) {
+              free = false;
+              break;
+            }
+          }
+          if (free) {
+            fitCol = c;
+            break;
+          }
+        }
+      }
+      if (fitCol < 0) return null;
+      for (let dc = 0; dc < w; dc += 1) {
+        leftOcc[0][fitCol + dc] = true;
+        leftOcc[1][fitCol + dc] = true;
+      }
+      coords[idx] = { colStart: fitCol + 1, rowStart: 1 };
+    }
+
+    for (let idx = 0; idx < existingPlacements.length; idx += 1) {
+      const item = existingPlacements[idx];
+      if (item.rowSpan !== 1) continue;
+      const w = item.colSpan;
+      if (w > leftLimit) return null;
+      let fit = null;
+      for (let r = 0; r < 2 && !fit; r += 1) {
+        for (let c = 0; c <= leftLimit - w && !fit; c += 1) {
+          let free = true;
+          for (let dc = 0; dc < w; dc += 1) {
+            if (leftOcc[r][c + dc]) {
+              free = false;
+              break;
+            }
+          }
+          if (free) {
+            for (let dc = 0; dc < w; dc += 1) {
+              leftOcc[r][c + dc] = true;
+            }
+            fit = { colStart: c + 1, rowStart: r + 1 };
+          }
+        }
+      }
+      if (!fit) return null;
+      coords[idx] = fit;
+    }
+
+    return { leftOcc, leftLimit, coords };
+  }
+
+  for (let i = 0; i < list.length; i += 1) {
+    const key = list[i];
+    const rawSize = normalizeMetricCardSize(sizesMap[key]);
+    const effSize = resolveEffSize(key);
+    const w = effSize === 'wide' || effSize === 'tall' ? 2 : 1;
+    const h = effSize === 'narrow' || effSize === 'tall' ? 2 : 1;
+    let placed = false;
+
+    for (let r = 0; r <= safeRows - h && !placed; r += 1) {
+      for (let c = 0; c <= METRIC_GRID_COLS - w && !placed; c += 1) {
+        let free = true;
+        for (let dr = 0; dr < h && free; dr += 1) {
+          for (let dc = 0; dc < w; dc += 1) {
+            if (occ[r + dr][c + dc]) {
+              free = false;
+              break;
+            }
+          }
+        }
+        if (free) {
+          for (let dr = 0; dr < h; dr += 1) {
+            for (let dc = 0; dc < w; dc += 1) {
+              occ[r + dr][c + dc] = true;
+            }
+          }
+          placements.push({
+            key,
+            index: i,
+            rawSize,
+            size: effSize,
+            isTrend: effSize !== 'sm',
+            isWide: effSize === 'wide',
+            isNarrow: effSize === 'narrow',
+            isTall: effSize === 'tall',
+            colStart: c + 1,
+            colSpan: w,
+            rowStart: r + 1,
+            rowSpan: h,
+          });
+          placed = true;
+        }
+      }
+    }
+
+    if (!placed && safeRows === 2 && h === 2) {
+      const repacked = tryRepackForTwoRowCard(placements, w);
+      if (repacked) {
+        for (let r = 0; r < 2; r += 1) {
+          for (let c = 0; c < METRIC_GRID_COLS; c += 1) {
+            occ[r][c] = c < repacked.leftLimit ? repacked.leftOcc[r][c] : false;
+          }
+        }
+        for (let k = 0; k < placements.length; k += 1) {
+          placements[k].colStart = repacked.coords[k].colStart;
+          placements[k].rowStart = repacked.coords[k].rowStart;
+        }
+        const targetCol = repacked.leftLimit;
+        for (let dr = 0; dr < 2; dr += 1) {
+          for (let dc = 0; dc < w; dc += 1) {
+            occ[dr][targetCol + dc] = true;
+          }
+        }
+        placements.push({
+          key,
+          index: i,
+          rawSize,
+          size: effSize,
+          isTrend: true,
+          isWide: false,
+          isNarrow: effSize === 'narrow',
+          isTall: effSize === 'tall',
+          colStart: targetCol + 1,
+          colSpan: w,
+          rowStart: 1,
+          rowSpan: 2,
+        });
+        placed = true;
+      }
+    }
+
+    if (!placed) {
+      overflowKeys.push(key);
+    }
+  }
+
+  if (safeRows === 1) {
+    const usedCols = placements.reduce((acc, item) => acc + item.colSpan, 0);
+    return {
+      rows: 1,
+      effectiveRows: 1,
+      gridCols: Math.max(1, Math.min(METRIC_GRID_COLS, usedCols)),
+      isThreeUpTrend: false,
+      placements,
+      overflowKeys,
+      ghostCells: [],
+    };
+  }
+
+  const row2HasAny = occ[1].some(Boolean);
+  if (!row2HasAny && !includeGhostCells) {
+    const usedCols = placements.reduce((acc, item) => acc + item.colSpan, 0);
+    return {
+      rows: 2,
+      effectiveRows: 1,
+      gridCols: Math.max(1, Math.min(METRIC_GRID_COLS, usedCols)),
+      isThreeUpTrend: false,
+      placements,
+      overflowKeys,
+      ghostCells: [],
+    };
+  }
+
+  const ghostCells = [];
+  if (includeGhostCells) {
+    for (let r = 0; r < 2; r += 1) {
+      for (let c = 0; c < METRIC_GRID_COLS; c += 1) {
+        if (!occ[r][c]) {
+          ghostCells.push({ colStart: c + 1, rowStart: r + 1 });
+        }
+      }
+    }
+  }
+
+  return {
+    rows: 2,
+    effectiveRows: 2,
+    gridCols: METRIC_GRID_COLS,
+    isThreeUpTrend: false,
+    placements,
+    overflowKeys,
+    ghostCells,
+  };
+}
 
 function normalizeHoverSyncOverviewMetrics(raw) {
   return raw !== false;
@@ -490,30 +856,54 @@ function normalizeHoverMetrics(raw) {
   return normalizeOverviewMetrics(raw);
 }
 
-function resolveEffectiveMetricMatrixConfig(mode, settings = {}) {
+function resolveEffectiveMetricMatrixConfig(
+  mode,
+  settings = {},
+  { includeGhostCells = false } = {}
+) {
   const s = settings && typeof settings === 'object' ? settings : {};
   const isHover = mode === 'hover';
   const syncOverview = !isHover || normalizeHoverSyncOverviewMetrics(s.hoverSyncOverviewMetrics);
-  const style = syncOverview
-    ? normalizeOverviewMetricStyle(s.overviewMetricStyle)
-    : normalizeHoverMetricStyle(s.hoverMetricStyle);
-  const hybridRatio = syncOverview
-    ? normalizeOverviewMetricHybridRatio(s.overviewMetricHybridRatio)
-    : normalizeHoverMetricHybridRatio(s.hoverMetricHybridRatio);
   const allMetrics = syncOverview
     ? normalizeOverviewMetrics(s.overviewMetrics)
     : normalizeHoverMetrics(s.hoverMetrics);
+  const rawRows = syncOverview ? s.overviewMetricRows : s.hoverMetricRows;
+  const rawSizes = syncOverview ? s.overviewMetricSizes : s.hoverMetricSizes;
+  const rawStyle = syncOverview ? s.overviewMetricStyle : s.hoverMetricStyle;
+  const rawTextMode = syncOverview ? s.overviewMetricTextMode : s.hoverMetricTextMode;
+  const hasExplicitBento = rawRows !== undefined || rawSizes !== undefined;
+  const rows = normalizeMetricGridRows(rawRows, hasExplicitBento ? undefined : rawStyle);
+  const sizes = normalizeMetricCardSizes(
+    rawSizes,
+    allMetrics,
+    hasExplicitBento ? undefined : rawStyle
+  );
+  const textMode = normalizeMetricTextMode(rawTextMode);
+  const showTitle = textMode === 'both' || textMode === 'title';
+  const showSub = textMode === 'both' || textMode === 'sub';
+  const style = deriveMetricCardStyleFromLayout(rows, allMetrics, sizes);
+  const layout = packMetricBentoLayout({
+    rows,
+    metrics: allMetrics,
+    sizes,
+    includeGhostCells,
+  });
+  const metrics = layout.placements.map((p) => p.key);
   const isLarge = style === 'large';
   const isHybrid = style === 'hybrid';
-  const metrics = isLarge ? allMetrics.slice(0, MAX_LARGE_METRIC_SLOTS) : allMetrics;
   return {
     syncOverview,
+    rows,
+    sizes,
+    textMode,
+    showTitle,
+    showSub,
     style,
     isLarge,
     isHybrid,
-    hybridRatio,
     allMetrics,
     metrics,
+    layout,
   };
 }
 
@@ -681,7 +1071,7 @@ function isAccountSwitchFeatureActive(settings) {
     isRiskyFeaturesGateOpen(settings) && settings.accountSwitchRiskAccepted === true
   );
 }
-return { SUPPORTED_LOCALE_ENTRIES, SUPPORTED_LOCALES, SUPPORTED_LANGUAGES, THEME_ACCENT_KEYS, FONT_SCALE_KEYS, TOPBAR_SLOT_KEYS, DEFAULT_TOPBAR_SLOTS, MIN_TOPBAR_SLOTS, MAX_TOPBAR_SLOTS, DEFAULT_CLI_STATUSLINE_SLOTS, MIN_CLI_STATUSLINE_SLOTS, MAX_CLI_STATUSLINE_SLOTS, CLI_STATUSLINE_PRESETS, OVERVIEW_MODULE_KEYS, DEFAULT_OVERVIEW_MODULES, DEFAULT_HOVER_MODULES, METRIC_CARD_STYLES, HOVER_METRIC_STYLES, DEFAULT_OVERVIEW_METRIC_STYLE, DEFAULT_HOVER_METRIC_STYLE, DEFAULT_HOVER_SYNC_OVERVIEW_METRICS, MAX_LARGE_METRIC_SLOTS, MIN_METRIC_HYBRID_RATIO, MAX_METRIC_HYBRID_RATIO, DEFAULT_METRIC_HYBRID_RATIO, DEFAULT_OVERVIEW_METRIC_HYBRID_RATIO, DEFAULT_HOVER_METRIC_HYBRID_RATIO, OVERVIEW_METRIC_KEYS, DEFAULT_OVERVIEW_METRICS, DEFAULT_HOVER_METRICS, STEP_TABLE_COLUMN_KEYS, DEFAULT_STEP_TABLE_COLUMNS, DEFAULT_STEP_TOKEN_COMBO_FORMAT, STEP_TOKEN_SEGMENT_ALIASES, POPOVER_WIDTH_MODES, MIN_POPOVER_WIDTH, MAX_POPOVER_WIDTH, DEFAULT_POPOVER_WIDTH, resolveLocaleFromLanguageTag, normalizeLanguageSetting, normalizeThemeAccent, normalizeFontScale, normalizeModelDisplayMode, normalizePopoverWidthMode, normalizePopoverWidth, parseStepTokenComboSegments, normalizeStepTokenComboFormat, normalizePluginUpdateMode, normalizeWindowMountMode, normalizeWeeklyLimitMode, normalizeTopbarCapsuleSlots, normalizeCliStatusLineSlots, resolveEffectiveCliStatusLineSlots, normalizeOverviewMetrics, normalizeOverviewModules, normalizeHoverModules, normalizeMetricCardStyle, normalizeOverviewMetricStyle, normalizeHoverMetricStyle, normalizeMetricHybridRatio, normalizeOverviewMetricHybridRatio, normalizeHoverMetricHybridRatio, normalizeHoverSyncOverviewMetrics, normalizeHoverMetrics, resolveEffectiveMetricMatrixConfig, normalizeStepTableColumns, normalizeStandalonePort, normalizeModernUi, CONTEXT_AGENT_MODES, DEFAULT_CONTEXT_AGENT_MODE, TOPBAR_MULTI_SESSION_MODES, DEFAULT_TOPBAR_MULTI_SESSION_MODE, normalizeTopbarMultiSessionMode, isTopbarMultiSessionVisible, QUOTA_DISPLAY_MODES, DEFAULT_QUOTA_DISPLAY_MODE, normalizeQuotaDisplayMode, ACCOUNT_QUOTA_REFRESH_MINUTES, DEFAULT_ACCOUNT_QUOTA_REFRESH_MINUTES, normalizeAccountQuotaRefreshMinutes, normalizeContextAgentMode, normalizeExperimentalQuotaReservation, normalizeExperimentalModernUi, normalizeAutoConfigureLaunch, normalizeEnableRemoteSshTelemetry, normalizeDeveloperModeEnabled, normalizeRiskyFeaturesEnabled, isRiskyFeaturesGateOpen, isContextWindowFeatureActive, isAccountSwitchFeatureActive };
+return { SUPPORTED_LOCALE_ENTRIES, SUPPORTED_LOCALES, SUPPORTED_LANGUAGES, THEME_ACCENT_KEYS, FONT_SCALE_KEYS, TOPBAR_SLOT_KEYS, DEFAULT_TOPBAR_SLOTS, MIN_TOPBAR_SLOTS, MAX_TOPBAR_SLOTS, DEFAULT_CLI_STATUSLINE_SLOTS, MIN_CLI_STATUSLINE_SLOTS, MAX_CLI_STATUSLINE_SLOTS, CLI_STATUSLINE_PRESETS, OVERVIEW_MODULE_KEYS, DEFAULT_OVERVIEW_MODULES, DEFAULT_HOVER_MODULES, METRIC_CARD_STYLES, HOVER_METRIC_STYLES, DEFAULT_OVERVIEW_METRIC_STYLE, DEFAULT_HOVER_METRIC_STYLE, DEFAULT_HOVER_SYNC_OVERVIEW_METRICS, MAX_LARGE_METRIC_SLOTS, METRIC_GRID_COLS, METRIC_GRID_ROWS, DEFAULT_METRIC_ROWS, DEFAULT_OVERVIEW_METRIC_ROWS, DEFAULT_HOVER_METRIC_ROWS, METRIC_CARD_SIZES, DEFAULT_OVERVIEW_METRIC_SIZES, DEFAULT_HOVER_METRIC_SIZES, METRIC_TEXT_MODES, DEFAULT_METRIC_TEXT_MODE, DEFAULT_OVERVIEW_METRIC_TEXT_MODE, DEFAULT_HOVER_METRIC_TEXT_MODE, MAX_OVERVIEW_METRICS, OVERVIEW_METRIC_KEYS, DEFAULT_OVERVIEW_METRICS, DEFAULT_HOVER_METRICS, STEP_TABLE_COLUMN_KEYS, DEFAULT_STEP_TABLE_COLUMNS, DEFAULT_STEP_TOKEN_COMBO_FORMAT, STEP_TOKEN_SEGMENT_ALIASES, POPOVER_WIDTH_MODES, MIN_POPOVER_WIDTH, MAX_POPOVER_WIDTH, DEFAULT_POPOVER_WIDTH, resolveLocaleFromLanguageTag, normalizeLanguageSetting, normalizeThemeAccent, normalizeFontScale, normalizeModelDisplayMode, normalizePopoverWidthMode, normalizePopoverWidth, parseStepTokenComboSegments, normalizeStepTokenComboFormat, normalizePluginUpdateMode, normalizeWindowMountMode, normalizeWeeklyLimitMode, normalizeTopbarCapsuleSlots, normalizeCliStatusLineSlots, resolveEffectiveCliStatusLineSlots, normalizeOverviewMetrics, normalizeOverviewModules, normalizeHoverModules, normalizeMetricCardStyle, normalizeOverviewMetricStyle, normalizeHoverMetricStyle, normalizeMetricGridRows, normalizeOverviewMetricRows, normalizeHoverMetricRows, normalizeMetricCardSize, normalizeMetricCardSizes, normalizeOverviewMetricSizes, normalizeHoverMetricSizes, normalizeMetricTextMode, normalizeOverviewMetricTextMode, normalizeHoverMetricTextMode, deriveMetricCardStyleFromLayout, packMetricBentoLayout, normalizeHoverSyncOverviewMetrics, normalizeHoverMetrics, resolveEffectiveMetricMatrixConfig, normalizeStepTableColumns, normalizeStandalonePort, normalizeModernUi, CONTEXT_AGENT_MODES, DEFAULT_CONTEXT_AGENT_MODE, TOPBAR_MULTI_SESSION_MODES, DEFAULT_TOPBAR_MULTI_SESSION_MODE, normalizeTopbarMultiSessionMode, isTopbarMultiSessionVisible, QUOTA_DISPLAY_MODES, DEFAULT_QUOTA_DISPLAY_MODE, normalizeQuotaDisplayMode, ACCOUNT_QUOTA_REFRESH_MINUTES, DEFAULT_ACCOUNT_QUOTA_REFRESH_MINUTES, normalizeAccountQuotaRefreshMinutes, normalizeContextAgentMode, normalizeExperimentalQuotaReservation, normalizeExperimentalModernUi, normalizeAutoConfigureLaunch, normalizeEnableRemoteSshTelemetry, normalizeDeveloperModeEnabled, normalizeRiskyFeaturesEnabled, isRiskyFeaturesGateOpen, isContextWindowFeatureActive, isAccountSwitchFeatureActive };
 })();
 
 // --- shared/currency-catalog.mjs ---
@@ -2557,16 +2947,25 @@ const I18N_MESSAGES_ZH_CN = Object.freeze({
   'settings.str.hoverModulesLabel': '悬浮窗展示模块',
   'settings.str.hoverEmptyHint': '已关闭悬浮速览窗（点击胶囊仍可展开完整面板）',
   'settings.str.addHoverModule': '添加模块 ({count}/{max})',
-  'settings.str.hoverMetricStyleLabel': '实时指标尺寸',
-  'settings.str.hoverMetricStyleMedium': '中 · 紧凑数值',
-  'settings.str.hoverMetricStyleHybrid': '混合',
-  'settings.str.hoverMetricStyleLarge': '大 · 趋势折线',
-  'settings.str.hybridSplitterAria': '调整混合指标左右宽度比例',
-  'settings.str.hybridSplitterHint': '左右拖动调整宽度比例，双击恢复默认 50%',
+  'settings.str.metricHeightLabel': '指标区高度',
+  'settings.str.metricRows1': '一层',
+  'settings.str.metricRows2': '两层',
+  'settings.str.metricTextModeLabel': '卡片信息',
+  'settings.str.metricTextBoth': '都有',
+  'settings.str.metricTextTitle': '仅标题',
+  'settings.str.metricTextSub': '仅副标',
+  'settings.str.metricTextNone': '仅数值',
+  'settings.str.metricSizeSm': '小',
+  'settings.str.metricSizeWide': '宽',
+  'settings.str.metricSizeNarrow': '竖',
+  'settings.str.metricSizeTall': '大',
+  'settings.str.metricResizeHandleAria': '调整指标卡片尺寸（小 / 宽 / 竖 / 大）',
+  'settings.str.metricResizeHandleHint': '拖动切换 小 / 宽 / 竖 / 大 占格，点击快速循环切换',
+  'settings.str.metricSizePillHint': '点击切换卡片尺寸（小 1×1 / 宽 2×1 / 竖 1×2 / 大 2×2）',
   'settings.str.hoverSyncOverviewLabel': '与实时监控同步',
   'settings.str.hoverMetricsLabel': '实时指标',
   'settings.str.hoverMetricsInactiveHint': '当前悬浮窗已移出「实时指标」模块，重新添加模块后即生效',
-  'settings.str.metricOverflowTag': '大尺寸隐藏',
+  'settings.str.metricOverflowTag': '超出网格',
   'settings.str.overviewSection': '实时监控布局',
   'settings.str.overviewBadge': '{modCount} 模块 · {metCount} 指标',
   'settings.str.overviewModulesLabel': '监控模块',
@@ -3823,16 +4222,25 @@ const I18N_MESSAGES_ZH_TW = Object.freeze({
   "settings.str.hoverModulesLabel": "懸浮窗顯示模組",
   "settings.str.hoverEmptyHint": "已關閉懸浮速覽（點擊膠囊仍可開啟完整面板）",
   "settings.str.addHoverModule": "新增模組 ({count}/{max})",
-  "settings.str.hoverMetricStyleLabel": "即時指標尺寸",
-  "settings.str.hoverMetricStyleMedium": "中 · 精簡數值",
-  "settings.str.hoverMetricStyleHybrid": "混合",
-  "settings.str.hoverMetricStyleLarge": "大 · 趨勢折線",
-  "settings.str.hybridSplitterAria": "調整混合指標左右寬度比例",
-  "settings.str.hybridSplitterHint": "左右拖曳調整寬度比例，雙擊恢復預設 50%",
+  "settings.str.metricHeightLabel": "指標區高度",
+  "settings.str.metricRows1": "一層",
+  "settings.str.metricRows2": "兩層",
+  "settings.str.metricTextModeLabel": "卡片資訊",
+  "settings.str.metricTextBoth": "都有",
+  "settings.str.metricTextTitle": "僅標題",
+  "settings.str.metricTextSub": "僅副標",
+  "settings.str.metricTextNone": "僅數值",
+  "settings.str.metricSizeSm": "小",
+  "settings.str.metricSizeWide": "寬",
+  "settings.str.metricSizeNarrow": "豎",
+  "settings.str.metricSizeTall": "大",
+  "settings.str.metricResizeHandleAria": "調整指標卡片尺寸（小 / 寬 / 豎 / 大）",
+  "settings.str.metricResizeHandleHint": "拖曳切換 小 / 寬 / 豎 / 大 占格，點擊快速循環切換",
+  "settings.str.metricSizePillHint": "點擊切換卡片尺寸（小 1×1 / 寬 2×1 / 豎 1×2 / 大 2×2）",
   "settings.str.hoverSyncOverviewLabel": "與即時監控同步",
   "settings.str.hoverMetricsLabel": "即時指標",
   "settings.str.hoverMetricsInactiveHint": "目前懸浮窗已隱藏「即時指標」模組，於下方重新新增模組後即可顯示",
-  "settings.str.metricOverflowTag": "大尺寸隱藏",
+  "settings.str.metricOverflowTag": "超出網格",
   "settings.str.overviewSection": "即時監控版面",
   "settings.str.overviewBadge": "{modCount} 模組 · {metCount} 指標",
   "settings.str.overviewModulesLabel": "監控模組",
@@ -5104,16 +5512,25 @@ const I18N_MESSAGES_EN_US = Object.freeze({
   'settings.str.hoverModulesLabel': 'Hover Popup Modules',
   'settings.str.hoverEmptyHint': 'Hover quick-view disabled (click capsule to open full panel)',
   'settings.str.addHoverModule': 'Add Module ({count}/{max})',
-  'settings.str.hoverMetricStyleLabel': 'Live Metrics Size',
-  'settings.str.hoverMetricStyleMedium': 'Medium · Compact',
-  'settings.str.hoverMetricStyleHybrid': 'Hybrid',
-  'settings.str.hoverMetricStyleLarge': 'Large · Sparkline',
-  'settings.str.hybridSplitterAria': 'Resize hybrid metric width ratio',
-  'settings.str.hybridSplitterHint': 'Drag left or right to resize width ratio, double-click to reset (50%)',
+  'settings.str.metricHeightLabel': 'Metrics Height',
+  'settings.str.metricRows1': '1 Row',
+  'settings.str.metricRows2': '2 Rows',
+  'settings.str.metricTextModeLabel': 'Card Details',
+  'settings.str.metricTextBoth': 'Both',
+  'settings.str.metricTextTitle': 'Title',
+  'settings.str.metricTextSub': 'Note',
+  'settings.str.metricTextNone': 'Value',
+  'settings.str.metricSizeSm': 'S',
+  'settings.str.metricSizeWide': 'W',
+  'settings.str.metricSizeNarrow': 'V',
+  'settings.str.metricSizeTall': 'L',
+  'settings.str.metricResizeHandleAria': 'Resize metric card (S / W / V / L)',
+  'settings.str.metricResizeHandleHint': 'Drag to snap between 1×1 / 2×1 / 1×2 / 2×2 grid sizes, or click to cycle',
+  'settings.str.metricSizePillHint': 'Click to cycle card size (1×1 / 2×1 / 1×2 / 2×2)',
   'settings.str.hoverSyncOverviewLabel': 'Sync with Live Overview',
   'settings.str.hoverMetricsLabel': 'Live Metrics',
   'settings.str.hoverMetricsInactiveHint': '"Live Metrics" is hidden in Hover modules; add it below to display',
-  'settings.str.metricOverflowTag': 'Hidden in Large',
+  'settings.str.metricOverflowTag': 'Grid overflow',
   'settings.str.overviewSection': 'Live Overview Layout',
   'settings.str.overviewBadge': '{modCount} mod · {metCount} cells',
   'settings.str.overviewModulesLabel': 'Overview Modules',
@@ -6370,16 +6787,25 @@ const I18N_MESSAGES_JA_JP = Object.freeze({
   "settings.str.hoverModulesLabel": "ホバー表示モジュール",
   "settings.str.hoverEmptyHint": "ホバークイック表示は無効です（カプセルクリックで全パネルを開けます）",
   "settings.str.addHoverModule": "モジュール追加 ({count}/{max})",
-  "settings.str.hoverMetricStyleLabel": "ライブ指標サイズ",
-  "settings.str.hoverMetricStyleMedium": "中 · コンパクト",
-  "settings.str.hoverMetricStyleHybrid": "混合",
-  "settings.str.hoverMetricStyleLarge": "大 · スパークライン",
-  "settings.str.hybridSplitterAria": "混合指標の左右幅比率を調整",
-  "settings.str.hybridSplitterHint": "左右にドラッグして幅比率を調整、ダブルクリックで 50% にリセット",
+  "settings.str.metricHeightLabel": "指標エリアの高さ",
+  "settings.str.metricRows1": "1 段",
+  "settings.str.metricRows2": "2 段",
+  "settings.str.metricTextModeLabel": "カード表示",
+  "settings.str.metricTextBoth": "すべて",
+  "settings.str.metricTextTitle": "見出し",
+  "settings.str.metricTextSub": "補足",
+  "settings.str.metricTextNone": "数値のみ",
+  "settings.str.metricSizeSm": "小",
+  "settings.str.metricSizeWide": "横長",
+  "settings.str.metricSizeNarrow": "縦長",
+  "settings.str.metricSizeTall": "大",
+  "settings.str.metricResizeHandleAria": "指標カードサイズを変更（小 / 横長 / 縦長 / 大）",
+  "settings.str.metricResizeHandleHint": "ドラッグで 1×1 / 2×1 / 1×2 / 2×2 にスナップ、クリックで順番に切替",
+  "settings.str.metricSizePillHint": "クリックでカードサイズを切替（1×1 / 2×1 / 1×2 / 2×2）",
   "settings.str.hoverSyncOverviewLabel": "ライブ配置と同期",
   "settings.str.hoverMetricsLabel": "ライブ指標",
   "settings.str.hoverMetricsInactiveHint": "「ライブ指標」はホバーモジュールから外れています。下から追加すると表示されます",
-  "settings.str.metricOverflowTag": "大サイズ時は非表示",
+  "settings.str.metricOverflowTag": "グリッド超過",
   "settings.str.overviewSection": "ライブ画面レイアウト",
   "settings.str.overviewBadge": "{modCount} モジュール · {metCount} 指標",
   "settings.str.overviewModulesLabel": "表示モジュール",
@@ -7631,16 +8057,25 @@ const I18N_MESSAGES_KO_KR = Object.freeze({
   "settings.str.hoverModulesLabel": "호버 팝업 모듈",
   "settings.str.hoverEmptyHint": "호버 빠른 보기가 비활성화되었습니다 (캡슐 클릭 시 전체 패널 열기)",
   "settings.str.addHoverModule": "모듈 추가 ({count}/{max})",
-  "settings.str.hoverMetricStyleLabel": "실시간 지표 크기",
-  "settings.str.hoverMetricStyleMedium": "중간 · 컴팩트",
-  "settings.str.hoverMetricStyleHybrid": "혼합",
-  "settings.str.hoverMetricStyleLarge": "크게 · 스파크라인",
-  "settings.str.hybridSplitterAria": "혼합 지표 좌우 너비 비율 조절",
-  "settings.str.hybridSplitterHint": "좌우로 드래그해 너비 비율 조절, 더블클릭으로 50% 초기화",
+  "settings.str.metricHeightLabel": "지표 영역 높이",
+  "settings.str.metricRows1": "1단",
+  "settings.str.metricRows2": "2단",
+  "settings.str.metricTextModeLabel": "카드 정보",
+  "settings.str.metricTextBoth": "모두",
+  "settings.str.metricTextTitle": "제목만",
+  "settings.str.metricTextSub": "보조만",
+  "settings.str.metricTextNone": "수치만",
+  "settings.str.metricSizeSm": "소",
+  "settings.str.metricSizeWide": "와이드",
+  "settings.str.metricSizeNarrow": "세로",
+  "settings.str.metricSizeTall": "대",
+  "settings.str.metricResizeHandleAria": "지표 카드 크기 변경 (소 / 와이드 / 세로 / 대)",
+  "settings.str.metricResizeHandleHint": "드래그해 1×1 / 2×1 / 1×2 / 2×2 격자로 스냅, 클릭으로 순환 전환",
+  "settings.str.metricSizePillHint": "클릭해 카드 크기 전환 (1×1 / 2×1 / 1×2 / 2×2)",
   "settings.str.hoverSyncOverviewLabel": "실시간 개요와 동기화",
   "settings.str.hoverMetricsLabel": "실시간 지표",
   "settings.str.hoverMetricsInactiveHint": "호버 모듈에서 \"실시간 지표\"가 숨겨져 있습니다. 표시하려면 아래에서 추가하세요",
-  "settings.str.metricOverflowTag": "큰 크기에서 숨김",
+  "settings.str.metricOverflowTag": "그리드 초과",
   "settings.str.overviewSection": "실시간 개요 레이아웃",
   "settings.str.overviewBadge": "{modCount} 모듈 · {metCount} 지표",
   "settings.str.overviewModulesLabel": "개요 모듈",
@@ -8892,16 +9327,25 @@ const I18N_MESSAGES_DE_DE = Object.freeze({
   "settings.str.hoverModulesLabel": "Hover-Popup-Module",
   "settings.str.hoverEmptyHint": "Hover-Schnellansicht aus (Kapselklick öffnet Vollpanel)",
   "settings.str.addHoverModule": "Modul hinzufügen ({count}/{max})",
-  "settings.str.hoverMetricStyleLabel": "Live-Metrikgröße",
-  "settings.str.hoverMetricStyleMedium": "Mittel · Kompakt",
-  "settings.str.hoverMetricStyleHybrid": "Mix",
-  "settings.str.hoverMetricStyleLarge": "Groß · Sparkline",
-  "settings.str.hybridSplitterAria": "Breitenverhältnis der Mix-Metriken anpassen",
-  "settings.str.hybridSplitterHint": "Nach links/rechts ziehen zum Anpassen, Doppelklick für 50 % Standard",
+  "settings.str.metricHeightLabel": "Höhe des Metrikbereichs",
+  "settings.str.metricRows1": "1 Zeile",
+  "settings.str.metricRows2": "2 Zeilen",
+  "settings.str.metricTextModeLabel": "Kartendetails",
+  "settings.str.metricTextBoth": "Beide",
+  "settings.str.metricTextTitle": "Titel",
+  "settings.str.metricTextSub": "Info",
+  "settings.str.metricTextNone": "Wert",
+  "settings.str.metricSizeSm": "S",
+  "settings.str.metricSizeWide": "B",
+  "settings.str.metricSizeNarrow": "H",
+  "settings.str.metricSizeTall": "G",
+  "settings.str.metricResizeHandleAria": "Metrikkarten-Größe anpassen (1×1 / 2×1 / 1×2 / 2×2)",
+  "settings.str.metricResizeHandleHint": "Ziehen zum Einrasten (1×1 / 2×1 / 1×2 / 2×2) oder klicken zum Wechseln",
+  "settings.str.metricSizePillHint": "Klicken zum Wechseln der Kartengröße (1×1 / 2×1 / 1×2 / 2×2)",
   "settings.str.hoverSyncOverviewLabel": "Mit Live-Übersicht synchr.",
   "settings.str.hoverMetricsLabel": "Live-Metriken",
   "settings.str.hoverMetricsInactiveHint": "„Live-Metriken“ ist in Hover-Modulen ausgeblendet; unten zur Anzeige hinzufügen",
-  "settings.str.metricOverflowTag": "In Groß verborgen",
+  "settings.str.metricOverflowTag": "Rasterüberlauf",
   "settings.str.overviewSection": "Live-Übersichtslayout",
   "settings.str.overviewBadge": "{modCount} Mod. · {metCount} Felder",
   "settings.str.overviewModulesLabel": "Übersichtsmodule",
@@ -10153,16 +10597,25 @@ const I18N_MESSAGES_FR_FR = Object.freeze({
   "settings.str.hoverModulesLabel": "Modules du survol",
   "settings.str.hoverEmptyHint": "Aperçu au survol désactivé (cliquer la capsule ouvre le panneau)",
   "settings.str.addHoverModule": "Ajouter module ({count}/{max})",
-  "settings.str.hoverMetricStyleLabel": "Taille métriques temps réel",
-  "settings.str.hoverMetricStyleMedium": "Moyenne · Compact",
-  "settings.str.hoverMetricStyleHybrid": "Mixte",
-  "settings.str.hoverMetricStyleLarge": "Grande · Courbe",
-  "settings.str.hybridSplitterAria": "Ajuster le ratio de largeur des métriques mixtes",
-  "settings.str.hybridSplitterHint": "Glisser gauche/droite pour ajuster la largeur, double-clic pour 50 %",
+  "settings.str.metricHeightLabel": "Hauteur de la zone métriques",
+  "settings.str.metricRows1": "1 ligne",
+  "settings.str.metricRows2": "2 lignes",
+  "settings.str.metricTextModeLabel": "Texte carte",
+  "settings.str.metricTextBoth": "Tout",
+  "settings.str.metricTextTitle": "Titre",
+  "settings.str.metricTextSub": "Note",
+  "settings.str.metricTextNone": "Valeur",
+  "settings.str.metricSizeSm": "S",
+  "settings.str.metricSizeWide": "L",
+  "settings.str.metricSizeNarrow": "V",
+  "settings.str.metricSizeTall": "XL",
+  "settings.str.metricResizeHandleAria": "Redimensionner la carte métrique (1×1 / 2×1 / 1×2 / 2×2)",
+  "settings.str.metricResizeHandleHint": "Glisser pour aimanter (1×1 / 2×1 / 1×2 / 2×2) ou cliquer pour alterner",
+  "settings.str.metricSizePillHint": "Cliquer pour changer la taille de carte (1×1 / 2×1 / 1×2 / 2×2)",
   "settings.str.hoverSyncOverviewLabel": "Synchro avec Vue globale",
   "settings.str.hoverMetricsLabel": "Métriques temps réel",
   "settings.str.hoverMetricsInactiveHint": "« Métriques temps réel » est masqué dans le survol ; ajoutez-le ci-dessous pour l’afficher",
-  "settings.str.metricOverflowTag": "Masqué en Grand",
+  "settings.str.metricOverflowTag": "Hors grille",
   "settings.str.overviewSection": "Disposition Vue globale",
   "settings.str.overviewBadge": "{modCount} mod · {metCount} ind.",
   "settings.str.overviewModulesLabel": "Modules",
@@ -14516,13 +14969,127 @@ const PORTABLE_SETTING_DESCRIPTORS = Object.freeze([
   arrayField('topbarCapsuleSlots', normalizeTopbarCapsuleSlots),
   arrayField('hoverModules', normalizeHoverModules),
   boolField('hoverSyncOverviewMetrics', true),
-  normField('hoverMetricStyle', normalizeHoverMetricStyle),
-  normField('hoverMetricHybridRatio', normalizeHoverMetricHybridRatio),
-  arrayField('hoverMetrics', normalizeHoverMetrics),
+  {
+    exportTo: (src, out) => {
+      const metrics = normalizeHoverMetrics(src.hoverMetrics);
+      const hasExplicit =
+        src.hoverMetricRows !== undefined || src.hoverMetricSizes !== undefined;
+      const rows = normalizeHoverMetricRows(
+        src.hoverMetricRows,
+        hasExplicit ? undefined : src.hoverMetricStyle
+      );
+      const sizes = normalizeHoverMetricSizes(
+        src.hoverMetricSizes,
+        metrics,
+        hasExplicit ? undefined : src.hoverMetricStyle
+      );
+      out.hoverMetricStyle = deriveMetricCardStyleFromLayout(rows, metrics, sizes);
+      out.hoverMetricRows = rows;
+      out.hoverMetricSizes = sizes;
+      out.hoverMetricTextMode = normalizeHoverMetricTextMode(src.hoverMetricTextMode);
+      out.hoverMetrics = metrics;
+    },
+    importTo: (src, hasKey, patch) => {
+      const hasMetrics = hasKey('hoverMetrics') && Array.isArray(src.hoverMetrics);
+      const hasRows = hasKey('hoverMetricRows');
+      const hasSizes =
+        hasKey('hoverMetricSizes') &&
+        src.hoverMetricSizes &&
+        typeof src.hoverMetricSizes === 'object' &&
+        !Array.isArray(src.hoverMetricSizes);
+      const hasStyle = hasKey('hoverMetricStyle');
+      if (hasKey('hoverMetricTextMode')) {
+        patch.hoverMetricTextMode = normalizeHoverMetricTextMode(src.hoverMetricTextMode);
+      }
+      if (hasMetrics) {
+        patch.hoverMetrics = normalizeHoverMetrics(src.hoverMetrics);
+      }
+      if (hasRows || hasSizes) {
+        const rows = hasRows
+          ? normalizeHoverMetricRows(src.hoverMetricRows)
+          : undefined;
+        const sizes = hasSizes
+          ? normalizeHoverMetricSizes(src.hoverMetricSizes)
+          : undefined;
+        if (rows !== undefined) patch.hoverMetricRows = rows;
+        if (sizes !== undefined) patch.hoverMetricSizes = sizes;
+        if (rows !== undefined && sizes !== undefined) {
+          patch.hoverMetricStyle = deriveMetricCardStyleFromLayout(
+            rows,
+            patch.hoverMetrics || normalizeHoverMetrics(src.hoverMetrics),
+            sizes
+          );
+        }
+      } else if (hasStyle) {
+        const style = normalizeHoverMetricStyle(src.hoverMetricStyle);
+        const metrics = patch.hoverMetrics || normalizeHoverMetrics(src.hoverMetrics);
+        patch.hoverMetricStyle = style;
+        patch.hoverMetricRows = normalizeHoverMetricRows(undefined, style);
+        patch.hoverMetricSizes = normalizeHoverMetricSizes(undefined, metrics, style);
+      }
+    },
+  },
   arrayField('overviewModules', normalizeOverviewModules),
-  normField('overviewMetricStyle', normalizeOverviewMetricStyle),
-  normField('overviewMetricHybridRatio', normalizeOverviewMetricHybridRatio),
-  arrayField('overviewMetrics', normalizeOverviewMetrics),
+  {
+    exportTo: (src, out) => {
+      const metrics = normalizeOverviewMetrics(src.overviewMetrics);
+      const hasExplicit =
+        src.overviewMetricRows !== undefined || src.overviewMetricSizes !== undefined;
+      const rows = normalizeOverviewMetricRows(
+        src.overviewMetricRows,
+        hasExplicit ? undefined : src.overviewMetricStyle
+      );
+      const sizes = normalizeOverviewMetricSizes(
+        src.overviewMetricSizes,
+        metrics,
+        hasExplicit ? undefined : src.overviewMetricStyle
+      );
+      out.overviewMetricStyle = deriveMetricCardStyleFromLayout(rows, metrics, sizes);
+      out.overviewMetricRows = rows;
+      out.overviewMetricSizes = sizes;
+      out.overviewMetricTextMode = normalizeOverviewMetricTextMode(src.overviewMetricTextMode);
+      out.overviewMetrics = metrics;
+    },
+    importTo: (src, hasKey, patch) => {
+      const hasMetrics = hasKey('overviewMetrics') && Array.isArray(src.overviewMetrics);
+      const hasRows = hasKey('overviewMetricRows');
+      const hasSizes =
+        hasKey('overviewMetricSizes') &&
+        src.overviewMetricSizes &&
+        typeof src.overviewMetricSizes === 'object' &&
+        !Array.isArray(src.overviewMetricSizes);
+      const hasStyle = hasKey('overviewMetricStyle');
+      if (hasKey('overviewMetricTextMode')) {
+        patch.overviewMetricTextMode = normalizeOverviewMetricTextMode(src.overviewMetricTextMode);
+      }
+      if (hasMetrics) {
+        patch.overviewMetrics = normalizeOverviewMetrics(src.overviewMetrics);
+      }
+      if (hasRows || hasSizes) {
+        const rows = hasRows
+          ? normalizeOverviewMetricRows(src.overviewMetricRows)
+          : undefined;
+        const sizes = hasSizes
+          ? normalizeOverviewMetricSizes(src.overviewMetricSizes)
+          : undefined;
+        if (rows !== undefined) patch.overviewMetricRows = rows;
+        if (sizes !== undefined) patch.overviewMetricSizes = sizes;
+        if (rows !== undefined && sizes !== undefined) {
+          patch.overviewMetricStyle = deriveMetricCardStyleFromLayout(
+            rows,
+            patch.overviewMetrics || normalizeOverviewMetrics(src.overviewMetrics),
+            sizes
+          );
+        }
+      } else if (hasStyle) {
+        const style = normalizeOverviewMetricStyle(src.overviewMetricStyle);
+        const metrics = patch.overviewMetrics || normalizeOverviewMetrics(src.overviewMetrics);
+        patch.overviewMetricStyle = style;
+        patch.overviewMetricRows = normalizeOverviewMetricRows(undefined, style);
+        patch.overviewMetricSizes = normalizeOverviewMetricSizes(undefined, metrics, style);
+      }
+    },
+  },
   normField('quotaDisplayMode', normalizeQuotaDisplayMode),
   boolField('showStepTurnRail', false),
   boolField('showStepAgentBadge', true),
@@ -17251,7 +17818,7 @@ return { fetchHostI18nStatus, refreshHostI18nManifest, selectHostI18nLanguage, u
 })();
 
 // --- src/store/telemetryStore.js ---
-const { extractHostRouteCascadeId, telemetryStore, clearConsumptionRangeCache, clearConversationViewCache, CLIENT_TOPBAR_SLOT_KEYS, DEFAULT_CLIENT_TOPBAR_SLOTS, CLIENT_TOPBAR_MULTI_SESSION_MODES, DEFAULT_CLIENT_TOPBAR_MULTI_SESSION_MODE, DEFAULT_CLIENT_CONTEXT_AGENT_MODE, CLIENT_CLI_STATUSLINE_PRESETS, DEFAULT_CLIENT_CLI_STATUSLINE_SLOTS, CLIENT_OVERVIEW_MODULE_KEYS, DEFAULT_CLIENT_OVERVIEW_MODULES, DEFAULT_CLIENT_HOVER_MODULES, DEFAULT_CLIENT_HOVER_SYNC_OVERVIEW_METRICS, DEFAULT_CLIENT_HOVER_METRIC_STYLE, DEFAULT_CLIENT_HOVER_METRIC_HYBRID_RATIO, DEFAULT_CLIENT_HOVER_METRICS, DEFAULT_CLIENT_OVERVIEW_METRIC_STYLE, DEFAULT_CLIENT_OVERVIEW_METRIC_HYBRID_RATIO, MIN_CLIENT_METRIC_HYBRID_RATIO, MAX_CLIENT_METRIC_HYBRID_RATIO, DEFAULT_CLIENT_METRIC_HYBRID_RATIO, MAX_CLIENT_LARGE_METRIC_SLOTS, CLIENT_OVERVIEW_METRIC_KEYS, DEFAULT_CLIENT_OVERVIEW_METRICS, CLIENT_STEP_COLUMN_KEYS, DEFAULT_CLIENT_STEP_COLUMNS, DEFAULT_CLIENT_STEP_TOKEN_COMBO_FORMAT, MIN_CLIENT_POPOVER_WIDTH, MAX_CLIENT_POPOVER_WIDTH, DEFAULT_CLIENT_POPOVER_WIDTH, DEFAULT_CLIENT_QUOTA_DISPLAY_MODE, parseClientStepTokenComboSegments, normalizeClientStepTokenComboFormat, normalizeClientPopoverWidthMode, normalizeClientPopoverWidth, normalizeClientModelDisplayMode, normalizeClientTopbarSlots, normalizeClientTopbarMultiSessionMode, isClientTopbarMultiSessionVisible, normalizeClientContextAgentMode, normalizeClientQuotaDisplayMode, normalizeClientExperimentalQuotaReservation, normalizeClientAccountQuotaRefreshMinutes, normalizeClientCliStatusLineSlots, getDefaultCtxInspectorAgentId, resolveOverlayCtxInspectorAgentId, resolveEffectiveClientCliStatusLineSlots, normalizeClientHoverModules, normalizeClientHoverSyncOverviewMetrics, normalizeClientHoverMetricStyle, normalizeClientHoverMetricHybridRatio, normalizeClientHoverMetrics, normalizeClientOverviewModules, normalizeClientOverviewMetricStyle, normalizeClientOverviewMetricHybridRatio, normalizeClientOverviewMetrics, resolveEffectiveClientMetricMatrixConfig, normalizeClientStepColumns, normalizeClientUpdateMode, normalizeClientWindowMountMode, normalizeClientDisplayCurrency, isEquivalentTelemetry, resetTelemetryForEndpointSwitch, fetchTelemetry, selectConversation, selectConsumptionTimeRange, selectConsumptionCyclePool, prefetchConsumptionPresets, saveSettingsPatch, saveModelContextWindow, resetAllSettings, rebuildTrajectoryCache, triggerCloudSync, triggerFxSync, normalizeClientAutoConfigureLaunch, normalizeClientEnableRemoteSshTelemetry, triggerBridgeHostRelaunch, triggerCliStatusLineAction, fetchSessionMigrationCatalog, fetchQuotaReservationLog, executeSessionMigration, fetchLocalSessionsList, fetchSessionCleanupPreview, deleteLocalSessionsAction, redactLocalLedgerPrivacy, revealLocalSessionPathAction, triggerPluginUpdate, startAsyncTelemetryLoop, stopAsyncTelemetryLoop, resolveHostRouteMatch, resolveScopedConversation, isMacHostPlatform } = (() => {
+const { extractHostRouteCascadeId, telemetryStore, clearConsumptionRangeCache, clearConversationViewCache, CLIENT_TOPBAR_SLOT_KEYS, DEFAULT_CLIENT_TOPBAR_SLOTS, CLIENT_TOPBAR_MULTI_SESSION_MODES, DEFAULT_CLIENT_TOPBAR_MULTI_SESSION_MODE, DEFAULT_CLIENT_CONTEXT_AGENT_MODE, CLIENT_CLI_STATUSLINE_PRESETS, DEFAULT_CLIENT_CLI_STATUSLINE_SLOTS, CLIENT_OVERVIEW_MODULE_KEYS, DEFAULT_CLIENT_OVERVIEW_MODULES, DEFAULT_CLIENT_HOVER_MODULES, DEFAULT_CLIENT_HOVER_SYNC_OVERVIEW_METRICS, DEFAULT_CLIENT_HOVER_METRIC_STYLE, DEFAULT_CLIENT_HOVER_METRIC_ROWS, DEFAULT_CLIENT_HOVER_METRIC_SIZES, DEFAULT_CLIENT_HOVER_METRIC_TEXT_MODE, DEFAULT_CLIENT_HOVER_METRICS, DEFAULT_CLIENT_OVERVIEW_METRIC_STYLE, DEFAULT_CLIENT_OVERVIEW_METRIC_ROWS, DEFAULT_CLIENT_OVERVIEW_METRIC_SIZES, DEFAULT_CLIENT_OVERVIEW_METRIC_TEXT_MODE, DEFAULT_CLIENT_METRIC_ROWS, DEFAULT_CLIENT_METRIC_TEXT_MODE, CLIENT_METRIC_GRID_COLS, CLIENT_METRIC_GRID_ROWS, CLIENT_METRIC_CARD_SIZES, CLIENT_METRIC_TEXT_MODES, MAX_CLIENT_OVERVIEW_METRICS, MAX_CLIENT_LARGE_METRIC_SLOTS, CLIENT_OVERVIEW_METRIC_KEYS, DEFAULT_CLIENT_OVERVIEW_METRICS, CLIENT_STEP_COLUMN_KEYS, DEFAULT_CLIENT_STEP_COLUMNS, DEFAULT_CLIENT_STEP_TOKEN_COMBO_FORMAT, MIN_CLIENT_POPOVER_WIDTH, MAX_CLIENT_POPOVER_WIDTH, DEFAULT_CLIENT_POPOVER_WIDTH, DEFAULT_CLIENT_QUOTA_DISPLAY_MODE, parseClientStepTokenComboSegments, normalizeClientStepTokenComboFormat, normalizeClientPopoverWidthMode, normalizeClientPopoverWidth, normalizeClientModelDisplayMode, normalizeClientTopbarSlots, normalizeClientTopbarMultiSessionMode, isClientTopbarMultiSessionVisible, normalizeClientContextAgentMode, normalizeClientQuotaDisplayMode, normalizeClientExperimentalQuotaReservation, normalizeClientAccountQuotaRefreshMinutes, normalizeClientCliStatusLineSlots, getDefaultCtxInspectorAgentId, resolveOverlayCtxInspectorAgentId, resolveEffectiveClientCliStatusLineSlots, normalizeClientHoverModules, normalizeClientHoverSyncOverviewMetrics, normalizeClientHoverMetricStyle, normalizeClientHoverMetricRows, normalizeClientHoverMetricSizes, normalizeClientHoverMetricTextMode, normalizeClientHoverMetrics, normalizeClientOverviewModules, normalizeClientOverviewMetricStyle, normalizeClientOverviewMetricRows, normalizeClientOverviewMetricSizes, normalizeClientOverviewMetricTextMode, normalizeClientOverviewMetrics, normalizeClientMetricCardSize, normalizeClientMetricCardSizes, normalizeClientMetricGridRows, normalizeClientMetricTextMode, deriveClientMetricCardStyle, packClientMetricBentoLayout, resolveEffectiveClientMetricMatrixConfig, normalizeClientStepColumns, normalizeClientUpdateMode, normalizeClientWindowMountMode, normalizeClientDisplayCurrency, isEquivalentTelemetry, resetTelemetryForEndpointSwitch, fetchTelemetry, selectConversation, selectConsumptionTimeRange, selectConsumptionCyclePool, prefetchConsumptionPresets, saveSettingsPatch, saveModelContextWindow, resetAllSettings, rebuildTrajectoryCache, triggerCloudSync, triggerFxSync, normalizeClientAutoConfigureLaunch, normalizeClientEnableRemoteSshTelemetry, triggerBridgeHostRelaunch, triggerCliStatusLineAction, fetchSessionMigrationCatalog, fetchQuotaReservationLog, executeSessionMigration, fetchLocalSessionsList, fetchSessionCleanupPreview, deleteLocalSessionsAction, redactLocalLedgerPrivacy, revealLocalSessionPathAction, triggerPluginUpdate, startAsyncTelemetryLoop, stopAsyncTelemetryLoop, resolveHostRouteMatch, resolveScopedConversation, isMacHostPlatform } = (() => {
 const CASCADE_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function extractHostRouteCascadeId() {
@@ -17661,13 +18228,21 @@ const DEFAULT_CLIENT_OVERVIEW_MODULES = DEFAULT_OVERVIEW_MODULES;
 const DEFAULT_CLIENT_HOVER_MODULES = DEFAULT_HOVER_MODULES;
 const DEFAULT_CLIENT_HOVER_SYNC_OVERVIEW_METRICS = DEFAULT_HOVER_SYNC_OVERVIEW_METRICS;
 const DEFAULT_CLIENT_HOVER_METRIC_STYLE = DEFAULT_HOVER_METRIC_STYLE;
-const DEFAULT_CLIENT_HOVER_METRIC_HYBRID_RATIO = DEFAULT_HOVER_METRIC_HYBRID_RATIO;
+const DEFAULT_CLIENT_HOVER_METRIC_ROWS = DEFAULT_HOVER_METRIC_ROWS;
+const DEFAULT_CLIENT_HOVER_METRIC_SIZES = DEFAULT_HOVER_METRIC_SIZES;
+const DEFAULT_CLIENT_HOVER_METRIC_TEXT_MODE = DEFAULT_HOVER_METRIC_TEXT_MODE;
 const DEFAULT_CLIENT_HOVER_METRICS = DEFAULT_HOVER_METRICS;
 const DEFAULT_CLIENT_OVERVIEW_METRIC_STYLE = DEFAULT_OVERVIEW_METRIC_STYLE;
-const DEFAULT_CLIENT_OVERVIEW_METRIC_HYBRID_RATIO = DEFAULT_OVERVIEW_METRIC_HYBRID_RATIO;
-const MIN_CLIENT_METRIC_HYBRID_RATIO = MIN_METRIC_HYBRID_RATIO;
-const MAX_CLIENT_METRIC_HYBRID_RATIO = MAX_METRIC_HYBRID_RATIO;
-const DEFAULT_CLIENT_METRIC_HYBRID_RATIO = DEFAULT_METRIC_HYBRID_RATIO;
+const DEFAULT_CLIENT_OVERVIEW_METRIC_ROWS = DEFAULT_OVERVIEW_METRIC_ROWS;
+const DEFAULT_CLIENT_OVERVIEW_METRIC_SIZES = DEFAULT_OVERVIEW_METRIC_SIZES;
+const DEFAULT_CLIENT_OVERVIEW_METRIC_TEXT_MODE = DEFAULT_OVERVIEW_METRIC_TEXT_MODE;
+const DEFAULT_CLIENT_METRIC_ROWS = DEFAULT_METRIC_ROWS;
+const DEFAULT_CLIENT_METRIC_TEXT_MODE = DEFAULT_METRIC_TEXT_MODE;
+const CLIENT_METRIC_GRID_COLS = METRIC_GRID_COLS;
+const CLIENT_METRIC_GRID_ROWS = METRIC_GRID_ROWS;
+const CLIENT_METRIC_CARD_SIZES = METRIC_CARD_SIZES;
+const CLIENT_METRIC_TEXT_MODES = METRIC_TEXT_MODES;
+const MAX_CLIENT_OVERVIEW_METRICS = MAX_OVERVIEW_METRICS;
 const MAX_CLIENT_LARGE_METRIC_SLOTS = MAX_LARGE_METRIC_SLOTS;
 const CLIENT_OVERVIEW_METRIC_KEYS = OVERVIEW_METRIC_KEYS;
 const DEFAULT_CLIENT_OVERVIEW_METRICS = DEFAULT_OVERVIEW_METRICS;
@@ -17707,12 +18282,22 @@ const resolveEffectiveClientCliStatusLineSlots = resolveEffectiveCliStatusLineSl
 const normalizeClientHoverModules = normalizeHoverModules;
 const normalizeClientHoverSyncOverviewMetrics = normalizeHoverSyncOverviewMetrics;
 const normalizeClientHoverMetricStyle = normalizeHoverMetricStyle;
-const normalizeClientHoverMetricHybridRatio = normalizeHoverMetricHybridRatio;
+const normalizeClientHoverMetricRows = normalizeHoverMetricRows;
+const normalizeClientHoverMetricSizes = normalizeHoverMetricSizes;
+const normalizeClientHoverMetricTextMode = normalizeHoverMetricTextMode;
 const normalizeClientHoverMetrics = normalizeHoverMetrics;
 const normalizeClientOverviewModules = normalizeOverviewModules;
 const normalizeClientOverviewMetricStyle = normalizeOverviewMetricStyle;
-const normalizeClientOverviewMetricHybridRatio = normalizeOverviewMetricHybridRatio;
+const normalizeClientOverviewMetricRows = normalizeOverviewMetricRows;
+const normalizeClientOverviewMetricSizes = normalizeOverviewMetricSizes;
+const normalizeClientOverviewMetricTextMode = normalizeOverviewMetricTextMode;
 const normalizeClientOverviewMetrics = normalizeOverviewMetrics;
+const normalizeClientMetricCardSize = normalizeMetricCardSize;
+const normalizeClientMetricCardSizes = normalizeMetricCardSizes;
+const normalizeClientMetricGridRows = normalizeMetricGridRows;
+const normalizeClientMetricTextMode = normalizeMetricTextMode;
+const deriveClientMetricCardStyle = deriveMetricCardStyleFromLayout;
+const packClientMetricBentoLayout = packMetricBentoLayout;
 const resolveEffectiveClientMetricMatrixConfig = resolveEffectiveMetricMatrixConfig;
 const normalizeClientStepColumns = normalizeStepTableColumns;
 const normalizeClientUpdateMode = normalizePluginUpdateMode;
@@ -17898,6 +18483,17 @@ function isEquivalentTelemetry(prev, next) {
   ) {
     return false;
   }
+  const sameSizeMap = (a, b) => {
+    const na = normalizeClientMetricCardSizes(a);
+    const nb = normalizeClientMetricCardSizes(b);
+    const ka = Object.keys(na);
+    const kb = Object.keys(nb);
+    if (ka.length !== kb.length) return false;
+    for (let i = 0; i < ka.length; i += 1) {
+      if (na[ka[i]] !== nb[ka[i]]) return false;
+    }
+    return true;
+  };
   if (
     normalizeClientHoverMetricStyle(pSet?.hoverMetricStyle) !==
     normalizeClientHoverMetricStyle(nSet?.hoverMetricStyle)
@@ -17905,8 +18501,15 @@ function isEquivalentTelemetry(prev, next) {
     return false;
   }
   if (
-    normalizeClientHoverMetricHybridRatio(pSet?.hoverMetricHybridRatio) !==
-    normalizeClientHoverMetricHybridRatio(nSet?.hoverMetricHybridRatio)
+    normalizeClientHoverMetricRows(pSet?.hoverMetricRows, pSet?.hoverMetricStyle) !==
+    normalizeClientHoverMetricRows(nSet?.hoverMetricRows, nSet?.hoverMetricStyle)
+  ) {
+    return false;
+  }
+  if (!sameSizeMap(pSet?.hoverMetricSizes, nSet?.hoverMetricSizes)) return false;
+  if (
+    normalizeClientHoverMetricTextMode(pSet?.hoverMetricTextMode) !==
+    normalizeClientHoverMetricTextMode(nSet?.hoverMetricTextMode)
   ) {
     return false;
   }
@@ -17919,8 +18522,15 @@ function isEquivalentTelemetry(prev, next) {
     return false;
   }
   if (
-    normalizeClientOverviewMetricHybridRatio(pSet?.overviewMetricHybridRatio) !==
-    normalizeClientOverviewMetricHybridRatio(nSet?.overviewMetricHybridRatio)
+    normalizeClientOverviewMetricRows(pSet?.overviewMetricRows, pSet?.overviewMetricStyle) !==
+    normalizeClientOverviewMetricRows(nSet?.overviewMetricRows, nSet?.overviewMetricStyle)
+  ) {
+    return false;
+  }
+  if (!sameSizeMap(pSet?.overviewMetricSizes, nSet?.overviewMetricSizes)) return false;
+  if (
+    normalizeClientOverviewMetricTextMode(pSet?.overviewMetricTextMode) !==
+    normalizeClientOverviewMetricTextMode(nSet?.overviewMetricTextMode)
   ) {
     return false;
   }
@@ -19268,32 +19878,110 @@ async function saveSettingsPatch(patch) {
       safePatch.hoverSyncOverviewMetrics
     );
   }
-  if (Object.prototype.hasOwnProperty.call(safePatch, 'hoverMetricStyle')) {
-    safePatch.hoverMetricStyle = normalizeClientHoverMetricStyle(safePatch.hoverMetricStyle);
+  const curSettings = telemetryStore.getState().telemetry?.settings || {};
+  const hasHoverMetrics = Object.prototype.hasOwnProperty.call(safePatch, 'hoverMetrics');
+  const hasHoverRows = Object.prototype.hasOwnProperty.call(safePatch, 'hoverMetricRows');
+  const hasHoverSizes = Object.prototype.hasOwnProperty.call(safePatch, 'hoverMetricSizes');
+  const hasHoverStyle = Object.prototype.hasOwnProperty.call(safePatch, 'hoverMetricStyle');
+  if (hasHoverMetrics) {
+    safePatch.hoverMetrics = normalizeClientHoverMetrics(safePatch.hoverMetrics);
   }
-  if (Object.prototype.hasOwnProperty.call(safePatch, 'hoverMetricHybridRatio')) {
-    safePatch.hoverMetricHybridRatio = normalizeClientHoverMetricHybridRatio(
-      safePatch.hoverMetricHybridRatio
+  if (Object.prototype.hasOwnProperty.call(safePatch, 'hoverMetricTextMode')) {
+    safePatch.hoverMetricTextMode = normalizeClientHoverMetricTextMode(
+      safePatch.hoverMetricTextMode
     );
   }
-  if (Object.prototype.hasOwnProperty.call(safePatch, 'hoverMetrics')) {
-    safePatch.hoverMetrics = normalizeClientHoverMetrics(safePatch.hoverMetrics);
+  if (hasHoverRows || hasHoverSizes) {
+    if (hasHoverRows) {
+      safePatch.hoverMetricRows = normalizeClientHoverMetricRows(safePatch.hoverMetricRows);
+    }
+    if (hasHoverSizes) {
+      safePatch.hoverMetricSizes = normalizeClientHoverMetricSizes(safePatch.hoverMetricSizes);
+    }
+    const nextHoverRows = hasHoverRows
+      ? safePatch.hoverMetricRows
+      : normalizeClientHoverMetricRows(curSettings.hoverMetricRows, curSettings.hoverMetricStyle);
+    const nextHoverMetrics = hasHoverMetrics
+      ? safePatch.hoverMetrics
+      : normalizeClientHoverMetrics(curSettings.hoverMetrics);
+    const nextHoverSizes = hasHoverSizes
+      ? safePatch.hoverMetricSizes
+      : normalizeClientHoverMetricSizes(
+          curSettings.hoverMetricSizes,
+          nextHoverMetrics,
+          curSettings.hoverMetricRows === undefined ? curSettings.hoverMetricStyle : undefined
+        );
+    safePatch.hoverMetricStyle = deriveClientMetricCardStyle(
+      nextHoverRows,
+      nextHoverMetrics,
+      nextHoverSizes
+    );
+  } else if (hasHoverStyle) {
+    const nextStyle = normalizeClientHoverMetricStyle(safePatch.hoverMetricStyle);
+    const nextHoverMetrics = hasHoverMetrics
+      ? safePatch.hoverMetrics
+      : normalizeClientHoverMetrics(curSettings.hoverMetrics);
+    safePatch.hoverMetricStyle = nextStyle;
+    safePatch.hoverMetricRows = normalizeClientHoverMetricRows(undefined, nextStyle);
+    safePatch.hoverMetricSizes = normalizeClientHoverMetricSizes(undefined, nextHoverMetrics, nextStyle);
   }
   if (Object.prototype.hasOwnProperty.call(safePatch, 'overviewModules')) {
     safePatch.overviewModules = normalizeClientOverviewModules(safePatch.overviewModules);
   }
-  if (Object.prototype.hasOwnProperty.call(safePatch, 'overviewMetricStyle')) {
-    safePatch.overviewMetricStyle = normalizeClientOverviewMetricStyle(
-      safePatch.overviewMetricStyle
-    );
-  }
-  if (Object.prototype.hasOwnProperty.call(safePatch, 'overviewMetricHybridRatio')) {
-    safePatch.overviewMetricHybridRatio = normalizeClientOverviewMetricHybridRatio(
-      safePatch.overviewMetricHybridRatio
-    );
-  }
-  if (Object.prototype.hasOwnProperty.call(safePatch, 'overviewMetrics')) {
+  const hasOverviewMetrics = Object.prototype.hasOwnProperty.call(safePatch, 'overviewMetrics');
+  const hasOverviewRows = Object.prototype.hasOwnProperty.call(safePatch, 'overviewMetricRows');
+  const hasOverviewSizes = Object.prototype.hasOwnProperty.call(safePatch, 'overviewMetricSizes');
+  const hasOverviewStyle = Object.prototype.hasOwnProperty.call(safePatch, 'overviewMetricStyle');
+  if (hasOverviewMetrics) {
     safePatch.overviewMetrics = normalizeClientOverviewMetrics(safePatch.overviewMetrics);
+  }
+  if (Object.prototype.hasOwnProperty.call(safePatch, 'overviewMetricTextMode')) {
+    safePatch.overviewMetricTextMode = normalizeClientOverviewMetricTextMode(
+      safePatch.overviewMetricTextMode
+    );
+  }
+  if (hasOverviewRows || hasOverviewSizes) {
+    if (hasOverviewRows) {
+      safePatch.overviewMetricRows = normalizeClientOverviewMetricRows(safePatch.overviewMetricRows);
+    }
+    if (hasOverviewSizes) {
+      safePatch.overviewMetricSizes = normalizeClientOverviewMetricSizes(
+        safePatch.overviewMetricSizes
+      );
+    }
+    const nextOverviewRows = hasOverviewRows
+      ? safePatch.overviewMetricRows
+      : normalizeClientOverviewMetricRows(
+          curSettings.overviewMetricRows,
+          curSettings.overviewMetricStyle
+        );
+    const nextOverviewMetrics = hasOverviewMetrics
+      ? safePatch.overviewMetrics
+      : normalizeClientOverviewMetrics(curSettings.overviewMetrics);
+    const nextOverviewSizes = hasOverviewSizes
+      ? safePatch.overviewMetricSizes
+      : normalizeClientOverviewMetricSizes(
+          curSettings.overviewMetricSizes,
+          nextOverviewMetrics,
+          curSettings.overviewMetricRows === undefined ? curSettings.overviewMetricStyle : undefined
+        );
+    safePatch.overviewMetricStyle = deriveClientMetricCardStyle(
+      nextOverviewRows,
+      nextOverviewMetrics,
+      nextOverviewSizes
+    );
+  } else if (hasOverviewStyle) {
+    const nextStyle = normalizeClientOverviewMetricStyle(safePatch.overviewMetricStyle);
+    const nextOverviewMetrics = hasOverviewMetrics
+      ? safePatch.overviewMetrics
+      : normalizeClientOverviewMetrics(curSettings.overviewMetrics);
+    safePatch.overviewMetricStyle = nextStyle;
+    safePatch.overviewMetricRows = normalizeClientOverviewMetricRows(undefined, nextStyle);
+    safePatch.overviewMetricSizes = normalizeClientOverviewMetricSizes(
+      undefined,
+      nextOverviewMetrics,
+      nextStyle
+    );
   }
   if (Object.prototype.hasOwnProperty.call(safePatch, 'stepTableColumns')) {
     safePatch.stepTableColumns = normalizeClientStepColumns(safePatch.stepTableColumns);
@@ -19982,7 +20670,7 @@ function isMacHostPlatform(telemetry) {
   }
   return false;
 }
-return { extractHostRouteCascadeId, telemetryStore, clearConsumptionRangeCache, clearConversationViewCache, CLIENT_TOPBAR_SLOT_KEYS, DEFAULT_CLIENT_TOPBAR_SLOTS, CLIENT_TOPBAR_MULTI_SESSION_MODES, DEFAULT_CLIENT_TOPBAR_MULTI_SESSION_MODE, DEFAULT_CLIENT_CONTEXT_AGENT_MODE, CLIENT_CLI_STATUSLINE_PRESETS, DEFAULT_CLIENT_CLI_STATUSLINE_SLOTS, CLIENT_OVERVIEW_MODULE_KEYS, DEFAULT_CLIENT_OVERVIEW_MODULES, DEFAULT_CLIENT_HOVER_MODULES, DEFAULT_CLIENT_HOVER_SYNC_OVERVIEW_METRICS, DEFAULT_CLIENT_HOVER_METRIC_STYLE, DEFAULT_CLIENT_HOVER_METRIC_HYBRID_RATIO, DEFAULT_CLIENT_HOVER_METRICS, DEFAULT_CLIENT_OVERVIEW_METRIC_STYLE, DEFAULT_CLIENT_OVERVIEW_METRIC_HYBRID_RATIO, MIN_CLIENT_METRIC_HYBRID_RATIO, MAX_CLIENT_METRIC_HYBRID_RATIO, DEFAULT_CLIENT_METRIC_HYBRID_RATIO, MAX_CLIENT_LARGE_METRIC_SLOTS, CLIENT_OVERVIEW_METRIC_KEYS, DEFAULT_CLIENT_OVERVIEW_METRICS, CLIENT_STEP_COLUMN_KEYS, DEFAULT_CLIENT_STEP_COLUMNS, DEFAULT_CLIENT_STEP_TOKEN_COMBO_FORMAT, MIN_CLIENT_POPOVER_WIDTH, MAX_CLIENT_POPOVER_WIDTH, DEFAULT_CLIENT_POPOVER_WIDTH, DEFAULT_CLIENT_QUOTA_DISPLAY_MODE, parseClientStepTokenComboSegments, normalizeClientStepTokenComboFormat, normalizeClientPopoverWidthMode, normalizeClientPopoverWidth, normalizeClientModelDisplayMode, normalizeClientTopbarSlots, normalizeClientTopbarMultiSessionMode, isClientTopbarMultiSessionVisible, normalizeClientContextAgentMode, normalizeClientQuotaDisplayMode, normalizeClientExperimentalQuotaReservation, normalizeClientAccountQuotaRefreshMinutes, normalizeClientCliStatusLineSlots, getDefaultCtxInspectorAgentId, resolveOverlayCtxInspectorAgentId, resolveEffectiveClientCliStatusLineSlots, normalizeClientHoverModules, normalizeClientHoverSyncOverviewMetrics, normalizeClientHoverMetricStyle, normalizeClientHoverMetricHybridRatio, normalizeClientHoverMetrics, normalizeClientOverviewModules, normalizeClientOverviewMetricStyle, normalizeClientOverviewMetricHybridRatio, normalizeClientOverviewMetrics, resolveEffectiveClientMetricMatrixConfig, normalizeClientStepColumns, normalizeClientUpdateMode, normalizeClientWindowMountMode, normalizeClientDisplayCurrency, isEquivalentTelemetry, resetTelemetryForEndpointSwitch, fetchTelemetry, selectConversation, selectConsumptionTimeRange, selectConsumptionCyclePool, prefetchConsumptionPresets, saveSettingsPatch, saveModelContextWindow, resetAllSettings, rebuildTrajectoryCache, triggerCloudSync, triggerFxSync, normalizeClientAutoConfigureLaunch, normalizeClientEnableRemoteSshTelemetry, triggerBridgeHostRelaunch, triggerCliStatusLineAction, fetchSessionMigrationCatalog, fetchQuotaReservationLog, executeSessionMigration, fetchLocalSessionsList, fetchSessionCleanupPreview, deleteLocalSessionsAction, redactLocalLedgerPrivacy, revealLocalSessionPathAction, triggerPluginUpdate, startAsyncTelemetryLoop, stopAsyncTelemetryLoop, resolveHostRouteMatch, resolveScopedConversation, isMacHostPlatform };
+return { extractHostRouteCascadeId, telemetryStore, clearConsumptionRangeCache, clearConversationViewCache, CLIENT_TOPBAR_SLOT_KEYS, DEFAULT_CLIENT_TOPBAR_SLOTS, CLIENT_TOPBAR_MULTI_SESSION_MODES, DEFAULT_CLIENT_TOPBAR_MULTI_SESSION_MODE, DEFAULT_CLIENT_CONTEXT_AGENT_MODE, CLIENT_CLI_STATUSLINE_PRESETS, DEFAULT_CLIENT_CLI_STATUSLINE_SLOTS, CLIENT_OVERVIEW_MODULE_KEYS, DEFAULT_CLIENT_OVERVIEW_MODULES, DEFAULT_CLIENT_HOVER_MODULES, DEFAULT_CLIENT_HOVER_SYNC_OVERVIEW_METRICS, DEFAULT_CLIENT_HOVER_METRIC_STYLE, DEFAULT_CLIENT_HOVER_METRIC_ROWS, DEFAULT_CLIENT_HOVER_METRIC_SIZES, DEFAULT_CLIENT_HOVER_METRIC_TEXT_MODE, DEFAULT_CLIENT_HOVER_METRICS, DEFAULT_CLIENT_OVERVIEW_METRIC_STYLE, DEFAULT_CLIENT_OVERVIEW_METRIC_ROWS, DEFAULT_CLIENT_OVERVIEW_METRIC_SIZES, DEFAULT_CLIENT_OVERVIEW_METRIC_TEXT_MODE, DEFAULT_CLIENT_METRIC_ROWS, DEFAULT_CLIENT_METRIC_TEXT_MODE, CLIENT_METRIC_GRID_COLS, CLIENT_METRIC_GRID_ROWS, CLIENT_METRIC_CARD_SIZES, CLIENT_METRIC_TEXT_MODES, MAX_CLIENT_OVERVIEW_METRICS, MAX_CLIENT_LARGE_METRIC_SLOTS, CLIENT_OVERVIEW_METRIC_KEYS, DEFAULT_CLIENT_OVERVIEW_METRICS, CLIENT_STEP_COLUMN_KEYS, DEFAULT_CLIENT_STEP_COLUMNS, DEFAULT_CLIENT_STEP_TOKEN_COMBO_FORMAT, MIN_CLIENT_POPOVER_WIDTH, MAX_CLIENT_POPOVER_WIDTH, DEFAULT_CLIENT_POPOVER_WIDTH, DEFAULT_CLIENT_QUOTA_DISPLAY_MODE, parseClientStepTokenComboSegments, normalizeClientStepTokenComboFormat, normalizeClientPopoverWidthMode, normalizeClientPopoverWidth, normalizeClientModelDisplayMode, normalizeClientTopbarSlots, normalizeClientTopbarMultiSessionMode, isClientTopbarMultiSessionVisible, normalizeClientContextAgentMode, normalizeClientQuotaDisplayMode, normalizeClientExperimentalQuotaReservation, normalizeClientAccountQuotaRefreshMinutes, normalizeClientCliStatusLineSlots, getDefaultCtxInspectorAgentId, resolveOverlayCtxInspectorAgentId, resolveEffectiveClientCliStatusLineSlots, normalizeClientHoverModules, normalizeClientHoverSyncOverviewMetrics, normalizeClientHoverMetricStyle, normalizeClientHoverMetricRows, normalizeClientHoverMetricSizes, normalizeClientHoverMetricTextMode, normalizeClientHoverMetrics, normalizeClientOverviewModules, normalizeClientOverviewMetricStyle, normalizeClientOverviewMetricRows, normalizeClientOverviewMetricSizes, normalizeClientOverviewMetricTextMode, normalizeClientOverviewMetrics, normalizeClientMetricCardSize, normalizeClientMetricCardSizes, normalizeClientMetricGridRows, normalizeClientMetricTextMode, deriveClientMetricCardStyle, packClientMetricBentoLayout, resolveEffectiveClientMetricMatrixConfig, normalizeClientStepColumns, normalizeClientUpdateMode, normalizeClientWindowMountMode, normalizeClientDisplayCurrency, isEquivalentTelemetry, resetTelemetryForEndpointSwitch, fetchTelemetry, selectConversation, selectConsumptionTimeRange, selectConsumptionCyclePool, prefetchConsumptionPresets, saveSettingsPatch, saveModelContextWindow, resetAllSettings, rebuildTrajectoryCache, triggerCloudSync, triggerFxSync, normalizeClientAutoConfigureLaunch, normalizeClientEnableRemoteSshTelemetry, triggerBridgeHostRelaunch, triggerCliStatusLineAction, fetchSessionMigrationCatalog, fetchQuotaReservationLog, executeSessionMigration, fetchLocalSessionsList, fetchSessionCleanupPreview, deleteLocalSessionsAction, redactLocalLedgerPrivacy, revealLocalSessionPathAction, triggerPluginUpdate, startAsyncTelemetryLoop, stopAsyncTelemetryLoop, resolveHostRouteMatch, resolveScopedConversation, isMacHostPlatform };
 })();
 
 // --- src/components/ui/TopLongPillNav.js ---
@@ -28045,14 +28733,17 @@ function splitMetricValueAndUnit(valueText) {
 }
 
 const SPARKLINE_DEFAULT_WIDTH_BY_COLS = Object.freeze({ 1: 248, 2: 136, 3: 74 });
+const SPARKLINE_DEFAULT_HEIGHT = 34;
 const SPARKLINE_MIN_WIDTH = 28;
 const SPARKLINE_MAX_WIDTH = 640;
+const SPARKLINE_MIN_HEIGHT = 24;
+const SPARKLINE_MAX_HEIGHT = 120;
 const SPARKLINE_PAD_X = 4;
 const SPARKLINE_TARGET_PITCH_PX = 7.5;
 const SPARKLINE_MIN_POINTS = 5;
 const SPARKLINE_MAX_POINTS = 48;
 
-function resolveAdaptiveSparklineSpec(availableWidth, colCount = 3) {
+function resolveAdaptiveSparklineSpec(availableWidth, colCount = 3, availableHeight = 0) {
   const safeCols = colCount === 1 || colCount === 2 ? colCount : 3;
   const fallbackWidth = SPARKLINE_DEFAULT_WIDTH_BY_COLS[safeCols];
   const rawWidth = Number(availableWidth);
@@ -28060,6 +28751,11 @@ function resolveAdaptiveSparklineSpec(availableWidth, colCount = 3) {
     Number.isFinite(rawWidth) && rawWidth > 0
       ? Math.max(SPARKLINE_MIN_WIDTH, Math.min(SPARKLINE_MAX_WIDTH, Math.round(rawWidth)))
       : fallbackWidth;
+  const rawHeight = Number(availableHeight);
+  const height =
+    Number.isFinite(rawHeight) && rawHeight > 0
+      ? Math.max(SPARKLINE_MIN_HEIGHT, Math.min(SPARKLINE_MAX_HEIGHT, Math.round(rawHeight)))
+      : SPARKLINE_DEFAULT_HEIGHT;
   const plotWidth = Math.max(8, width - SPARKLINE_PAD_X * 2);
   const maxPoints = Math.max(
     SPARKLINE_MIN_POINTS,
@@ -28067,10 +28763,10 @@ function resolveAdaptiveSparklineSpec(availableWidth, colCount = 3) {
   );
   return {
     width,
-    height: 34,
+    height,
     maxPoints,
-    strokeWidth: width < 64 ? '1.5' : width < 100 ? '1.55' : '1.65',
-    dotRadius: width < 64 ? '2.25' : width < 100 ? '2.5' : '2.75',
+    strokeWidth: width < 64 ? '1.5' : width < 100 ? '1.55' : height >= 56 ? '1.8' : '1.65',
+    dotRadius: width < 64 ? '2.25' : width < 100 ? '2.5' : height >= 56 ? '3' : '2.75',
   };
 }
 
@@ -28814,6 +29510,141 @@ function extractToneClass(valueClass = '') {
   return m ? m[1] : '';
 }
 
+function isNodeWithin(target, container) {
+  let cur = target;
+  while (cur) {
+    if (cur === container) return true;
+    cur = cur.parentNode || cur.host || null;
+  }
+  return false;
+}
+
+function sameSizeMap(a, b) {
+  const keysA = Object.keys(a || {});
+  const keysB = Object.keys(b || {});
+  if (keysA.length !== keysB.length) return false;
+  for (const k of keysA) {
+    if (a[k] !== b[k]) return false;
+  }
+  return true;
+}
+
+function buildNextSizesMap(baseSizes, key, nextSize) {
+  const out = { ...(baseSizes || {}) };
+  const cleanSize = normalizeClientMetricCardSize(nextSize);
+  if (cleanSize === 'sm') {
+    delete out[key];
+  } else {
+    out[key] = cleanSize;
+  }
+  return out;
+}
+
+function cycleMetricCardSize(currentEffSize, rows) {
+  if (rows === 2) {
+    if (currentEffSize === 'sm') return 'wide';
+    if (currentEffSize === 'wide') return 'narrow';
+    if (currentEffSize === 'narrow') return 'tall';
+    return 'sm';
+  }
+  return currentEffSize === 'sm' ? 'wide' : 'sm';
+}
+
+function formatMetricSizeBadge(size) {
+  if (size === 'tall') return `${t('settings.str.metricSizeTall')} 2×2`;
+  if (size === 'narrow') return `${t('settings.str.metricSizeNarrow')} 1×2`;
+  if (size === 'wide') return `${t('settings.str.metricSizeWide')} 2×1`;
+  return `${t('settings.str.metricSizeSm')} 1×1`;
+}
+
+function prefersReducedMotion() {
+  try {
+    return Boolean(
+      typeof window !== 'undefined' &&
+        typeof window.matchMedia === 'function' &&
+        window.matchMedia('(prefers-reduced-motion: reduce)')?.matches
+    );
+  } catch {
+    return false;
+  }
+}
+
+function readMatrixGridGaps(matrixEl, cellEls) {
+  let colGap = NaN;
+  let rowGap = NaN;
+  const getStyle =
+    typeof window !== 'undefined' && typeof window.getComputedStyle === 'function'
+      ? window.getComputedStyle
+      : typeof getComputedStyle === 'function'
+        ? getComputedStyle
+        : null;
+  if (getStyle && matrixEl) {
+    try {
+      const cs = getStyle(matrixEl);
+      const cg = Number.parseFloat(cs?.columnGap);
+      const rg = Number.parseFloat(cs?.rowGap);
+      const g = Number.parseFloat(cs?.gap);
+      if (Number.isFinite(cg) && cg > 0) colGap = cg;
+      else if (Number.isFinite(g) && g > 0) colGap = g;
+      if (Number.isFinite(rg) && rg > 0) rowGap = rg;
+      else if (Number.isFinite(g) && g > 0) rowGap = g;
+    } catch {}
+  }
+  if ((!Number.isFinite(colGap) || !Number.isFinite(rowGap)) && Array.isArray(cellEls) && cellEls.length > 1) {
+    const rects = cellEls
+      .map((el) => el?.getBoundingClientRect?.())
+      .filter((r) => r && Number.isFinite(r.width) && r.width > 0 && Number.isFinite(r.height) && r.height > 0);
+    let minHorizGap = Infinity;
+    let minVertGap = Infinity;
+    for (let i = 0; i < rects.length; i += 1) {
+      for (let j = 0; j < rects.length; j += 1) {
+        if (i === j) continue;
+        const a = rects[i];
+        const b = rects[j];
+        if (Math.abs(a.top - b.top) < 8 && b.left >= a.right - 0.5) {
+          const dg = b.left - a.right;
+          if (dg >= 0 && dg < minHorizGap) minHorizGap = dg;
+        }
+        if (Math.abs(a.left - b.left) < 8 && b.top >= a.bottom - 0.5) {
+          const dg = b.top - a.bottom;
+          if (dg >= 0 && dg < minVertGap) minVertGap = dg;
+        }
+      }
+    }
+    if (!Number.isFinite(colGap) && Number.isFinite(minHorizGap) && minHorizGap < 40) {
+      colGap = minHorizGap;
+    }
+    if (!Number.isFinite(rowGap) && Number.isFinite(minVertGap) && minVertGap < 40) {
+      rowGap = minVertGap;
+    }
+  }
+  return {
+    colGap: Number.isFinite(colGap) && colGap >= 0 ? colGap : 1,
+    rowGap: Number.isFinite(rowGap) && rowGap >= 0 ? rowGap : 1,
+  };
+}
+
+function computePlacementPixelRect(placement, layout, matrixRect, colGap, rowGap) {
+  const cols = Math.max(1, Number(layout?.gridCols || 4));
+  const rows = Math.max(1, Number(layout?.effectiveRows || 1));
+  const colW = Math.max(16, (matrixRect.width - colGap * (cols - 1)) / cols);
+  const rowH = Math.max(16, (matrixRect.height - rowGap * (rows - 1)) / rows);
+  const left = matrixRect.left + (placement.colStart - 1) * (colW + colGap);
+  const top = matrixRect.top + (placement.rowStart - 1) * (rowH + rowGap);
+  const width = placement.colSpan * colW + (placement.colSpan - 1) * colGap;
+  const height = placement.rowSpan * rowH + (placement.rowSpan - 1) * rowGap;
+  return {
+    left,
+    top,
+    width,
+    height,
+    right: left + width,
+    bottom: top + height,
+    centerX: left + width * 0.5,
+    centerY: top + height * 0.5,
+  };
+}
+
 function createSparklineSvg(gradId) {
   const svg = document.createElementNS(SVG_NS, 'svg');
   svg.setAttribute('class', 'cell-sparkline-svg');
@@ -28865,15 +29696,40 @@ function createSparklineSvg(gradId) {
   return { svg, areaPath, polyline, dot };
 }
 
+function createCornerGripSvg() {
+  const svg = document.createElementNS(SVG_NS, 'svg');
+  svg.setAttribute('class', 'matrix-resize-grip-svg');
+  svg.setAttribute('viewBox', '0 0 10 10');
+  svg.setAttribute('width', '9');
+  svg.setAttribute('height', '9');
+  svg.setAttribute('aria-hidden', 'true');
+
+  const line1 = document.createElementNS(SVG_NS, 'path');
+  line1.setAttribute('d', 'M8.5 2.5L2.5 8.5');
+  line1.setAttribute('stroke', 'currentColor');
+  line1.setAttribute('stroke-width', '1.35');
+  line1.setAttribute('stroke-linecap', 'round');
+
+  const line2 = document.createElementNS(SVG_NS, 'path');
+  line2.setAttribute('d', 'M8.5 6.2L6.2 8.5');
+  line2.setAttribute('stroke', 'currentColor');
+  line2.setAttribute('stroke-width', '1.35');
+  line2.setAttribute('stroke-linecap', 'round');
+
+  svg.appendChild(line1);
+  svg.appendChild(line2);
+  return svg;
+}
+
 const MetricMatrixWidget = defineComponent({
   name: 'MetricMatrixWidget',
   setup({ props, onCleanup }) {
     const widgetMode = props?.mode === 'hover' ? 'hover' : 'overview';
     const hasMetricReorder =
       typeof props?.onReorderMetrics === 'function' || typeof props?.onPreviewMetrics === 'function';
-    const hasHybridResize =
-      typeof props?.onResizeHybridRatio === 'function' ||
-      typeof props?.onPreviewHybridRatio === 'function';
+    const hasMetricResize =
+      typeof props?.onResizeMetricSizes === 'function' ||
+      typeof props?.onPreviewMetricSizes === 'function';
     const onRequestVerticalDrag =
       typeof props?.onRequestVerticalDrag === 'function' ? props.onRequestVerticalDrag : null;
     const canParentDragModule =
@@ -28882,81 +29738,50 @@ const MetricMatrixWidget = defineComponent({
       typeof props?.getCtxAgentId === 'function'
         ? props.getCtxAgentId
         : () => uiStore.getState().ctxInspectorAgentId;
+
     const matrixEl = h('section', {
       className: 'telemetry-matrix',
       'aria-label': t('module.metrics'),
       'data-cols': '4',
+      'data-rows': '1',
     });
     patchStyleVar(matrixEl, '--matrix-cols', '4');
-
-    const splitterBarEl = h('span', {
-      className: 'matrix-hybrid-splitter-bar',
-      'aria-hidden': 'true',
-    });
-    const splitterEl = h(
-      'div',
-      {
-        className: 'matrix-hybrid-splitter',
-        role: 'separator',
-        'aria-orientation': 'vertical',
-        'aria-valuemin': String(MIN_CLIENT_METRIC_HYBRID_RATIO),
-        'aria-valuemax': String(MAX_CLIENT_METRIC_HYBRID_RATIO),
-        'aria-valuenow': String(DEFAULT_CLIENT_METRIC_HYBRID_RATIO),
-        'aria-valuetext': `${DEFAULT_CLIENT_METRIC_HYBRID_RATIO}%`,
-        'aria-label': t('settings.str.hybridSplitterAria'),
-        title: t('settings.str.hybridSplitterHint'),
-        tabindex: '0',
-        onPointerdown: (e) => startHybridSplitterResize(e),
-        onDblclick: (e) => {
-          e?.preventDefault?.();
-          e?.stopPropagation?.();
-          commitHybridRatioImmediate(DEFAULT_CLIENT_METRIC_HYBRID_RATIO);
-        },
-        onKeydown: (e) => {
-          if (!hasHybridResize || currentLayoutStyle !== 'hybrid' || currentColCount < 2) return;
-          const step = e?.shiftKey ? 5 : 2;
-          if (e?.key === 'ArrowLeft') {
-            e.preventDefault?.();
-            e.stopPropagation?.();
-            commitHybridRatioImmediate(currentHybridRatio - step);
-          } else if (e?.key === 'ArrowRight') {
-            e.preventDefault?.();
-            e.stopPropagation?.();
-            commitHybridRatioImmediate(currentHybridRatio + step);
-          } else if (e?.key === 'Home') {
-            e.preventDefault?.();
-            e.stopPropagation?.();
-            commitHybridRatioImmediate(MIN_CLIENT_METRIC_HYBRID_RATIO);
-          } else if (e?.key === 'End') {
-            e.preventDefault?.();
-            e.stopPropagation?.();
-            commitHybridRatioImmediate(MAX_CLIENT_METRIC_HYBRID_RATIO);
-          } else if (e?.key === 'Enter') {
-            e.preventDefault?.();
-            e.stopPropagation?.();
-            commitHybridRatioImmediate(DEFAULT_CLIENT_METRIC_HYBRID_RATIO);
-          }
-        },
-      },
-      [splitterBarEl]
-    );
+    patchStyleVar(matrixEl, '--matrix-rows', '1');
 
     let currentVisibleKeys = [];
     let currentOverflowKeys = [];
-    let currentLayoutStyle = 'medium';
-    let currentColCount = 4;
-    let currentHybridRatio = DEFAULT_CLIENT_METRIC_HYBRID_RATIO;
-    let draggingHybridRatio = null;
+    let currentLayoutRows = 1;
+    let currentEffectiveRows = 1;
+    let currentGridCols = 4;
+    let currentSizesMap = {};
+    let currentPlacementsByKey = new Map();
+    let draggingSizesOverride = null;
+    let resizingKey = null;
     let lastUpdatePayload = null;
     let pendingUpdatePayload = null;
     let activeDrag = null;
     let activeResize = null;
-    let lastColCount = 0;
-    let lastLayoutStyle = 'medium';
+    let suppressResizeClick = false;
+    let suppressResizeClickTimer = null;
+    let lastLayoutGeomSig = '';
+    let lastSparkGeomSig = '';
     let pendingSparkResizeRafId = 0;
     let pendingSparkResizeMicrotask = false;
-    const measuredWrapWidthByKey = new Map();
+    let skipNextFlip = false;
+    let flipRafId = 0;
+    let flipCleanupTimer = null;
+    let activeFlipEls = [];
+    let resizePullEl = null;
+    const measuredWrapSizeByKey = new Map();
     const observedWrapToKey = new Map();
+    const ghostElPool = [];
+    const dropPreviewEl = hasMetricReorder
+      ? h('div', {
+          className: 'matrix-drop-preview',
+          'aria-hidden': 'true',
+          hidden: true,
+        })
+      : null;
     const settleAnimator = createDropSettleAnimator('is-settling', ' scale(1.02)');
 
     function getMetricCellEls() {
@@ -28965,40 +29790,132 @@ const MetricMatrixWidget = defineComponent({
       );
     }
 
-    function applyHybridRatioVars(ratio, colCount = currentColCount) {
-      const clamped = normalizeClientOverviewMetricHybridRatio(ratio);
-      const rightShare = 100 - clamped;
-      const rightHalfShare = rightShare / 2;
-      patchStyleVar(matrixEl, '--hybrid-left-fr', `${clamped}fr`);
-      patchStyleVar(matrixEl, '--hybrid-right-fr', `${rightShare}fr`);
-      patchStyleVar(matrixEl, '--hybrid-right-half-fr', `${rightHalfShare}fr`);
-      patchStyleVar(matrixEl, '--hybrid-split-pct', `${clamped}%`);
-      patchStyleVar(matrixEl, '--hybrid-split-ratio', String(clamped / 100));
-      patchStyleVar(matrixEl, '--hybrid-col-gaps', colCount === 4 ? '2' : '1');
-      patchAttr(splitterEl, 'aria-valuenow', String(clamped));
-      patchAttr(splitterEl, 'aria-valuetext', `${clamped}%`);
-      return clamped;
+    function getMetricCellByKey(key) {
+      if (!key) return null;
+      return getMetricCellEls().find((el) => el?.getAttribute?.('data-metric-key') === key) || null;
     }
 
-    function readMatrixColumnGapPx() {
-      const getStyle =
-        typeof window !== 'undefined' && typeof window.getComputedStyle === 'function'
-          ? window.getComputedStyle
-          : typeof getComputedStyle === 'function'
-            ? getComputedStyle
-            : null;
-      if (!getStyle) return 0;
-      try {
-        const cs = getStyle(matrixEl);
-        const gap = Number.parseFloat(cs?.columnGap || cs?.gap || '');
-        return Number.isFinite(gap) && gap >= 0 ? gap : 0;
-      } catch {
-        return 0;
+    function clearResizePullVisual() {
+      if (!resizePullEl) return;
+      const el = resizePullEl;
+      resizePullEl = null;
+      if (el?.style && !el.classList?.contains?.('is-bento-flipping')) {
+        el.style.transformOrigin = '';
+        el.style.transform = '';
       }
     }
 
-    function persistOptimisticHybridRatio(nextRatio) {
-      currentHybridRatio = nextRatio;
+    function clearFlipAnimation() {
+      if (flipRafId && typeof cancelAnimationFrame === 'function') {
+        cancelAnimationFrame(flipRafId);
+        flipRafId = 0;
+      }
+      if (flipCleanupTimer) {
+        clearTimeout(flipCleanupTimer);
+        flipCleanupTimer = null;
+      }
+      patchClasses(matrixEl, { 'is-bento-animating': false });
+      if (activeFlipEls.length > 0) {
+        for (const el of activeFlipEls) {
+          patchClasses(el, { 'is-bento-flipping': false });
+          if (el?.style && !el.classList?.contains?.('is-cell-dragging')) {
+            el.style.transition = '';
+            el.style.transformOrigin = '';
+            el.style.transform = '';
+          }
+        }
+        activeFlipEls = [];
+      }
+    }
+
+    function captureFlipRects() {
+      const map = new Map();
+      for (const el of getMetricCellEls()) {
+        const key = el?.getAttribute?.('data-metric-key');
+        const r = el?.getBoundingClientRect?.();
+        if (key && r && Number.isFinite(r.width) && r.width > 0 && Number.isFinite(r.height) && r.height > 0) {
+          map.set(key, { left: r.left, top: r.top, width: r.width, height: r.height });
+        }
+      }
+      clearFlipAnimation();
+      clearResizePullVisual();
+      return map;
+    }
+
+    function playFlipFrom(beforeRects) {
+      if (!beforeRects || beforeRects.size === 0) return;
+      if (prefersReducedMotion() || typeof requestAnimationFrame !== 'function') return;
+      const animated = [];
+      for (const el of getMetricCellEls()) {
+        const key = el?.getAttribute?.('data-metric-key');
+        if (!key || !beforeRects.has(key)) continue;
+        const prev = beforeRects.get(key);
+        const next = el?.getBoundingClientRect?.();
+        if (!next || !Number.isFinite(next.width) || next.width <= 0 || !Number.isFinite(next.height) || next.height <= 0) {
+          continue;
+        }
+        const dx = prev.left - next.left;
+        const dy = prev.top - next.top;
+        const sx = prev.width / next.width;
+        const sy = prev.height / next.height;
+        if (
+          Math.abs(dx) > 0.5 ||
+          Math.abs(dy) > 0.5 ||
+          Math.abs(sx - 1) > 0.015 ||
+          Math.abs(sy - 1) > 0.015
+        ) {
+          animated.push({ el, dx, dy, sx, sy });
+        }
+      }
+      if (animated.length === 0) return;
+      clearFlipAnimation();
+      activeFlipEls = animated.map((item) => item.el);
+      patchClasses(matrixEl, { 'is-bento-animating': true });
+      for (const item of animated) {
+        if (!item.el?.style) continue;
+        item.el.style.transition = 'none';
+        item.el.style.transformOrigin = '0 0';
+        item.el.style.transform = `translate3d(${item.dx.toFixed(2)}px, ${item.dy.toFixed(2)}px, 0) scale(${item.sx.toFixed(4)}, ${item.sy.toFixed(4)})`;
+        patchClasses(item.el, { 'is-bento-flipping': true });
+      }
+      void matrixEl.offsetWidth;
+      const batchEls = activeFlipEls;
+      flipRafId = requestAnimationFrame(() => {
+        flipRafId = 0;
+        if (activeFlipEls !== batchEls) return;
+        for (const item of animated) {
+          if (!item.el?.style) continue;
+          item.el.style.transition = '';
+          item.el.style.transform = 'translate3d(0px, 0px, 0) scale(1, 1)';
+        }
+      });
+      flipCleanupTimer = setTimeout(() => {
+        if (activeFlipEls === batchEls) {
+          clearFlipAnimation();
+        }
+      }, 250);
+    }
+
+    function clearResizeClickSuppression() {
+      if (suppressResizeClickTimer) {
+        clearTimeout(suppressResizeClickTimer);
+        suppressResizeClickTimer = null;
+      }
+      suppressResizeClick = false;
+    }
+
+    function armResizeClickSuppression() {
+      clearResizeClickSuppression();
+      suppressResizeClick = true;
+      suppressResizeClickTimer = setTimeout(() => {
+        suppressResizeClickTimer = null;
+        suppressResizeClick = false;
+      }, 120);
+    }
+
+    function persistOptimisticMetricSizes(nextSizes) {
+      const clean = normalizeClientMetricCardSizes(nextSizes);
+      currentSizesMap = clean;
       if (lastUpdatePayload?.data) {
         const prevSettings = lastUpdatePayload.data.settings || {};
         const syncOverview =
@@ -29009,8 +29926,8 @@ const MetricMatrixWidget = defineComponent({
             settings: {
               ...prevSettings,
               ...(syncOverview
-                ? { overviewMetricHybridRatio: nextRatio }
-                : { hoverMetricHybridRatio: nextRatio }),
+                ? { overviewMetricSizes: clean }
+                : { hoverMetricSizes: clean }),
             },
           },
         };
@@ -29019,92 +29936,153 @@ const MetricMatrixWidget = defineComponent({
 
     function teardownActiveResize({ revert = false } = {}) {
       if (!activeResize) return;
-      const { startRatio, colCountAtStart, getWorkingRatio, session } = activeResize;
+      const { startSizes, getWorkingSizes, session } = activeResize;
       const moved = session.isMoved();
       activeResize = null;
-      draggingHybridRatio = null;
+      draggingSizesOverride = null;
+      resizingKey = null;
+      clearResizePullVisual();
       session.cancel(true);
-      patchClasses(matrixEl, { 'is-resizing-hybrid': false });
-      if (revert && moved && getWorkingRatio() !== startRatio) {
-        applyHybridRatioVars(startRatio, colCountAtStart);
-        props?.onPreviewHybridRatio?.(startRatio);
+      patchClasses(matrixEl, { 'is-resizing-metric': false });
+      if (revert && moved && !sameSizeMap(startSizes, getWorkingSizes())) {
+        props?.onPreviewMetricSizes?.({ ...startSizes });
+      }
+      if (revert && lastUpdatePayload) {
+        applyUpdatePayload(lastUpdatePayload);
       }
     }
 
-    function commitHybridRatioImmediate(rawRatio) {
-      if (!hasHybridResize || currentLayoutStyle !== 'hybrid' || currentColCount < 2) return;
-      const nextRatio = normalizeClientOverviewMetricHybridRatio(rawRatio);
-      applyHybridRatioVars(nextRatio, currentColCount);
-      if (nextRatio === currentHybridRatio) return;
-      persistOptimisticHybridRatio(nextRatio);
-      props?.onPreviewHybridRatio?.(nextRatio);
-      props?.onResizeHybridRatio?.(nextRatio);
+    function commitMetricCardSizeImmediate(cellKey, nextSize) {
+      if (!hasMetricResize || !cellKey) return;
+      const nextSizes = buildNextSizesMap(currentSizesMap, cellKey, nextSize);
+      if (sameSizeMap(currentSizesMap, nextSizes)) return;
+      persistOptimisticMetricSizes(nextSizes);
+      applyUpdatePayload(lastUpdatePayload);
+      props?.onPreviewMetricSizes?.({ ...nextSizes });
+      props?.onResizeMetricSizes?.({ ...nextSizes });
       scheduleAdaptiveSparklineRepaint();
     }
 
-    function startHybridSplitterResize(e) {
-      if (!hasHybridResize || currentLayoutStyle !== 'hybrid' || currentColCount < 2) return;
+    function startMetricCardResize(e, cellKey) {
+      if (!hasMetricResize || activeDrag || !cellKey) return;
       if (e && e.button != null && e.button !== 0) return;
-      if (activeDrag) return;
+      const placement = currentPlacementsByKey.get(cellKey);
+      if (!placement) return;
       e?.preventDefault?.();
       e?.stopPropagation?.();
       if (activeResize) teardownActiveResize({ revert: false });
 
-      const startRatio = currentHybridRatio;
-      const colCountAtStart = currentColCount;
-      const colGaps = colCountAtStart === 4 ? 2 : 1;
-      const gapPx = readMatrixColumnGapPx();
-      const startRect = matrixEl.getBoundingClientRect?.();
-      const startLeft = Number(startRect?.left ?? 0);
-      const startWidth = Number(startRect?.width ?? 0);
-      let workingRatio = startRatio;
+      const startSizes = { ...currentSizesMap };
+      const startEffSize = placement.size;
+      const rowsAtStart = currentLayoutRows;
+      const effectiveRowsAtStart = Math.max(1, currentEffectiveRows);
+      const startLogicalCols = startEffSize === 'wide' || startEffSize === 'tall' ? 2 : 1;
+      const startLogicalRows = startEffSize === 'narrow' || startEffSize === 'tall' ? 2 : 1;
 
-      function resolveRatioAtClientX(clientX) {
-        const liveRect = matrixEl.getBoundingClientRect?.();
-        const width = Number(liveRect?.width || startWidth || 0);
-        const left = Number(liveRect?.width > 0 ? liveRect.left : startLeft);
-        if (!(width > 0)) return workingRatio;
-        const trackWidth = Math.max(1, width - gapPx * colGaps);
-        const rawPct = ((Number(clientX) - left - gapPx * 0.5) / trackWidth) * 100;
-        return normalizeClientOverviewMetricHybridRatio(rawPct);
+      const matrixRect = matrixEl.getBoundingClientRect?.();
+      const rawMatrixW = Number(matrixRect?.width || 0);
+      const rawMatrixH = Number(matrixRect?.height || 0);
+      const unitW =
+        Number.isFinite(rawMatrixW) && rawMatrixW > 0 ? rawMatrixW / CLIENT_METRIC_GRID_COLS : 96;
+      const unitH =
+        Number.isFinite(rawMatrixH) && rawMatrixH > 0
+          ? rawMatrixH / effectiveRowsAtStart
+          : 62;
+
+      let workingSize = startEffSize;
+      let workingSizes = { ...startSizes };
+
+      function resolveSnappedSize(clientX, clientY, startX, startY) {
+        const spanCols = startLogicalCols + (Number(clientX) - Number(startX)) / Math.max(24, unitW);
+        const spanRows = startLogicalRows + (Number(clientY) - Number(startY)) / Math.max(24, unitH);
+        const curIsWide = workingSize === 'wide' || workingSize === 'tall';
+        const curIsTall = workingSize === 'narrow' || workingSize === 'tall';
+        const nextIsWide = curIsWide ? spanCols > 1.28 : spanCols >= 1.45;
+        const nextIsTall =
+          rowsAtStart === 2 ? (curIsTall ? spanRows > 1.28 : spanRows >= 1.45) : false;
+        if (nextIsWide && nextIsTall) return 'tall';
+        if (nextIsWide) return 'wide';
+        if (nextIsTall) return 'narrow';
+        return 'sm';
       }
 
       const session = startPointerDragSession(e, {
-        threshold: 2,
+        threshold: 4,
         onStart: () => {
-          draggingHybridRatio = startRatio;
-          patchClasses(matrixEl, { 'is-resizing-hybrid': true });
+          resizingKey = cellKey;
+          draggingSizesOverride = { ...startSizes };
+          patchClasses(matrixEl, { 'is-resizing-metric': true });
+          if (lastUpdatePayload) {
+            applyUpdatePayload(lastUpdatePayload);
+          }
         },
-        onMove: ({ clientX }) => {
-          const nextRatio = resolveRatioAtClientX(clientX);
-          if (nextRatio !== workingRatio) {
-            workingRatio = nextRatio;
-            draggingHybridRatio = nextRatio;
-            applyHybridRatioVars(nextRatio, colCountAtStart);
-            props?.onPreviewHybridRatio?.(nextRatio);
+        onMove: ({ clientX, clientY, startX, startY }) => {
+          const nextSize = resolveSnappedSize(clientX, clientY, startX, startY);
+          if (nextSize !== workingSize) {
+            workingSize = nextSize;
+            workingSizes = buildNextSizesMap(startSizes, cellKey, nextSize);
+            draggingSizesOverride = { ...workingSizes };
+            if (lastUpdatePayload) {
+              applyUpdatePayload(lastUpdatePayload);
+            }
+            props?.onPreviewMetricSizes?.({ ...workingSizes });
+          } else if (!prefersReducedMotion()) {
+            const targetCell = getMetricCellByKey(cellKey);
+            if (targetCell?.style && !targetCell.classList?.contains?.('is-bento-flipping')) {
+              const targetLogicalCols = workingSize === 'wide' || workingSize === 'tall' ? 2 : 1;
+              const targetLogicalRows = workingSize === 'narrow' || workingSize === 'tall' ? 2 : 1;
+              const remCols =
+                startLogicalCols -
+                targetLogicalCols +
+                (Number(clientX) - Number(startX)) / Math.max(24, unitW);
+              const remRows =
+                startLogicalRows -
+                targetLogicalRows +
+                (Number(clientY) - Number(startY)) / Math.max(24, unitH);
+              const pullX = Math.max(-0.045, Math.min(0.055, remCols * 0.06));
+              const pullY =
+                rowsAtStart === 2
+                  ? Math.max(-0.045, Math.min(0.055, remRows * 0.06))
+                  : 0;
+              resizePullEl = targetCell;
+              targetCell.style.transformOrigin = '0 0';
+              targetCell.style.transform = `scale(${(1 + pullX).toFixed(4)}, ${(1 + pullY).toFixed(4)})`;
+            }
           }
         },
         onEnd: ({ moved, cancelled }) => {
+          armResizeClickSuppression();
           if (cancelled) {
             teardownActiveResize({ revert: true });
             return;
           }
-          const finalRatio = workingRatio;
-          const changed = moved && finalRatio !== startRatio;
+          if (!moved) {
+            teardownActiveResize({ revert: false });
+            commitMetricCardSizeImmediate(
+              cellKey,
+              cycleMetricCardSize(startEffSize, rowsAtStart)
+            );
+            return;
+          }
+          const finalSizes = { ...workingSizes };
+          const changed = !sameSizeMap(startSizes, finalSizes);
           teardownActiveResize({ revert: false });
           if (changed) {
-            applyHybridRatioVars(finalRatio, colCountAtStart);
-            persistOptimisticHybridRatio(finalRatio);
-            props?.onResizeHybridRatio?.(finalRatio);
+            persistOptimisticMetricSizes(finalSizes);
+            if (lastUpdatePayload) {
+              applyUpdatePayload(lastUpdatePayload);
+            }
+            props?.onResizeMetricSizes?.({ ...finalSizes });
             scheduleAdaptiveSparklineRepaint();
+          } else if (lastUpdatePayload) {
+            applyUpdatePayload(lastUpdatePayload);
           }
         },
       });
 
       activeResize = {
-        startRatio,
-        colCountAtStart,
-        getWorkingRatio: () => workingRatio,
+        startSizes,
+        getWorkingSizes: () => workingSizes,
         session,
       };
     }
@@ -29142,11 +30120,18 @@ const MetricMatrixWidget = defineComponent({
               const key = observedWrapToKey.get(wrapEl);
               if (!key) continue;
               const rawW = Number(entry?.contentRect?.width || wrapEl.clientWidth || 0);
+              const rawH = Number(entry?.contentRect?.height || wrapEl.clientHeight || 0);
               if (!Number.isFinite(rawW) || rawW <= 0) continue;
               const nextW = Math.round(rawW);
-              const prevW = measuredWrapWidthByKey.get(key) || 0;
-              if (Math.abs(nextW - prevW) >= 2) {
-                measuredWrapWidthByKey.set(key, nextW);
+              const nextH = Number.isFinite(rawH) && rawH > 0 ? Math.round(rawH) : 0;
+              const prev = measuredWrapSizeByKey.get(key);
+              const prevW = prev?.width || 0;
+              const prevH = prev?.height || 0;
+              if (Math.abs(nextW - prevW) >= 2 || (nextH > 0 && Math.abs(nextH - prevH) >= 2)) {
+                measuredWrapSizeByKey.set(key, {
+                  width: nextW,
+                  height: nextH > 0 ? nextH : prevH,
+                });
                 changed = true;
               }
             }
@@ -29167,39 +30152,82 @@ const MetricMatrixWidget = defineComponent({
       }
     }
 
-    function readLiveSparklineWidths(colCount, layoutStyle, trendKeys) {
+    function readLiveSparklineSizes(sparkGeomSig, trendKeys) {
       if (trendKeys.length === 0) {
-        measuredWrapWidthByKey.clear();
+        measuredWrapSizeByKey.clear();
         return;
       }
-      if (colCount !== lastColCount || layoutStyle !== lastLayoutStyle) {
-        measuredWrapWidthByKey.clear();
+      if (sparkGeomSig !== lastSparkGeomSig) {
+        measuredWrapSizeByKey.clear();
         return;
       }
       const keySet = new Set(trendKeys);
-      for (const key of Array.from(measuredWrapWidthByKey.keys())) {
-        if (!keySet.has(key)) measuredWrapWidthByKey.delete(key);
+      for (const key of Array.from(measuredWrapSizeByKey.keys())) {
+        if (!keySet.has(key)) measuredWrapSizeByKey.delete(key);
       }
       for (const cellEl of getMetricCellEls()) {
         const key = cellEl?.getAttribute?.('data-metric-key');
         if (!key || !keySet.has(key)) continue;
         const wrapEl = cellEl.querySelector?.('.cell-sparkline-wrap');
         const liveW = Math.round(Number(wrapEl?.clientWidth || 0));
+        const liveH = Math.round(Number(wrapEl?.clientHeight || 0));
         if (Number.isFinite(liveW) && liveW > 0) {
-          const prevW = measuredWrapWidthByKey.get(key) || 0;
-          if (Math.abs(liveW - prevW) >= 2 || prevW === 0) {
-            measuredWrapWidthByKey.set(key, liveW);
+          const prev = measuredWrapSizeByKey.get(key);
+          const prevW = prev?.width || 0;
+          const prevH = prev?.height || 0;
+          if (
+            Math.abs(liveW - prevW) >= 2 ||
+            prevW === 0 ||
+            (Number.isFinite(liveH) && liveH > 0 && (Math.abs(liveH - prevH) >= 2 || prevH === 0))
+          ) {
+            measuredWrapSizeByKey.set(key, {
+              width: liveW,
+              height: Number.isFinite(liveH) && liveH > 0 ? liveH : prevH,
+            });
           }
         }
       }
     }
 
+    function hideDropPreview() {
+      if (!dropPreviewEl) return;
+      patchAttr(dropPreviewEl, 'hidden', true);
+      if (dropPreviewEl.style) {
+        dropPreviewEl.style.transform = '';
+        dropPreviewEl.style.width = '';
+        dropPreviewEl.style.height = '';
+      }
+    }
+
+    function updateDropPreview(rect, matrixLeft, matrixTop, { instant = false } = {}) {
+      if (!dropPreviewEl || !rect) return;
+      const wasHidden = dropPreviewEl.hasAttribute?.('hidden') || dropPreviewEl.parentNode !== matrixEl;
+      if (dropPreviewEl.parentNode !== matrixEl) {
+        matrixEl.appendChild(dropPreviewEl);
+      }
+      if ((instant || wasHidden) && dropPreviewEl.style) {
+        dropPreviewEl.style.transition = 'none';
+      }
+      patchAttr(dropPreviewEl, 'hidden', false);
+      if (dropPreviewEl.style) {
+        dropPreviewEl.style.width = `${Math.max(12, rect.width).toFixed(2)}px`;
+        dropPreviewEl.style.height = `${Math.max(12, rect.height).toFixed(2)}px`;
+        setTranslate3d(dropPreviewEl, rect.left - matrixLeft, rect.top - matrixTop);
+        if (instant || wasHidden) {
+          void dropPreviewEl.offsetWidth;
+          dropPreviewEl.style.transition = '';
+        }
+      }
+    }
+
     function resetDragVisuals() {
+      hideDropPreview();
       patchClasses(matrixEl, { 'is-dragging-matrix': false });
       for (const cellEl of getMetricCellEls()) {
         patchClasses(cellEl, { 'is-cell-dragging': false, 'is-cell-drag-sibling': false });
         if (cellEl?.style) {
           cellEl.style.transition = '';
+          cellEl.style.transformOrigin = '';
           cellEl.style.transform = '';
         }
       }
@@ -29230,30 +30258,54 @@ const MetricMatrixWidget = defineComponent({
       e?.preventDefault?.();
       e?.stopPropagation?.();
       if (activeDrag) teardownActiveDrag({ revert: false, flushPending: true });
+      clearFlipAnimation();
       settleAnimator.clear();
 
       const startVisible = [...currentVisibleKeys];
       const overflowTail = [...currentOverflowKeys];
+      const dragKey = startVisible[startIdx];
       const count = startVisible.length;
       const cellEls = getMetricCellEls().slice(0, count);
       if (cellEls.length !== count) return;
-      const origIndices = Array.from({ length: count }, (_, idx) => idx);
-      let targetIdx = startIdx;
+      const draggedEl = cellEls[startIdx];
+      const cellElByKey = new Map();
+      for (let i = 0; i < count; i += 1) {
+        cellElByKey.set(startVisible[i], cellEls[i]);
+      }
+
+      const dragRows = currentLayoutRows;
+      const dragSizes = { ...currentSizesMap };
       let workingVisible = [...startVisible];
-      let slotRects = [];
+      let candidates = [];
+      let activeCandidate = null;
+      let origRectsByKey = new Map();
+      let origDraggedRect = null;
+      let baseMatrixRect = { left: 0, top: 0, width: 400, height: 72, right: 400, bottom: 72 };
       let isMultiRow = false;
-      let startMatrixLeft = 0;
-      let startMatrixTop = 0;
       let hasMatrixRect = false;
       let lastDragOffsetX = 0;
       let lastDragOffsetY = 0;
 
-      function updateSiblingTransforms(nextTargetIdx) {
-        const perm = buildReorderedItems(origIndices, startIdx, nextTargetIdx);
-        for (let pos = 0; pos < count; pos += 1) {
-          const orig = perm[pos];
-          if (orig !== startIdx) {
-            setTranslate3d(cellEls[orig], slotRects[pos].left - slotRects[orig].left, slotRects[pos].top - slotRects[orig].top);
+      function applyCandidateTransforms(cand) {
+        if (!cand) return;
+        updateDropPreview(cand.draggedRect, baseMatrixRect.left, baseMatrixRect.top);
+        for (let i = 0; i < count; i += 1) {
+          const key = startVisible[i];
+          if (key === dragKey) continue;
+          const el = cellElByKey.get(key);
+          const fromRect = origRectsByKey.get(key);
+          const toRect = cand.rectsByKey.get(key);
+          if (!el || !fromRect || !toRect) continue;
+          const dx = toRect.left - fromRect.left;
+          const dy = toRect.top - fromRect.top;
+          const sx = fromRect.width > 0 ? toRect.width / fromRect.width : 1;
+          const sy = fromRect.height > 0 ? toRect.height / fromRect.height : 1;
+          if (Math.abs(sx - 1) > 0.015 || Math.abs(sy - 1) > 0.015) {
+            if (el.style) el.style.transformOrigin = '0 0';
+            setTranslate3d(el, dx, dy, ` scale(${sx.toFixed(4)}, ${sy.toFixed(4)})`);
+          } else {
+            if (el.style) el.style.transformOrigin = '';
+            setTranslate3d(el, dx, dy);
           }
         }
       }
@@ -29261,15 +30313,16 @@ const MetricMatrixWidget = defineComponent({
       const session = startPointerDragSession(e, {
         threshold: 4,
         onStart: ({ startX, startY, clientX, clientY }) => {
-          slotRects = [];
+          const measuredRects = [];
           for (let i = 0; i < count; i += 1) {
+            const key = startVisible[i];
             const r = cellEls[i]?.getBoundingClientRect?.();
-            const ok = Boolean(r && Number.isFinite(r.width) && r.width > 0);
+            const ok = Boolean(r && Number.isFinite(r.width) && r.width > 0 && Number.isFinite(r.height) && r.height > 0);
             const width = ok ? r.width : 110;
             const height = ok ? r.height : 64;
             const left = ok ? r.left : i * 116;
             const top = ok ? r.top : 0;
-            slotRects.push({
+            const rectObj = {
               left,
               top,
               width,
@@ -29278,9 +30331,14 @@ const MetricMatrixWidget = defineComponent({
               bottom: top + height,
               centerX: left + width * 0.5,
               centerY: top + height * 0.5,
-            });
+            };
+            measuredRects.push(rectObj);
+            origRectsByKey.set(key, rectObj);
           }
-          isMultiRow = slotRects.some((r) => Math.abs(r.top - slotRects[0].top) > 10);
+          origDraggedRect = origRectsByKey.get(dragKey);
+          isMultiRow =
+            currentEffectiveRows > 1 ||
+            measuredRects.some((r) => Math.abs(r.top - measuredRects[0].top) > 10);
           if (
             !isMultiRow &&
             onRequestVerticalDrag &&
@@ -29291,33 +30349,109 @@ const MetricMatrixWidget = defineComponent({
             onRequestVerticalDrag(e, clientX, clientY);
             return false;
           }
+
           const mr = matrixEl?.getBoundingClientRect?.();
-          hasMatrixRect = Boolean(mr && Number.isFinite(mr.width) && mr.width > 0);
-          startMatrixLeft = hasMatrixRect ? mr.left : 0;
-          startMatrixTop = hasMatrixRect ? mr.top : 0;
+          hasMatrixRect = Boolean(mr && Number.isFinite(mr.width) && mr.width > 0 && Number.isFinite(mr.height) && mr.height > 0);
+          if (hasMatrixRect) {
+            baseMatrixRect = {
+              left: mr.left,
+              top: mr.top,
+              width: mr.width,
+              height: mr.height,
+              right: mr.left + mr.width,
+              bottom: mr.top + mr.height,
+            };
+          } else {
+            const minLeft = Math.min(...measuredRects.map((r) => r.left));
+            const minTop = Math.min(...measuredRects.map((r) => r.top));
+            const maxRight = Math.max(...measuredRects.map((r) => r.right));
+            const maxBottom = Math.max(...measuredRects.map((r) => r.bottom));
+            baseMatrixRect = {
+              left: minLeft,
+              top: minTop,
+              width: Math.max(100, maxRight - minLeft),
+              height: Math.max(64, maxBottom - minTop),
+              right: maxRight,
+              bottom: maxBottom,
+            };
+          }
+
+          const { colGap, rowGap } = readMatrixGridGaps(matrixEl, cellEls);
+          const bySlotKey = new Map();
+          for (let candIdx = 0; candIdx < count; candIdx += 1) {
+            const candOrder = buildReorderedItems(startVisible, startIdx, candIdx);
+            const candLayout = packClientMetricBentoLayout({
+              rows: dragRows,
+              metrics: candOrder,
+              sizes: dragSizes,
+              includeGhostCells: hasMetricResize,
+            });
+            if (candLayout.placements.length !== count) continue;
+            const draggedPlacement = candLayout.placements.find((p) => p.key === dragKey);
+            if (!draggedPlacement) continue;
+            const rectsByKey = new Map();
+            for (const p of candLayout.placements) {
+              rectsByKey.set(
+                p.key,
+                candIdx === startIdx && origRectsByKey.has(p.key)
+                  ? origRectsByKey.get(p.key)
+                  : computePlacementPixelRect(p, candLayout, baseMatrixRect, colGap, rowGap)
+              );
+            }
+            const draggedRect = rectsByKey.get(dragKey);
+            const slotKey = `${draggedPlacement.colStart}:${draggedPlacement.colSpan}:${draggedPlacement.rowStart}:${draggedPlacement.rowSpan}`;
+            const candObj = {
+              candIdx,
+              order: candOrder,
+              layout: candLayout,
+              rectsByKey,
+              draggedRect,
+              distFromStart: Math.abs(candIdx - startIdx),
+            };
+            const existing = bySlotKey.get(slotKey);
+            if (!existing || candObj.distFromStart < existing.distFromStart) {
+              bySlotKey.set(slotKey, candObj);
+            }
+          }
+          candidates = Array.from(bySlotKey.values());
+          activeCandidate =
+            candidates.find((c) => c.candIdx === startIdx) ||
+            candidates[0] || {
+              candIdx: startIdx,
+              order: [...startVisible],
+              rectsByKey: origRectsByKey,
+              draggedRect: origDraggedRect,
+            };
+          if (candidates.length === 0) {
+            candidates = [activeCandidate];
+          }
+
           patchClasses(matrixEl, { 'is-dragging-matrix': true });
           for (let k = 0; k < count; k += 1) {
-            patchClasses(cellEls[k], { 'is-cell-dragging': k === startIdx, 'is-cell-drag-sibling': k !== startIdx });
+            patchClasses(cellEls[k], {
+              'is-cell-dragging': k === startIdx,
+              'is-cell-drag-sibling': k !== startIdx,
+            });
           }
-          updateSiblingTransforms(targetIdx);
+          applyCandidateTransforms(activeCandidate);
         },
         onMove: ({ clientX, clientY, startX, startY }) => {
           const mr = hasMatrixRect ? matrixEl?.getBoundingClientRect?.() : null;
-          const rawDeltaX = clientX - startX - (mr && mr.width > 0 ? mr.left - startMatrixLeft : 0);
-          const rawDeltaY = clientY - startY - (mr && mr.width > 0 ? mr.top - startMatrixTop : 0);
+          const rawDeltaX = clientX - startX - (mr && mr.width > 0 ? mr.left - baseMatrixRect.left : 0);
+          const rawDeltaY = clientY - startY - (mr && mr.width > 0 ? mr.top - baseMatrixRect.top : 0);
 
           const clampedX = applyRubberBand(
             rawDeltaX,
-            Math.min(...slotRects.map((r) => r.left)) - slotRects[startIdx].left,
-            Math.max(...slotRects.map((r) => r.right)) - slotRects[startIdx].right,
+            baseMatrixRect.left - origDraggedRect.left,
+            baseMatrixRect.right - origDraggedRect.right,
             14,
             0.25
           );
           const clampedY = isMultiRow
             ? applyRubberBand(
                 rawDeltaY,
-                Math.min(...slotRects.map((r) => r.top)) - slotRects[startIdx].top,
-                Math.max(...slotRects.map((r) => r.bottom)) - slotRects[startIdx].bottom,
+                baseMatrixRect.top - origDraggedRect.top,
+                baseMatrixRect.bottom - origDraggedRect.bottom,
                 14,
                 0.25
               )
@@ -29327,31 +30461,27 @@ const MetricMatrixWidget = defineComponent({
 
           lastDragOffsetX = clampedX;
           lastDragOffsetY = clampedY;
-          setTranslate3d(cellEls[startIdx], clampedX, clampedY, ' scale(1.02)');
+          setTranslate3d(draggedEl, clampedX, clampedY, ' scale(1.02)');
 
-          let nextTarget = startIdx;
-          if (!isMultiRow) {
-            nextTarget = hitTestLinearCenter(
-              slotRects.map((r) => ({ start: r.left, size: r.width, end: r.right, center: r.centerX })),
-              startIdx,
-              rawDeltaX
-            );
-          } else {
-            const cx = slotRects[startIdx].centerX + rawDeltaX;
-            const cy = slotRects[startIdx].centerY + rawDeltaY;
-            let bestDistSq = Infinity;
-            for (let i = 0; i < count; i += 1) {
-              const d2 = (cx - slotRects[i].centerX) ** 2 + (cy - slotRects[i].centerY) ** 2;
-              if (d2 < bestDistSq) {
-                bestDistSq = d2;
-                nextTarget = i;
-              }
+          const cx = origDraggedRect.centerX + rawDeltaX;
+          const cy = origDraggedRect.centerY + rawDeltaY;
+          let bestCand = activeCandidate;
+          let bestScore = Infinity;
+          for (let i = 0; i < candidates.length; i += 1) {
+            const cand = candidates[i];
+            const dist = isMultiRow
+              ? Math.hypot(cx - cand.draggedRect.centerX, cy - cand.draggedRect.centerY)
+              : Math.abs(cx - cand.draggedRect.centerX);
+            const score = cand === activeCandidate ? dist - 6 : dist;
+            if (score < bestScore) {
+              bestScore = score;
+              bestCand = cand;
             }
           }
-          if (nextTarget !== targetIdx) {
-            targetIdx = nextTarget;
-            workingVisible = buildReorderedItems(startVisible, startIdx, targetIdx);
-            updateSiblingTransforms(targetIdx);
+          if (bestCand && bestCand !== activeCandidate) {
+            activeCandidate = bestCand;
+            workingVisible = [...bestCand.order];
+            applyCandidateTransforms(activeCandidate);
             props?.onPreviewMetrics?.([...workingVisible, ...overflowTail]);
           }
         },
@@ -29360,16 +30490,16 @@ const MetricMatrixWidget = defineComponent({
             teardownActiveDrag({ revert: true, flushPending: true });
             return;
           }
-          const finalTargetIdx = targetIdx;
+          const finalCand = activeCandidate;
           const finalVisible = [...workingVisible];
           const finalFull = [...finalVisible, ...overflowTail];
           const targetOffsetX =
-            moved && slotRects[finalTargetIdx] && slotRects[startIdx]
-              ? slotRects[finalTargetIdx].left - slotRects[startIdx].left
+            moved && finalCand?.draggedRect && origDraggedRect
+              ? finalCand.draggedRect.left - origDraggedRect.left
               : 0;
           const targetOffsetY =
-            moved && slotRects[finalTargetIdx] && slotRects[startIdx]
-              ? slotRects[finalTargetIdx].top - slotRects[startIdx].top
+            moved && finalCand?.draggedRect && origDraggedRect
+              ? finalCand.draggedRect.top - origDraggedRect.top
               : 0;
           const residualX = moved ? lastDragOffsetX - targetOffsetX : 0;
           const residualY = moved ? lastDragOffsetY - targetOffsetY : 0;
@@ -29381,7 +30511,9 @@ const MetricMatrixWidget = defineComponent({
             currentVisibleKeys = finalVisible;
             if (lastUpdatePayload?.data) {
               const prevSettings = lastUpdatePayload.data.settings || {};
-              const syncOverview = widgetMode !== 'hover' || prevSettings.hoverSyncOverviewMetrics !== false;
+              const syncOverview =
+                widgetMode !== 'hover' || prevSettings.hoverSyncOverviewMetrics !== false;
+              skipNextFlip = true;
               applyUpdatePayload({
                 data: {
                   ...lastUpdatePayload.data,
@@ -29394,7 +30526,7 @@ const MetricMatrixWidget = defineComponent({
             }
             props?.onReorderMetrics?.(finalFull);
           }
-          const landedCell = getMetricCellEls()[finalTargetIdx];
+          const landedCell = getMetricCellByKey(dragKey);
           if (moved && landedCell) {
             settleAnimator.trigger(landedCell, residualX, residualY);
           }
@@ -29404,25 +30536,145 @@ const MetricMatrixWidget = defineComponent({
       activeDrag = { startVisible, overflowTail, getWorkingVisible: () => workingVisible, session };
     }
 
+    function syncGhostCells(ghostSpecs) {
+      const targetCount = Array.isArray(ghostSpecs) ? ghostSpecs.length : 0;
+      while (ghostElPool.length < targetCount) {
+        ghostElPool.push(
+          h('div', {
+            className: 'matrix-ghost-cell',
+            'aria-hidden': 'true',
+          })
+        );
+      }
+      for (let i = 0; i < ghostElPool.length; i += 1) {
+        const ghostEl = ghostElPool[i];
+        if (i < targetCount) {
+          const spec = ghostSpecs[i];
+          patchStyleVar(ghostEl, '--ghost-col-start', String(spec.colStart));
+          patchStyleVar(ghostEl, '--ghost-row-start', String(spec.rowStart));
+          if (ghostEl.parentNode !== matrixEl) {
+            matrixEl.appendChild(ghostEl);
+          }
+        } else if (ghostEl.parentNode === matrixEl) {
+          matrixEl.removeChild(ghostEl);
+        }
+      }
+    }
+
     function createMetricCellNode() {
+      let boundMetricKey = '';
       const gradId = `wm-spark-grad-${++sparklineGradSeq}`;
       const labelSpan = h('span', { text: '—' });
-      const iconSvg = createSvgIcon('pulse', { size: 11 });
-      const valueEl = h('strong', { className: 'cell-value', text: '—' });
+      const valueMainEl = h('span', { className: 'cell-value-main', text: '—' });
+      const valueUnitEl = h('span', { className: 'cell-value-unit', hidden: true, text: '' });
+      const valueEl = h('strong', { className: 'cell-value' }, [valueMainEl, valueUnitEl]);
       const subEl = h('span', { className: 'cell-sub', text: '—' });
 
       const trendNumEl = h('strong', { className: 'cell-trend-num', text: '—' });
       const trendUnitEl = h('span', { className: 'cell-trend-unit', text: '' });
-      const trendSubEl = h('span', { className: 'cell-trend-sub', text: '—' });
-      const spark = createSparklineSvg(gradId);
-      const sparkWrapEl = h('div', { className: 'cell-sparkline-wrap' }, [spark.svg]);
-      const trendRowEl = h('div', { className: 'cell-trend-row', hidden: true }, [
-        h('div', { className: 'cell-trend-left' }, [
-          h('div', { className: 'cell-trend-metric' }, [trendNumEl, trendUnitEl]),
-          trendSubEl,
-        ]),
-        sparkWrapEl,
+      const trendMetricEl = h('div', { className: 'cell-trend-metric', hidden: true }, [
+        trendNumEl,
+        trendUnitEl,
       ]);
+      const trendSubEl = h('span', { className: 'cell-trend-sub', hidden: true, text: '—' });
+      const spark = createSparklineSvg(gradId);
+      const sparkWrapEl = h('div', { className: 'cell-sparkline-wrap', hidden: true }, [
+        spark.svg,
+      ]);
+
+      const sizeBadgeEl = hasMetricResize
+        ? h('span', {
+            className: 'matrix-cell-size-badge text-mono',
+            'aria-hidden': 'true',
+            hidden: true,
+            text: '',
+          })
+        : null;
+
+      const resizeHandleEl = hasMetricResize
+        ? h(
+            'button',
+            {
+              type: 'button',
+              className: 'matrix-cell-resize-handle',
+              'aria-label': t('settings.str.metricResizeHandleAria'),
+              title: t('settings.str.metricResizeHandleHint'),
+              onPointerdown: (e) => startMetricCardResize(e, boundMetricKey),
+              onClick: (e) => {
+                e?.preventDefault?.();
+                e?.stopPropagation?.();
+                if (suppressResizeClick) {
+                  clearResizeClickSuppression();
+                  return;
+                }
+                const placement = currentPlacementsByKey.get(boundMetricKey);
+                if (!placement) return;
+                commitMetricCardSizeImmediate(
+                  boundMetricKey,
+                  cycleMetricCardSize(placement.size, currentLayoutRows)
+                );
+              },
+              onKeydown: (e) => {
+                if (!hasMetricResize || !boundMetricKey) return;
+                const placement = currentPlacementsByKey.get(boundMetricKey);
+                if (!placement) return;
+                if (e?.key === 'Enter' || e?.key === ' ') {
+                  e.preventDefault?.();
+                  e.stopPropagation?.();
+                  commitMetricCardSizeImmediate(
+                    boundMetricKey,
+                    cycleMetricCardSize(placement.size, currentLayoutRows)
+                  );
+                } else if (e?.key === 'ArrowRight') {
+                  e.preventDefault?.();
+                  e.stopPropagation?.();
+                  if (placement.size === 'sm') {
+                    commitMetricCardSizeImmediate(boundMetricKey, 'wide');
+                  } else if (placement.size === 'narrow') {
+                    commitMetricCardSizeImmediate(boundMetricKey, 'tall');
+                  }
+                } else if (e?.key === 'ArrowLeft') {
+                  e.preventDefault?.();
+                  e.stopPropagation?.();
+                  if (placement.size === 'wide') {
+                    commitMetricCardSizeImmediate(boundMetricKey, 'sm');
+                  } else if (placement.size === 'tall') {
+                    commitMetricCardSizeImmediate(boundMetricKey, 'narrow');
+                  }
+                } else if (e?.key === 'ArrowDown' && currentLayoutRows === 2) {
+                  e.preventDefault?.();
+                  e.stopPropagation?.();
+                  if (placement.size === 'sm') {
+                    commitMetricCardSizeImmediate(boundMetricKey, 'narrow');
+                  } else if (placement.size === 'wide') {
+                    commitMetricCardSizeImmediate(boundMetricKey, 'tall');
+                  }
+                } else if (e?.key === 'ArrowUp') {
+                  e.preventDefault?.();
+                  e.stopPropagation?.();
+                  if (placement.size === 'narrow') {
+                    commitMetricCardSizeImmediate(boundMetricKey, 'sm');
+                  } else if (placement.size === 'tall') {
+                    commitMetricCardSizeImmediate(boundMetricKey, 'wide');
+                  }
+                }
+              },
+            },
+            [createCornerGripSvg()]
+          )
+        : null;
+
+      const labelRowEl = h('div', { className: 'cell-label' }, [labelSpan]);
+      const children = [
+        labelRowEl,
+        valueEl,
+        subEl,
+        trendMetricEl,
+        trendSubEl,
+        sparkWrapEl,
+      ];
+      if (sizeBadgeEl) children.push(sizeBadgeEl);
+      if (resizeHandleEl) children.push(resizeHandleEl);
 
       const el = h(
         'div',
@@ -29431,33 +30683,37 @@ const MetricMatrixWidget = defineComponent({
           ...(hasMetricReorder
             ? {
                 onPointerdown: (e) => {
+                  if (resizeHandleEl && isNodeWithin(e?.target, resizeHandleEl)) return;
                   const idx = getMetricCellEls().indexOf(el);
                   if (idx >= 0) startMetricCellDrag(e, idx);
                 },
               }
             : {}),
         },
-        [
-          h('div', { className: 'cell-label' }, [labelSpan, iconSvg]),
-          valueEl,
-          subEl,
-          trendRowEl,
-        ]
+        children
       );
+
       return {
         el,
         refs: {
           el,
+          labelRowEl,
           labelSpan,
-          iconSvg,
           valueEl,
+          valueMainEl,
+          valueUnitEl,
           subEl,
-          trendRowEl,
+          trendMetricEl,
           trendNumEl,
           trendUnitEl,
           trendSubEl,
           sparkWrapEl,
           spark,
+          sizeBadgeEl,
+          resizeHandleEl,
+          setBoundKey(key) {
+            boundMetricKey = key;
+          },
         },
       };
     }
@@ -29465,52 +30721,77 @@ const MetricMatrixWidget = defineComponent({
     function applyUpdatePayload({ data } = {}) {
       lastUpdatePayload = { data };
       patchAttr(matrixEl, 'aria-label', t('module.metrics'));
-      patchAttr(splitterEl, 'aria-label', t('settings.str.hybridSplitterAria'));
-      patchAttr(splitterEl, 'title', t('settings.str.hybridSplitterHint'));
-      const settings = data?.settings || {};
+      const baseSettings = data?.settings || {};
+      const syncOverviewSetting =
+        widgetMode !== 'hover' || baseSettings.hoverSyncOverviewMetrics !== false;
+      const effectiveSettings =
+        draggingSizesOverride != null
+          ? {
+              ...baseSettings,
+              ...(syncOverviewSetting
+                ? { overviewMetricSizes: draggingSizesOverride }
+                : { hoverMetricSizes: draggingSizesOverride }),
+            }
+          : baseSettings;
+
       const {
-        style: layoutStyle,
-        isLarge: isLargeTrend,
-        isHybrid,
-        hybridRatio: resolvedHybridRatio,
-        metrics: metricKeys,
-        allMetrics,
-      } = resolveEffectiveClientMetricMatrixConfig(widgetMode, settings);
+        rows: configuredRows,
+        sizes: resolvedSizes,
+        textMode,
+        showTitle,
+        showSub,
+        layout,
+      } = resolveEffectiveClientMetricMatrixConfig(widgetMode, effectiveSettings, {
+        includeGhostCells: hasMetricResize,
+      });
+
+      const placements = layout.placements;
+      const metricKeys = placements.map((p) => p.key);
       currentVisibleKeys = [...metricKeys];
-      currentOverflowKeys = Array.isArray(allMetrics) ? allMetrics.slice(metricKeys.length) : [];
+      currentOverflowKeys = [...layout.overflowKeys];
+      currentLayoutRows = configuredRows;
+      currentEffectiveRows = layout.effectiveRows;
+      currentGridCols = layout.gridCols;
+      currentSizesMap = { ...resolvedSizes };
+      currentPlacementsByKey = new Map(placements.map((p) => [p.key, p]));
+
       const canDragCells = hasMetricReorder && metricKeys.length > 1;
       const dragHint = canDragCells
         ? canParentDragModule()
           ? t('settings.str.metricOrModuleDragHint')
           : t('settings.str.metricDragHint')
         : null;
-      const maxCols = isLargeTrend ? 3 : 4;
-      const colCount = Math.max(1, Math.min(maxCols, metricKeys.length));
-      const needsSparkline = isLargeTrend || isHybrid;
-      const trendKeys = isLargeTrend ? metricKeys : isHybrid ? metricKeys.slice(0, 1) : [];
-      readLiveSparklineWidths(colCount, layoutStyle, trendKeys);
-      lastColCount = colCount;
-      lastLayoutStyle = layoutStyle;
-      currentLayoutStyle = layoutStyle;
-      currentColCount = colCount;
-      currentHybridRatio = resolvedHybridRatio;
-      const effectiveHybridRatio =
-        draggingHybridRatio != null ? draggingHybridRatio : resolvedHybridRatio;
-
-      if (!isHybrid || colCount < 2) {
-        teardownActiveResize({ revert: false });
-      }
+      const trendPlacements = placements.filter((p) => p.isTrend);
+      const trendKeys = trendPlacements.map((p) => p.key);
+      const needsSparkline = trendKeys.length > 0;
+      const geomSig = `${layout.effectiveRows}:${layout.gridCols}:${layout.isThreeUpTrend ? '3up' : 'bento'}:${placements
+        .map((p) => `${p.key}=${p.size}:${p.isTrend ? 'T' : 'C'}@${p.colStart},${p.colSpan},${p.rowStart},${p.rowSpan}`)
+        .join('|')}`;
+      const sparkGeomSig = `${geomSig}:${textMode}`;
+      const shouldFlip =
+        (hasMetricResize || hasMetricReorder) &&
+        !activeDrag &&
+        !skipNextFlip &&
+        lastLayoutGeomSig !== '' &&
+        geomSig !== lastLayoutGeomSig;
+      skipNextFlip = false;
+      const beforeFlipRects = shouldFlip ? captureFlipRects() : null;
+      readLiveSparklineSizes(sparkGeomSig, trendKeys);
+      lastLayoutGeomSig = geomSig;
+      lastSparkGeomSig = sparkGeomSig;
 
       patchClasses(matrixEl, {
-        'is-large-trend': isLargeTrend,
-        'is-hybrid': isHybrid,
+        'is-bento': !layout.isThreeUpTrend,
+        'is-large-trend': layout.isThreeUpTrend,
+        'is-two-row': layout.effectiveRows === 2,
         'is-metrics-reorderable': canDragCells,
+        'is-metrics-resizable': hasMetricResize,
       });
-      patchAttr(matrixEl, 'data-cols', String(colCount));
-      patchStyleVar(matrixEl, '--matrix-cols', String(colCount));
-      if (isHybrid) {
-        applyHybridRatioVars(effectiveHybridRatio, colCount);
-      }
+      patchAttr(matrixEl, 'data-cols', String(layout.gridCols));
+      patchAttr(matrixEl, 'data-rows', String(layout.effectiveRows));
+      patchAttr(matrixEl, 'data-metric-text', textMode);
+      patchStyleVar(matrixEl, '--matrix-cols', String(layout.gridCols));
+      patchStyleVar(matrixEl, '--matrix-rows', String(layout.effectiveRows));
 
       const { hasSubagents, scopedConv, ctxAgent } = resolveScopedConversation(
         data,
@@ -29526,37 +30807,92 @@ const MetricMatrixWidget = defineComponent({
       const seriesSteps = needsSparkline
         ? active.sparklineSteps || active.recentSteps || data?.activeConversation?.recentSteps || []
         : [];
-      const fallbackSparkCols = isHybrid ? (colCount === 1 ? 1 : 2) : colCount;
+      const resizeHandleAria = hasMetricResize ? t('settings.str.metricResizeHandleAria') : '';
+      const resizeHandleHint = hasMetricResize ? t('settings.str.metricResizeHandleHint') : '';
 
-      const cells = metricKeys.map((key, idx) => {
-        const base = resolveOverviewMetricCell(key, {
+      const cells = placements.map((p) => {
+        const base = resolveOverviewMetricCell(p.key, {
           active,
           ctx,
           quotas,
-          settings,
+          settings: effectiveSettings,
           hasSubagents,
         });
-        const isCellTrend = isLargeTrend || (isHybrid && idx === 0);
-        const isHybridHero = isHybrid && idx === 0;
-        if (!isCellTrend) {
-          return { ...base, isLargeTrend: false, isHybridHero: false, sparkSig: '' };
+        const split = splitMetricValueAndUnit(base.valueText);
+        const isResizingThis = hasMetricResize && resizingKey === p.key;
+        const sizeBadgeText = hasMetricResize ? formatMetricSizeBadge(p.size) : '';
+        if (!p.isTrend) {
+          return {
+            ...base,
+            placement: p,
+            textMode,
+            showTitle,
+            showSub,
+            valueMain: split.main,
+            valueUnit: split.unit,
+            isTrend: false,
+            isTall: false,
+            isNarrow: false,
+            isWide: false,
+            isResizingThis,
+            sizeBadgeText,
+            resizeHandleAria,
+            resizeHandleHint,
+            sparkSig: '',
+          };
         }
+        const isNarrow = Boolean(p.isNarrow);
+        const isTall = Boolean(p.isTall);
+        const isWide = !isTall && !isNarrow;
+        const fallbackSparkCols = layout.isThreeUpTrend
+          ? layout.gridCols
+          : isNarrow
+            ? 3
+            : !isTall && (p.colSpan >= 3 || (layout.gridCols <= 2 && p.colSpan === layout.gridCols))
+              ? 1
+              : 2;
+        const fallbackSparkHeight = isTall
+          ? textMode === 'none'
+            ? 76
+            : textMode === 'both'
+              ? 54
+              : 64
+          : isNarrow
+            ? textMode === 'both'
+              ? 34
+              : 42
+            : textMode === 'both'
+              ? 24
+              : 26;
+        const measuredSize = measuredWrapSizeByKey.get(p.key);
         const spec = resolveAdaptiveSparklineSpec(
-          measuredWrapWidthByKey.get(key),
-          fallbackSparkCols
+          measuredSize?.width,
+          fallbackSparkCols,
+          measuredSize?.height || fallbackSparkHeight
         );
-        const series = extractOverviewMetricSeries(key, seriesSteps, {
+        const series = extractOverviewMetricSeries(p.key, seriesSteps, {
           maxPoints: spec.maxPoints,
           limitTokens,
         });
         const geom = buildSparklineGeometry(series, { width: spec.width, height: spec.height });
-        const split = splitMetricValueAndUnit(base.valueText);
         const tone = extractToneClass(base.valueClass);
         const sparkSig = `${spec.width}x${spec.height}:${spec.maxPoints}:${geom.linePoints}:${geom.lastX},${geom.lastY}`;
         return {
           ...base,
-          isLargeTrend: true,
-          isHybridHero,
+          placement: p,
+          textMode,
+          showTitle,
+          showSub,
+          valueMain: split.main,
+          valueUnit: split.unit,
+          isTrend: true,
+          isTall,
+          isNarrow,
+          isWide,
+          isResizingThis,
+          sizeBadgeText,
+          resizeHandleAria,
+          resizeHandleHint,
           tone,
           trendMain: split.main,
           trendUnit: split.unit,
@@ -29571,29 +30907,56 @@ const MetricMatrixWidget = defineComponent({
 
       patchKeyedList(matrixEl, cells, {
         keyFn: (cell) => cell.key,
-        sigFn: (cell) =>
-          `${locale}:${cell.isLargeTrend ? 'L' : 'M'}:${cell.isHybridHero ? 'H' : ''}:${cell.key}:${cell.label}:${cell.icon}:${cell.isPulsing}:${cell.valueClass}:${cell.valueText}:${cell.subClass}:${cell.subText}:${cell.sparkSig}:${dragHint || ''}`,
+        sigFn: (cell) => {
+          const p = cell.placement;
+          return `${locale}:${cell.textMode}:${p.size}:${p.isTrend ? 'T' : 'C'}:${p.isTall ? 'H' : p.isNarrow ? 'V' : ''}:${p.colStart}:${p.colSpan}:${p.rowStart}:${p.rowSpan}:${cell.isResizingThis ? 'R' : ''}:${cell.sizeBadgeText}:${cell.key}:${cell.label}:${cell.valueClass}:${cell.valueText}:${cell.subClass}:${cell.subText}:${cell.sparkSig}:${dragHint || ''}`;
+        },
         createRow: createMetricCellNode,
         updateRow: (refs, cell) => {
+          const p = cell.placement;
+          refs.setBoundKey(cell.key);
           patchAttr(refs.el, 'data-metric-key', cell.key);
-          patchAttr(refs.el, 'title', dragHint);
+          patchAttr(refs.el, 'data-card-size', p.size);
+          patchAttr(refs.el, 'data-col-span', String(p.colSpan));
+          patchAttr(refs.el, 'data-row-span', String(p.rowSpan));
+          patchAttr(refs.el, 'title', dragHint || (!cell.showTitle ? cell.label : null));
+          patchStyleVar(refs.el, '--cell-col-start', String(p.colStart));
+          patchStyleVar(refs.el, '--cell-col-span', String(p.colSpan));
+          patchStyleVar(refs.el, '--cell-row-start', String(p.rowStart));
+          patchStyleVar(refs.el, '--cell-row-span', String(p.rowSpan));
           patchClasses(refs.el, {
-            'is-trend-card': cell.isLargeTrend,
-            'is-hybrid-hero': Boolean(cell.isHybridHero),
+            'is-trend-card': cell.isTrend,
+            'is-wide-card': cell.isWide,
+            'is-narrow-card': cell.isNarrow,
+            'is-tall-card': cell.isTall,
+            'is-cell-resizing': cell.isResizingThis,
           });
+          patchAttr(refs.labelRowEl, 'hidden', !cell.showTitle);
           patchText(refs.labelSpan, cell.label);
-          patchSvgIcon(refs.iconSvg, cell.icon);
-          refs.iconSvg.setAttribute('width', String(cell.iconSize));
-          refs.iconSvg.setAttribute('height', String(cell.iconSize));
-          patchClasses(refs.iconSvg, { 'is-pulsing': Boolean(cell.isPulsing) });
 
-          patchAttr(refs.valueEl, 'hidden', cell.isLargeTrend);
-          patchAttr(refs.subEl, 'hidden', cell.isLargeTrend);
-          patchAttr(refs.trendRowEl, 'hidden', !cell.isLargeTrend);
+          if (refs.sizeBadgeEl) {
+            patchText(refs.sizeBadgeEl, cell.sizeBadgeText);
+            patchAttr(refs.sizeBadgeEl, 'hidden', !cell.isResizingThis);
+          }
+          if (refs.resizeHandleEl) {
+            patchAttr(refs.resizeHandleEl, 'aria-label', cell.resizeHandleAria);
+            patchAttr(refs.resizeHandleEl, 'title', cell.resizeHandleHint);
+            patchAttr(refs.resizeHandleEl, 'data-card-size', p.size);
+          }
 
-          if (!cell.isLargeTrend) {
+          patchAttr(refs.valueEl, 'hidden', cell.isTrend);
+          patchAttr(refs.subEl, 'hidden', cell.isTrend || !cell.showSub);
+          patchAttr(refs.trendMetricEl, 'hidden', !cell.isTrend);
+          patchAttr(refs.trendSubEl, 'hidden', !cell.isTrend || !cell.showSub);
+          patchAttr(refs.sparkWrapEl, 'hidden', !cell.isTrend);
+
+          if (!cell.isTrend) {
+            const isWordUnit = cell.valueUnit === 'tok/s' || cell.valueUnit === 't/s';
             patchAttr(refs.valueEl, 'class', cell.valueClass);
-            patchText(refs.valueEl, cell.valueText);
+            patchText(refs.valueMainEl, cell.valueMain);
+            patchText(refs.valueUnitEl, cell.valueUnit);
+            patchAttr(refs.valueUnitEl, 'hidden', !cell.valueUnit);
+            patchAttr(refs.valueUnitEl, 'data-unit-spaced', isWordUnit ? 'true' : null);
             patchAttr(refs.subEl, 'class', cell.subClass);
             patchText(refs.subEl, cell.subText);
             return;
@@ -29646,15 +31009,13 @@ const MetricMatrixWidget = defineComponent({
         },
       });
 
-      const showSplitter = isHybrid && colCount >= 2 && hasHybridResize;
-      if (showSplitter) {
-        if (splitterEl.parentNode !== matrixEl || matrixEl.lastChild !== splitterEl) {
-          matrixEl.appendChild(splitterEl);
-        }
-      } else if (splitterEl.parentNode === matrixEl) {
-        matrixEl.removeChild(splitterEl);
+      syncGhostCells(hasMetricResize ? layout.ghostCells : []);
+      if (dropPreviewEl && dropPreviewEl.parentNode === matrixEl && !activeDrag) {
+        hideDropPreview();
       }
-
+      if (beforeFlipRects && beforeFlipRects.size > 0) {
+        playFlipFrom(beforeFlipRects);
+      }
       syncObservedSparklineWraps(trendKeys);
     }
 
@@ -29669,14 +31030,19 @@ const MetricMatrixWidget = defineComponent({
     onCleanup(() => {
       teardownActiveResize({ revert: false });
       teardownActiveDrag({ revert: false, flushPending: false });
+      clearFlipAnimation();
+      clearResizePullVisual();
+      clearResizeClickSuppression();
       settleAnimator.clear();
+      hideDropPreview();
       if (pendingSparkResizeRafId && typeof cancelAnimationFrame === 'function') {
         cancelAnimationFrame(pendingSparkResizeRafId);
         pendingSparkResizeRafId = 0;
       }
       sparkResizeObserver?.disconnect();
       observedWrapToKey.clear();
-      measuredWrapWidthByKey.clear();
+      measuredWrapSizeByKey.clear();
+      ghostElPool.length = 0;
     });
 
     update({ data: null });
@@ -33604,8 +34970,8 @@ const OVERVIEW_WIDGET_REGISTRY = Object.freeze({
       getCtxAgentId,
       onPreviewMetrics,
       onReorderMetrics,
-      onPreviewHybridRatio,
-      onResizeHybridRatio,
+      onPreviewMetricSizes,
+      onResizeMetricSizes,
       onRequestVerticalDrag,
       canDragParentModule,
     }) =>
@@ -33616,8 +34982,8 @@ const OVERVIEW_WIDGET_REGISTRY = Object.freeze({
         getCtxAgentId,
         onPreviewMetrics,
         onReorderMetrics,
-        onPreviewHybridRatio,
-        onResizeHybridRatio,
+        onPreviewMetricSizes,
+        onResizeMetricSizes,
         onRequestVerticalDrag,
         canDragParentModule,
       }),
@@ -33674,8 +35040,8 @@ function createDynamicWidgetHost({
   onReorderModules = undefined,
   onPreviewMetrics = undefined,
   onReorderMetrics = undefined,
-  onPreviewHybridRatio = undefined,
-  onResizeHybridRatio = undefined,
+  onPreviewMetricSizes = undefined,
+  onResizeMetricSizes = undefined,
 }) {
   const instances = new Map();
   const modulePointerCleanups = new Map();
@@ -33864,8 +35230,8 @@ function createDynamicWidgetHost({
           setCtxAgentId,
           onPreviewMetrics,
           onReorderMetrics,
-          onPreviewHybridRatio,
-          onResizeHybridRatio,
+          onPreviewMetricSizes,
+          onResizeMetricSizes,
           onRequestVerticalDrag: hasModuleReorder
             ? (downEv, cx, cy) =>
                 startModuleDrag(downEv, 'metrics', {
@@ -38875,11 +40241,18 @@ function isNodeWithin(target, container) {
   return false;
 }
 
+function normalizeDimmedValues(raw) {
+  if (raw == null) return null;
+  if (raw instanceof Set) return new Set(raw);
+  if (Array.isArray(raw)) return new Set(raw);
+  return null;
+}
+
 const EditableSlotList = defineComponent({
   name: 'EditableSlotList',
   setup({ props, onCleanup }) {
     const minItems = Math.max(0, Number(props.minItems ?? 1));
-    const maxItems = Math.max(minItems, Number(props.maxItems ?? 5));
+    let maxItems = Math.max(minItems, Number(props.maxItems ?? 5));
     let currentItems = Array.isArray(props.items) ? [...props.items] : [];
     let currentOptions = Array.isArray(props.options) ? [...props.options] : [];
     let emptyHintText = String(props.emptyHintText || '');
@@ -38888,7 +40261,11 @@ const EditableSlotList = defineComponent({
       Number.isInteger(props.dimmedFromIndex) && props.dimmedFromIndex >= 0
         ? props.dimmedFromIndex
         : null;
+    let dimmedValuesSet = normalizeDimmedValues(props.dimmedValues);
     let dimmedTagText = String(props.dimmedTagText || '');
+    let getItemBadge = typeof props.getItemBadge === 'function' ? props.getItemBadge : null;
+    let onClickItemBadge =
+      typeof props.onClickItemBadge === 'function' ? props.onClickItemBadge : null;
     let activeDrag = null;
     const settleAnimator = createDropSettleAnimator('is-settling', ' scale(1.015)');
     let suppressClickTimer = null;
@@ -38923,6 +40300,13 @@ const EditableSlotList = defineComponent({
     const rootEl = h('div', { className: 'editable-slot-wrap' }, [emptyEl, listEl, footerEl]);
 
     const rowPool = [];
+
+    function isSlotDimmed(itemVal, visualSlot) {
+      if (dimmedValuesSet !== null) {
+        return dimmedValuesSet.has(itemVal);
+      }
+      return dimmedFromIndex !== null && visualSlot >= dimmedFromIndex;
+    }
 
     function clearSettleAnimation() {
       settleAnimator.clear();
@@ -38991,8 +40375,8 @@ const EditableSlotList = defineComponent({
       const count = startItems.length;
       const startIdx = initialRowIdx;
 
-      function applySlotDimState(entry, visualSlot) {
-        const isDimmed = dimmedFromIndex !== null && visualSlot >= dimmedFromIndex;
+      function applySlotDimState(entry, itemVal, visualSlot) {
+        const isDimmed = isSlotDimmed(itemVal, visualSlot);
         patchClasses(entry.rowEl, { 'is-dimmed': isDimmed });
         patchAttr(entry.dimmedTagEl, 'hidden', !isDimmed || !dimmedTagText);
         if (dimmedTagText) patchText(entry.dimmedTagEl, dimmedTagText);
@@ -39025,10 +40409,11 @@ const EditableSlotList = defineComponent({
         },
         onLayout: ({ perm }) => {
           for (let visualSlot = 0; visualSlot < perm.length; visualSlot += 1) {
-            const entry = rowPool[perm[visualSlot]];
+            const origIdx = perm[visualSlot];
+            const entry = rowPool[origIdx];
             if (!entry) continue;
             patchText(entry.indexBadge, String(visualSlot + 1));
-            applySlotDimState(entry, visualSlot);
+            applySlotDimState(entry, startItems[origIdx], visualSlot);
           }
         },
         onPreview: (working) => {
@@ -39075,6 +40460,20 @@ const EditableSlotList = defineComponent({
           const next = [...currentItems];
           next[rowIndex] = nextVal;
           emitChange(next);
+        },
+      });
+
+      const itemBadgeBtn = h('button', {
+        type: 'button',
+        className: 'slot-size-pill',
+        hidden: true,
+        text: '',
+        onClick: (e) => {
+          e.stopPropagation();
+          const val = currentItems[rowIndex];
+          if (val !== undefined) {
+            onClickItemBadge?.(val, rowIndex);
+          }
         },
       });
 
@@ -39139,12 +40538,13 @@ const EditableSlotList = defineComponent({
           className: 'editable-slot-row',
           onPointerdown: (e) => {
             if (isNodeWithin(e?.target, orderBtnsEl)) return;
+            if (isNodeWithin(e?.target, itemBadgeBtn)) return;
             if (selectMenuEl && isNodeWithin(e?.target, selectMenuEl)) return;
             const onSelectTrigger = isNodeWithin(e?.target, selectComp.el);
             startPointerDrag(e, rowIndex, { threshold: onSelectTrigger ? 5 : 3 });
           },
         },
-        [dragHandle, indexBadge, selectComp.el, dimmedTagEl, orderBtnsEl]
+        [dragHandle, indexBadge, selectComp.el, dimmedTagEl, itemBadgeBtn, orderBtnsEl]
       );
       if (typeof rowEl.addEventListener === 'function') {
         rowEl.addEventListener(
@@ -39164,6 +40564,7 @@ const EditableSlotList = defineComponent({
         dragHandle,
         indexBadge,
         dimmedTagEl,
+        itemBadgeBtn,
         selectComp,
         upBtn,
         downBtn,
@@ -39203,14 +40604,28 @@ const EditableSlotList = defineComponent({
         const entry = rowPool[i];
         const itemVal = currentItems[i];
         entry.setIndex(i);
-        const isDimmed = dimmedFromIndex !== null && i >= dimmedFromIndex;
+        const isDimmed = isSlotDimmed(itemVal, i);
         patchAttr(entry.rowEl, 'data-slot-row', String(i));
+        patchAttr(entry.rowEl, 'data-slot-value', String(itemVal));
         patchClasses(entry.rowEl, { 'is-dimmed': isDimmed });
         patchText(entry.indexBadge, String(i + 1));
         patchAttr(entry.dimmedTagEl, 'hidden', !isDimmed || !dimmedTagText);
         if (dimmedTagText) {
           patchText(entry.dimmedTagEl, dimmedTagText);
         }
+
+        const badge = getItemBadge ? getItemBadge(itemVal, i) : null;
+        if (badge && badge.text) {
+          patchAttr(entry.itemBadgeBtn, 'hidden', false);
+          patchText(entry.itemBadgeBtn, badge.text);
+          patchAttr(entry.itemBadgeBtn, 'title', badge.title || null);
+          patchAttr(entry.itemBadgeBtn, 'aria-label', badge.ariaLabel || badge.title || badge.text);
+          patchAttr(entry.itemBadgeBtn, 'data-badge-tone', badge.tone || null);
+          patchClasses(entry.itemBadgeBtn, { 'is-active': Boolean(badge.active) });
+        } else {
+          patchAttr(entry.itemBadgeBtn, 'hidden', true);
+        }
+
         patchClasses(entry.dragHandle, { 'is-disabled': !canDrag });
         patchAttr(entry.dragHandle, 'title', dragTitle || null);
 
@@ -39269,6 +40684,9 @@ const EditableSlotList = defineComponent({
       if (Array.isArray(next.options)) {
         currentOptions = [...next.options];
       }
+      if (next.maxItems !== undefined && Number.isFinite(Number(next.maxItems))) {
+        maxItems = Math.max(minItems, Number(next.maxItems));
+      }
       if (next.emptyHintText !== undefined) {
         emptyHintText = String(next.emptyHintText || '');
       }
@@ -39281,11 +40699,32 @@ const EditableSlotList = defineComponent({
             ? next.dimmedFromIndex
             : null;
       }
+      if (next.dimmedValues !== undefined) {
+        dimmedValuesSet = normalizeDimmedValues(next.dimmedValues);
+      }
       if (next.dimmedTagText !== undefined) {
         dimmedTagText = String(next.dimmedTagText || '');
       }
+      if (next.getItemBadge !== undefined) {
+        getItemBadge = typeof next.getItemBadge === 'function' ? next.getItemBadge : null;
+      }
+      if (next.onClickItemBadge !== undefined) {
+        onClickItemBadge =
+          typeof next.onClickItemBadge === 'function' ? next.onClickItemBadge : null;
+      }
       if (activeDrag) {
         pendingSyncAfterDrag = true;
+        if (next.dimmedValues !== undefined || next.dimmedFromIndex !== undefined) {
+          for (let k = 0; k < activeDrag.startItems.length; k += 1) {
+            const entry = rowPool[k];
+            if (!entry) continue;
+            const itemVal = activeDrag.startItems[k];
+            const isDimmed = isSlotDimmed(itemVal, k);
+            patchClasses(entry.rowEl, { 'is-dimmed': isDimmed });
+            patchAttr(entry.dimmedTagEl, 'hidden', !isDimmed || !dimmedTagText);
+            if (dimmedTagText) patchText(entry.dimmedTagEl, dimmedTagText);
+          }
+        }
         return;
       }
       syncRows();
@@ -43313,11 +44752,19 @@ function getMultiSessionModeOptions() {
   ];
 }
 
-function getHoverMetricStyleOptions() {
+function getMetricRowsOptions() {
   return [
-    { value: 'medium', label: t('settings.str.hoverMetricStyleMedium') },
-    { value: 'hybrid', label: t('settings.str.hoverMetricStyleHybrid') },
-    { value: 'large', label: t('settings.str.hoverMetricStyleLarge') },
+    { value: '1', label: t('settings.str.metricRows1') },
+    { value: '2', label: t('settings.str.metricRows2') },
+  ];
+}
+
+function getMetricTextModeOptions() {
+  return [
+    { value: 'both', label: t('settings.str.metricTextBoth') },
+    { value: 'title', label: t('settings.str.metricTextTitle') },
+    { value: 'sub', label: t('settings.str.metricTextSub') },
+    { value: 'none', label: t('settings.str.metricTextNone') },
   ];
 }
 
@@ -43334,6 +44781,62 @@ function isSameList(a, b) {
     if (a[i] !== b[i]) return false;
   }
   return true;
+}
+
+function isSameSizeMap(a, b) {
+  const left = a && typeof a === 'object' ? a : {};
+  const right = b && typeof b === 'object' ? b : {};
+  const keys = Object.keys(left);
+  if (keys.length !== Object.keys(right).length) return false;
+  for (const k of keys) {
+    if (left[k] !== right[k]) return false;
+  }
+  return true;
+}
+
+function formatMetricSizePillSpec(metricKey, rows, sizesMap) {
+  const raw = normalizeClientMetricCardSize(sizesMap?.[metricKey]);
+  const eff = rows === 1 ? (raw === 'tall' ? 'wide' : raw === 'narrow' ? 'sm' : raw) : raw;
+  const text =
+    eff === 'tall'
+      ? t('settings.str.metricSizeTall')
+      : eff === 'narrow'
+        ? t('settings.str.metricSizeNarrow')
+        : eff === 'wide'
+          ? t('settings.str.metricSizeWide')
+          : t('settings.str.metricSizeSm');
+  return {
+    text,
+    title: t('settings.str.metricSizePillHint'),
+    ariaLabel: `${text} · ${t('settings.str.metricSizePillHint')}`,
+    active: eff !== 'sm',
+    tone: eff,
+  };
+}
+
+function cycleDraftMetricCardSize(baseSizes, metricKey, rows) {
+  const curRaw = normalizeClientMetricCardSize(baseSizes?.[metricKey]);
+  const curEff =
+    rows === 1 ? (curRaw === 'tall' ? 'wide' : curRaw === 'narrow' ? 'sm' : curRaw) : curRaw;
+  const nextSize =
+    rows === 2
+      ? curEff === 'sm'
+        ? 'wide'
+        : curEff === 'wide'
+          ? 'narrow'
+          : curEff === 'narrow'
+            ? 'tall'
+            : 'sm'
+      : curEff === 'sm'
+        ? 'wide'
+        : 'sm';
+  const next = { ...(baseSizes || {}) };
+  if (nextSize === 'sm') {
+    delete next[metricKey];
+  } else {
+    next[metricKey] = nextSize;
+  }
+  return next;
 }
 
 function formatCliPreviewSlot(slotKey, slotCtx) {
@@ -43470,12 +44973,14 @@ const SettingsStructureTab = defineComponent({
     let draftTopbarSlots = [...DEFAULT_CLIENT_TOPBAR_SLOTS];
     let draftHoverModules = [...DEFAULT_CLIENT_HOVER_MODULES];
     let draftHoverSyncOverview = DEFAULT_CLIENT_HOVER_SYNC_OVERVIEW_METRICS;
-    let draftHoverMetricStyle = DEFAULT_CLIENT_HOVER_METRIC_STYLE;
-    let draftHoverMetricHybridRatio = DEFAULT_CLIENT_HOVER_METRIC_HYBRID_RATIO;
+    let draftHoverMetricRows = DEFAULT_CLIENT_HOVER_METRIC_ROWS;
+    let draftHoverMetricSizes = { ...DEFAULT_CLIENT_HOVER_METRIC_SIZES };
+    let draftHoverMetricTextMode = DEFAULT_CLIENT_HOVER_METRIC_TEXT_MODE;
     let draftHoverMetrics = [...DEFAULT_CLIENT_HOVER_METRICS];
     let draftOverviewModules = [...DEFAULT_CLIENT_OVERVIEW_MODULES];
-    let draftOverviewMetricStyle = DEFAULT_CLIENT_OVERVIEW_METRIC_STYLE;
-    let draftOverviewMetricHybridRatio = DEFAULT_CLIENT_OVERVIEW_METRIC_HYBRID_RATIO;
+    let draftOverviewMetricRows = DEFAULT_CLIENT_OVERVIEW_METRIC_ROWS;
+    let draftOverviewMetricSizes = { ...DEFAULT_CLIENT_OVERVIEW_METRIC_SIZES };
+    let draftOverviewMetricTextMode = DEFAULT_CLIENT_OVERVIEW_METRIC_TEXT_MODE;
     let draftOverviewMetrics = [...DEFAULT_CLIENT_OVERVIEW_METRICS];
     let draftQuotaDisplayMode = DEFAULT_CLIENT_QUOTA_DISPLAY_MODE;
     let draftShowStepTurnRail = false;
@@ -43509,6 +45014,16 @@ const SettingsStructureTab = defineComponent({
         hasArgonWeeklyQuotaPool(latestQuotas) ||
         draftTopbarSlots.includes('argon_weekly') ||
         effectiveCliSlots.includes('argon_weekly');
+      const hoverStyle = deriveClientMetricCardStyle(
+        draftHoverMetricRows,
+        draftHoverMetrics,
+        draftHoverMetricSizes
+      );
+      const overviewStyle = deriveClientMetricCardStyle(
+        draftOverviewMetricRows,
+        draftOverviewMetrics,
+        draftOverviewMetricSizes
+      );
       return buildStructurePreviewTelemetry(
         latestSettings,
         {
@@ -43523,12 +45038,16 @@ const SettingsStructureTab = defineComponent({
           topbarCapsuleSlots: draftTopbarSlots,
           hoverModules: draftHoverModules,
           hoverSyncOverviewMetrics: draftHoverSyncOverview,
-          hoverMetricStyle: draftHoverMetricStyle,
-          hoverMetricHybridRatio: draftHoverMetricHybridRatio,
+          hoverMetricRows: draftHoverMetricRows,
+          hoverMetricSizes: { ...draftHoverMetricSizes },
+          hoverMetricTextMode: draftHoverMetricTextMode,
+          hoverMetricStyle: hoverStyle,
           hoverMetrics: draftHoverMetrics,
           overviewModules: draftOverviewModules,
-          overviewMetricStyle: draftOverviewMetricStyle,
-          overviewMetricHybridRatio: draftOverviewMetricHybridRatio,
+          overviewMetricRows: draftOverviewMetricRows,
+          overviewMetricSizes: { ...draftOverviewMetricSizes },
+          overviewMetricTextMode: draftOverviewMetricTextMode,
+          overviewMetricStyle: overviewStyle,
           overviewMetrics: draftOverviewMetrics,
           quotaDisplayMode: draftQuotaDisplayMode,
           showStepTurnRail: draftShowStepTurnRail,
@@ -44144,22 +45663,124 @@ const SettingsStructureTab = defineComponent({
       hidden: true,
       text: t('settings.str.hoverEmptyHint'),
     });
-    const syncHoverMetricListProps = () =>
+    function getEffectiveHoverMetricRows() {
+      return draftHoverSyncOverview ? draftOverviewMetricRows : draftHoverMetricRows;
+    }
+
+    function getEffectiveHoverMetricSizes() {
+      return draftHoverSyncOverview ? draftOverviewMetricSizes : draftHoverMetricSizes;
+    }
+
+    function getEffectiveHoverMetricTextMode() {
+      return draftHoverSyncOverview ? draftOverviewMetricTextMode : draftHoverMetricTextMode;
+    }
+
+    function getEffectiveHoverMetrics() {
+      return draftHoverSyncOverview ? draftOverviewMetrics : draftHoverMetrics;
+    }
+
+    function getEffectiveHoverLayout() {
+      return packClientMetricBentoLayout({
+        rows: getEffectiveHoverMetricRows(),
+        metrics: getEffectiveHoverMetrics(),
+        sizes: getEffectiveHoverMetricSizes(),
+      });
+    }
+
+    function getEffectiveOverviewLayout() {
+      return packClientMetricBentoLayout({
+        rows: draftOverviewMetricRows,
+        metrics: draftOverviewMetrics,
+        sizes: draftOverviewMetricSizes,
+      });
+    }
+
+    const commitHoverMetricSizes = (nextSizes) => {
+      const normalized = normalizeClientHoverMetricSizes(nextSizes);
+      if (draftHoverSyncOverview) {
+        draftOverviewMetricSizes = normalized;
+        syncOverviewSectionMeta();
+        syncHoverSectionMeta();
+        props.onLayoutChange?.();
+        void persistStructurePatch(hoverSection, {
+          overviewMetricRows: draftOverviewMetricRows,
+          overviewMetricSizes: { ...draftOverviewMetricSizes },
+          overviewMetricStyle: deriveClientMetricCardStyle(
+            draftOverviewMetricRows,
+            draftOverviewMetrics,
+            draftOverviewMetricSizes
+          ),
+        });
+      } else {
+        draftHoverMetricSizes = normalized;
+        syncHoverSectionMeta();
+        props.onLayoutChange?.();
+        void persistStructurePatch(hoverSection, {
+          hoverMetricRows: draftHoverMetricRows,
+          hoverMetricSizes: { ...draftHoverMetricSizes },
+          hoverMetricStyle: deriveClientMetricCardStyle(
+            draftHoverMetricRows,
+            draftHoverMetrics,
+            draftHoverMetricSizes
+          ),
+        });
+      }
+    };
+
+    const commitOverviewMetricSizes = (nextSizes) => {
+      draftOverviewMetricSizes = normalizeClientOverviewMetricSizes(nextSizes);
+      syncOverviewSectionMeta();
+      if (draftHoverSyncOverview) syncHoverSectionMeta();
+      props.onLayoutChange?.();
+      void persistStructurePatch(overviewSection, {
+        overviewMetricRows: draftOverviewMetricRows,
+        overviewMetricSizes: { ...draftOverviewMetricSizes },
+        overviewMetricStyle: deriveClientMetricCardStyle(
+          draftOverviewMetricRows,
+          draftOverviewMetrics,
+          draftOverviewMetricSizes
+        ),
+      });
+    };
+
+    const syncHoverMetricListProps = () => {
+      const rows = getEffectiveHoverMetricRows();
+      const metrics = getEffectiveHoverMetrics();
+      const sizes = getEffectiveHoverMetricSizes();
+      const layout = packClientMetricBentoLayout({ rows, metrics, sizes });
+      const maxSlots = rows === 2 ? MAX_CLIENT_OVERVIEW_METRICS : Math.max(4, metrics.length);
       hoverMetricsList.refs.setProps({
-        items: getEffectiveHoverMetrics(),
+        items: metrics,
         options: getOverviewMetricOptions(),
-        dimmedFromIndex: getEffectiveHoverMetricStyle() === 'large' ? MAX_CLIENT_LARGE_METRIC_SLOTS : null,
+        maxItems: maxSlots,
+        dimmedValues: layout.overflowKeys,
         dimmedTagText: t('settings.str.metricOverflowTag'),
+        getItemBadge: (key) => formatMetricSizePillSpec(key, rows, sizes),
+        onClickItemBadge: (key) =>
+          commitHoverMetricSizes(cycleDraftMetricCardSize(getEffectiveHoverMetricSizes(), key, getEffectiveHoverMetricRows())),
         addBtnTextFn: (count, max) => t('settings.str.addOverviewMetric', { count, max }),
       });
-    const syncOverviewMetricListProps = () =>
+    };
+    const syncOverviewMetricListProps = () => {
+      const rows = draftOverviewMetricRows;
+      const metrics = draftOverviewMetrics;
+      const sizes = draftOverviewMetricSizes;
+      const layout = packClientMetricBentoLayout({ rows, metrics, sizes });
+      const maxSlots = rows === 2 ? MAX_CLIENT_OVERVIEW_METRICS : Math.max(4, metrics.length);
       overviewMetricsList.refs.setProps({
-        items: draftOverviewMetrics,
+        items: metrics,
         options: getOverviewMetricOptions(),
-        dimmedFromIndex: draftOverviewMetricStyle === 'large' ? MAX_CLIENT_LARGE_METRIC_SLOTS : null,
+        maxItems: maxSlots,
+        dimmedValues: layout.overflowKeys,
         dimmedTagText: t('settings.str.metricOverflowTag'),
+        getItemBadge: (key) => formatMetricSizePillSpec(key, rows, sizes),
+        onClickItemBadge: (key) =>
+          commitOverviewMetricSizes(
+            cycleDraftMetricCardSize(draftOverviewMetricSizes, key, draftOverviewMetricRows)
+          ),
         addBtnTextFn: (count, max) => t('settings.str.addOverviewMetric', { count, max }),
       });
+    };
     const commitHoverMetricsOrder = (nextMetrics) => {
       const normalized = normalizeClientHoverMetrics(nextMetrics);
       if (draftHoverSyncOverview) {
@@ -44167,12 +45788,30 @@ const SettingsStructureTab = defineComponent({
         syncOverviewSectionMeta();
         syncHoverSectionMeta();
         props.onLayoutChange?.();
-        void persistStructurePatch(hoverSection, { overviewMetrics: draftOverviewMetrics });
+        void persistStructurePatch(hoverSection, {
+          overviewMetrics: draftOverviewMetrics,
+          overviewMetricRows: draftOverviewMetricRows,
+          overviewMetricSizes: { ...draftOverviewMetricSizes },
+          overviewMetricStyle: deriveClientMetricCardStyle(
+            draftOverviewMetricRows,
+            draftOverviewMetrics,
+            draftOverviewMetricSizes
+          ),
+        });
       } else {
         draftHoverMetrics = normalized;
         syncHoverSectionMeta();
         props.onLayoutChange?.();
-        void persistStructurePatch(hoverSection, { hoverMetrics: draftHoverMetrics });
+        void persistStructurePatch(hoverSection, {
+          hoverMetrics: draftHoverMetrics,
+          hoverMetricRows: draftHoverMetricRows,
+          hoverMetricSizes: { ...draftHoverMetricSizes },
+          hoverMetricStyle: deriveClientMetricCardStyle(
+            draftHoverMetricRows,
+            draftHoverMetrics,
+            draftHoverMetricSizes
+          ),
+        });
       }
     };
     const commitOverviewMetricsOrder = (nextMetrics) => {
@@ -44180,31 +45819,15 @@ const SettingsStructureTab = defineComponent({
       syncOverviewSectionMeta();
       if (draftHoverSyncOverview) syncHoverSectionMeta();
       props.onLayoutChange?.();
-      void persistStructurePatch(overviewSection, { overviewMetrics: draftOverviewMetrics });
-    };
-    const commitHoverHybridRatio = (nextRatio) => {
-      const normalized = normalizeClientHoverMetricHybridRatio(nextRatio);
-      if (draftHoverSyncOverview) {
-        draftOverviewMetricHybridRatio = normalized;
-        syncOverviewSectionMeta();
-        syncHoverSectionMeta();
-        void persistStructurePatch(hoverSection, {
-          overviewMetricHybridRatio: draftOverviewMetricHybridRatio,
-        });
-      } else {
-        draftHoverMetricHybridRatio = normalized;
-        syncHoverSectionMeta();
-        void persistStructurePatch(hoverSection, {
-          hoverMetricHybridRatio: draftHoverMetricHybridRatio,
-        });
-      }
-    };
-    const commitOverviewHybridRatio = (nextRatio) => {
-      draftOverviewMetricHybridRatio = normalizeClientOverviewMetricHybridRatio(nextRatio);
-      syncOverviewSectionMeta();
-      if (draftHoverSyncOverview) syncHoverSectionMeta();
       void persistStructurePatch(overviewSection, {
-        overviewMetricHybridRatio: draftOverviewMetricHybridRatio,
+        overviewMetrics: draftOverviewMetrics,
+        overviewMetricRows: draftOverviewMetricRows,
+        overviewMetricSizes: { ...draftOverviewMetricSizes },
+        overviewMetricStyle: deriveClientMetricCardStyle(
+          draftOverviewMetricRows,
+          draftOverviewMetrics,
+          draftOverviewMetricSizes
+        ),
       });
     };
 
@@ -44242,16 +45865,18 @@ const SettingsStructureTab = defineComponent({
         syncHoverMetricListProps();
       },
       onReorderMetrics: commitHoverMetricsOrder,
-      onPreviewHybridRatio: (previewRatio) => {
-        const normalized = normalizeClientHoverMetricHybridRatio(previewRatio);
+      onPreviewMetricSizes: (previewSizes) => {
+        const normalized = normalizeClientHoverMetricSizes(previewSizes);
         if (draftHoverSyncOverview) {
-          draftOverviewMetricHybridRatio = normalized;
+          draftOverviewMetricSizes = normalized;
+          syncOverviewMetricListProps();
           refreshOverviewPreview();
         } else {
-          draftHoverMetricHybridRatio = normalized;
+          draftHoverMetricSizes = normalized;
         }
+        syncHoverMetricListProps();
       },
-      onResizeHybridRatio: commitHoverHybridRatio,
+      onResizeMetricSizes: commitHoverMetricSizes,
     });
     const hoverPreviewCanvas = h('div', { className: 'structure-preview-canvas' }, [
       hoverPreviewTipEl,
@@ -44262,9 +45887,13 @@ const SettingsStructureTab = defineComponent({
       className: 'form-label',
       text: t('settings.str.hoverModulesLabel'),
     });
-    const hoverMetricStyleLabelEl = h('span', {
+    const hoverMetricRowsLabelEl = h('span', {
       className: 'form-label',
-      text: t('settings.str.hoverMetricStyleLabel'),
+      text: t('settings.str.metricHeightLabel'),
+    });
+    const hoverMetricTextModeLabelEl = h('span', {
+      className: 'form-label',
+      text: t('settings.str.metricTextModeLabel'),
     });
     const hoverSyncOverviewLabelEl = h('span', {
       className: 'form-label',
@@ -44280,35 +45909,65 @@ const SettingsStructureTab = defineComponent({
       text: t('settings.str.hoverMetricsLabel'),
     });
 
-    function getEffectiveHoverMetricStyle() {
-      return draftHoverSyncOverview ? draftOverviewMetricStyle : draftHoverMetricStyle;
-    }
-
-    function getEffectiveHoverMetrics() {
-      return draftHoverSyncOverview ? draftOverviewMetrics : draftHoverMetrics;
-    }
-
-    const hoverMetricStyleSwitch = SegmentedControl({
-      ariaLabel: t('settings.str.hoverMetricStyleLabel'),
-      modelValue: getEffectiveHoverMetricStyle(),
-      options: getHoverMetricStyleOptions(),
+    const hoverMetricRowsSwitch = SegmentedControl({
+      ariaLabel: t('settings.str.metricHeightLabel'),
+      modelValue: String(getEffectiveHoverMetricRows()),
+      options: getMetricRowsOptions(),
       onUpdateModelValue: (val) => {
-        const nextStyle = normalizeClientHoverMetricStyle(val);
-        if (nextStyle === getEffectiveHoverMetricStyle()) return;
+        const nextRows = normalizeClientHoverMetricRows(val);
+        if (nextRows === getEffectiveHoverMetricRows()) return;
         if (draftHoverSyncOverview) {
-          draftOverviewMetricStyle = nextStyle;
+          draftOverviewMetricRows = nextRows;
           syncOverviewSectionMeta();
           syncHoverSectionMeta();
           props.onLayoutChange?.();
           void persistStructurePatch(hoverSection, {
-            overviewMetricStyle: draftOverviewMetricStyle,
+            overviewMetricRows: draftOverviewMetricRows,
+            overviewMetricSizes: { ...draftOverviewMetricSizes },
+            overviewMetricStyle: deriveClientMetricCardStyle(
+              draftOverviewMetricRows,
+              draftOverviewMetrics,
+              draftOverviewMetricSizes
+            ),
           });
         } else {
-          draftHoverMetricStyle = nextStyle;
+          draftHoverMetricRows = nextRows;
           syncHoverSectionMeta();
           props.onLayoutChange?.();
           void persistStructurePatch(hoverSection, {
-            hoverMetricStyle: draftHoverMetricStyle,
+            hoverMetricRows: draftHoverMetricRows,
+            hoverMetricSizes: { ...draftHoverMetricSizes },
+            hoverMetricStyle: deriveClientMetricCardStyle(
+              draftHoverMetricRows,
+              draftHoverMetrics,
+              draftHoverMetricSizes
+            ),
+          });
+        }
+      },
+    });
+
+    const hoverMetricTextModeSwitch = SegmentedControl({
+      ariaLabel: t('settings.str.metricTextModeLabel'),
+      modelValue: getEffectiveHoverMetricTextMode(),
+      options: getMetricTextModeOptions(),
+      onUpdateModelValue: (val) => {
+        const nextMode = normalizeClientHoverMetricTextMode(val);
+        if (nextMode === getEffectiveHoverMetricTextMode()) return;
+        if (draftHoverSyncOverview) {
+          draftOverviewMetricTextMode = nextMode;
+          syncOverviewSectionMeta();
+          syncHoverSectionMeta();
+          props.onLayoutChange?.();
+          void persistStructurePatch(hoverSection, {
+            overviewMetricTextMode: draftOverviewMetricTextMode,
+          });
+        } else {
+          draftHoverMetricTextMode = nextMode;
+          syncHoverSectionMeta();
+          props.onLayoutChange?.();
+          void persistStructurePatch(hoverSection, {
+            hoverMetricTextMode: draftHoverMetricTextMode,
           });
         }
       },
@@ -44323,16 +45982,23 @@ const SettingsStructureTab = defineComponent({
         if (nextSync === draftHoverSyncOverview) return;
         if (!nextSync) {
 
-          draftHoverMetricStyle = draftOverviewMetricStyle;
-          draftHoverMetricHybridRatio = draftOverviewMetricHybridRatio;
+          draftHoverMetricRows = draftOverviewMetricRows;
+          draftHoverMetricSizes = { ...draftOverviewMetricSizes };
+          draftHoverMetricTextMode = draftOverviewMetricTextMode;
           draftHoverMetrics = [...draftOverviewMetrics];
           draftHoverSyncOverview = false;
           syncHoverSectionMeta();
           props.onLayoutChange?.();
           void persistStructurePatch(hoverSection, {
             hoverSyncOverviewMetrics: false,
-            hoverMetricStyle: draftHoverMetricStyle,
-            hoverMetricHybridRatio: draftHoverMetricHybridRatio,
+            hoverMetricRows: draftHoverMetricRows,
+            hoverMetricSizes: { ...draftHoverMetricSizes },
+            hoverMetricTextMode: draftHoverMetricTextMode,
+            hoverMetricStyle: deriveClientMetricCardStyle(
+              draftHoverMetricRows,
+              draftHoverMetrics,
+              draftHoverMetricSizes
+            ),
             hoverMetrics: draftHoverMetrics,
           });
         } else {
@@ -44351,18 +46017,31 @@ const SettingsStructureTab = defineComponent({
       options: getOverviewMetricOptions(),
       minItems: 1,
       maxItems: 4,
-      dimmedFromIndex:
-        getEffectiveHoverMetricStyle() === 'large' ? MAX_CLIENT_LARGE_METRIC_SLOTS : null,
+      dimmedValues: getEffectiveHoverLayout().overflowKeys,
       dimmedTagText: t('settings.str.metricOverflowTag'),
+      getItemBadge: (key) =>
+        formatMetricSizePillSpec(key, getEffectiveHoverMetricRows(), getEffectiveHoverMetricSizes()),
+      onClickItemBadge: (key) =>
+        commitHoverMetricSizes(
+          cycleDraftMetricCardSize(
+            getEffectiveHoverMetricSizes(),
+            key,
+            getEffectiveHoverMetricRows()
+          )
+        ),
       addBtnTextFn: (count, max) => t('settings.str.addOverviewMetric', { count, max }),
       onPreview: (previewItems) => {
         const normalized = normalizeClientHoverMetrics(previewItems);
         if (draftHoverSyncOverview) {
           draftOverviewMetrics = normalized;
+          syncOverviewMetricListProps();
           refreshOverviewPreview();
         } else {
           draftHoverMetrics = normalized;
         }
+        hoverMetricsList.refs.setProps({
+          dimmedValues: getEffectiveHoverLayout().overflowKeys,
+        });
         refreshHoverPreview();
       },
       onChange: commitHoverMetricsOrder,
@@ -44398,8 +46077,9 @@ const SettingsStructureTab = defineComponent({
       onReset: () => {
         draftHoverModules = [...DEFAULT_CLIENT_HOVER_MODULES];
         draftHoverSyncOverview = DEFAULT_CLIENT_HOVER_SYNC_OVERVIEW_METRICS;
-        draftHoverMetricStyle = DEFAULT_CLIENT_HOVER_METRIC_STYLE;
-        draftHoverMetricHybridRatio = DEFAULT_CLIENT_HOVER_METRIC_HYBRID_RATIO;
+        draftHoverMetricRows = DEFAULT_CLIENT_HOVER_METRIC_ROWS;
+        draftHoverMetricSizes = { ...DEFAULT_CLIENT_HOVER_METRIC_SIZES };
+        draftHoverMetricTextMode = DEFAULT_CLIENT_HOVER_METRIC_TEXT_MODE;
         draftHoverMetrics = [...DEFAULT_CLIENT_HOVER_METRICS];
         syncHoverSectionMeta();
         props.onLayoutChange?.();
@@ -44408,8 +46088,14 @@ const SettingsStructureTab = defineComponent({
           {
             hoverModules: [...DEFAULT_CLIENT_HOVER_MODULES],
             hoverSyncOverviewMetrics: DEFAULT_CLIENT_HOVER_SYNC_OVERVIEW_METRICS,
-            hoverMetricStyle: DEFAULT_CLIENT_HOVER_METRIC_STYLE,
-            hoverMetricHybridRatio: DEFAULT_CLIENT_HOVER_METRIC_HYBRID_RATIO,
+            hoverMetricRows: DEFAULT_CLIENT_HOVER_METRIC_ROWS,
+            hoverMetricSizes: { ...DEFAULT_CLIENT_HOVER_METRIC_SIZES },
+            hoverMetricTextMode: DEFAULT_CLIENT_HOVER_METRIC_TEXT_MODE,
+            hoverMetricStyle: deriveClientMetricCardStyle(
+              DEFAULT_CLIENT_HOVER_METRIC_ROWS,
+              DEFAULT_CLIENT_HOVER_METRICS,
+              DEFAULT_CLIENT_HOVER_METRIC_SIZES
+            ),
             hoverMetrics: [...DEFAULT_CLIENT_HOVER_METRICS],
           },
           'settings.resetDone'
@@ -44420,8 +46106,12 @@ const SettingsStructureTab = defineComponent({
         h('div', { className: 'settings-divider' }),
         h('div', { className: 'form-row' }, [
           h('div', { className: 'settings-inline-row is-wrap-narrow' }, [
-            hoverMetricStyleLabelEl,
-            hoverMetricStyleSwitch.el,
+            hoverMetricRowsLabelEl,
+            hoverMetricRowsSwitch.el,
+          ]),
+          h('div', { className: 'settings-inline-row is-wrap-narrow' }, [
+            hoverMetricTextModeLabelEl,
+            hoverMetricTextModeSwitch.el,
           ]),
           h('div', { className: 'settings-inline-row' }, [
             hoverSyncOverviewLabelEl,
@@ -44449,13 +46139,19 @@ const SettingsStructureTab = defineComponent({
     }
 
     function syncHoverSectionMeta() {
-      const effectiveStyle = getEffectiveHoverMetricStyle();
+      const effectiveRows = getEffectiveHoverMetricRows();
+      const effectiveTextMode = getEffectiveHoverMetricTextMode();
       const metricsEnabled = draftHoverModules.includes('metrics');
 
-      hoverMetricStyleSwitch.setProps({
-        modelValue: effectiveStyle,
-        options: getHoverMetricStyleOptions(),
-        ariaLabel: t('settings.str.hoverMetricStyleLabel'),
+      hoverMetricRowsSwitch.setProps({
+        modelValue: String(effectiveRows),
+        options: getMetricRowsOptions(),
+        ariaLabel: t('settings.str.metricHeightLabel'),
+      });
+      hoverMetricTextModeSwitch.setProps({
+        modelValue: effectiveTextMode,
+        options: getMetricTextModeOptions(),
+        ariaLabel: t('settings.str.metricTextModeLabel'),
       });
       hoverSyncOverviewToggle.setProps({
         modelValue: draftHoverSyncOverview ? 'on' : 'off',
@@ -44477,8 +46173,9 @@ const SettingsStructureTab = defineComponent({
       const isDefault =
         isSameList(draftHoverModules, DEFAULT_CLIENT_HOVER_MODULES) &&
         draftHoverSyncOverview === DEFAULT_CLIENT_HOVER_SYNC_OVERVIEW_METRICS &&
-        draftHoverMetricStyle === DEFAULT_CLIENT_HOVER_METRIC_STYLE &&
-        draftHoverMetricHybridRatio === DEFAULT_CLIENT_HOVER_METRIC_HYBRID_RATIO &&
+        draftHoverMetricRows === DEFAULT_CLIENT_HOVER_METRIC_ROWS &&
+        isSameSizeMap(draftHoverMetricSizes, DEFAULT_CLIENT_HOVER_METRIC_SIZES) &&
+        draftHoverMetricTextMode === DEFAULT_CLIENT_HOVER_METRIC_TEXT_MODE &&
         isSameList(draftHoverMetrics, DEFAULT_CLIENT_HOVER_METRICS);
       hoverSection.refs.setResetDisabled(isDefault);
       refreshHoverPreview();
@@ -44511,21 +46208,27 @@ const SettingsStructureTab = defineComponent({
         }
       },
       onReorderMetrics: commitOverviewMetricsOrder,
-      onPreviewHybridRatio: (previewRatio) => {
-        draftOverviewMetricHybridRatio = normalizeClientOverviewMetricHybridRatio(previewRatio);
+      onPreviewMetricSizes: (previewSizes) => {
+        draftOverviewMetricSizes = normalizeClientOverviewMetricSizes(previewSizes);
+        syncOverviewMetricListProps();
         if (draftHoverSyncOverview) {
+          syncHoverMetricListProps();
           refreshHoverPreview();
         }
       },
-      onResizeHybridRatio: commitOverviewHybridRatio,
+      onResizeMetricSizes: commitOverviewMetricSizes,
     });
     const overviewPreviewCanvas = h('div', { className: 'structure-preview-canvas' }, [
       overviewPreviewContainerEl,
     ]);
 
-    const overviewMetricStyleLabelEl = h('span', {
+    const overviewMetricRowsLabelEl = h('span', {
       className: 'form-label',
-      text: t('settings.str.hoverMetricStyleLabel'),
+      text: t('settings.str.metricHeightLabel'),
+    });
+    const overviewMetricTextModeLabelEl = h('span', {
+      className: 'form-label',
+      text: t('settings.str.metricTextModeLabel'),
     });
     const overviewModulesLabelEl = h('span', {
       className: 'form-label',
@@ -44545,21 +46248,46 @@ const SettingsStructureTab = defineComponent({
       text: t('settings.str.quotaDisplayModeLabel'),
     });
 
-    const overviewMetricStyleSwitch = SegmentedControl({
-      ariaLabel: t('settings.str.hoverMetricStyleLabel'),
-      modelValue: draftOverviewMetricStyle,
-      options: getHoverMetricStyleOptions(),
+    const overviewMetricRowsSwitch = SegmentedControl({
+      ariaLabel: t('settings.str.metricHeightLabel'),
+      modelValue: String(draftOverviewMetricRows),
+      options: getMetricRowsOptions(),
       onUpdateModelValue: (val) => {
-        const nextStyle = normalizeClientOverviewMetricStyle(val);
-        if (nextStyle === draftOverviewMetricStyle) return;
-        draftOverviewMetricStyle = nextStyle;
+        const nextRows = normalizeClientOverviewMetricRows(val);
+        if (nextRows === draftOverviewMetricRows) return;
+        draftOverviewMetricRows = nextRows;
         syncOverviewSectionMeta();
         if (draftHoverSyncOverview) {
           syncHoverSectionMeta();
         }
         props.onLayoutChange?.();
         void persistStructurePatch(overviewSection, {
-          overviewMetricStyle: draftOverviewMetricStyle,
+          overviewMetricRows: draftOverviewMetricRows,
+          overviewMetricSizes: { ...draftOverviewMetricSizes },
+          overviewMetricStyle: deriveClientMetricCardStyle(
+            draftOverviewMetricRows,
+            draftOverviewMetrics,
+            draftOverviewMetricSizes
+          ),
+        });
+      },
+    });
+
+    const overviewMetricTextModeSwitch = SegmentedControl({
+      ariaLabel: t('settings.str.metricTextModeLabel'),
+      modelValue: draftOverviewMetricTextMode,
+      options: getMetricTextModeOptions(),
+      onUpdateModelValue: (val) => {
+        const nextMode = normalizeClientOverviewMetricTextMode(val);
+        if (nextMode === draftOverviewMetricTextMode) return;
+        draftOverviewMetricTextMode = nextMode;
+        syncOverviewSectionMeta();
+        if (draftHoverSyncOverview) {
+          syncHoverSectionMeta();
+        }
+        props.onLayoutChange?.();
+        void persistStructurePatch(overviewSection, {
+          overviewMetricTextMode: draftOverviewMetricTextMode,
         });
       },
     });
@@ -44607,14 +46335,23 @@ const SettingsStructureTab = defineComponent({
       options: getOverviewMetricOptions(),
       minItems: 1,
       maxItems: 4,
-      dimmedFromIndex:
-        draftOverviewMetricStyle === 'large' ? MAX_CLIENT_LARGE_METRIC_SLOTS : null,
+      dimmedValues: getEffectiveOverviewLayout().overflowKeys,
       dimmedTagText: t('settings.str.metricOverflowTag'),
+      getItemBadge: (key) =>
+        formatMetricSizePillSpec(key, draftOverviewMetricRows, draftOverviewMetricSizes),
+      onClickItemBadge: (key) =>
+        commitOverviewMetricSizes(
+          cycleDraftMetricCardSize(draftOverviewMetricSizes, key, draftOverviewMetricRows)
+        ),
       addBtnTextFn: (count, max) => t('settings.str.addOverviewMetric', { count, max }),
       onPreview: (previewItems) => {
         draftOverviewMetrics = normalizeClientOverviewMetrics(previewItems);
+        overviewMetricsList.refs.setProps({
+          dimmedValues: getEffectiveOverviewLayout().overflowKeys,
+        });
         refreshOverviewPreview();
         if (draftHoverSyncOverview) {
+          syncHoverMetricListProps();
           refreshHoverPreview();
         }
       },
@@ -44631,8 +46368,9 @@ const SettingsStructureTab = defineComponent({
       }),
       onReset: () => {
         draftOverviewModules = [...DEFAULT_CLIENT_OVERVIEW_MODULES];
-        draftOverviewMetricStyle = DEFAULT_CLIENT_OVERVIEW_METRIC_STYLE;
-        draftOverviewMetricHybridRatio = DEFAULT_CLIENT_OVERVIEW_METRIC_HYBRID_RATIO;
+        draftOverviewMetricRows = DEFAULT_CLIENT_OVERVIEW_METRIC_ROWS;
+        draftOverviewMetricSizes = { ...DEFAULT_CLIENT_OVERVIEW_METRIC_SIZES };
+        draftOverviewMetricTextMode = DEFAULT_CLIENT_OVERVIEW_METRIC_TEXT_MODE;
         draftOverviewMetrics = [...DEFAULT_CLIENT_OVERVIEW_METRICS];
         draftQuotaDisplayMode = DEFAULT_CLIENT_QUOTA_DISPLAY_MODE;
         syncOverviewSectionMeta();
@@ -44646,8 +46384,14 @@ const SettingsStructureTab = defineComponent({
           overviewSection,
           {
             overviewModules: [...DEFAULT_CLIENT_OVERVIEW_MODULES],
-            overviewMetricStyle: DEFAULT_CLIENT_OVERVIEW_METRIC_STYLE,
-            overviewMetricHybridRatio: DEFAULT_CLIENT_OVERVIEW_METRIC_HYBRID_RATIO,
+            overviewMetricRows: DEFAULT_CLIENT_OVERVIEW_METRIC_ROWS,
+            overviewMetricSizes: { ...DEFAULT_CLIENT_OVERVIEW_METRIC_SIZES },
+            overviewMetricTextMode: DEFAULT_CLIENT_OVERVIEW_METRIC_TEXT_MODE,
+            overviewMetricStyle: deriveClientMetricCardStyle(
+              DEFAULT_CLIENT_OVERVIEW_METRIC_ROWS,
+              DEFAULT_CLIENT_OVERVIEW_METRICS,
+              DEFAULT_CLIENT_OVERVIEW_METRIC_SIZES
+            ),
             overviewMetrics: [...DEFAULT_CLIENT_OVERVIEW_METRICS],
             quotaDisplayMode: DEFAULT_CLIENT_QUOTA_DISPLAY_MODE,
           },
@@ -44659,8 +46403,12 @@ const SettingsStructureTab = defineComponent({
         h('div', { className: 'settings-divider' }),
         h('div', { className: 'form-row' }, [
           h('div', { className: 'settings-inline-row is-wrap-narrow' }, [
-            overviewMetricStyleLabelEl,
-            overviewMetricStyleSwitch.el,
+            overviewMetricRowsLabelEl,
+            overviewMetricRowsSwitch.el,
+          ]),
+          h('div', { className: 'settings-inline-row is-wrap-narrow' }, [
+            overviewMetricTextModeLabelEl,
+            overviewMetricTextModeSwitch.el,
           ]),
           h('div', { className: 'settings-inline-row' }, [
             quotaDisplayModeLabelEl,
@@ -44684,11 +46432,16 @@ const SettingsStructureTab = defineComponent({
     }
 
     function syncOverviewSectionMeta() {
-      const isLarge = draftOverviewMetricStyle === 'large';
-      overviewMetricStyleSwitch.setProps({
-        modelValue: draftOverviewMetricStyle,
-        options: getHoverMetricStyleOptions(),
-        ariaLabel: t('settings.str.hoverMetricStyleLabel'),
+      const layout = getEffectiveOverviewLayout();
+      overviewMetricRowsSwitch.setProps({
+        modelValue: String(draftOverviewMetricRows),
+        options: getMetricRowsOptions(),
+        ariaLabel: t('settings.str.metricHeightLabel'),
+      });
+      overviewMetricTextModeSwitch.setProps({
+        modelValue: draftOverviewMetricTextMode,
+        options: getMetricTextModeOptions(),
+        ariaLabel: t('settings.str.metricTextModeLabel'),
       });
       quotaDisplayModeToggle.setProps({
         modelValue: draftQuotaDisplayMode,
@@ -44703,19 +46456,17 @@ const SettingsStructureTab = defineComponent({
       syncOverviewMetricListProps();
       const metricsModuleActive = draftOverviewModules.includes('metrics');
       patchAttr(overviewMetricsHintEl, 'hidden', metricsModuleActive);
-      const visibleMetricCount = isLarge
-        ? Math.min(MAX_CLIENT_LARGE_METRIC_SLOTS, draftOverviewMetrics.length)
-        : draftOverviewMetrics.length;
       overviewSection.refs.setBadge(
         t('settings.str.overviewBadge', {
           modCount: draftOverviewModules.length,
-          metCount: visibleMetricCount,
+          metCount: layout.placements.length,
         })
       );
       const isDefault =
         isSameList(draftOverviewModules, DEFAULT_CLIENT_OVERVIEW_MODULES) &&
-        draftOverviewMetricStyle === DEFAULT_CLIENT_OVERVIEW_METRIC_STYLE &&
-        draftOverviewMetricHybridRatio === DEFAULT_CLIENT_OVERVIEW_METRIC_HYBRID_RATIO &&
+        draftOverviewMetricRows === DEFAULT_CLIENT_OVERVIEW_METRIC_ROWS &&
+        isSameSizeMap(draftOverviewMetricSizes, DEFAULT_CLIENT_OVERVIEW_METRIC_SIZES) &&
+        draftOverviewMetricTextMode === DEFAULT_CLIENT_OVERVIEW_METRIC_TEXT_MODE &&
         isSameList(draftOverviewMetrics, DEFAULT_CLIENT_OVERVIEW_METRICS) &&
         draftQuotaDisplayMode === DEFAULT_CLIENT_QUOTA_DISPLAY_MODE;
       overviewSection.refs.setResetDisabled(isDefault);
@@ -45107,17 +46858,35 @@ const SettingsStructureTab = defineComponent({
       draftHoverSyncOverview = normalizeClientHoverSyncOverviewMetrics(
         settings.hoverSyncOverviewMetrics
       );
-      draftHoverMetricStyle = normalizeClientHoverMetricStyle(settings.hoverMetricStyle);
-      draftHoverMetricHybridRatio = normalizeClientHoverMetricHybridRatio(
-        settings.hoverMetricHybridRatio
-      );
+      const hasHoverBento =
+        settings.hoverMetricRows !== undefined || settings.hoverMetricSizes !== undefined;
       draftHoverMetrics = normalizeClientHoverMetrics(settings.hoverMetrics);
-      draftOverviewModules = normalizeClientOverviewModules(settings.overviewModules);
-      draftOverviewMetricStyle = normalizeClientOverviewMetricStyle(settings.overviewMetricStyle);
-      draftOverviewMetricHybridRatio = normalizeClientOverviewMetricHybridRatio(
-        settings.overviewMetricHybridRatio
+      draftHoverMetricRows = normalizeClientHoverMetricRows(
+        settings.hoverMetricRows,
+        hasHoverBento ? undefined : settings.hoverMetricStyle
       );
+      draftHoverMetricSizes = normalizeClientHoverMetricSizes(
+        settings.hoverMetricSizes,
+        draftHoverMetrics,
+        hasHoverBento ? undefined : settings.hoverMetricStyle
+      );
+      draftHoverMetricTextMode = normalizeClientHoverMetricTextMode(settings.hoverMetricTextMode);
+      draftOverviewModules = normalizeClientOverviewModules(settings.overviewModules);
+      const hasOverviewBento =
+        settings.overviewMetricRows !== undefined || settings.overviewMetricSizes !== undefined;
       draftOverviewMetrics = normalizeClientOverviewMetrics(settings.overviewMetrics);
+      draftOverviewMetricRows = normalizeClientOverviewMetricRows(
+        settings.overviewMetricRows,
+        hasOverviewBento ? undefined : settings.overviewMetricStyle
+      );
+      draftOverviewMetricSizes = normalizeClientOverviewMetricSizes(
+        settings.overviewMetricSizes,
+        draftOverviewMetrics,
+        hasOverviewBento ? undefined : settings.overviewMetricStyle
+      );
+      draftOverviewMetricTextMode = normalizeClientOverviewMetricTextMode(
+        settings.overviewMetricTextMode
+      );
       draftQuotaDisplayMode = normalizeClientQuotaDisplayMode(settings.quotaDisplayMode);
       draftShowStepTurnRail = settings.showStepTurnRail === true;
       draftShowStepAgentBadge = settings.showStepAgentBadge !== false;
@@ -45156,13 +46925,15 @@ const SettingsStructureTab = defineComponent({
       hoverSection.refs.setTitle(t('settings.str.hoverSection'));
       hoverSection.refs.setResetLabel(t('settings.resetBtn'));
       patchText(hoverModulesLabelEl, t('settings.str.hoverModulesLabel'));
-      patchText(hoverMetricStyleLabelEl, t('settings.str.hoverMetricStyleLabel'));
+      patchText(hoverMetricRowsLabelEl, t('settings.str.metricHeightLabel'));
+      patchText(hoverMetricTextModeLabelEl, t('settings.str.metricTextModeLabel'));
       patchText(hoverSyncOverviewLabelEl, t('settings.str.hoverSyncOverviewLabel'));
       patchText(hoverMetricsLabelEl, t('settings.str.hoverMetricsLabel'));
 
       overviewSection.refs.setTitle(t('settings.str.overviewSection'));
       overviewSection.refs.setResetLabel(t('settings.resetBtn'));
-      patchText(overviewMetricStyleLabelEl, t('settings.str.hoverMetricStyleLabel'));
+      patchText(overviewMetricRowsLabelEl, t('settings.str.metricHeightLabel'));
+      patchText(overviewMetricTextModeLabelEl, t('settings.str.metricTextModeLabel'));
       patchText(overviewModulesLabelEl, t('settings.str.overviewModulesLabel'));
       patchText(overviewMetricsLabelEl, t('settings.str.overviewMetricsLabel'));
       patchText(overviewMetricsHintEl, t('settings.str.overviewMetricsInactiveHint'));
@@ -45234,10 +47005,12 @@ const SettingsStructureTab = defineComponent({
       cliSlotsList.destroy();
       topbarSlotsList.destroy();
       hoverModulesList.destroy();
-      hoverMetricStyleSwitch.destroy();
+      hoverMetricRowsSwitch.destroy();
+      hoverMetricTextModeSwitch.destroy();
       hoverSyncOverviewToggle.destroy();
       hoverMetricsList.destroy();
-      overviewMetricStyleSwitch.destroy();
+      overviewMetricRowsSwitch.destroy();
+      overviewMetricTextModeSwitch.destroy();
       quotaDisplayModeToggle.destroy();
       overviewModulesList.destroy();
       overviewMetricsList.destroy();
@@ -45276,10 +47049,12 @@ const SettingsStructureTab = defineComponent({
         cliStatusActionBtn,
         topbarSlotsList,
         hoverModulesList,
-        hoverMetricStyleSwitch,
+        hoverMetricRowsSwitch,
+        hoverMetricTextModeSwitch,
         hoverSyncOverviewToggle,
         hoverMetricsList,
-        overviewMetricStyleSwitch,
+        overviewMetricRowsSwitch,
+        overviewMetricTextModeSwitch,
         quotaDisplayModeToggle,
         overviewModulesList,
         overviewMetricsList,
@@ -48942,9 +50717,6 @@ const LiveOverviewView = defineComponent({
       mode: 'overview',
       isVisibleFn: () => getVisibleMonitorView() === 'overview',
       initialModuleKeys: DEFAULT_CLIENT_OVERVIEW_MODULES,
-      onResizeHybridRatio: (nextRatio) => {
-        void saveSettingsPatch({ overviewMetricHybridRatio: nextRatio }).catch(() => {});
-      },
     });
 
     const viewScrollbar = CustomScrollbar({

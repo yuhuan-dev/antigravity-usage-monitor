@@ -33,8 +33,8 @@ export const OVERVIEW_WIDGET_REGISTRY = Object.freeze({
       getCtxAgentId,
       onPreviewMetrics,
       onReorderMetrics,
-      onPreviewHybridRatio,
-      onResizeHybridRatio,
+      onPreviewMetricSizes,
+      onResizeMetricSizes,
       onRequestVerticalDrag,
       canDragParentModule,
     }) =>
@@ -45,8 +45,8 @@ export const OVERVIEW_WIDGET_REGISTRY = Object.freeze({
         getCtxAgentId,
         onPreviewMetrics,
         onReorderMetrics,
-        onPreviewHybridRatio,
-        onResizeHybridRatio,
+        onPreviewMetricSizes,
+        onResizeMetricSizes,
         onRequestVerticalDrag,
         canDragParentModule,
       }),
@@ -114,8 +114,8 @@ export function createDynamicWidgetHost({
   onReorderModules = undefined,
   onPreviewMetrics = undefined,
   onReorderMetrics = undefined,
-  onPreviewHybridRatio = undefined,
-  onResizeHybridRatio = undefined,
+  onPreviewMetricSizes = undefined,
+  onResizeMetricSizes = undefined,
 }) {
   const instances = new Map();
   const modulePointerCleanups = new Map();
@@ -306,8 +306,8 @@ export function createDynamicWidgetHost({
           setCtxAgentId,
           onPreviewMetrics,
           onReorderMetrics,
-          onPreviewHybridRatio,
-          onResizeHybridRatio,
+          onPreviewMetricSizes,
+          onResizeMetricSizes,
           onRequestVerticalDrag: hasModuleReorder
             ? (downEv, cx, cy) =>
                 startModuleDrag(downEv, 'metrics', {

@@ -25,13 +25,15 @@ import {
 import {
   DEFAULT_CLIENT_CONTEXT_AGENT_MODE,
   DEFAULT_CLIENT_HOVER_METRICS,
-  DEFAULT_CLIENT_HOVER_METRIC_HYBRID_RATIO,
-  DEFAULT_CLIENT_HOVER_METRIC_STYLE,
+  DEFAULT_CLIENT_HOVER_METRIC_ROWS,
+  DEFAULT_CLIENT_HOVER_METRIC_SIZES,
+  DEFAULT_CLIENT_HOVER_METRIC_TEXT_MODE,
   DEFAULT_CLIENT_HOVER_MODULES,
   DEFAULT_CLIENT_HOVER_SYNC_OVERVIEW_METRICS,
   DEFAULT_CLIENT_OVERVIEW_METRICS,
-  DEFAULT_CLIENT_OVERVIEW_METRIC_HYBRID_RATIO,
-  DEFAULT_CLIENT_OVERVIEW_METRIC_STYLE,
+  DEFAULT_CLIENT_OVERVIEW_METRIC_ROWS,
+  DEFAULT_CLIENT_OVERVIEW_METRIC_SIZES,
+  DEFAULT_CLIENT_OVERVIEW_METRIC_TEXT_MODE,
   DEFAULT_CLIENT_OVERVIEW_MODULES,
   DEFAULT_CLIENT_POPOVER_WIDTH,
   DEFAULT_CLIENT_QUOTA_DISPLAY_MODE,
@@ -39,19 +41,23 @@ import {
   DEFAULT_CLIENT_STEP_TOKEN_COMBO_FORMAT,
   DEFAULT_CLIENT_TOPBAR_MULTI_SESSION_MODE,
   DEFAULT_CLIENT_TOPBAR_SLOTS,
-  MAX_CLIENT_LARGE_METRIC_SLOTS,
+  MAX_CLIENT_OVERVIEW_METRICS,
   MAX_CLIENT_POPOVER_WIDTH,
   MIN_CLIENT_POPOVER_WIDTH,
+  deriveClientMetricCardStyle,
   isClientTopbarMultiSessionVisible,
   normalizeClientCliStatusLineSlots,
   normalizeClientContextAgentMode,
-  normalizeClientHoverMetricHybridRatio,
-  normalizeClientHoverMetricStyle,
+  normalizeClientHoverMetricRows,
+  normalizeClientHoverMetricSizes,
+  normalizeClientHoverMetricTextMode,
   normalizeClientHoverMetrics,
   normalizeClientHoverModules,
   normalizeClientHoverSyncOverviewMetrics,
-  normalizeClientOverviewMetricHybridRatio,
-  normalizeClientOverviewMetricStyle,
+  normalizeClientMetricCardSize,
+  normalizeClientOverviewMetricRows,
+  normalizeClientOverviewMetricSizes,
+  normalizeClientOverviewMetricTextMode,
   normalizeClientOverviewMetrics,
   normalizeClientOverviewModules,
   normalizeClientPopoverWidth,
@@ -62,6 +68,7 @@ import {
   normalizeClientTopbarMultiSessionMode,
   normalizeClientTopbarSlots,
   normalizeClientWindowMountMode,
+  packClientMetricBentoLayout,
   resolveEffectiveClientCliStatusLineSlots,
   resolveOverlayCtxInspectorAgentId,
   resolveScopedConversation,
@@ -125,11 +132,19 @@ function getMultiSessionModeOptions() {
   ];
 }
 
-function getHoverMetricStyleOptions() {
+function getMetricRowsOptions() {
   return [
-    { value: 'medium', label: t('settings.str.hoverMetricStyleMedium') },
-    { value: 'hybrid', label: t('settings.str.hoverMetricStyleHybrid') },
-    { value: 'large', label: t('settings.str.hoverMetricStyleLarge') },
+    { value: '1', label: t('settings.str.metricRows1') },
+    { value: '2', label: t('settings.str.metricRows2') },
+  ];
+}
+
+function getMetricTextModeOptions() {
+  return [
+    { value: 'both', label: t('settings.str.metricTextBoth') },
+    { value: 'title', label: t('settings.str.metricTextTitle') },
+    { value: 'sub', label: t('settings.str.metricTextSub') },
+    { value: 'none', label: t('settings.str.metricTextNone') },
   ];
 }
 
@@ -146,6 +161,62 @@ function isSameList(a, b) {
     if (a[i] !== b[i]) return false;
   }
   return true;
+}
+
+function isSameSizeMap(a, b) {
+  const left = a && typeof a === 'object' ? a : {};
+  const right = b && typeof b === 'object' ? b : {};
+  const keys = Object.keys(left);
+  if (keys.length !== Object.keys(right).length) return false;
+  for (const k of keys) {
+    if (left[k] !== right[k]) return false;
+  }
+  return true;
+}
+
+function formatMetricSizePillSpec(metricKey, rows, sizesMap) {
+  const raw = normalizeClientMetricCardSize(sizesMap?.[metricKey]);
+  const eff = rows === 1 ? (raw === 'tall' ? 'wide' : raw === 'narrow' ? 'sm' : raw) : raw;
+  const text =
+    eff === 'tall'
+      ? t('settings.str.metricSizeTall')
+      : eff === 'narrow'
+        ? t('settings.str.metricSizeNarrow')
+        : eff === 'wide'
+          ? t('settings.str.metricSizeWide')
+          : t('settings.str.metricSizeSm');
+  return {
+    text,
+    title: t('settings.str.metricSizePillHint'),
+    ariaLabel: `${text} · ${t('settings.str.metricSizePillHint')}`,
+    active: eff !== 'sm',
+    tone: eff,
+  };
+}
+
+function cycleDraftMetricCardSize(baseSizes, metricKey, rows) {
+  const curRaw = normalizeClientMetricCardSize(baseSizes?.[metricKey]);
+  const curEff =
+    rows === 1 ? (curRaw === 'tall' ? 'wide' : curRaw === 'narrow' ? 'sm' : curRaw) : curRaw;
+  const nextSize =
+    rows === 2
+      ? curEff === 'sm'
+        ? 'wide'
+        : curEff === 'wide'
+          ? 'narrow'
+          : curEff === 'narrow'
+            ? 'tall'
+            : 'sm'
+      : curEff === 'sm'
+        ? 'wide'
+        : 'sm';
+  const next = { ...(baseSizes || {}) };
+  if (nextSize === 'sm') {
+    delete next[metricKey];
+  } else {
+    next[metricKey] = nextSize;
+  }
+  return next;
 }
 
 function formatCliPreviewSlot(slotKey, slotCtx) {
@@ -282,12 +353,14 @@ export const SettingsStructureTab = defineComponent({
     let draftTopbarSlots = [...DEFAULT_CLIENT_TOPBAR_SLOTS];
     let draftHoverModules = [...DEFAULT_CLIENT_HOVER_MODULES];
     let draftHoverSyncOverview = DEFAULT_CLIENT_HOVER_SYNC_OVERVIEW_METRICS;
-    let draftHoverMetricStyle = DEFAULT_CLIENT_HOVER_METRIC_STYLE;
-    let draftHoverMetricHybridRatio = DEFAULT_CLIENT_HOVER_METRIC_HYBRID_RATIO;
+    let draftHoverMetricRows = DEFAULT_CLIENT_HOVER_METRIC_ROWS;
+    let draftHoverMetricSizes = { ...DEFAULT_CLIENT_HOVER_METRIC_SIZES };
+    let draftHoverMetricTextMode = DEFAULT_CLIENT_HOVER_METRIC_TEXT_MODE;
     let draftHoverMetrics = [...DEFAULT_CLIENT_HOVER_METRICS];
     let draftOverviewModules = [...DEFAULT_CLIENT_OVERVIEW_MODULES];
-    let draftOverviewMetricStyle = DEFAULT_CLIENT_OVERVIEW_METRIC_STYLE;
-    let draftOverviewMetricHybridRatio = DEFAULT_CLIENT_OVERVIEW_METRIC_HYBRID_RATIO;
+    let draftOverviewMetricRows = DEFAULT_CLIENT_OVERVIEW_METRIC_ROWS;
+    let draftOverviewMetricSizes = { ...DEFAULT_CLIENT_OVERVIEW_METRIC_SIZES };
+    let draftOverviewMetricTextMode = DEFAULT_CLIENT_OVERVIEW_METRIC_TEXT_MODE;
     let draftOverviewMetrics = [...DEFAULT_CLIENT_OVERVIEW_METRICS];
     let draftQuotaDisplayMode = DEFAULT_CLIENT_QUOTA_DISPLAY_MODE;
     let draftShowStepTurnRail = false;
@@ -321,6 +394,16 @@ export const SettingsStructureTab = defineComponent({
         hasArgonWeeklyQuotaPool(latestQuotas) ||
         draftTopbarSlots.includes('argon_weekly') ||
         effectiveCliSlots.includes('argon_weekly');
+      const hoverStyle = deriveClientMetricCardStyle(
+        draftHoverMetricRows,
+        draftHoverMetrics,
+        draftHoverMetricSizes
+      );
+      const overviewStyle = deriveClientMetricCardStyle(
+        draftOverviewMetricRows,
+        draftOverviewMetrics,
+        draftOverviewMetricSizes
+      );
       return buildStructurePreviewTelemetry(
         latestSettings,
         {
@@ -335,12 +418,16 @@ export const SettingsStructureTab = defineComponent({
           topbarCapsuleSlots: draftTopbarSlots,
           hoverModules: draftHoverModules,
           hoverSyncOverviewMetrics: draftHoverSyncOverview,
-          hoverMetricStyle: draftHoverMetricStyle,
-          hoverMetricHybridRatio: draftHoverMetricHybridRatio,
+          hoverMetricRows: draftHoverMetricRows,
+          hoverMetricSizes: { ...draftHoverMetricSizes },
+          hoverMetricTextMode: draftHoverMetricTextMode,
+          hoverMetricStyle: hoverStyle,
           hoverMetrics: draftHoverMetrics,
           overviewModules: draftOverviewModules,
-          overviewMetricStyle: draftOverviewMetricStyle,
-          overviewMetricHybridRatio: draftOverviewMetricHybridRatio,
+          overviewMetricRows: draftOverviewMetricRows,
+          overviewMetricSizes: { ...draftOverviewMetricSizes },
+          overviewMetricTextMode: draftOverviewMetricTextMode,
+          overviewMetricStyle: overviewStyle,
           overviewMetrics: draftOverviewMetrics,
           quotaDisplayMode: draftQuotaDisplayMode,
           showStepTurnRail: draftShowStepTurnRail,
@@ -959,22 +1046,124 @@ export const SettingsStructureTab = defineComponent({
       hidden: true,
       text: t('settings.str.hoverEmptyHint'),
     });
-    const syncHoverMetricListProps = () =>
+    function getEffectiveHoverMetricRows() {
+      return draftHoverSyncOverview ? draftOverviewMetricRows : draftHoverMetricRows;
+    }
+
+    function getEffectiveHoverMetricSizes() {
+      return draftHoverSyncOverview ? draftOverviewMetricSizes : draftHoverMetricSizes;
+    }
+
+    function getEffectiveHoverMetricTextMode() {
+      return draftHoverSyncOverview ? draftOverviewMetricTextMode : draftHoverMetricTextMode;
+    }
+
+    function getEffectiveHoverMetrics() {
+      return draftHoverSyncOverview ? draftOverviewMetrics : draftHoverMetrics;
+    }
+
+    function getEffectiveHoverLayout() {
+      return packClientMetricBentoLayout({
+        rows: getEffectiveHoverMetricRows(),
+        metrics: getEffectiveHoverMetrics(),
+        sizes: getEffectiveHoverMetricSizes(),
+      });
+    }
+
+    function getEffectiveOverviewLayout() {
+      return packClientMetricBentoLayout({
+        rows: draftOverviewMetricRows,
+        metrics: draftOverviewMetrics,
+        sizes: draftOverviewMetricSizes,
+      });
+    }
+
+    const commitHoverMetricSizes = (nextSizes) => {
+      const normalized = normalizeClientHoverMetricSizes(nextSizes);
+      if (draftHoverSyncOverview) {
+        draftOverviewMetricSizes = normalized;
+        syncOverviewSectionMeta();
+        syncHoverSectionMeta();
+        props.onLayoutChange?.();
+        void persistStructurePatch(hoverSection, {
+          overviewMetricRows: draftOverviewMetricRows,
+          overviewMetricSizes: { ...draftOverviewMetricSizes },
+          overviewMetricStyle: deriveClientMetricCardStyle(
+            draftOverviewMetricRows,
+            draftOverviewMetrics,
+            draftOverviewMetricSizes
+          ),
+        });
+      } else {
+        draftHoverMetricSizes = normalized;
+        syncHoverSectionMeta();
+        props.onLayoutChange?.();
+        void persistStructurePatch(hoverSection, {
+          hoverMetricRows: draftHoverMetricRows,
+          hoverMetricSizes: { ...draftHoverMetricSizes },
+          hoverMetricStyle: deriveClientMetricCardStyle(
+            draftHoverMetricRows,
+            draftHoverMetrics,
+            draftHoverMetricSizes
+          ),
+        });
+      }
+    };
+
+    const commitOverviewMetricSizes = (nextSizes) => {
+      draftOverviewMetricSizes = normalizeClientOverviewMetricSizes(nextSizes);
+      syncOverviewSectionMeta();
+      if (draftHoverSyncOverview) syncHoverSectionMeta();
+      props.onLayoutChange?.();
+      void persistStructurePatch(overviewSection, {
+        overviewMetricRows: draftOverviewMetricRows,
+        overviewMetricSizes: { ...draftOverviewMetricSizes },
+        overviewMetricStyle: deriveClientMetricCardStyle(
+          draftOverviewMetricRows,
+          draftOverviewMetrics,
+          draftOverviewMetricSizes
+        ),
+      });
+    };
+
+    const syncHoverMetricListProps = () => {
+      const rows = getEffectiveHoverMetricRows();
+      const metrics = getEffectiveHoverMetrics();
+      const sizes = getEffectiveHoverMetricSizes();
+      const layout = packClientMetricBentoLayout({ rows, metrics, sizes });
+      const maxSlots = rows === 2 ? MAX_CLIENT_OVERVIEW_METRICS : Math.max(4, metrics.length);
       hoverMetricsList.refs.setProps({
-        items: getEffectiveHoverMetrics(),
+        items: metrics,
         options: getOverviewMetricOptions(),
-        dimmedFromIndex: getEffectiveHoverMetricStyle() === 'large' ? MAX_CLIENT_LARGE_METRIC_SLOTS : null,
+        maxItems: maxSlots,
+        dimmedValues: layout.overflowKeys,
         dimmedTagText: t('settings.str.metricOverflowTag'),
+        getItemBadge: (key) => formatMetricSizePillSpec(key, rows, sizes),
+        onClickItemBadge: (key) =>
+          commitHoverMetricSizes(cycleDraftMetricCardSize(getEffectiveHoverMetricSizes(), key, getEffectiveHoverMetricRows())),
         addBtnTextFn: (count, max) => t('settings.str.addOverviewMetric', { count, max }),
       });
-    const syncOverviewMetricListProps = () =>
+    };
+    const syncOverviewMetricListProps = () => {
+      const rows = draftOverviewMetricRows;
+      const metrics = draftOverviewMetrics;
+      const sizes = draftOverviewMetricSizes;
+      const layout = packClientMetricBentoLayout({ rows, metrics, sizes });
+      const maxSlots = rows === 2 ? MAX_CLIENT_OVERVIEW_METRICS : Math.max(4, metrics.length);
       overviewMetricsList.refs.setProps({
-        items: draftOverviewMetrics,
+        items: metrics,
         options: getOverviewMetricOptions(),
-        dimmedFromIndex: draftOverviewMetricStyle === 'large' ? MAX_CLIENT_LARGE_METRIC_SLOTS : null,
+        maxItems: maxSlots,
+        dimmedValues: layout.overflowKeys,
         dimmedTagText: t('settings.str.metricOverflowTag'),
+        getItemBadge: (key) => formatMetricSizePillSpec(key, rows, sizes),
+        onClickItemBadge: (key) =>
+          commitOverviewMetricSizes(
+            cycleDraftMetricCardSize(draftOverviewMetricSizes, key, draftOverviewMetricRows)
+          ),
         addBtnTextFn: (count, max) => t('settings.str.addOverviewMetric', { count, max }),
       });
+    };
     const commitHoverMetricsOrder = (nextMetrics) => {
       const normalized = normalizeClientHoverMetrics(nextMetrics);
       if (draftHoverSyncOverview) {
@@ -982,12 +1171,30 @@ export const SettingsStructureTab = defineComponent({
         syncOverviewSectionMeta();
         syncHoverSectionMeta();
         props.onLayoutChange?.();
-        void persistStructurePatch(hoverSection, { overviewMetrics: draftOverviewMetrics });
+        void persistStructurePatch(hoverSection, {
+          overviewMetrics: draftOverviewMetrics,
+          overviewMetricRows: draftOverviewMetricRows,
+          overviewMetricSizes: { ...draftOverviewMetricSizes },
+          overviewMetricStyle: deriveClientMetricCardStyle(
+            draftOverviewMetricRows,
+            draftOverviewMetrics,
+            draftOverviewMetricSizes
+          ),
+        });
       } else {
         draftHoverMetrics = normalized;
         syncHoverSectionMeta();
         props.onLayoutChange?.();
-        void persistStructurePatch(hoverSection, { hoverMetrics: draftHoverMetrics });
+        void persistStructurePatch(hoverSection, {
+          hoverMetrics: draftHoverMetrics,
+          hoverMetricRows: draftHoverMetricRows,
+          hoverMetricSizes: { ...draftHoverMetricSizes },
+          hoverMetricStyle: deriveClientMetricCardStyle(
+            draftHoverMetricRows,
+            draftHoverMetrics,
+            draftHoverMetricSizes
+          ),
+        });
       }
     };
     const commitOverviewMetricsOrder = (nextMetrics) => {
@@ -995,31 +1202,15 @@ export const SettingsStructureTab = defineComponent({
       syncOverviewSectionMeta();
       if (draftHoverSyncOverview) syncHoverSectionMeta();
       props.onLayoutChange?.();
-      void persistStructurePatch(overviewSection, { overviewMetrics: draftOverviewMetrics });
-    };
-    const commitHoverHybridRatio = (nextRatio) => {
-      const normalized = normalizeClientHoverMetricHybridRatio(nextRatio);
-      if (draftHoverSyncOverview) {
-        draftOverviewMetricHybridRatio = normalized;
-        syncOverviewSectionMeta();
-        syncHoverSectionMeta();
-        void persistStructurePatch(hoverSection, {
-          overviewMetricHybridRatio: draftOverviewMetricHybridRatio,
-        });
-      } else {
-        draftHoverMetricHybridRatio = normalized;
-        syncHoverSectionMeta();
-        void persistStructurePatch(hoverSection, {
-          hoverMetricHybridRatio: draftHoverMetricHybridRatio,
-        });
-      }
-    };
-    const commitOverviewHybridRatio = (nextRatio) => {
-      draftOverviewMetricHybridRatio = normalizeClientOverviewMetricHybridRatio(nextRatio);
-      syncOverviewSectionMeta();
-      if (draftHoverSyncOverview) syncHoverSectionMeta();
       void persistStructurePatch(overviewSection, {
-        overviewMetricHybridRatio: draftOverviewMetricHybridRatio,
+        overviewMetrics: draftOverviewMetrics,
+        overviewMetricRows: draftOverviewMetricRows,
+        overviewMetricSizes: { ...draftOverviewMetricSizes },
+        overviewMetricStyle: deriveClientMetricCardStyle(
+          draftOverviewMetricRows,
+          draftOverviewMetrics,
+          draftOverviewMetricSizes
+        ),
       });
     };
 
@@ -1057,16 +1248,18 @@ export const SettingsStructureTab = defineComponent({
         syncHoverMetricListProps();
       },
       onReorderMetrics: commitHoverMetricsOrder,
-      onPreviewHybridRatio: (previewRatio) => {
-        const normalized = normalizeClientHoverMetricHybridRatio(previewRatio);
+      onPreviewMetricSizes: (previewSizes) => {
+        const normalized = normalizeClientHoverMetricSizes(previewSizes);
         if (draftHoverSyncOverview) {
-          draftOverviewMetricHybridRatio = normalized;
+          draftOverviewMetricSizes = normalized;
+          syncOverviewMetricListProps();
           refreshOverviewPreview();
         } else {
-          draftHoverMetricHybridRatio = normalized;
+          draftHoverMetricSizes = normalized;
         }
+        syncHoverMetricListProps();
       },
-      onResizeHybridRatio: commitHoverHybridRatio,
+      onResizeMetricSizes: commitHoverMetricSizes,
     });
     const hoverPreviewCanvas = h('div', { className: 'structure-preview-canvas' }, [
       hoverPreviewTipEl,
@@ -1077,9 +1270,13 @@ export const SettingsStructureTab = defineComponent({
       className: 'form-label',
       text: t('settings.str.hoverModulesLabel'),
     });
-    const hoverMetricStyleLabelEl = h('span', {
+    const hoverMetricRowsLabelEl = h('span', {
       className: 'form-label',
-      text: t('settings.str.hoverMetricStyleLabel'),
+      text: t('settings.str.metricHeightLabel'),
+    });
+    const hoverMetricTextModeLabelEl = h('span', {
+      className: 'form-label',
+      text: t('settings.str.metricTextModeLabel'),
     });
     const hoverSyncOverviewLabelEl = h('span', {
       className: 'form-label',
@@ -1095,35 +1292,65 @@ export const SettingsStructureTab = defineComponent({
       text: t('settings.str.hoverMetricsLabel'),
     });
 
-    function getEffectiveHoverMetricStyle() {
-      return draftHoverSyncOverview ? draftOverviewMetricStyle : draftHoverMetricStyle;
-    }
-
-    function getEffectiveHoverMetrics() {
-      return draftHoverSyncOverview ? draftOverviewMetrics : draftHoverMetrics;
-    }
-
-    const hoverMetricStyleSwitch = SegmentedControl({
-      ariaLabel: t('settings.str.hoverMetricStyleLabel'),
-      modelValue: getEffectiveHoverMetricStyle(),
-      options: getHoverMetricStyleOptions(),
+    const hoverMetricRowsSwitch = SegmentedControl({
+      ariaLabel: t('settings.str.metricHeightLabel'),
+      modelValue: String(getEffectiveHoverMetricRows()),
+      options: getMetricRowsOptions(),
       onUpdateModelValue: (val) => {
-        const nextStyle = normalizeClientHoverMetricStyle(val);
-        if (nextStyle === getEffectiveHoverMetricStyle()) return;
+        const nextRows = normalizeClientHoverMetricRows(val);
+        if (nextRows === getEffectiveHoverMetricRows()) return;
         if (draftHoverSyncOverview) {
-          draftOverviewMetricStyle = nextStyle;
+          draftOverviewMetricRows = nextRows;
           syncOverviewSectionMeta();
           syncHoverSectionMeta();
           props.onLayoutChange?.();
           void persistStructurePatch(hoverSection, {
-            overviewMetricStyle: draftOverviewMetricStyle,
+            overviewMetricRows: draftOverviewMetricRows,
+            overviewMetricSizes: { ...draftOverviewMetricSizes },
+            overviewMetricStyle: deriveClientMetricCardStyle(
+              draftOverviewMetricRows,
+              draftOverviewMetrics,
+              draftOverviewMetricSizes
+            ),
           });
         } else {
-          draftHoverMetricStyle = nextStyle;
+          draftHoverMetricRows = nextRows;
           syncHoverSectionMeta();
           props.onLayoutChange?.();
           void persistStructurePatch(hoverSection, {
-            hoverMetricStyle: draftHoverMetricStyle,
+            hoverMetricRows: draftHoverMetricRows,
+            hoverMetricSizes: { ...draftHoverMetricSizes },
+            hoverMetricStyle: deriveClientMetricCardStyle(
+              draftHoverMetricRows,
+              draftHoverMetrics,
+              draftHoverMetricSizes
+            ),
+          });
+        }
+      },
+    });
+
+    const hoverMetricTextModeSwitch = SegmentedControl({
+      ariaLabel: t('settings.str.metricTextModeLabel'),
+      modelValue: getEffectiveHoverMetricTextMode(),
+      options: getMetricTextModeOptions(),
+      onUpdateModelValue: (val) => {
+        const nextMode = normalizeClientHoverMetricTextMode(val);
+        if (nextMode === getEffectiveHoverMetricTextMode()) return;
+        if (draftHoverSyncOverview) {
+          draftOverviewMetricTextMode = nextMode;
+          syncOverviewSectionMeta();
+          syncHoverSectionMeta();
+          props.onLayoutChange?.();
+          void persistStructurePatch(hoverSection, {
+            overviewMetricTextMode: draftOverviewMetricTextMode,
+          });
+        } else {
+          draftHoverMetricTextMode = nextMode;
+          syncHoverSectionMeta();
+          props.onLayoutChange?.();
+          void persistStructurePatch(hoverSection, {
+            hoverMetricTextMode: draftHoverMetricTextMode,
           });
         }
       },
@@ -1138,16 +1365,23 @@ export const SettingsStructureTab = defineComponent({
         if (nextSync === draftHoverSyncOverview) return;
         if (!nextSync) {
           // Detach smoothly from current Live Overview settings without visual jump
-          draftHoverMetricStyle = draftOverviewMetricStyle;
-          draftHoverMetricHybridRatio = draftOverviewMetricHybridRatio;
+          draftHoverMetricRows = draftOverviewMetricRows;
+          draftHoverMetricSizes = { ...draftOverviewMetricSizes };
+          draftHoverMetricTextMode = draftOverviewMetricTextMode;
           draftHoverMetrics = [...draftOverviewMetrics];
           draftHoverSyncOverview = false;
           syncHoverSectionMeta();
           props.onLayoutChange?.();
           void persistStructurePatch(hoverSection, {
             hoverSyncOverviewMetrics: false,
-            hoverMetricStyle: draftHoverMetricStyle,
-            hoverMetricHybridRatio: draftHoverMetricHybridRatio,
+            hoverMetricRows: draftHoverMetricRows,
+            hoverMetricSizes: { ...draftHoverMetricSizes },
+            hoverMetricTextMode: draftHoverMetricTextMode,
+            hoverMetricStyle: deriveClientMetricCardStyle(
+              draftHoverMetricRows,
+              draftHoverMetrics,
+              draftHoverMetricSizes
+            ),
             hoverMetrics: draftHoverMetrics,
           });
         } else {
@@ -1166,18 +1400,31 @@ export const SettingsStructureTab = defineComponent({
       options: getOverviewMetricOptions(),
       minItems: 1,
       maxItems: 4,
-      dimmedFromIndex:
-        getEffectiveHoverMetricStyle() === 'large' ? MAX_CLIENT_LARGE_METRIC_SLOTS : null,
+      dimmedValues: getEffectiveHoverLayout().overflowKeys,
       dimmedTagText: t('settings.str.metricOverflowTag'),
+      getItemBadge: (key) =>
+        formatMetricSizePillSpec(key, getEffectiveHoverMetricRows(), getEffectiveHoverMetricSizes()),
+      onClickItemBadge: (key) =>
+        commitHoverMetricSizes(
+          cycleDraftMetricCardSize(
+            getEffectiveHoverMetricSizes(),
+            key,
+            getEffectiveHoverMetricRows()
+          )
+        ),
       addBtnTextFn: (count, max) => t('settings.str.addOverviewMetric', { count, max }),
       onPreview: (previewItems) => {
         const normalized = normalizeClientHoverMetrics(previewItems);
         if (draftHoverSyncOverview) {
           draftOverviewMetrics = normalized;
+          syncOverviewMetricListProps();
           refreshOverviewPreview();
         } else {
           draftHoverMetrics = normalized;
         }
+        hoverMetricsList.refs.setProps({
+          dimmedValues: getEffectiveHoverLayout().overflowKeys,
+        });
         refreshHoverPreview();
       },
       onChange: commitHoverMetricsOrder,
@@ -1213,8 +1460,9 @@ export const SettingsStructureTab = defineComponent({
       onReset: () => {
         draftHoverModules = [...DEFAULT_CLIENT_HOVER_MODULES];
         draftHoverSyncOverview = DEFAULT_CLIENT_HOVER_SYNC_OVERVIEW_METRICS;
-        draftHoverMetricStyle = DEFAULT_CLIENT_HOVER_METRIC_STYLE;
-        draftHoverMetricHybridRatio = DEFAULT_CLIENT_HOVER_METRIC_HYBRID_RATIO;
+        draftHoverMetricRows = DEFAULT_CLIENT_HOVER_METRIC_ROWS;
+        draftHoverMetricSizes = { ...DEFAULT_CLIENT_HOVER_METRIC_SIZES };
+        draftHoverMetricTextMode = DEFAULT_CLIENT_HOVER_METRIC_TEXT_MODE;
         draftHoverMetrics = [...DEFAULT_CLIENT_HOVER_METRICS];
         syncHoverSectionMeta();
         props.onLayoutChange?.();
@@ -1223,8 +1471,14 @@ export const SettingsStructureTab = defineComponent({
           {
             hoverModules: [...DEFAULT_CLIENT_HOVER_MODULES],
             hoverSyncOverviewMetrics: DEFAULT_CLIENT_HOVER_SYNC_OVERVIEW_METRICS,
-            hoverMetricStyle: DEFAULT_CLIENT_HOVER_METRIC_STYLE,
-            hoverMetricHybridRatio: DEFAULT_CLIENT_HOVER_METRIC_HYBRID_RATIO,
+            hoverMetricRows: DEFAULT_CLIENT_HOVER_METRIC_ROWS,
+            hoverMetricSizes: { ...DEFAULT_CLIENT_HOVER_METRIC_SIZES },
+            hoverMetricTextMode: DEFAULT_CLIENT_HOVER_METRIC_TEXT_MODE,
+            hoverMetricStyle: deriveClientMetricCardStyle(
+              DEFAULT_CLIENT_HOVER_METRIC_ROWS,
+              DEFAULT_CLIENT_HOVER_METRICS,
+              DEFAULT_CLIENT_HOVER_METRIC_SIZES
+            ),
             hoverMetrics: [...DEFAULT_CLIENT_HOVER_METRICS],
           },
           'settings.resetDone'
@@ -1235,8 +1489,12 @@ export const SettingsStructureTab = defineComponent({
         h('div', { className: 'settings-divider' }),
         h('div', { className: 'form-row' }, [
           h('div', { className: 'settings-inline-row is-wrap-narrow' }, [
-            hoverMetricStyleLabelEl,
-            hoverMetricStyleSwitch.el,
+            hoverMetricRowsLabelEl,
+            hoverMetricRowsSwitch.el,
+          ]),
+          h('div', { className: 'settings-inline-row is-wrap-narrow' }, [
+            hoverMetricTextModeLabelEl,
+            hoverMetricTextModeSwitch.el,
           ]),
           h('div', { className: 'settings-inline-row' }, [
             hoverSyncOverviewLabelEl,
@@ -1264,13 +1522,19 @@ export const SettingsStructureTab = defineComponent({
     }
 
     function syncHoverSectionMeta() {
-      const effectiveStyle = getEffectiveHoverMetricStyle();
+      const effectiveRows = getEffectiveHoverMetricRows();
+      const effectiveTextMode = getEffectiveHoverMetricTextMode();
       const metricsEnabled = draftHoverModules.includes('metrics');
 
-      hoverMetricStyleSwitch.setProps({
-        modelValue: effectiveStyle,
-        options: getHoverMetricStyleOptions(),
-        ariaLabel: t('settings.str.hoverMetricStyleLabel'),
+      hoverMetricRowsSwitch.setProps({
+        modelValue: String(effectiveRows),
+        options: getMetricRowsOptions(),
+        ariaLabel: t('settings.str.metricHeightLabel'),
+      });
+      hoverMetricTextModeSwitch.setProps({
+        modelValue: effectiveTextMode,
+        options: getMetricTextModeOptions(),
+        ariaLabel: t('settings.str.metricTextModeLabel'),
       });
       hoverSyncOverviewToggle.setProps({
         modelValue: draftHoverSyncOverview ? 'on' : 'off',
@@ -1292,8 +1556,9 @@ export const SettingsStructureTab = defineComponent({
       const isDefault =
         isSameList(draftHoverModules, DEFAULT_CLIENT_HOVER_MODULES) &&
         draftHoverSyncOverview === DEFAULT_CLIENT_HOVER_SYNC_OVERVIEW_METRICS &&
-        draftHoverMetricStyle === DEFAULT_CLIENT_HOVER_METRIC_STYLE &&
-        draftHoverMetricHybridRatio === DEFAULT_CLIENT_HOVER_METRIC_HYBRID_RATIO &&
+        draftHoverMetricRows === DEFAULT_CLIENT_HOVER_METRIC_ROWS &&
+        isSameSizeMap(draftHoverMetricSizes, DEFAULT_CLIENT_HOVER_METRIC_SIZES) &&
+        draftHoverMetricTextMode === DEFAULT_CLIENT_HOVER_METRIC_TEXT_MODE &&
         isSameList(draftHoverMetrics, DEFAULT_CLIENT_HOVER_METRICS);
       hoverSection.refs.setResetDisabled(isDefault);
       refreshHoverPreview();
@@ -1327,21 +1592,27 @@ export const SettingsStructureTab = defineComponent({
         }
       },
       onReorderMetrics: commitOverviewMetricsOrder,
-      onPreviewHybridRatio: (previewRatio) => {
-        draftOverviewMetricHybridRatio = normalizeClientOverviewMetricHybridRatio(previewRatio);
+      onPreviewMetricSizes: (previewSizes) => {
+        draftOverviewMetricSizes = normalizeClientOverviewMetricSizes(previewSizes);
+        syncOverviewMetricListProps();
         if (draftHoverSyncOverview) {
+          syncHoverMetricListProps();
           refreshHoverPreview();
         }
       },
-      onResizeHybridRatio: commitOverviewHybridRatio,
+      onResizeMetricSizes: commitOverviewMetricSizes,
     });
     const overviewPreviewCanvas = h('div', { className: 'structure-preview-canvas' }, [
       overviewPreviewContainerEl,
     ]);
 
-    const overviewMetricStyleLabelEl = h('span', {
+    const overviewMetricRowsLabelEl = h('span', {
       className: 'form-label',
-      text: t('settings.str.hoverMetricStyleLabel'),
+      text: t('settings.str.metricHeightLabel'),
+    });
+    const overviewMetricTextModeLabelEl = h('span', {
+      className: 'form-label',
+      text: t('settings.str.metricTextModeLabel'),
     });
     const overviewModulesLabelEl = h('span', {
       className: 'form-label',
@@ -1361,21 +1632,46 @@ export const SettingsStructureTab = defineComponent({
       text: t('settings.str.quotaDisplayModeLabel'),
     });
 
-    const overviewMetricStyleSwitch = SegmentedControl({
-      ariaLabel: t('settings.str.hoverMetricStyleLabel'),
-      modelValue: draftOverviewMetricStyle,
-      options: getHoverMetricStyleOptions(),
+    const overviewMetricRowsSwitch = SegmentedControl({
+      ariaLabel: t('settings.str.metricHeightLabel'),
+      modelValue: String(draftOverviewMetricRows),
+      options: getMetricRowsOptions(),
       onUpdateModelValue: (val) => {
-        const nextStyle = normalizeClientOverviewMetricStyle(val);
-        if (nextStyle === draftOverviewMetricStyle) return;
-        draftOverviewMetricStyle = nextStyle;
+        const nextRows = normalizeClientOverviewMetricRows(val);
+        if (nextRows === draftOverviewMetricRows) return;
+        draftOverviewMetricRows = nextRows;
         syncOverviewSectionMeta();
         if (draftHoverSyncOverview) {
           syncHoverSectionMeta();
         }
         props.onLayoutChange?.();
         void persistStructurePatch(overviewSection, {
-          overviewMetricStyle: draftOverviewMetricStyle,
+          overviewMetricRows: draftOverviewMetricRows,
+          overviewMetricSizes: { ...draftOverviewMetricSizes },
+          overviewMetricStyle: deriveClientMetricCardStyle(
+            draftOverviewMetricRows,
+            draftOverviewMetrics,
+            draftOverviewMetricSizes
+          ),
+        });
+      },
+    });
+
+    const overviewMetricTextModeSwitch = SegmentedControl({
+      ariaLabel: t('settings.str.metricTextModeLabel'),
+      modelValue: draftOverviewMetricTextMode,
+      options: getMetricTextModeOptions(),
+      onUpdateModelValue: (val) => {
+        const nextMode = normalizeClientOverviewMetricTextMode(val);
+        if (nextMode === draftOverviewMetricTextMode) return;
+        draftOverviewMetricTextMode = nextMode;
+        syncOverviewSectionMeta();
+        if (draftHoverSyncOverview) {
+          syncHoverSectionMeta();
+        }
+        props.onLayoutChange?.();
+        void persistStructurePatch(overviewSection, {
+          overviewMetricTextMode: draftOverviewMetricTextMode,
         });
       },
     });
@@ -1423,14 +1719,23 @@ export const SettingsStructureTab = defineComponent({
       options: getOverviewMetricOptions(),
       minItems: 1,
       maxItems: 4,
-      dimmedFromIndex:
-        draftOverviewMetricStyle === 'large' ? MAX_CLIENT_LARGE_METRIC_SLOTS : null,
+      dimmedValues: getEffectiveOverviewLayout().overflowKeys,
       dimmedTagText: t('settings.str.metricOverflowTag'),
+      getItemBadge: (key) =>
+        formatMetricSizePillSpec(key, draftOverviewMetricRows, draftOverviewMetricSizes),
+      onClickItemBadge: (key) =>
+        commitOverviewMetricSizes(
+          cycleDraftMetricCardSize(draftOverviewMetricSizes, key, draftOverviewMetricRows)
+        ),
       addBtnTextFn: (count, max) => t('settings.str.addOverviewMetric', { count, max }),
       onPreview: (previewItems) => {
         draftOverviewMetrics = normalizeClientOverviewMetrics(previewItems);
+        overviewMetricsList.refs.setProps({
+          dimmedValues: getEffectiveOverviewLayout().overflowKeys,
+        });
         refreshOverviewPreview();
         if (draftHoverSyncOverview) {
+          syncHoverMetricListProps();
           refreshHoverPreview();
         }
       },
@@ -1447,8 +1752,9 @@ export const SettingsStructureTab = defineComponent({
       }),
       onReset: () => {
         draftOverviewModules = [...DEFAULT_CLIENT_OVERVIEW_MODULES];
-        draftOverviewMetricStyle = DEFAULT_CLIENT_OVERVIEW_METRIC_STYLE;
-        draftOverviewMetricHybridRatio = DEFAULT_CLIENT_OVERVIEW_METRIC_HYBRID_RATIO;
+        draftOverviewMetricRows = DEFAULT_CLIENT_OVERVIEW_METRIC_ROWS;
+        draftOverviewMetricSizes = { ...DEFAULT_CLIENT_OVERVIEW_METRIC_SIZES };
+        draftOverviewMetricTextMode = DEFAULT_CLIENT_OVERVIEW_METRIC_TEXT_MODE;
         draftOverviewMetrics = [...DEFAULT_CLIENT_OVERVIEW_METRICS];
         draftQuotaDisplayMode = DEFAULT_CLIENT_QUOTA_DISPLAY_MODE;
         syncOverviewSectionMeta();
@@ -1462,8 +1768,14 @@ export const SettingsStructureTab = defineComponent({
           overviewSection,
           {
             overviewModules: [...DEFAULT_CLIENT_OVERVIEW_MODULES],
-            overviewMetricStyle: DEFAULT_CLIENT_OVERVIEW_METRIC_STYLE,
-            overviewMetricHybridRatio: DEFAULT_CLIENT_OVERVIEW_METRIC_HYBRID_RATIO,
+            overviewMetricRows: DEFAULT_CLIENT_OVERVIEW_METRIC_ROWS,
+            overviewMetricSizes: { ...DEFAULT_CLIENT_OVERVIEW_METRIC_SIZES },
+            overviewMetricTextMode: DEFAULT_CLIENT_OVERVIEW_METRIC_TEXT_MODE,
+            overviewMetricStyle: deriveClientMetricCardStyle(
+              DEFAULT_CLIENT_OVERVIEW_METRIC_ROWS,
+              DEFAULT_CLIENT_OVERVIEW_METRICS,
+              DEFAULT_CLIENT_OVERVIEW_METRIC_SIZES
+            ),
             overviewMetrics: [...DEFAULT_CLIENT_OVERVIEW_METRICS],
             quotaDisplayMode: DEFAULT_CLIENT_QUOTA_DISPLAY_MODE,
           },
@@ -1475,8 +1787,12 @@ export const SettingsStructureTab = defineComponent({
         h('div', { className: 'settings-divider' }),
         h('div', { className: 'form-row' }, [
           h('div', { className: 'settings-inline-row is-wrap-narrow' }, [
-            overviewMetricStyleLabelEl,
-            overviewMetricStyleSwitch.el,
+            overviewMetricRowsLabelEl,
+            overviewMetricRowsSwitch.el,
+          ]),
+          h('div', { className: 'settings-inline-row is-wrap-narrow' }, [
+            overviewMetricTextModeLabelEl,
+            overviewMetricTextModeSwitch.el,
           ]),
           h('div', { className: 'settings-inline-row' }, [
             quotaDisplayModeLabelEl,
@@ -1500,11 +1816,16 @@ export const SettingsStructureTab = defineComponent({
     }
 
     function syncOverviewSectionMeta() {
-      const isLarge = draftOverviewMetricStyle === 'large';
-      overviewMetricStyleSwitch.setProps({
-        modelValue: draftOverviewMetricStyle,
-        options: getHoverMetricStyleOptions(),
-        ariaLabel: t('settings.str.hoverMetricStyleLabel'),
+      const layout = getEffectiveOverviewLayout();
+      overviewMetricRowsSwitch.setProps({
+        modelValue: String(draftOverviewMetricRows),
+        options: getMetricRowsOptions(),
+        ariaLabel: t('settings.str.metricHeightLabel'),
+      });
+      overviewMetricTextModeSwitch.setProps({
+        modelValue: draftOverviewMetricTextMode,
+        options: getMetricTextModeOptions(),
+        ariaLabel: t('settings.str.metricTextModeLabel'),
       });
       quotaDisplayModeToggle.setProps({
         modelValue: draftQuotaDisplayMode,
@@ -1519,19 +1840,17 @@ export const SettingsStructureTab = defineComponent({
       syncOverviewMetricListProps();
       const metricsModuleActive = draftOverviewModules.includes('metrics');
       patchAttr(overviewMetricsHintEl, 'hidden', metricsModuleActive);
-      const visibleMetricCount = isLarge
-        ? Math.min(MAX_CLIENT_LARGE_METRIC_SLOTS, draftOverviewMetrics.length)
-        : draftOverviewMetrics.length;
       overviewSection.refs.setBadge(
         t('settings.str.overviewBadge', {
           modCount: draftOverviewModules.length,
-          metCount: visibleMetricCount,
+          metCount: layout.placements.length,
         })
       );
       const isDefault =
         isSameList(draftOverviewModules, DEFAULT_CLIENT_OVERVIEW_MODULES) &&
-        draftOverviewMetricStyle === DEFAULT_CLIENT_OVERVIEW_METRIC_STYLE &&
-        draftOverviewMetricHybridRatio === DEFAULT_CLIENT_OVERVIEW_METRIC_HYBRID_RATIO &&
+        draftOverviewMetricRows === DEFAULT_CLIENT_OVERVIEW_METRIC_ROWS &&
+        isSameSizeMap(draftOverviewMetricSizes, DEFAULT_CLIENT_OVERVIEW_METRIC_SIZES) &&
+        draftOverviewMetricTextMode === DEFAULT_CLIENT_OVERVIEW_METRIC_TEXT_MODE &&
         isSameList(draftOverviewMetrics, DEFAULT_CLIENT_OVERVIEW_METRICS) &&
         draftQuotaDisplayMode === DEFAULT_CLIENT_QUOTA_DISPLAY_MODE;
       overviewSection.refs.setResetDisabled(isDefault);
@@ -1924,17 +2243,35 @@ export const SettingsStructureTab = defineComponent({
       draftHoverSyncOverview = normalizeClientHoverSyncOverviewMetrics(
         settings.hoverSyncOverviewMetrics
       );
-      draftHoverMetricStyle = normalizeClientHoverMetricStyle(settings.hoverMetricStyle);
-      draftHoverMetricHybridRatio = normalizeClientHoverMetricHybridRatio(
-        settings.hoverMetricHybridRatio
-      );
+      const hasHoverBento =
+        settings.hoverMetricRows !== undefined || settings.hoverMetricSizes !== undefined;
       draftHoverMetrics = normalizeClientHoverMetrics(settings.hoverMetrics);
-      draftOverviewModules = normalizeClientOverviewModules(settings.overviewModules);
-      draftOverviewMetricStyle = normalizeClientOverviewMetricStyle(settings.overviewMetricStyle);
-      draftOverviewMetricHybridRatio = normalizeClientOverviewMetricHybridRatio(
-        settings.overviewMetricHybridRatio
+      draftHoverMetricRows = normalizeClientHoverMetricRows(
+        settings.hoverMetricRows,
+        hasHoverBento ? undefined : settings.hoverMetricStyle
       );
+      draftHoverMetricSizes = normalizeClientHoverMetricSizes(
+        settings.hoverMetricSizes,
+        draftHoverMetrics,
+        hasHoverBento ? undefined : settings.hoverMetricStyle
+      );
+      draftHoverMetricTextMode = normalizeClientHoverMetricTextMode(settings.hoverMetricTextMode);
+      draftOverviewModules = normalizeClientOverviewModules(settings.overviewModules);
+      const hasOverviewBento =
+        settings.overviewMetricRows !== undefined || settings.overviewMetricSizes !== undefined;
       draftOverviewMetrics = normalizeClientOverviewMetrics(settings.overviewMetrics);
+      draftOverviewMetricRows = normalizeClientOverviewMetricRows(
+        settings.overviewMetricRows,
+        hasOverviewBento ? undefined : settings.overviewMetricStyle
+      );
+      draftOverviewMetricSizes = normalizeClientOverviewMetricSizes(
+        settings.overviewMetricSizes,
+        draftOverviewMetrics,
+        hasOverviewBento ? undefined : settings.overviewMetricStyle
+      );
+      draftOverviewMetricTextMode = normalizeClientOverviewMetricTextMode(
+        settings.overviewMetricTextMode
+      );
       draftQuotaDisplayMode = normalizeClientQuotaDisplayMode(settings.quotaDisplayMode);
       draftShowStepTurnRail = settings.showStepTurnRail === true;
       draftShowStepAgentBadge = settings.showStepAgentBadge !== false;
@@ -1973,13 +2310,15 @@ export const SettingsStructureTab = defineComponent({
       hoverSection.refs.setTitle(t('settings.str.hoverSection'));
       hoverSection.refs.setResetLabel(t('settings.resetBtn'));
       patchText(hoverModulesLabelEl, t('settings.str.hoverModulesLabel'));
-      patchText(hoverMetricStyleLabelEl, t('settings.str.hoverMetricStyleLabel'));
+      patchText(hoverMetricRowsLabelEl, t('settings.str.metricHeightLabel'));
+      patchText(hoverMetricTextModeLabelEl, t('settings.str.metricTextModeLabel'));
       patchText(hoverSyncOverviewLabelEl, t('settings.str.hoverSyncOverviewLabel'));
       patchText(hoverMetricsLabelEl, t('settings.str.hoverMetricsLabel'));
 
       overviewSection.refs.setTitle(t('settings.str.overviewSection'));
       overviewSection.refs.setResetLabel(t('settings.resetBtn'));
-      patchText(overviewMetricStyleLabelEl, t('settings.str.hoverMetricStyleLabel'));
+      patchText(overviewMetricRowsLabelEl, t('settings.str.metricHeightLabel'));
+      patchText(overviewMetricTextModeLabelEl, t('settings.str.metricTextModeLabel'));
       patchText(overviewModulesLabelEl, t('settings.str.overviewModulesLabel'));
       patchText(overviewMetricsLabelEl, t('settings.str.overviewMetricsLabel'));
       patchText(overviewMetricsHintEl, t('settings.str.overviewMetricsInactiveHint'));
@@ -2051,10 +2390,12 @@ export const SettingsStructureTab = defineComponent({
       cliSlotsList.destroy();
       topbarSlotsList.destroy();
       hoverModulesList.destroy();
-      hoverMetricStyleSwitch.destroy();
+      hoverMetricRowsSwitch.destroy();
+      hoverMetricTextModeSwitch.destroy();
       hoverSyncOverviewToggle.destroy();
       hoverMetricsList.destroy();
-      overviewMetricStyleSwitch.destroy();
+      overviewMetricRowsSwitch.destroy();
+      overviewMetricTextModeSwitch.destroy();
       quotaDisplayModeToggle.destroy();
       overviewModulesList.destroy();
       overviewMetricsList.destroy();
@@ -2093,10 +2434,12 @@ export const SettingsStructureTab = defineComponent({
         cliStatusActionBtn,
         topbarSlotsList,
         hoverModulesList,
-        hoverMetricStyleSwitch,
+        hoverMetricRowsSwitch,
+        hoverMetricTextModeSwitch,
         hoverSyncOverviewToggle,
         hoverMetricsList,
-        overviewMetricStyleSwitch,
+        overviewMetricRowsSwitch,
+        overviewMetricTextModeSwitch,
         quotaDisplayModeToggle,
         overviewModulesList,
         overviewMetricsList,

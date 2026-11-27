@@ -396,21 +396,43 @@ html[data-standalone="true"][data-modern-ui="true"] .app-shell {
   transition: background-color 160ms var(--ease-modern);
 }
 
-[data-modern-ui="true"] .matrix-cell.is-trend-card {
-  padding: 9px 12px 10px;
+[data-modern-ui="true"] .telemetry-matrix > .matrix-cell {
+  padding: 8px 10px;
 }
 
-[data-modern-ui="true"] .telemetry-matrix.is-large-trend[data-cols="3"] .matrix-cell.is-trend-card {
-  padding: 9px 9px 10px;
+[data-modern-ui="true"] .telemetry-matrix > .matrix-cell.is-wide-card,
+[data-modern-ui="true"] .telemetry-matrix.is-large-trend > .matrix-cell.is-trend-card {
+  padding: 8px 11px;
 }
 
-[data-modern-ui="true"] .telemetry-matrix.is-hybrid[data-cols="3"] .matrix-cell.is-hybrid-hero,
-[data-modern-ui="true"] .telemetry-matrix.is-hybrid[data-cols="4"] .matrix-cell.is-hybrid-hero {
-  padding: 10px 12px 11px;
+[data-modern-ui="true"] .telemetry-matrix > .matrix-cell.is-narrow-card {
+  padding: 9px 10px 8px;
 }
 
-[data-modern-ui="true"] .telemetry-matrix.is-hybrid[data-cols="4"] > .matrix-cell:not(.is-hybrid-hero) {
-  padding: 8px 9px;
+[data-modern-ui="true"] .telemetry-matrix > .matrix-cell.is-tall-card {
+  padding: 10px 12px 9px;
+}
+
+[data-modern-ui="true"] .telemetry-matrix.is-large-trend[data-cols="3"] > .matrix-cell.is-trend-card {
+  padding: 8px 10px;
+}
+
+[data-modern-ui="true"] .telemetry-matrix[data-metric-text="title"] > .matrix-cell:not(.is-trend-card),
+[data-modern-ui="true"] .telemetry-matrix[data-metric-text="sub"] > .matrix-cell:not(.is-trend-card) {
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+[data-modern-ui="true"] .telemetry-matrix[data-metric-text="both"] > .matrix-cell.is-wide-card,
+[data-modern-ui="true"] .telemetry-matrix.is-large-trend[data-metric-text="both"] > .matrix-cell.is-trend-card {
+  padding: 8px 11px;
+}
+
+[data-modern-ui="true"] .matrix-ghost-cell {
+  border-radius: var(--radius-xs);
+  background: color-mix(in srgb, var(--modern-surface-subtle) 58%, transparent);
+  box-shadow: none;
+  border: 1px dashed color-mix(in srgb, var(--border-strong) 55%, transparent);
 }
 
 /* 面板内的双栏信息项（如版本更新中的「价格表 / 当前版本」）不套二层背景 */
@@ -752,9 +774,15 @@ html[data-standalone="true"][data-modern-ui="true"] .app-shell {
   box-shadow: 0 0 0 1px var(--accent-primary-border);
 }
 
-[data-modern-ui="true"] .structure-preview-canvas .telemetry-matrix.is-metrics-reorderable:not(.is-dragging-matrix):not(.is-resizing-hybrid) .matrix-cell:hover {
+[data-modern-ui="true"] .structure-preview-canvas .telemetry-matrix.is-metrics-reorderable:not(.is-dragging-matrix):not(.is-resizing-metric) .matrix-cell:hover {
   background: color-mix(in srgb, var(--accent-primary) 10%, var(--modern-surface-subtle));
   box-shadow: inset 0 0 0 1px var(--accent-primary-border);
+}
+
+[data-modern-ui="true"] .matrix-drop-preview {
+  border-radius: var(--radius-xs);
+  border: 1.5px dashed color-mix(in srgb, var(--accent-primary) 58%, transparent);
+  background: color-mix(in srgb, var(--accent-primary) 11%, transparent);
 }
 
 [data-modern-ui="true"] .step-table-preview-host.is-col-reorderable:not(.is-dragging-cols) .steps-data-table th.is-col-reorderable:hover {
@@ -771,8 +799,58 @@ html[data-standalone="true"][data-modern-ui="true"] .app-shell {
 }
 
 [data-modern-ui="true"] .slot-add-btn,
-[data-modern-ui="true"] .settings-bridge-relaunch-btn {
+[data-modern-ui="true"] .settings-bridge-relaunch-btn,
+[data-modern-ui="true"] .slot-size-pill,
+[data-modern-ui="true"] .matrix-cell-size-badge {
   border: none;
+}
+
+[data-modern-ui="true"] .slot-size-pill {
+  background: var(--modern-pill-select-bg);
+  transition:
+    color 160ms var(--ease-modern),
+    background-color 160ms var(--ease-modern),
+    transform 140ms var(--ease-modern);
+}
+
+[data-modern-ui="true"] .slot-size-pill:hover {
+  border: none;
+  background: var(--modern-pill-select-hover);
+  color: var(--modern-active-accent);
+}
+
+[data-modern-ui="true"] .slot-size-pill:active {
+  transform: scale(0.95);
+}
+
+[data-modern-ui="true"] .slot-size-pill.is-active {
+  border: none;
+  color: var(--modern-active-accent);
+  background: var(--accent-primary-soft);
+}
+
+[data-modern-ui="true"] .slot-size-pill.is-active:hover {
+  background: color-mix(in srgb, var(--accent-primary) 20%, transparent);
+}
+
+[data-modern-ui="true"] .slot-size-pill[data-badge-tone="narrow"] {
+  border: none;
+  color: var(--metric-info);
+  background: var(--metric-info-soft);
+}
+
+[data-modern-ui="true"] .slot-size-pill[data-badge-tone="narrow"]:hover {
+  background: color-mix(in srgb, var(--metric-info) 20%, transparent);
+}
+
+[data-modern-ui="true"] .slot-size-pill[data-badge-tone="tall"] {
+  border: none;
+  color: var(--metric-speed);
+  background: var(--metric-speed-soft);
+}
+
+[data-modern-ui="true"] .slot-size-pill[data-badge-tone="tall"]:hover {
+  background: color-mix(in srgb, var(--metric-speed) 20%, transparent);
 }
 
 [data-modern-ui="true"] .ctx-risk-mask,

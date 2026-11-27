@@ -32,14 +32,19 @@ import {
   DEFAULT_CLI_STATUSLINE_SLOTS,
   DEFAULT_CONTEXT_AGENT_MODE,
   DEFAULT_HOVER_METRICS,
-  DEFAULT_HOVER_METRIC_HYBRID_RATIO,
+  DEFAULT_HOVER_METRIC_ROWS,
+  DEFAULT_HOVER_METRIC_SIZES,
   DEFAULT_HOVER_METRIC_STYLE,
+  DEFAULT_HOVER_METRIC_TEXT_MODE,
   DEFAULT_HOVER_MODULES,
   DEFAULT_HOVER_SYNC_OVERVIEW_METRICS,
-  DEFAULT_METRIC_HYBRID_RATIO,
+  DEFAULT_METRIC_ROWS,
+  DEFAULT_METRIC_TEXT_MODE,
   DEFAULT_OVERVIEW_METRICS,
-  DEFAULT_OVERVIEW_METRIC_HYBRID_RATIO,
+  DEFAULT_OVERVIEW_METRIC_ROWS,
+  DEFAULT_OVERVIEW_METRIC_SIZES,
   DEFAULT_OVERVIEW_METRIC_STYLE,
+  DEFAULT_OVERVIEW_METRIC_TEXT_MODE,
   DEFAULT_OVERVIEW_MODULES,
   DEFAULT_POPOVER_WIDTH,
   DEFAULT_QUOTA_DISPLAY_MODE,
@@ -48,15 +53,19 @@ import {
   DEFAULT_TOPBAR_MULTI_SESSION_MODE,
   DEFAULT_TOPBAR_SLOTS,
   MAX_LARGE_METRIC_SLOTS,
-  MAX_METRIC_HYBRID_RATIO,
+  MAX_OVERVIEW_METRICS,
   MAX_POPOVER_WIDTH,
-  MIN_METRIC_HYBRID_RATIO,
+  METRIC_CARD_SIZES,
+  METRIC_GRID_COLS,
+  METRIC_GRID_ROWS,
+  METRIC_TEXT_MODES,
   MIN_POPOVER_WIDTH,
   OVERVIEW_METRIC_KEYS,
   OVERVIEW_MODULE_KEYS,
   STEP_TABLE_COLUMN_KEYS,
   TOPBAR_MULTI_SESSION_MODES,
   TOPBAR_SLOT_KEYS,
+  deriveMetricCardStyleFromLayout,
   isRiskyFeaturesGateOpen,
   isTopbarMultiSessionVisible,
   normalizeAccountQuotaRefreshMinutes,
@@ -66,14 +75,22 @@ import {
   normalizeDeveloperModeEnabled,
   normalizeEnableRemoteSshTelemetry,
   normalizeExperimentalQuotaReservation,
-  normalizeHoverMetricHybridRatio,
+  normalizeHoverMetricRows,
+  normalizeHoverMetricSizes,
   normalizeHoverMetricStyle,
+  normalizeHoverMetricTextMode,
   normalizeHoverMetrics,
   normalizeHoverModules,
   normalizeHoverSyncOverviewMetrics,
+  normalizeMetricCardSize,
+  normalizeMetricCardSizes,
+  normalizeMetricGridRows,
+  normalizeMetricTextMode,
   normalizeModelDisplayMode,
-  normalizeOverviewMetricHybridRatio,
+  normalizeOverviewMetricRows,
+  normalizeOverviewMetricSizes,
   normalizeOverviewMetricStyle,
+  normalizeOverviewMetricTextMode,
   normalizeOverviewMetrics,
   normalizeOverviewModules,
   normalizePluginUpdateMode,
@@ -87,6 +104,7 @@ import {
   normalizeTopbarMultiSessionMode,
   normalizeWeeklyLimitMode,
   normalizeWindowMountMode,
+  packMetricBentoLayout,
   parseStepTokenComboSegments,
   resolveEffectiveCliStatusLineSlots,
   resolveEffectiveMetricMatrixConfig,
@@ -516,13 +534,21 @@ export const DEFAULT_CLIENT_OVERVIEW_MODULES = DEFAULT_OVERVIEW_MODULES;
 export const DEFAULT_CLIENT_HOVER_MODULES = DEFAULT_HOVER_MODULES;
 export const DEFAULT_CLIENT_HOVER_SYNC_OVERVIEW_METRICS = DEFAULT_HOVER_SYNC_OVERVIEW_METRICS;
 export const DEFAULT_CLIENT_HOVER_METRIC_STYLE = DEFAULT_HOVER_METRIC_STYLE;
-export const DEFAULT_CLIENT_HOVER_METRIC_HYBRID_RATIO = DEFAULT_HOVER_METRIC_HYBRID_RATIO;
+export const DEFAULT_CLIENT_HOVER_METRIC_ROWS = DEFAULT_HOVER_METRIC_ROWS;
+export const DEFAULT_CLIENT_HOVER_METRIC_SIZES = DEFAULT_HOVER_METRIC_SIZES;
+export const DEFAULT_CLIENT_HOVER_METRIC_TEXT_MODE = DEFAULT_HOVER_METRIC_TEXT_MODE;
 export const DEFAULT_CLIENT_HOVER_METRICS = DEFAULT_HOVER_METRICS;
 export const DEFAULT_CLIENT_OVERVIEW_METRIC_STYLE = DEFAULT_OVERVIEW_METRIC_STYLE;
-export const DEFAULT_CLIENT_OVERVIEW_METRIC_HYBRID_RATIO = DEFAULT_OVERVIEW_METRIC_HYBRID_RATIO;
-export const MIN_CLIENT_METRIC_HYBRID_RATIO = MIN_METRIC_HYBRID_RATIO;
-export const MAX_CLIENT_METRIC_HYBRID_RATIO = MAX_METRIC_HYBRID_RATIO;
-export const DEFAULT_CLIENT_METRIC_HYBRID_RATIO = DEFAULT_METRIC_HYBRID_RATIO;
+export const DEFAULT_CLIENT_OVERVIEW_METRIC_ROWS = DEFAULT_OVERVIEW_METRIC_ROWS;
+export const DEFAULT_CLIENT_OVERVIEW_METRIC_SIZES = DEFAULT_OVERVIEW_METRIC_SIZES;
+export const DEFAULT_CLIENT_OVERVIEW_METRIC_TEXT_MODE = DEFAULT_OVERVIEW_METRIC_TEXT_MODE;
+export const DEFAULT_CLIENT_METRIC_ROWS = DEFAULT_METRIC_ROWS;
+export const DEFAULT_CLIENT_METRIC_TEXT_MODE = DEFAULT_METRIC_TEXT_MODE;
+export const CLIENT_METRIC_GRID_COLS = METRIC_GRID_COLS;
+export const CLIENT_METRIC_GRID_ROWS = METRIC_GRID_ROWS;
+export const CLIENT_METRIC_CARD_SIZES = METRIC_CARD_SIZES;
+export const CLIENT_METRIC_TEXT_MODES = METRIC_TEXT_MODES;
+export const MAX_CLIENT_OVERVIEW_METRICS = MAX_OVERVIEW_METRICS;
 export const MAX_CLIENT_LARGE_METRIC_SLOTS = MAX_LARGE_METRIC_SLOTS;
 export const CLIENT_OVERVIEW_METRIC_KEYS = OVERVIEW_METRIC_KEYS;
 export const DEFAULT_CLIENT_OVERVIEW_METRICS = DEFAULT_OVERVIEW_METRICS;
@@ -577,12 +603,22 @@ export const resolveEffectiveClientCliStatusLineSlots = resolveEffectiveCliStatu
 export const normalizeClientHoverModules = normalizeHoverModules;
 export const normalizeClientHoverSyncOverviewMetrics = normalizeHoverSyncOverviewMetrics;
 export const normalizeClientHoverMetricStyle = normalizeHoverMetricStyle;
-export const normalizeClientHoverMetricHybridRatio = normalizeHoverMetricHybridRatio;
+export const normalizeClientHoverMetricRows = normalizeHoverMetricRows;
+export const normalizeClientHoverMetricSizes = normalizeHoverMetricSizes;
+export const normalizeClientHoverMetricTextMode = normalizeHoverMetricTextMode;
 export const normalizeClientHoverMetrics = normalizeHoverMetrics;
 export const normalizeClientOverviewModules = normalizeOverviewModules;
 export const normalizeClientOverviewMetricStyle = normalizeOverviewMetricStyle;
-export const normalizeClientOverviewMetricHybridRatio = normalizeOverviewMetricHybridRatio;
+export const normalizeClientOverviewMetricRows = normalizeOverviewMetricRows;
+export const normalizeClientOverviewMetricSizes = normalizeOverviewMetricSizes;
+export const normalizeClientOverviewMetricTextMode = normalizeOverviewMetricTextMode;
 export const normalizeClientOverviewMetrics = normalizeOverviewMetrics;
+export const normalizeClientMetricCardSize = normalizeMetricCardSize;
+export const normalizeClientMetricCardSizes = normalizeMetricCardSizes;
+export const normalizeClientMetricGridRows = normalizeMetricGridRows;
+export const normalizeClientMetricTextMode = normalizeMetricTextMode;
+export const deriveClientMetricCardStyle = deriveMetricCardStyleFromLayout;
+export const packClientMetricBentoLayout = packMetricBentoLayout;
 export const resolveEffectiveClientMetricMatrixConfig = resolveEffectiveMetricMatrixConfig;
 export const normalizeClientStepColumns = normalizeStepTableColumns;
 export const normalizeClientUpdateMode = normalizePluginUpdateMode;
@@ -768,6 +804,17 @@ export function isEquivalentTelemetry(prev, next) {
   ) {
     return false;
   }
+  const sameSizeMap = (a, b) => {
+    const na = normalizeClientMetricCardSizes(a);
+    const nb = normalizeClientMetricCardSizes(b);
+    const ka = Object.keys(na);
+    const kb = Object.keys(nb);
+    if (ka.length !== kb.length) return false;
+    for (let i = 0; i < ka.length; i += 1) {
+      if (na[ka[i]] !== nb[ka[i]]) return false;
+    }
+    return true;
+  };
   if (
     normalizeClientHoverMetricStyle(pSet?.hoverMetricStyle) !==
     normalizeClientHoverMetricStyle(nSet?.hoverMetricStyle)
@@ -775,8 +822,15 @@ export function isEquivalentTelemetry(prev, next) {
     return false;
   }
   if (
-    normalizeClientHoverMetricHybridRatio(pSet?.hoverMetricHybridRatio) !==
-    normalizeClientHoverMetricHybridRatio(nSet?.hoverMetricHybridRatio)
+    normalizeClientHoverMetricRows(pSet?.hoverMetricRows, pSet?.hoverMetricStyle) !==
+    normalizeClientHoverMetricRows(nSet?.hoverMetricRows, nSet?.hoverMetricStyle)
+  ) {
+    return false;
+  }
+  if (!sameSizeMap(pSet?.hoverMetricSizes, nSet?.hoverMetricSizes)) return false;
+  if (
+    normalizeClientHoverMetricTextMode(pSet?.hoverMetricTextMode) !==
+    normalizeClientHoverMetricTextMode(nSet?.hoverMetricTextMode)
   ) {
     return false;
   }
@@ -789,8 +843,15 @@ export function isEquivalentTelemetry(prev, next) {
     return false;
   }
   if (
-    normalizeClientOverviewMetricHybridRatio(pSet?.overviewMetricHybridRatio) !==
-    normalizeClientOverviewMetricHybridRatio(nSet?.overviewMetricHybridRatio)
+    normalizeClientOverviewMetricRows(pSet?.overviewMetricRows, pSet?.overviewMetricStyle) !==
+    normalizeClientOverviewMetricRows(nSet?.overviewMetricRows, nSet?.overviewMetricStyle)
+  ) {
+    return false;
+  }
+  if (!sameSizeMap(pSet?.overviewMetricSizes, nSet?.overviewMetricSizes)) return false;
+  if (
+    normalizeClientOverviewMetricTextMode(pSet?.overviewMetricTextMode) !==
+    normalizeClientOverviewMetricTextMode(nSet?.overviewMetricTextMode)
   ) {
     return false;
   }
@@ -2164,32 +2225,110 @@ export async function saveSettingsPatch(patch) {
       safePatch.hoverSyncOverviewMetrics
     );
   }
-  if (Object.prototype.hasOwnProperty.call(safePatch, 'hoverMetricStyle')) {
-    safePatch.hoverMetricStyle = normalizeClientHoverMetricStyle(safePatch.hoverMetricStyle);
+  const curSettings = telemetryStore.getState().telemetry?.settings || {};
+  const hasHoverMetrics = Object.prototype.hasOwnProperty.call(safePatch, 'hoverMetrics');
+  const hasHoverRows = Object.prototype.hasOwnProperty.call(safePatch, 'hoverMetricRows');
+  const hasHoverSizes = Object.prototype.hasOwnProperty.call(safePatch, 'hoverMetricSizes');
+  const hasHoverStyle = Object.prototype.hasOwnProperty.call(safePatch, 'hoverMetricStyle');
+  if (hasHoverMetrics) {
+    safePatch.hoverMetrics = normalizeClientHoverMetrics(safePatch.hoverMetrics);
   }
-  if (Object.prototype.hasOwnProperty.call(safePatch, 'hoverMetricHybridRatio')) {
-    safePatch.hoverMetricHybridRatio = normalizeClientHoverMetricHybridRatio(
-      safePatch.hoverMetricHybridRatio
+  if (Object.prototype.hasOwnProperty.call(safePatch, 'hoverMetricTextMode')) {
+    safePatch.hoverMetricTextMode = normalizeClientHoverMetricTextMode(
+      safePatch.hoverMetricTextMode
     );
   }
-  if (Object.prototype.hasOwnProperty.call(safePatch, 'hoverMetrics')) {
-    safePatch.hoverMetrics = normalizeClientHoverMetrics(safePatch.hoverMetrics);
+  if (hasHoverRows || hasHoverSizes) {
+    if (hasHoverRows) {
+      safePatch.hoverMetricRows = normalizeClientHoverMetricRows(safePatch.hoverMetricRows);
+    }
+    if (hasHoverSizes) {
+      safePatch.hoverMetricSizes = normalizeClientHoverMetricSizes(safePatch.hoverMetricSizes);
+    }
+    const nextHoverRows = hasHoverRows
+      ? safePatch.hoverMetricRows
+      : normalizeClientHoverMetricRows(curSettings.hoverMetricRows, curSettings.hoverMetricStyle);
+    const nextHoverMetrics = hasHoverMetrics
+      ? safePatch.hoverMetrics
+      : normalizeClientHoverMetrics(curSettings.hoverMetrics);
+    const nextHoverSizes = hasHoverSizes
+      ? safePatch.hoverMetricSizes
+      : normalizeClientHoverMetricSizes(
+          curSettings.hoverMetricSizes,
+          nextHoverMetrics,
+          curSettings.hoverMetricRows === undefined ? curSettings.hoverMetricStyle : undefined
+        );
+    safePatch.hoverMetricStyle = deriveClientMetricCardStyle(
+      nextHoverRows,
+      nextHoverMetrics,
+      nextHoverSizes
+    );
+  } else if (hasHoverStyle) {
+    const nextStyle = normalizeClientHoverMetricStyle(safePatch.hoverMetricStyle);
+    const nextHoverMetrics = hasHoverMetrics
+      ? safePatch.hoverMetrics
+      : normalizeClientHoverMetrics(curSettings.hoverMetrics);
+    safePatch.hoverMetricStyle = nextStyle;
+    safePatch.hoverMetricRows = normalizeClientHoverMetricRows(undefined, nextStyle);
+    safePatch.hoverMetricSizes = normalizeClientHoverMetricSizes(undefined, nextHoverMetrics, nextStyle);
   }
   if (Object.prototype.hasOwnProperty.call(safePatch, 'overviewModules')) {
     safePatch.overviewModules = normalizeClientOverviewModules(safePatch.overviewModules);
   }
-  if (Object.prototype.hasOwnProperty.call(safePatch, 'overviewMetricStyle')) {
-    safePatch.overviewMetricStyle = normalizeClientOverviewMetricStyle(
-      safePatch.overviewMetricStyle
-    );
-  }
-  if (Object.prototype.hasOwnProperty.call(safePatch, 'overviewMetricHybridRatio')) {
-    safePatch.overviewMetricHybridRatio = normalizeClientOverviewMetricHybridRatio(
-      safePatch.overviewMetricHybridRatio
-    );
-  }
-  if (Object.prototype.hasOwnProperty.call(safePatch, 'overviewMetrics')) {
+  const hasOverviewMetrics = Object.prototype.hasOwnProperty.call(safePatch, 'overviewMetrics');
+  const hasOverviewRows = Object.prototype.hasOwnProperty.call(safePatch, 'overviewMetricRows');
+  const hasOverviewSizes = Object.prototype.hasOwnProperty.call(safePatch, 'overviewMetricSizes');
+  const hasOverviewStyle = Object.prototype.hasOwnProperty.call(safePatch, 'overviewMetricStyle');
+  if (hasOverviewMetrics) {
     safePatch.overviewMetrics = normalizeClientOverviewMetrics(safePatch.overviewMetrics);
+  }
+  if (Object.prototype.hasOwnProperty.call(safePatch, 'overviewMetricTextMode')) {
+    safePatch.overviewMetricTextMode = normalizeClientOverviewMetricTextMode(
+      safePatch.overviewMetricTextMode
+    );
+  }
+  if (hasOverviewRows || hasOverviewSizes) {
+    if (hasOverviewRows) {
+      safePatch.overviewMetricRows = normalizeClientOverviewMetricRows(safePatch.overviewMetricRows);
+    }
+    if (hasOverviewSizes) {
+      safePatch.overviewMetricSizes = normalizeClientOverviewMetricSizes(
+        safePatch.overviewMetricSizes
+      );
+    }
+    const nextOverviewRows = hasOverviewRows
+      ? safePatch.overviewMetricRows
+      : normalizeClientOverviewMetricRows(
+          curSettings.overviewMetricRows,
+          curSettings.overviewMetricStyle
+        );
+    const nextOverviewMetrics = hasOverviewMetrics
+      ? safePatch.overviewMetrics
+      : normalizeClientOverviewMetrics(curSettings.overviewMetrics);
+    const nextOverviewSizes = hasOverviewSizes
+      ? safePatch.overviewMetricSizes
+      : normalizeClientOverviewMetricSizes(
+          curSettings.overviewMetricSizes,
+          nextOverviewMetrics,
+          curSettings.overviewMetricRows === undefined ? curSettings.overviewMetricStyle : undefined
+        );
+    safePatch.overviewMetricStyle = deriveClientMetricCardStyle(
+      nextOverviewRows,
+      nextOverviewMetrics,
+      nextOverviewSizes
+    );
+  } else if (hasOverviewStyle) {
+    const nextStyle = normalizeClientOverviewMetricStyle(safePatch.overviewMetricStyle);
+    const nextOverviewMetrics = hasOverviewMetrics
+      ? safePatch.overviewMetrics
+      : normalizeClientOverviewMetrics(curSettings.overviewMetrics);
+    safePatch.overviewMetricStyle = nextStyle;
+    safePatch.overviewMetricRows = normalizeClientOverviewMetricRows(undefined, nextStyle);
+    safePatch.overviewMetricSizes = normalizeClientOverviewMetricSizes(
+      undefined,
+      nextOverviewMetrics,
+      nextStyle
+    );
   }
   if (Object.prototype.hasOwnProperty.call(safePatch, 'stepTableColumns')) {
     safePatch.stepTableColumns = normalizeClientStepColumns(safePatch.stepTableColumns);
