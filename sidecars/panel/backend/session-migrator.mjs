@@ -81,6 +81,7 @@ import {
   resolveNoFollowFile,
   resolveNoFollowPath,
   resolveScopedTrajectoryCacheStore,
+  sumVerifiedDirTreeBytes,
   withWritableSqliteDb,
 } from './session-store.mjs';
 
@@ -347,13 +348,13 @@ function migratorReadAnnotationTitle(clientRoot, cid) {
   }
 }
 
-function migratorComputeDbFileInfo(clientRoot, cid, walSet = null) {
+function migratorComputeDbFileInfo(clientRoot, cid, walSet = null, shmSet = null) {
   const dbCheck = resolveNoFollowFile(clientRoot, ['conversations', `${cid}.db`]);
   if (!dbCheck.ok || !dbCheck.exists || !dbCheck.stat) return null;
   const dbPath = dbCheck.path;
   try {
     const dbStat = dbCheck.stat;
-    let sizeBytes = Number(dbStat.size || 0);
+    let dbSizeBytes = Number(dbStat.size || 0);
     let mtimeMs = Number(dbStat.mtimeMs || 0);
     let hasNonEmptyWal = false;
     const hasWal = walSet ? walSet.has(`${cid}.db-wal`) : existsSync(`${dbPath}-wal`);
@@ -361,7 +362,7 @@ function migratorComputeDbFileInfo(clientRoot, cid, walSet = null) {
       const walCheck = resolveNoFollowFile(clientRoot, ['conversations', `${cid}.db-wal`]);
       if (walCheck.ok && walCheck.exists && walCheck.stat) {
         const walSize = Number(walCheck.stat.size || 0);
-        sizeBytes += walSize;
+        dbSizeBytes += walSize;
         // 0 字节的空 .db-wal 仅由只读打开/checkpoint 残留，不含真实写入，忽略其 mtime 避免拉平老会话时间
         if (walSize > 0) {
           hasNonEmptyWal = true;
@@ -369,7 +370,14 @@ function migratorComputeDbFileInfo(clientRoot, cid, walSet = null) {
         }
       }
     }
-    return { dbPath, sizeBytes, mtimeMs, hasNonEmptyWal };
+    const hasShm = shmSet ? shmSet.has(`${cid}.db-shm`) : existsSync(`${dbPath}-shm`);
+    if (hasShm) {
+      const shmCheck = resolveNoFollowFile(clientRoot, ['conversations', `${cid}.db-shm`]);
+      if (shmCheck.ok && shmCheck.exists && shmCheck.stat) {
+        dbSizeBytes += Number(shmCheck.stat.size || 0);
+      }
+    }
+    return { dbPath, dbSizeBytes, sizeBytes: dbSizeBytes, mtimeMs, hasNonEmptyWal };
   } catch {
     return null;
   }
@@ -398,9 +406,13 @@ function migratorListClientSessions(clientDef, clientRoot, summaryMap, runningSe
   }
 
   const walSet = new Set();
+  const shmSet = new Set();
   for (const name of entries) {
-    if (name.endsWith('.db-wal')) {
-      walSet.add(name.toLowerCase());
+    const lower = name.toLowerCase();
+    if (lower.endsWith('.db-wal')) {
+      walSet.add(lower);
+    } else if (lower.endsWith('.db-shm')) {
+      shmSet.add(lower);
     }
   }
   const brainIdSet = migratorReadDirNameSet(join(clientRoot, 'brain'));
@@ -411,7 +423,7 @@ function migratorListClientSessions(clientDef, clientRoot, summaryMap, runningSe
     if (!name.endsWith('.db')) continue;
     const cid = name.slice(0, -3).toLowerCase();
     if (!SESSION_UUID_RE.test(cid)) continue;
-    const info = migratorComputeDbFileInfo(clientRoot, cid, walSet);
+    const info = migratorComputeDbFileInfo(clientRoot, cid, walSet, shmSet);
     if (!info) continue;
     const summary = summaryMap.get(cid) || null;
     const summaryLastModMs = summary
@@ -487,6 +499,21 @@ function migratorListClientSessions(clientDef, clientRoot, summaryMap, runningSe
         (rawStatus === 'CASCADE_RUN_STATUS_RUNNING' ||
           (notFullyIdle && rawStatus !== 'CASCADE_RUN_STATUS_IDLE')));
 
+    const hasBrain = brainIdSet.has(cid);
+    let totalSizeBytes = Number(info.dbSizeBytes || info.sizeBytes || 0);
+    if (hasBrain) {
+      const brCheck = resolveNoFollowPath(clientRoot, ['brain', cid]);
+      if (brCheck.ok && brCheck.exists && brCheck.stat?.isDirectory()) {
+        totalSizeBytes += sumVerifiedDirTreeBytes(brCheck.path).sizeBytes;
+      }
+    }
+    if (annFileSet.has(`${cid}.pbtxt`)) {
+      const annCheck = resolveNoFollowFile(clientRoot, ['annotations', `${cid}.pbtxt`]);
+      if (annCheck.ok && annCheck.exists && annCheck.stat) {
+        totalSizeBytes += Number(annCheck.stat.size || 0);
+      }
+    }
+
     sessions.push({
       cascadeId: cid,
       clientId: clientDef.id,
@@ -497,8 +524,9 @@ function migratorListClientSessions(clientDef, clientRoot, summaryMap, runningSe
       workspaceName,
       workspacePath,
       projectId: String(summary?.project_id || dbLight?.projectId || '').trim(),
-      sizeBytes: info.sizeBytes,
-      hasBrain: brainIdSet.has(cid),
+      sizeBytes: totalSizeBytes,
+      dbSizeBytes: Number(info.dbSizeBytes || info.sizeBytes || 0),
+      hasBrain,
       isRunning,
     });
   }

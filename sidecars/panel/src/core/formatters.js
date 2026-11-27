@@ -169,6 +169,28 @@ export function formatTokensPrecise(num) {
   return String(Math.round(n));
 }
 
+/**
+ * 将磁盘字节数格式化为紧凑易读的存储占用文本（支持 B / KB / MB / GB，并平滑处理 0 / 负数 / NaN 及单位进位边界）。
+ *
+ * @param {number|string|null|undefined} bytes
+ * @returns {string}
+ */
+export function formatCompactBytes(bytes) {
+  const n = Number(bytes);
+  if (!Number.isFinite(n) || n <= 0) return '0 B';
+  if (n < 1024) return `${Math.round(n)} B`;
+  const kb = n / 1024;
+  if (kb < 1023.5) {
+    return kb < 10 ? `${Number(kb.toFixed(1))} KB` : `${Math.round(kb)} KB`;
+  }
+  const mb = n / (1024 * 1024);
+  if (mb < 1023.95) {
+    return `${mb.toFixed(1)} MB`;
+  }
+  const gb = n / (1024 * 1024 * 1024);
+  return gb >= 10 ? `${gb.toFixed(1)} GB` : `${gb.toFixed(2)} GB`;
+}
+
 export function formatCnyApprox(usdAmount, rate = 7.2) {
   return formatConvertedApprox(usdAmount, {
     displayCurrency: 'CNY',

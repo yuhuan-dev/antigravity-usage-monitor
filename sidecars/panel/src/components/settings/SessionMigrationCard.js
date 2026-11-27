@@ -5,6 +5,7 @@
 
 import { defineComponent } from '../../core/component.js';
 import { h, patchAttr, patchClasses, patchText } from '../../core/domPatch.js';
+import { formatCompactBytes } from '../../core/formatters.js';
 import { isWindowOverlayMode } from '../../core/httpClient.js';
 import { copyPlainTextToClipboard } from '../../core/stepInspector.js';
 import { createSvgIcon } from '../../icons/SvgIcon.js';
@@ -514,6 +515,9 @@ export const SessionMigrationCard = defineComponent({
           };
 
           const metaParts = [t('settings.oth.migStepsUnit', { count: item.stepCount })];
+          if (Number(item.sizeBytes || 0) > 0) {
+            metaParts.push(formatCompactBytes(item.sizeBytes));
+          }
           const age = smigFormatAge(item.lastModifiedMs);
           if (age) metaParts.push(age);
 

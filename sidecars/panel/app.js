@@ -1430,6 +1430,11 @@ const SVG_ICON_DEFS = Object.freeze({
     { tag: 'path', attrs: { d: 'M8 2L3 4v3.8c0 3.1 2.1 5.3 5 6.2 2.9-.9 5-3.1 5-6.2V4L8 2z' } },
     { tag: 'path', attrs: { d: 'M6 8l1.4 1.4L10.3 6.5' } },
   ],
+  database: [
+    { tag: 'ellipse', attrs: { cx: '8', cy: '4', rx: '5', ry: '1.8' } },
+    { tag: 'path', attrs: { d: 'M3 4v8c0 1 2.24 1.8 5 1.8s5-.8 5-1.8V4' } },
+    { tag: 'path', attrs: { d: 'M3 8c0 1 2.24 1.8 5 1.8s5-.8 5-1.8' } },
+  ],
 });
 return { SVG_ICON_DEFS };
 })();
@@ -2138,6 +2143,13 @@ const I18N_MESSAGES_ZH_CN = Object.freeze({
   'settings.smgr.clearSelShort': '清空',
   'settings.smgr.selectedCount': '已选 {n} 条',
   'settings.smgr.deleteSelected': '删除已选 ({n})',
+  'settings.smgr.totalSizeTitle': '共占用本地存储 {size}',
+  'settings.smgr.filteredSizeTitle': '当前筛选占用 {filtered} / 全部共 {total}',
+  'settings.smgr.selectedSizeTitle': '已选会话共占用 {size}',
+  'settings.smgr.sizeTooltipTotal': '占用存储：{size}',
+  'settings.smgr.sizePartDb': '对话库 {size}',
+  'settings.smgr.sizePartBrain': '产物与附件 {size}',
+  'settings.smgr.sizePartSubagents': '含子代理 {size}',
   'settings.smgr.prefsTitle': '清理偏好',
   'settings.smgr.prefRedactLedger': '删除时同步脱敏本插件账本',
   'settings.smgr.prefRedactLedgerDesc': '在线清除账本中已删会话的标题与提问正文，100% 保留 Token 与费用统计。',
@@ -2157,6 +2169,7 @@ const I18N_MESSAGES_ZH_CN = Object.freeze({
   'settings.smgr.deleteIndexOnlyOnlineTip': '客户端运行中无法清理仅索引残留，请退出该客户端后深度清理',
   'settings.smgr.confirmTitle': '确认永久删除',
   'settings.smgr.confirmSummary': '即将永久删除 {n} 条会话（不可撤销）。',
+  'settings.smgr.confirmReclaimSize': '预计释放本地存储空间：约 {size}。',
   'settings.smgr.confirmOnlineMode': '将通过运行中客户端的官方接口在线删除 {n} 条会话（无需退出客户端）。',
   'settings.smgr.confirmOnlineMixed': '其中 {online} 条通过运行中客户端官方接口在线删除，{offline} 条走离线深度清理。',
   'settings.smgr.confirmTargets': '目标会话：{titles}',
@@ -3384,6 +3397,13 @@ const I18N_MESSAGES_ZH_TW = Object.freeze({
   "settings.smgr.clearSelShort": "清除",
   "settings.smgr.selectedCount": "已選 {n} 筆",
   "settings.smgr.deleteSelected": "刪除已選 ({n})",
+  "settings.smgr.totalSizeTitle": "共佔用本機儲存空間 {size}",
+  "settings.smgr.filteredSizeTitle": "目前篩選佔用 {filtered} / 全部共 {total}",
+  "settings.smgr.selectedSizeTitle": "已選工作階段共佔用 {size}",
+  "settings.smgr.sizeTooltipTotal": "佔用儲存空間：{size}",
+  "settings.smgr.sizePartDb": "對話資料庫 {size}",
+  "settings.smgr.sizePartBrain": "產物與附件 {size}",
+  "settings.smgr.sizePartSubagents": "含子代理 {size}",
   "settings.smgr.prefsTitle": "清理偏好設定",
   "settings.smgr.prefRedactLedger": "刪除時同步遮罩本外掛帳本",
   "settings.smgr.prefRedactLedgerDesc": "即時清除帳本中已刪工作階段的標題與提問內容，100% 保留 Token 與費用統計。",
@@ -3403,6 +3423,7 @@ const I18N_MESSAGES_ZH_TW = Object.freeze({
   "settings.smgr.deleteIndexOnlyOnlineTip": "用戶端執行中無法清理僅索引殘留，請先關閉該用戶端再進行離線深度清理",
   "settings.smgr.confirmTitle": "確認永久刪除",
   "settings.smgr.confirmSummary": "即將永久刪除 {n} 筆工作階段，此操作無法復原。",
+  "settings.smgr.confirmReclaimSize": "預計釋放本機儲存空間：約 {size}。",
   "settings.smgr.confirmOnlineMode": "將透過執行中用戶端的官方 API 線上刪除 {n} 筆工作階段（無須重啟用戶端）。",
   "settings.smgr.confirmOnlineMixed": "其中 {online} 筆將透過執行中用戶端官方 API 線上刪除，{offline} 筆將以離線深度清理處理。",
   "settings.smgr.confirmTargets": "目標工作階段：{titles}",
@@ -4640,6 +4661,13 @@ const I18N_MESSAGES_EN_US = Object.freeze({
   'settings.smgr.clearSelShort': 'Clear',
   'settings.smgr.selectedCount': '{n} selected',
   'settings.smgr.deleteSelected': 'Delete ({n})',
+  'settings.smgr.totalSizeTitle': 'Total local storage used: {size}',
+  'settings.smgr.filteredSizeTitle': 'Matching filter: {filtered} / All sessions: {total}',
+  'settings.smgr.selectedSizeTitle': 'Selected sessions occupy {size}',
+  'settings.smgr.sizeTooltipTotal': 'Storage used: {size}',
+  'settings.smgr.sizePartDb': 'DB {size}',
+  'settings.smgr.sizePartBrain': 'Artifacts & media {size}',
+  'settings.smgr.sizePartSubagents': 'incl. subagents {size}',
   'settings.smgr.prefsTitle': 'Cleanup Preferences',
   'settings.smgr.prefRedactLedger': 'Redact plugin ledger on delete',
   'settings.smgr.prefRedactLedgerDesc': 'Scrubs deleted session titles and user prompts live while keeping 100% of token & cost totals.',
@@ -4659,6 +4687,7 @@ const I18N_MESSAGES_EN_US = Object.freeze({
   'settings.smgr.deleteIndexOnlyOnlineTip': 'Index-only residuals cannot be removed while the client is running; close it for offline cleanup',
   'settings.smgr.confirmTitle': 'Confirm Permanent Deletion',
   'settings.smgr.confirmSummary': 'Permanently delete {n} session(s). This action cannot be undone.',
+  'settings.smgr.confirmReclaimSize': 'Estimated storage to free: ~{size}.',
   'settings.smgr.confirmOnlineMode': '{n} session(s) will be deleted online via the running client API (no restart needed).',
   'settings.smgr.confirmOnlineMixed': '{online} session(s) will be deleted online via the running client API and {offline} via offline deep cleanup.',
   'settings.smgr.confirmTargets': 'Target(s): {titles}',
@@ -5887,6 +5916,13 @@ const I18N_MESSAGES_JA_JP = Object.freeze({
   "settings.smgr.clearSelShort": "解除",
   "settings.smgr.selectedCount": "{n} 件選択中",
   "settings.smgr.deleteSelected": "選択を削除 ({n})",
+  "settings.smgr.totalSizeTitle": "ローカルストレージ使用量合計: {size}",
+  "settings.smgr.filteredSizeTitle": "絞り込み結果: {filtered} / 全体合計: {total}",
+  "settings.smgr.selectedSizeTitle": "選択中のセッション使用量: {size}",
+  "settings.smgr.sizeTooltipTotal": "使用ストレージ: {size}",
+  "settings.smgr.sizePartDb": "会話DB {size}",
+  "settings.smgr.sizePartBrain": "成果物・添付 {size}",
+  "settings.smgr.sizePartSubagents": "サブエージェント含む {size}",
   "settings.smgr.prefsTitle": "クリーンアップ設定",
   "settings.smgr.prefRedactLedger": "削除時にプラグイン台帳を秘匿化",
   "settings.smgr.prefRedactLedgerDesc": "削除セッションのタイトルとプロンプト本文を消去し、トークンと費用の統計は 100% 保持します。",
@@ -5906,6 +5942,7 @@ const I18N_MESSAGES_JA_JP = Object.freeze({
   "settings.smgr.deleteIndexOnlyOnlineTip": "クライアント実行中はインデックス残留を削除できません。終了後にオフライン整理を行ってください",
   "settings.smgr.confirmTitle": "完全削除の確認",
   "settings.smgr.confirmSummary": "{n} 件のセッションを完全に削除します。この操作は取り消せません。",
+  "settings.smgr.confirmReclaimSize": "解放見込みストレージ容量: 約 {size}。",
   "settings.smgr.confirmOnlineMode": "{n} 件のセッションを実行中クライアントの公式 API でオンライン削除します（再起動不要）。",
   "settings.smgr.confirmOnlineMixed": "{online} 件は公式 API でオンライン削除し、{offline} 件はオフライン完全削除を実行します。",
   "settings.smgr.confirmTargets": "対象：{titles}",
@@ -7126,6 +7163,13 @@ const I18N_MESSAGES_KO_KR = Object.freeze({
   "settings.smgr.clearSelShort": "해제",
   "settings.smgr.selectedCount": "{n}개 선택됨",
   "settings.smgr.deleteSelected": "삭제 ({n})",
+  "settings.smgr.totalSizeTitle": "총 로컬 저장 공간 사용량: {size}",
+  "settings.smgr.filteredSizeTitle": "필터 결과: {filtered} / 전체 합계: {total}",
+  "settings.smgr.selectedSizeTitle": "선택한 세션 저장 공간: {size}",
+  "settings.smgr.sizeTooltipTotal": "저장 공간 사용량: {size}",
+  "settings.smgr.sizePartDb": "대화 DB {size}",
+  "settings.smgr.sizePartBrain": "산출물·첨부 {size}",
+  "settings.smgr.sizePartSubagents": "하위 에이전트 포함 {size}",
   "settings.smgr.prefsTitle": "정리 설정",
   "settings.smgr.prefRedactLedger": "삭제 시 플러그인 원장 마스킹",
   "settings.smgr.prefRedactLedgerDesc": "토큰 및 비용 합계는 100% 유지하면서 삭제된 세션 제목과 사용자 프롬프트를 즉시 제거합니다.",
@@ -7145,6 +7189,7 @@ const I18N_MESSAGES_KO_KR = Object.freeze({
   "settings.smgr.deleteIndexOnlyOnlineTip": "클라이언트 실행 중에는 인덱스 전용 잔여 항목을 제거할 수 없습니다. 오프라인 정리를 위해 클라이언트를 종료하세요",
   "settings.smgr.confirmTitle": "영구 삭제 확인",
   "settings.smgr.confirmSummary": "{n}개 세션을 영구적으로 삭제합니다. 이 작업은 되돌릴 수 없습니다.",
+  "settings.smgr.confirmReclaimSize": "예상 확보 저장 공간: 약 {size}.",
   "settings.smgr.confirmOnlineMode": "{n}개 세션이 실행 중인 클라이언트 API를 통해 온라인으로 삭제됩니다(재시작 불필요).",
   "settings.smgr.confirmOnlineMixed": "{online}개 세션은 실행 중인 클라이언트 API를 통해 온라인으로 삭제되고, {offline}개는 오프라인 정밀 정리로 삭제됩니다.",
   "settings.smgr.confirmTargets": "대상: {titles}",
@@ -8365,6 +8410,13 @@ const I18N_MESSAGES_DE_DE = Object.freeze({
   "settings.smgr.clearSelShort": "Leeren",
   "settings.smgr.selectedCount": "{n} gewählt",
   "settings.smgr.deleteSelected": "Löschen ({n})",
+  "settings.smgr.totalSizeTitle": "Gesamter lokaler Speicherbedarf: {size}",
+  "settings.smgr.filteredSizeTitle": "Gefiltert: {filtered} / Alle Sitzungen: {total}",
+  "settings.smgr.selectedSizeTitle": "Ausgewählte Sitzungen belegen {size}",
+  "settings.smgr.sizeTooltipTotal": "Speicherbedarf: {size}",
+  "settings.smgr.sizePartDb": "DB {size}",
+  "settings.smgr.sizePartBrain": "Artefakte & Medien {size}",
+  "settings.smgr.sizePartSubagents": "inkl. Subagenten {size}",
   "settings.smgr.prefsTitle": "Bereinigungsoptionen",
   "settings.smgr.prefRedactLedger": "Plugin-Journal beim Löschen schwärzen",
   "settings.smgr.prefRedactLedgerDesc": "Entfernt Titel und Nutzer-Prompts gelöschter Sitzungen sofort, während 100 % der Token- und Kostensummen erhalten bleiben.",
@@ -8384,6 +8436,7 @@ const I18N_MESSAGES_DE_DE = Object.freeze({
   "settings.smgr.deleteIndexOnlyOnlineTip": "Nur-Index-Reste können bei laufendem Client nicht entfernt werden; schließen Sie ihn für die Offline-Bereinigung",
   "settings.smgr.confirmTitle": "Dauerhaftes Löschen bestätigen",
   "settings.smgr.confirmSummary": "{n} Sitzung(en) dauerhaft löschen. Dies kann nicht rückgängig gemacht werden.",
+  "settings.smgr.confirmReclaimSize": "Geschätzter freiwerdender Speicherplatz: ca. {size}.",
   "settings.smgr.confirmOnlineMode": "{n} Sitzung(en) werden online über die API des laufenden Clients gelöscht (kein Neustart nötig).",
   "settings.smgr.confirmOnlineMixed": "{online} Sitzung(en) werden online über die API des laufenden Clients gelöscht und {offline} per Offline-Tiefenbereinigung.",
   "settings.smgr.confirmTargets": "Ziel(e): {titles}",
@@ -9604,6 +9657,13 @@ const I18N_MESSAGES_FR_FR = Object.freeze({
   "settings.smgr.clearSelShort": "Effacer",
   "settings.smgr.selectedCount": "{n} sélectionnée(s)",
   "settings.smgr.deleteSelected": "Supprimer ({n})",
+  "settings.smgr.totalSizeTitle": "Espace de stockage local total : {size}",
+  "settings.smgr.filteredSizeTitle": "Filtre actuel : {filtered} / Total : {total}",
+  "settings.smgr.selectedSizeTitle": "Les sessions sélectionnées occupent {size}",
+  "settings.smgr.sizeTooltipTotal": "Stockage utilisé : {size}",
+  "settings.smgr.sizePartDb": "Base {size}",
+  "settings.smgr.sizePartBrain": "Artefacts et médias {size}",
+  "settings.smgr.sizePartSubagents": "sous-agents inclus {size}",
   "settings.smgr.prefsTitle": "Préférences de nettoyage",
   "settings.smgr.prefRedactLedger": "Anonymiser le registre à la suppression",
   "settings.smgr.prefRedactLedgerDesc": "Efface les titres et prompts supprimés tout en conservant 100 % des totaux de tokens et coûts.",
@@ -9623,6 +9683,7 @@ const I18N_MESSAGES_FR_FR = Object.freeze({
   "settings.smgr.deleteIndexOnlyOnlineTip": "Les résidus d'index seul ne peuvent pas être supprimés tant que le client est actif ; fermez-le pour un nettoyage hors ligne",
   "settings.smgr.confirmTitle": "Confirmer la suppression définitive",
   "settings.smgr.confirmSummary": "Supprimer définitivement {n} session(s). Cette action est irréversible.",
+  "settings.smgr.confirmReclaimSize": "Espace de stockage estimé libéré : env. {size}.",
   "settings.smgr.confirmOnlineMode": "{n} session(s) seront supprimées en ligne via l'API du client actif (sans redémarrage).",
   "settings.smgr.confirmOnlineMixed": "{online} session(s) seront supprimées en ligne via l'API client et {offline} via nettoyage hors ligne.",
   "settings.smgr.confirmTargets": "Cible(s) : {titles}",
@@ -12260,7 +12321,7 @@ return { defineComponent };
 })();
 
 // --- src/core/formatters.js ---
-const { formatShortMonthName, formatShortWeekdayName, formatMetric, formatSpeedMetric, formatCachePct, formatPctNumber, getSpeedToneClass, getCacheToneClass, getStepCostToneClass, getTtftToneClass, formatTokens, formatTokensPrecise, formatCnyApprox, formatSecondaryCostApprox, formatFxRateCaption, formatDateSpanBadge, formatTrendSlotFullLabel, formatUsd, speedReasonText, formatAnomalyKindLabel, formatAnomalyTagText, resolveModelAnomalySummary, formatStepAnomalyInlineSummary, buildStepAnomalyDiagnostic, buildStepCompactionDiagnostic, buildStepRevertedDiagnostic, formatTimingDetailSec, hasStepTimingData, buildStepTimingDiagnostic, buildModelAnomalyDiagnostic, sampleSummary, formatCountdown, formatCompactDateTime, formatElapsedSec, stripVendorModelPrefix, resolveModelDisplayInfo, mergeModelsByDisplayName, getAgentBadgeClass, formatQuotaPoolLabel, formatAgentBadgeText, formatAgentLabel, formatConversationMeta, formatLiveActivityLabel, formatLiveActivityDetail, getCanonicalModelColorSeed, resolveDeterministicModelColor, buildDeterministicModelColorMap } = (() => {
+const { formatShortMonthName, formatShortWeekdayName, formatMetric, formatSpeedMetric, formatCachePct, formatPctNumber, getSpeedToneClass, getCacheToneClass, getStepCostToneClass, getTtftToneClass, formatTokens, formatTokensPrecise, formatCompactBytes, formatCnyApprox, formatSecondaryCostApprox, formatFxRateCaption, formatDateSpanBadge, formatTrendSlotFullLabel, formatUsd, speedReasonText, formatAnomalyKindLabel, formatAnomalyTagText, resolveModelAnomalySummary, formatStepAnomalyInlineSummary, buildStepAnomalyDiagnostic, buildStepCompactionDiagnostic, buildStepRevertedDiagnostic, formatTimingDetailSec, hasStepTimingData, buildStepTimingDiagnostic, buildModelAnomalyDiagnostic, sampleSummary, formatCountdown, formatCompactDateTime, formatElapsedSec, stripVendorModelPrefix, resolveModelDisplayInfo, mergeModelsByDisplayName, getAgentBadgeClass, formatQuotaPoolLabel, formatAgentBadgeText, formatAgentLabel, formatConversationMeta, formatLiveActivityLabel, formatLiveActivityDetail, getCanonicalModelColorSeed, resolveDeterministicModelColor, buildDeterministicModelColorMap } = (() => {
 const LOCALE_MONTH_SHORT = Object.freeze({
   'en-US': Object.freeze(['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']),
   'de-DE': Object.freeze(['Jan.', 'Feb.', 'Mär.', 'Apr.', 'Mai', 'Jun.', 'Jul.', 'Aug.', 'Sep.', 'Okt.', 'Nov.', 'Dez.']),
@@ -12398,6 +12459,22 @@ function formatTokensPrecise(num) {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
   return String(Math.round(n));
+}
+
+function formatCompactBytes(bytes) {
+  const n = Number(bytes);
+  if (!Number.isFinite(n) || n <= 0) return '0 B';
+  if (n < 1024) return `${Math.round(n)} B`;
+  const kb = n / 1024;
+  if (kb < 1023.5) {
+    return kb < 10 ? `${Number(kb.toFixed(1))} KB` : `${Math.round(kb)} KB`;
+  }
+  const mb = n / (1024 * 1024);
+  if (mb < 1023.95) {
+    return `${mb.toFixed(1)} MB`;
+  }
+  const gb = n / (1024 * 1024 * 1024);
+  return gb >= 10 ? `${gb.toFixed(1)} GB` : `${gb.toFixed(2)} GB`;
 }
 
 function formatCnyApprox(usdAmount, rate = 7.2) {
@@ -13732,7 +13809,7 @@ function buildDeterministicModelColorMap(models = []) {
 
   return colorMap;
 }
-return { formatShortMonthName, formatShortWeekdayName, formatMetric, formatSpeedMetric, formatCachePct, formatPctNumber, getSpeedToneClass, getCacheToneClass, getStepCostToneClass, getTtftToneClass, formatTokens, formatTokensPrecise, formatCnyApprox, formatSecondaryCostApprox, formatFxRateCaption, formatDateSpanBadge, formatTrendSlotFullLabel, formatUsd, speedReasonText, formatAnomalyKindLabel, formatAnomalyTagText, resolveModelAnomalySummary, formatStepAnomalyInlineSummary, buildStepAnomalyDiagnostic, buildStepCompactionDiagnostic, buildStepRevertedDiagnostic, formatTimingDetailSec, hasStepTimingData, buildStepTimingDiagnostic, buildModelAnomalyDiagnostic, sampleSummary, formatCountdown, formatCompactDateTime, formatElapsedSec, stripVendorModelPrefix, resolveModelDisplayInfo, mergeModelsByDisplayName, getAgentBadgeClass, formatQuotaPoolLabel, formatAgentBadgeText, formatAgentLabel, formatConversationMeta, formatLiveActivityLabel, formatLiveActivityDetail, getCanonicalModelColorSeed, resolveDeterministicModelColor, buildDeterministicModelColorMap };
+return { formatShortMonthName, formatShortWeekdayName, formatMetric, formatSpeedMetric, formatCachePct, formatPctNumber, getSpeedToneClass, getCacheToneClass, getStepCostToneClass, getTtftToneClass, formatTokens, formatTokensPrecise, formatCompactBytes, formatCnyApprox, formatSecondaryCostApprox, formatFxRateCaption, formatDateSpanBadge, formatTrendSlotFullLabel, formatUsd, speedReasonText, formatAnomalyKindLabel, formatAnomalyTagText, resolveModelAnomalySummary, formatStepAnomalyInlineSummary, buildStepAnomalyDiagnostic, buildStepCompactionDiagnostic, buildStepRevertedDiagnostic, formatTimingDetailSec, hasStepTimingData, buildStepTimingDiagnostic, buildModelAnomalyDiagnostic, sampleSummary, formatCountdown, formatCompactDateTime, formatElapsedSec, stripVendorModelPrefix, resolveModelDisplayInfo, mergeModelsByDisplayName, getAgentBadgeClass, formatQuotaPoolLabel, formatAgentBadgeText, formatAgentLabel, formatConversationMeta, formatLiveActivityLabel, formatLiveActivityDetail, getCanonicalModelColorSeed, resolveDeterministicModelColor, buildDeterministicModelColorMap };
 })();
 
 // --- src/core/stepInspector.js ---
@@ -38979,12 +39056,24 @@ function saveCleanupPrefs(prefs) {
   }
 }
 
-function formatCompactBytes(bytes) {
-  const n = Number(bytes || 0);
-  if (!Number.isFinite(n) || n <= 0) return '';
-  if (n < 1024) return `${n} B`;
-  if (n < 1024 * 1024) return `${(n / 1024).toFixed(0)} KB`;
-  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+const SMGR_LARGE_SESSION_BYTES = 50 * 1024 * 1024;
+
+function buildSessionSizeTooltip(session) {
+  const totalBytes = Math.max(0, Number(session?.sizeBytes || 0));
+  const totalLine = t('settings.smgr.sizeTooltipTotal', {
+    size: formatCompactBytes(totalBytes),
+  });
+  const dbBytes = Math.max(0, Number(session?.dbSizeBytes || 0));
+  const brainBytes = Math.max(0, Number(session?.brainSizeBytes || 0));
+  const subBytes = Math.max(0, Number(session?.subagentSizeBytes || 0));
+  const parts = [];
+  if (dbBytes > 0) parts.push(t('settings.smgr.sizePartDb', { size: formatCompactBytes(dbBytes) }));
+  if (brainBytes > 0) parts.push(t('settings.smgr.sizePartBrain', { size: formatCompactBytes(brainBytes) }));
+  if (subBytes > 0) parts.push(t('settings.smgr.sizePartSubagents', { size: formatCompactBytes(subBytes) }));
+  if (parts.length >= 2 || (parts.length === 1 && (brainBytes > 0 || subBytes > 0))) {
+    return `${totalLine}\n${parts.join(' · ')}`;
+  }
+  return totalLine;
 }
 
 function getClientDisplayName(clientId) {
@@ -39092,6 +39181,12 @@ const SessionManagerCard = defineComponent({
 
     const titleTextEl = h('span', { text: t('settings.smgr.title') });
     const totalCountBadge = h('span', { className: 'smgr-title-count', text: '0' });
+    const totalSizeTextEl = h('span', { text: '' });
+    const totalSizeBadge = h(
+      'span',
+      { className: 'smgr-title-size', hidden: true },
+      [createSvgIcon('database', { size: 10 }), totalSizeTextEl]
+    );
     const refreshBtnTextEl = h('span', { text: t('settings.smgr.refresh') });
     const refreshBtn = h(
       'button',
@@ -39116,6 +39211,7 @@ const SessionManagerCard = defineComponent({
         createSvgIcon('layers', { size: 13 }),
         titleTextEl,
         totalCountBadge,
+        totalSizeBadge,
       ]),
       h('div', { className: 'smgr-header-actions' }, [refreshBtn, moreMenu.el]),
     ]);
@@ -39305,8 +39401,15 @@ const SessionManagerCard = defineComponent({
       [createSvgIcon('trash', { size: 12 }), batchDeleteTextEl]
     );
 
+    const selectedSizeTextEl = h('span', { text: '' });
+    const selectedSizeEl = h(
+      'span',
+      { className: 'smgr-selected-size', hidden: true },
+      [createSvgIcon('database', { size: 10 }), selectedSizeTextEl]
+    );
+
     const actionBarEl = h('div', { className: 'smgr-action-bar' }, [
-      h('div', { className: 'smgr-action-left' }, [toggleAllBtn, clearSelBtn]),
+      h('div', { className: 'smgr-action-left' }, [toggleAllBtn, clearSelBtn, selectedSizeEl]),
       h('div', { className: 'smgr-action-right' }, [hideIdxBtn, batchDeleteBtn]),
     ]);
 
@@ -39363,14 +39466,53 @@ const SessionManagerCard = defineComponent({
       return getAllSessions().find((s) => sessionItemKey(s) === key) || null;
     }
 
-    function getSelectedTargets() {
+    function getSelectedStats() {
       const targets = [];
+      let totalSizeBytes = 0;
       for (const s of getAllSessions()) {
         if (s.canDelete && selectedKeys.has(sessionItemKey(s))) {
           targets.push({ clientId: s.clientId, sessionId: s.sessionId });
+          totalSizeBytes += Math.max(0, Number(s.sizeBytes || 0));
         }
       }
-      return targets;
+      return { targets, count: targets.length, totalSizeBytes };
+    }
+
+    function getSelectedTargets() {
+      return getSelectedStats().targets;
+    }
+
+    function computeAllSessionsTotalBytes() {
+      const all = getAllSessions();
+      if (all.length > 0) {
+        return all.reduce((sum, s) => sum + Math.max(0, Number(s.sizeBytes || 0)), 0);
+      }
+      return Math.max(0, Number(catalog?.counts?.totalSizeBytes || 0));
+    }
+
+    function syncTotalSizeBadge(filtered) {
+      if (!catalog || remoteUnsupported) {
+        patchAttr(totalSizeBadge, 'hidden', true);
+        return;
+      }
+      const allTotalBytes = computeAllSessionsTotalBytes();
+      const filteredBytes = Array.isArray(filtered)
+        ? filtered.reduce((sum, s) => sum + Math.max(0, Number(s.sizeBytes || 0)), 0)
+        : allTotalBytes;
+      const isNarrowed = sourceFilter !== 'all' || Boolean(searchQuery);
+      const displayBytes = isNarrowed ? filteredBytes : filteredBytes || allTotalBytes;
+      const formattedDisplay = formatCompactBytes(displayBytes);
+      patchText(totalSizeTextEl, formattedDisplay);
+      patchClasses(totalSizeBadge, { 'is-filtered': isNarrowed });
+      const tip = isNarrowed
+        ? t('settings.smgr.filteredSizeTitle', {
+            filtered: formattedDisplay,
+            total: formatCompactBytes(allTotalBytes),
+          })
+        : t('settings.smgr.totalSizeTitle', { size: formattedDisplay });
+      patchAttr(totalSizeBadge, 'title', tip);
+      patchAttr(totalSizeBadge, 'aria-label', tip);
+      patchAttr(totalSizeBadge, 'hidden', false);
     }
 
     function rebuildTopMoreMenu() {
@@ -39413,12 +39555,23 @@ const SessionManagerCard = defineComponent({
 
     function syncSourceSegments() {
       const counts = catalog?.counts?.byClient || { desktop: 0, cli: 0, ide_legacy: 0 };
+      const sizeByClient = catalog?.counts?.byClientSizeBytes || {};
       const total = Number(catalog?.counts?.total || 0);
       const running = catalog?.runningClients || {};
       const clientsList = Array.isArray(catalog?.clients) ? catalog.clients : [];
+      const allTotalBytes = computeAllSessionsTotalBytes();
 
       const formatLabel = (base, count, isRun) => `${base} (${count})${isRun ? ' •' : ''}`;
-      const opts = [{ value: 'all', label: `${t('settings.smgr.sourceAll')} (${total})` }];
+      const opts = [
+        {
+          value: 'all',
+          label: `${t('settings.smgr.sourceAll')} (${total})`,
+          title:
+            allTotalBytes > 0
+              ? t('settings.smgr.totalSizeTitle', { size: formatCompactBytes(allTotalBytes) })
+              : '',
+        },
+      ];
 
       for (const defId of ['desktop', 'cli', 'ide_legacy']) {
         const info = clientsList.find((c) => c.id === defId);
@@ -39426,14 +39579,22 @@ const SessionManagerCard = defineComponent({
         if (info?.exists || cnt > 0 || defId === 'desktop') {
           const isRun = Boolean(running[defId]);
           const isOnline = isRun && isClientOnlineDeleteSupported(defId);
+          const clientBytes = Number(info?.totalSizeBytes ?? sizeByClient[defId] ?? 0);
+          const titleParts = [];
+          if (clientBytes > 0) {
+            titleParts.push(
+              t('settings.smgr.totalSizeTitle', { size: formatCompactBytes(clientBytes) })
+            );
+          }
+          if (isRun) {
+            titleParts.push(
+              isOnline ? t('settings.smgr.runningDotOnlineTitle') : t('settings.smgr.runningDotTitle')
+            );
+          }
           opts.push({
             value: defId,
             label: formatLabel(getClientDisplayName(defId), cnt, isRun),
-            title: isRun
-              ? isOnline
-                ? t('settings.smgr.runningDotOnlineTitle')
-                : t('settings.smgr.runningDotTitle')
-              : '',
+            title: titleParts.join(' · '),
           });
         }
       }
@@ -39505,7 +39666,7 @@ const SessionManagerCard = defineComponent({
         selectAllCheckBoxEl.appendChild(h('span', { className: 'smgr-partial-dash' }));
       }
 
-      const selCount = getSelectedTargets().length;
+      const { count: selCount, totalSizeBytes: selSizeBytes } = getSelectedStats();
       patchText(
         toggleAllTextEl,
         allSelected
@@ -39517,6 +39678,15 @@ const SessionManagerCard = defineComponent({
       patchAttr(toggleAllBtn, 'disabled', deletableFiltered.length === 0 || isDeleting);
       patchAttr(clearSelBtn, 'hidden', selCount === 0 || allSelected);
       patchAttr(clearSelBtn, 'disabled', isDeleting);
+
+      patchAttr(selectedSizeEl, 'hidden', selCount === 0);
+      if (selCount > 0) {
+        const formattedSelSize = formatCompactBytes(selSizeBytes);
+        patchText(selectedSizeTextEl, formattedSelSize);
+        const selSizeTip = t('settings.smgr.selectedSizeTitle', { size: formattedSelSize });
+        patchAttr(selectedSizeEl, 'title', selSizeTip);
+        patchAttr(selectedSizeEl, 'aria-label', selSizeTip);
+      }
 
       patchAttr(batchDeleteBtn, 'hidden', selCount === 0);
       patchAttr(batchDeleteBtn, 'disabled', selCount === 0 || isDeleting);
@@ -39575,6 +39745,37 @@ const SessionManagerCard = defineComponent({
       confirmBoxEl.appendChild(header);
 
       const bullets = [t('settings.smgr.confirmSummary', { n: effectiveDeletableN })];
+      let reclaimableBytes = 0;
+      if (preview && Number.isFinite(Number(preview.reclaimableSizeBytes))) {
+        const rawReclaim = Math.max(0, Number(preview.reclaimableSizeBytes));
+        const protOnlineBytes = Math.max(0, Number(preview.protectedOnlineSizeBytes || 0));
+        reclaimableBytes = purgeProtectedBrain
+          ? rawReclaim
+          : Math.max(0, rawReclaim - protOnlineBytes);
+      } else if (Array.isArray(targets) && targets.length > 0) {
+        const blockedSet = new Set(
+          (Array.isArray(preview?.blockedByRunning) ? preview.blockedByRunning : []).map(
+            (b) => `${b.clientId}:${b.sessionId}`
+          )
+        );
+        const protOnlineSet = new Set(
+          protectedItems
+            .filter((it) => it?.mode === 'online')
+            .map((it) => `${it.clientId}:${it.sessionId}`)
+        );
+        for (const item of targets) {
+          const itemKey = `${item.clientId}:${item.sessionId}`;
+          if (blockedSet.has(itemKey)) continue;
+          if (!purgeProtectedBrain && protOnlineSet.has(itemKey)) continue;
+          const hit = getSessionByKey(itemKey);
+          reclaimableBytes += Math.max(0, Number(hit?.sizeBytes || 0));
+        }
+      }
+      if (effectiveDeletableN > 0 && reclaimableBytes > 0) {
+        bullets.push(
+          t('settings.smgr.confirmReclaimSize', { size: formatCompactBytes(reclaimableBytes) })
+        );
+      }
       if (onlineDeletableN > 0 && offlineDeletableN > 0) {
         bullets.push(
           t('settings.smgr.confirmOnlineMixed', { online: onlineDeletableN, offline: offlineDeletableN })
@@ -39742,12 +39943,14 @@ const SessionManagerCard = defineComponent({
         listEl.appendChild(
           h('div', { className: 'smgr-empty', text: t('settings.smgr.emptyLoading') })
         );
+        syncTotalSizeBadge([]);
         syncSelectionButtons([]);
         listScrollbar.refresh();
         return;
       }
 
       const filtered = getFilteredSessions();
+      syncTotalSizeBadge(filtered);
       syncSelectionButtons(filtered);
 
       if (filtered.length === 0) {
@@ -39781,11 +39984,31 @@ const SessionManagerCard = defineComponent({
           isChecked ? [createSvgIcon('check', { size: 9 })] : []
         );
 
+        const sessionSizeBytes = Math.max(0, Number(s.sizeBytes || 0));
+        const sizeBadgeClass = [
+          'smgr-badge',
+          'smgr-size-badge',
+          sessionSizeBytes >= SMGR_LARGE_SESSION_BYTES ? 'is-large' : '',
+          sessionSizeBytes === 0 ? 'is-zero' : '',
+        ]
+          .filter(Boolean)
+          .join(' ');
         const tags = [
           h('span', {
             className: `smgr-badge is-client-${s.clientId}`,
             text: getClientDisplayName(s.clientId),
           }),
+          h(
+            'span',
+            {
+              className: sizeBadgeClass,
+              title: buildSessionSizeTooltip(s),
+            },
+            [
+              createSvgIcon('database', { size: 10 }),
+              h('span', { text: formatCompactBytes(sessionSizeBytes) }),
+            ]
+          ),
         ];
         if (s.indexOnly) {
           tags.push(h('span', { className: 'smgr-badge is-muted', text: t('settings.smgr.tagIndexOnly') }));
@@ -39811,7 +40034,6 @@ const SessionManagerCard = defineComponent({
         }
 
         const rightMetaParts = [];
-        if (s.sizeBytes > 0) rightMetaParts.push(formatCompactBytes(s.sizeBytes));
         if (s.lastModifiedMs > 0) rightMetaParts.push(formatCompactDateTime(s.lastModifiedMs));
 
         const telNodes = [];
@@ -40126,6 +40348,8 @@ const SessionManagerCard = defineComponent({
       el: rootEl,
       refs: {
         refreshBtn,
+        totalSizeBadge,
+        selectedSizeEl,
         searchInput: searchControl.inputEl,
         sortSelect,
         hideIdxBtn,
@@ -40644,6 +40868,9 @@ const SessionMigrationCard = defineComponent({
           };
 
           const metaParts = [t('settings.oth.migStepsUnit', { count: item.stepCount })];
+          if (Number(item.sizeBytes || 0) > 0) {
+            metaParts.push(formatCompactBytes(item.sizeBytes));
+          }
           const age = smigFormatAge(item.lastModifiedMs);
           if (age) metaParts.push(age);
 
