@@ -799,7 +799,7 @@ function cliBuildBarGauge(label, pct, { fillFg = SGR_FG_ACCENT, valFg = SGR_FG_B
   return `${SGR_FG_MUTED}${label} ${fillFg}${filledPart}${emptyPart ? `${SGR_FG_DIM}${emptyPart}` : ''} ${valFg}${valStr}${SGR_RESET}`;
 }
 
-const CLI_STATUS_COPY = Object.freeze({
+export const CLI_STATUS_COPY = Object.freeze({
   'zh-CN': {
     ctx: '上下文',
     gen: '生成中...',

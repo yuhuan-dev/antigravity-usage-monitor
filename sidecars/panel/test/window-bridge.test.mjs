@@ -59,6 +59,10 @@ import {
 } from '../src/core/formatters.js';
 import { setI18nLanguage } from '../src/i18n/index.js';
 import {
+  SUPPORTED_LOCALE_ENTRIES,
+  SUPPORTED_LOCALES,
+} from '../shared/settings-normalization.mjs';
+import {
   resolveCapsuleMetricPresentation,
   resolveOverviewMetricCell,
 } from '../src/registries/metricRegistry.js';
@@ -1537,8 +1541,8 @@ test('Compiled app.js mounts dual Shadow DOM hosts, tracks /c/<uuid> routes, pro
     const langOpts = langSelectEl.querySelectorAll('.select-option');
     assert.deepEqual(
       langOpts.map((opt) => opt.querySelector('.select-option-text').textContent),
-      ['跟随系统', '简体中文', '繁體中文', 'English', '日本語', '한국어', 'Deutsch', 'Français'],
-      'UI language select lists auto + all 7 supported locales'
+      ['跟随系统', ...SUPPORTED_LOCALE_ENTRIES.map((entry) => entry.nativeName)],
+      'UI language select lists auto + all supported locales'
     );
     langSelectEl.querySelector('.select-trigger').dispatchEvent({ type: 'click', stopPropagation() {} });
 
@@ -1577,13 +1581,22 @@ test('Compiled app.js mounts dual Shadow DOM hosts, tracks /c/<uuid> routes, pro
     assert.equal(portalHost.getAttribute('data-font-scale'), 'md');
     assert.equal(popoverEl.getAttribute('data-font-scale'), 'md');
 
-    // Live i18n switch: zh-CN -> en-US (index 3) -> ja-JP (index 4) -> auto (index 0) -> zh-CN (index 1) without page reload
-    const selectUiLangByIndex = async (idx) => {
+    // Live i18n switch: zh-CN -> en-US -> ja-JP -> auto -> zh-CN without page reload (no magic option indices)
+    const selectUiLangByLabel = async (label) => {
       langSelectEl.querySelector('.select-trigger').dispatchEvent({ type: 'click', stopPropagation() {} });
-      langSelectEl.querySelectorAll('.select-option')[idx].dispatchEvent({ type: 'click', stopPropagation() {} });
+      const targetOpt = langSelectEl
+        .querySelectorAll('.select-option')
+        .find((opt) => opt.querySelector('.select-option-text').textContent === label);
+      assert.ok(targetOpt, `UI language option "${label}" must exist`);
+      targetOpt.dispatchEvent({ type: 'click', stopPropagation() {} });
       await new Promise((r) => setTimeout(r, 30));
     };
-    await selectUiLangByIndex(3);
+    const selectUiLangAuto = async () => {
+      langSelectEl.querySelector('.select-trigger').dispatchEvent({ type: 'click', stopPropagation() {} });
+      langSelectEl.querySelectorAll('.select-option')[0].dispatchEvent({ type: 'click', stopPropagation() {} });
+      await new Promise((r) => setTimeout(r, 30));
+    };
+    await selectUiLangByLabel('English');
     assert.equal(mockSettings.language, 'en-US');
     assert.match(currencySelectEl.querySelector('.select-label').textContent, /USD Only/i);
     assert.equal(pillTabs[0].querySelector('.pill-tab-label').textContent, 'Live');
@@ -1592,15 +1605,15 @@ test('Compiled app.js mounts dual Shadow DOM hosts, tracks /c/<uuid> routes, pro
     assert.equal(subNavBtns[1].textContent, 'Structure');
     assert.equal(subNavBtns[2].textContent, 'Sessions');
     assert.equal(subNavBtns[3].textContent, 'Other');
-    await selectUiLangByIndex(4);
+    await selectUiLangByLabel('日本語');
     assert.equal(mockSettings.language, 'ja-JP');
     assert.match(currencySelectEl.querySelector('.select-label').textContent, /JPY/);
     assert.equal(pillTabs[0].querySelector('.pill-tab-label').textContent, 'ライブ');
     assert.equal(pillTabs[3].querySelector('.pill-tab-label').textContent, '設定');
     assert.equal(subNavBtns[0].textContent, '一般');
-    await selectUiLangByIndex(0);
+    await selectUiLangAuto();
     assert.equal(mockSettings.language, 'auto');
-    await selectUiLangByIndex(1);
+    await selectUiLangByLabel('简体中文');
     assert.equal(mockSettings.language, 'zh-CN');
     assert.match(currencySelectEl.querySelector('.select-label').textContent, /CNY/);
     assert.equal(pillTabs[0].querySelector('.pill-tab-label').textContent, '实时监控');
@@ -5036,6 +5049,20 @@ test('Issue #44: standalone Web UI & panel sync <html lang> and <title> across e
   assert.equal(resolveStandaloneRequestLocale({ headers: { 'accept-language': 'en-US' } }, 'zh-CN'), 'zh-CN');
 
   const rawIndexHtml = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  for (const loc of SUPPORTED_LOCALES) {
+    assert.equal(
+      resolveStandaloneRequestLocale({ headers: { 'accept-language': `${loc},en;q=0.1` } }, 'auto'),
+      loc,
+      `Standalone Accept-Language must resolve ${loc}`
+    );
+    const localizedHtml = localizeStandaloneIndexHtml(rawIndexHtml, loc);
+    assert.match(
+      localizedHtml,
+      new RegExp(`<html lang="${loc}">`),
+      `Standalone index.html must localize html[lang] for ${loc}`
+    );
+    assert.match(localizedHtml, /<title>[^<]+<\/title>/);
+  }
   const enIndexHtml = localizeStandaloneIndexHtml(rawIndexHtml, 'en-US');
   assert.match(enIndexHtml, /<html lang="en-US">/);
   assert.match(enIndexHtml, /<title>Usage & Speed Monitor<\/title>/);

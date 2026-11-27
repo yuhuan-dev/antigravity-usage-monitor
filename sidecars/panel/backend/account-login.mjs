@@ -86,7 +86,7 @@ export async function openGoogleAccountBrowser(
   return false;
 }
 
-const LOGIN_CALLBACK_COPY = Object.freeze({
+export const LOGIN_CALLBACK_COPY = Object.freeze({
   'zh-CN': {
     htmlLang: 'zh-CN',
     okTitle: '账号已添加',

@@ -1,6 +1,6 @@
 /**
  * @fileoverview 原生多工作表 Excel (`.xlsx`)、RFC-4180 防公式注入 CSV 及多语言 Markdown 诊断报告生成纯函数模块 (`reportExporter.js`)。
- * 零外部依赖、单遍 O(N) 聚合，支持全部 7 种界面语言导出，供「按步查看」和「用量统计」视图复用。
+ * 零外部依赖、单遍 O(N) 聚合，支持全部受支持界面语言导出，供「按步查看」和「用量统计」视图复用。
  */
 
 import { getEffectiveLocale, tForLocale } from '../i18n/index.js';

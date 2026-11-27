@@ -731,13 +731,6 @@ export const I18N_MESSAGES_ZH_CN = Object.freeze({
   // Preferences -> General Tab
   'settings.gen.appearanceTitle': '界面与外观',
   'settings.gen.language': '界面语言',
-  'settings.gen.langZh': '简体中文',
-  'settings.gen.langZhTw': '繁體中文',
-  'settings.gen.langEn': 'English',
-  'settings.gen.langJa': '日本語',
-  'settings.gen.langKo': '한국어',
-  'settings.gen.langDe': 'Deutsch',
-  'settings.gen.langFr': 'Français',
   'settings.gen.langAuto': '跟随系统',
   'settings.gen.currencyLabel': '参考货币',
   'settings.gen.currencyAuto': '跟随界面语言（{code} {symbol}）',

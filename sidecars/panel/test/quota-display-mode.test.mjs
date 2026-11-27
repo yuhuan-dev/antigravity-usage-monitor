@@ -11,6 +11,7 @@ import {
   parseImportedSettingsJson,
 } from '../src/core/settingsBackup.js';
 import { createMockDom } from './mock-dom.mjs';
+import { SUPPORTED_LOCALES } from '../shared/settings-normalization.mjs';
 
 test('quotaDisplayMode defaults to used, normalizes valid/invalid inputs, re-exports from config, and round-trips through backup', () => {
   assert.deepEqual([...QUOTA_DISPLAY_MODES], ['used', 'remaining']);
@@ -37,7 +38,7 @@ test('quotaDisplayMode defaults to used, normalizes valid/invalid inputs, re-exp
   assert.equal(parsedUsed.patch.quotaDisplayMode, 'used');
 });
 
-test('QuotaPoolsWidget renders remaining percentage, remaining bar fill, warning tones, and legend across all 7 locales', async () => {
+test('QuotaPoolsWidget renders remaining percentage, remaining bar fill, warning tones, and legend across all supported locales', async () => {
   const { document } = createMockDom();
   const origDocument = globalThis.document;
   const origWindow = globalThis.window;
@@ -51,7 +52,7 @@ test('QuotaPoolsWidget renders remaining percentage, remaining bar fill, warning
   };
 
   try {
-    const [{ setI18nLanguage }, { QuotaPoolsWidget }] = await Promise.all([
+    const [{ setI18nLanguage, t }, { QuotaPoolsWidget }] = await Promise.all([
       import('../src/i18n/index.js'),
       import('../src/components/widgets/QuotaPoolsWidget.js'),
     ]);
@@ -117,17 +118,18 @@ test('QuotaPoolsWidget renders remaining percentage, remaining bar fill, warning
     assert.equal(rsvBars[0].style.getPropertyValue('--reserved-w'), '1.5%');
     assert.equal(rsvBars[0].classList.contains('is-active'), true);
 
-    // All 7 shipped locales render localized remaining suffix and legend
-    const localeChecks = [
-      ['zh-TW', /· 剩餘 92\.4%$/, /剩餘/],
-      ['en-US', /· 92\.4% left$/, /Remaining/],
-      ['ja-JP', /· 残り 92\.4%$/, /残り/],
-      ['ko-KR', /· 잔여 92\.4%$/, /잔여/],
-      ['de-DE', /· 92\.4% frei$/, /Verbleibend/],
-      ['fr-FR', /· 92\.4% restant$/, /Restant/],
-    ];
-    for (let i = 0; i < localeChecks.length; i += 1) {
-      const [locale, metaRe, legendRe] = localeChecks[i];
+    // Spot-check curated wording on core locales, and verify every registered locale renders remaining mode cleanly
+    const localeChecks = new Map([
+      ['zh-CN', [/· 剩余 92\.4%$/, /剩余/]],
+      ['zh-TW', [/· 剩餘 92\.4%$/, /剩餘/]],
+      ['en-US', [/· 92\.4% left$/, /Remaining/]],
+      ['ja-JP', [/· 残り 92\.4%$/, /残り/]],
+      ['ko-KR', [/· 잔여 92\.4%$/, /잔여/]],
+      ['de-DE', [/· 92\.4% frei$/, /Verbleibend/]],
+      ['fr-FR', [/· 92\.4% restant$/, /Restant/]],
+    ]);
+    for (let i = 0; i < SUPPORTED_LOCALES.length; i += 1) {
+      const locale = SUPPORTED_LOCALES[i];
       setI18nLanguage(locale);
       widget.refs.update({
         data: {
@@ -136,8 +138,14 @@ test('QuotaPoolsWidget renders remaining percentage, remaining bar fill, warning
         },
         minuteTick: 2 + i,
       });
-      assert.match(metas[0].textContent, metaRe, `${locale} remaining text`);
-      assert.match(legendEl.textContent, legendRe, `${locale} remaining legend`);
+      const expected = localeChecks.get(locale);
+      if (expected) {
+        assert.match(metas[0].textContent, expected[0], `${locale} remaining text`);
+        assert.match(legendEl.textContent, expected[1], `${locale} remaining legend`);
+      } else {
+        assert.ok(metas[0].textContent.includes('92.4%'), `${locale} remaining pct`);
+        assert.ok(legendEl.textContent.includes(t('quota.legendRemaining')), `${locale} remaining legend`);
+      }
     }
 
     // Switch back to used mode restores original display

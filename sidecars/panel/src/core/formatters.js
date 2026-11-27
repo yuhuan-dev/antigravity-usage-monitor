@@ -39,6 +39,64 @@ const LOCALE_WEEKDAY_SHORT = Object.freeze({
   'fr-FR': Object.freeze(['dim.', 'lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.']),
 });
 
+const MAX_INTL_LOCALE_CACHE = 64;
+const INTL_SHORT_MONTHS_CACHE = new Map();
+const INTL_SHORT_WEEKDAYS_CACHE = new Map();
+
+function getLocaleShortMonths(locale) {
+  if (LOCALE_MONTH_SHORT[locale]) return LOCALE_MONTH_SHORT[locale];
+  if (INTL_SHORT_MONTHS_CACHE.has(locale)) return INTL_SHORT_MONTHS_CACHE.get(locale);
+  let resolved = LOCALE_MONTH_SHORT['en-US'];
+  try {
+    if (typeof Intl !== 'undefined' && typeof Intl.DateTimeFormat === 'function') {
+      const fmt = new Intl.DateTimeFormat(locale, { month: 'short', timeZone: 'UTC' });
+      const list = Array.from({ length: 12 }, (_, m) => fmt.format(new Date(Date.UTC(2024, m, 15))));
+      if (list.every((s) => typeof s === 'string' && s.trim().length > 0)) {
+        resolved = Object.freeze(list);
+      }
+    }
+  } catch {
+    // Fallback to en-US short months if Intl lacks locale data
+  }
+  if (INTL_SHORT_MONTHS_CACHE.size < MAX_INTL_LOCALE_CACHE) {
+    INTL_SHORT_MONTHS_CACHE.set(locale, resolved);
+  }
+  return resolved;
+}
+
+function getLocaleShortWeekdays(locale) {
+  if (LOCALE_WEEKDAY_SHORT[locale]) return LOCALE_WEEKDAY_SHORT[locale];
+  if (INTL_SHORT_WEEKDAYS_CACHE.has(locale)) return INTL_SHORT_WEEKDAYS_CACHE.get(locale);
+  let resolved = LOCALE_WEEKDAY_SHORT['en-US'];
+  try {
+    if (typeof Intl !== 'undefined' && typeof Intl.DateTimeFormat === 'function') {
+      const fmt = new Intl.DateTimeFormat(locale, { weekday: 'short', timeZone: 'UTC' });
+      // 2024-01-07 is Sunday in UTC
+      const list = Array.from({ length: 7 }, (_, d) => fmt.format(new Date(Date.UTC(2024, 0, 7 + d))));
+      if (list.every((s) => typeof s === 'string' && s.trim().length > 0)) {
+        resolved = Object.freeze(list);
+      }
+    }
+  } catch {
+    // Fallback to en-US short weekdays if Intl lacks locale data
+  }
+  if (INTL_SHORT_WEEKDAYS_CACHE.size < MAX_INTL_LOCALE_CACHE) {
+    INTL_SHORT_WEEKDAYS_CACHE.set(locale, resolved);
+  }
+  return resolved;
+}
+
+export function formatShortMonthName(monthIndex, locale, { stripTrailingDot = false } = {}) {
+  const loc = resolveFormatterLocale(locale);
+  const raw = getLocaleShortMonths(loc)[monthIndex] || '';
+  return stripTrailingDot ? raw.replace(/\.$/, '') : raw;
+}
+
+export function formatShortWeekdayName(dayIndex, locale) {
+  const loc = resolveFormatterLocale(locale);
+  return getLocaleShortWeekdays(loc)[dayIndex] || '';
+}
+
 function resolveFormatterLocale(explicitLocale) {
   if (typeof explicitLocale === 'string' && explicitLocale.trim()) {
     return resolveLocaleFromLanguageTag(explicitLocale, getEffectiveLocale());
@@ -174,7 +232,7 @@ function formatLocalizedDayDate(dateObj, locale, includeYear) {
   if (locale === 'ko-KR') {
     return includeYear ? `${y}년 ${m}월 ${d}일` : `${m}월 ${d}일`;
   }
-  const mon = (LOCALE_MONTH_SHORT[locale] || LOCALE_MONTH_SHORT['en-US'])[dateObj.getMonth()] || '';
+  const mon = formatShortMonthName(dateObj.getMonth(), locale);
   if (locale === 'de-DE') {
     return includeYear ? `${d}. ${mon} ${y}` : `${d}. ${mon}`;
   }
@@ -240,7 +298,7 @@ export function formatTrendSlotFullLabel(slot, { locale, showFullYear = false } 
       return `${datePart}${sep}${hh} - ${endHh}`;
     }
 
-    const wday = (LOCALE_WEEKDAY_SHORT[loc] || LOCALE_WEEKDAY_SHORT['en-US'])[sd.getDay()] || '';
+    const wday = formatShortWeekdayName(sd.getDay(), loc);
     return `${datePart} (${wday})`;
   }
 

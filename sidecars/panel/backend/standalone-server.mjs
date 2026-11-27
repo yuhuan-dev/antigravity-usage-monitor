@@ -104,7 +104,7 @@ function extractBearerToken(authHeader) {
   return m ? m[1].trim() : '';
 }
 
-const STANDALONE_LOCALE_COPY = Object.freeze({
+export const STANDALONE_LOCALE_COPY = Object.freeze({
   'zh-CN': {
     htmlLang: 'zh-CN',
     title: '用量监控',

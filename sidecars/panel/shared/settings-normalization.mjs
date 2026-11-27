@@ -2,16 +2,70 @@
  * @fileoverview 前后端与 CLI 共用的偏好设置枚举常量、默认值与无状态纯函数归一化规则。
  */
 
-export const SUPPORTED_LOCALES = Object.freeze([
-  'zh-CN',
-  'zh-TW',
-  'en-US',
-  'ja-JP',
-  'ko-KR',
-  'de-DE',
-  'fr-FR',
+export const SUPPORTED_LOCALE_ENTRIES = Object.freeze([
+  Object.freeze({
+    locale: 'zh-CN',
+    nativeName: '简体中文',
+    prefixes: Object.freeze(['zh']),
+  }),
+  Object.freeze({
+    locale: 'zh-TW',
+    nativeName: '繁體中文',
+    exactTags: Object.freeze(['zh-tw', 'zh-hk', 'zh-mo']),
+    prefixes: Object.freeze(['zh-hant']),
+  }),
+  Object.freeze({
+    locale: 'en-US',
+    nativeName: 'English',
+    prefixes: Object.freeze(['en']),
+  }),
+  Object.freeze({
+    locale: 'ja-JP',
+    nativeName: '日本語',
+    prefixes: Object.freeze(['ja']),
+  }),
+  Object.freeze({
+    locale: 'ko-KR',
+    nativeName: '한국어',
+    prefixes: Object.freeze(['ko']),
+  }),
+  Object.freeze({
+    locale: 'de-DE',
+    nativeName: 'Deutsch',
+    prefixes: Object.freeze(['de']),
+  }),
+  Object.freeze({
+    locale: 'fr-FR',
+    nativeName: 'Français',
+    prefixes: Object.freeze(['fr']),
+  }),
 ]);
+
+export const SUPPORTED_LOCALES = Object.freeze(
+  SUPPORTED_LOCALE_ENTRIES.map((entry) => entry.locale)
+);
 export const SUPPORTED_LANGUAGES = Object.freeze(['auto', ...SUPPORTED_LOCALES]);
+
+const LOCALE_EXACT_TAG_MAP = new Map();
+const LOCALE_PREFIX_MATCHERS = [];
+for (const entry of SUPPORTED_LOCALE_ENTRIES) {
+  LOCALE_EXACT_TAG_MAP.set(entry.locale.toLowerCase(), entry.locale);
+  if (Array.isArray(entry.exactTags)) {
+    for (const tag of entry.exactTags) {
+      LOCALE_EXACT_TAG_MAP.set(String(tag).toLowerCase(), entry.locale);
+    }
+  }
+  if (Array.isArray(entry.prefixes)) {
+    for (const prefix of entry.prefixes) {
+      LOCALE_PREFIX_MATCHERS.push({
+        prefix: String(prefix).toLowerCase(),
+        locale: entry.locale,
+      });
+    }
+  }
+}
+// Match more specific subtags (e.g. `zh-hant`) before broader language prefixes (`zh`)
+LOCALE_PREFIX_MATCHERS.sort((a, b) => b.prefix.length - a.prefix.length);
 
 export const THEME_ACCENT_KEYS = Object.freeze([
   'host',
@@ -175,11 +229,11 @@ export const MAX_POPOVER_WIDTH = 1080;
 export const DEFAULT_POPOVER_WIDTH = 580;
 
 /**
- * 将任意 BCP-47 / POSIX 语言标签映射到受支持的 7 种界面 Locale 之一。
+ * 将任意 BCP-47 / POSIX 语言标签映射到 `SUPPORTED_LOCALES` 中的受支持界面 Locale。
  *
  * @param {unknown} rawTag
- * @param {'zh-CN'|'zh-TW'|'en-US'|'ja-JP'|'ko-KR'|'de-DE'|'fr-FR'} [fallback='en-US']
- * @returns {'zh-CN'|'zh-TW'|'en-US'|'ja-JP'|'ko-KR'|'de-DE'|'fr-FR'}
+ * @param {string} [fallback='en-US']
+ * @returns {string}
  */
 export function resolveLocaleFromLanguageTag(rawTag, fallback = 'en-US') {
   const clean = String(rawTag ?? '')
@@ -188,28 +242,22 @@ export function resolveLocaleFromLanguageTag(rawTag, fallback = 'en-US') {
     .replace(/\..*$/, '')
     .toLowerCase();
   if (!clean || clean === 'c' || clean === 'posix') return fallback;
-  if (
-    clean === 'zh-tw' ||
-    clean === 'zh-hk' ||
-    clean === 'zh-mo' ||
-    clean.startsWith('zh-hant')
-  ) {
-    return 'zh-TW';
+  const exact = LOCALE_EXACT_TAG_MAP.get(clean);
+  if (exact) return exact;
+  for (let i = 0; i < LOCALE_PREFIX_MATCHERS.length; i += 1) {
+    const { prefix, locale } = LOCALE_PREFIX_MATCHERS[i];
+    if (clean === prefix || clean.startsWith(`${prefix}-`)) {
+      return locale;
+    }
   }
-  if (clean === 'zh' || clean.startsWith('zh-')) return 'zh-CN';
-  if (clean === 'ja' || clean.startsWith('ja-')) return 'ja-JP';
-  if (clean === 'ko' || clean.startsWith('ko-')) return 'ko-KR';
-  if (clean === 'de' || clean.startsWith('de-')) return 'de-DE';
-  if (clean === 'fr' || clean.startsWith('fr-')) return 'fr-FR';
-  if (clean === 'en' || clean.startsWith('en-')) return 'en-US';
   return fallback;
 }
 
 /**
- * 归一化界面语言枚举（默认 `'auto'`，支持 7 国界面语言）。
+ * 归一化界面语言枚举（默认 `'auto'`，或 `SUPPORTED_LOCALES` 中任一受支持语言）。
  *
  * @param {unknown} lang
- * @returns {'auto'|'zh-CN'|'zh-TW'|'en-US'|'ja-JP'|'ko-KR'|'de-DE'|'fr-FR'}
+ * @returns {string}
  */
 export function normalizeLanguageSetting(lang) {
   const raw = String(lang ?? '').trim();

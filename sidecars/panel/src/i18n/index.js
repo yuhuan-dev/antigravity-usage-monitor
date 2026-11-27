@@ -1,6 +1,5 @@
 /**
- * @fileoverview Reactive lightweight i18n engine supporting 7 locales
- * (`zh-CN` / `zh-TW` / `en-US` / `ja-JP` / `ko-KR` / `de-DE` / `fr-FR` / `auto`).
+ * @fileoverview Reactive lightweight i18n engine driven by `SUPPORTED_LOCALES` + `auto`.
  */
 
 import { createReactiveStore } from '../core/reactive.js';

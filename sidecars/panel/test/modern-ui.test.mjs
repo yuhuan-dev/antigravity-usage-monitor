@@ -8,6 +8,7 @@ import {
   normalizeFullSettings,
   normalizeModernUi,
 } from '../backend/settings-schema.mjs';
+import { SUPPORTED_LOCALE_ENTRIES } from '../shared/settings-normalization.mjs';
 import {
   applyAppearanceToRoot,
   detectHostColorScheme,
@@ -218,7 +219,7 @@ test('applyAppearanceToRoot and SettingsGeneralTab toggle data-modern-ui + data-
   assert.equal(document.documentElement.hasAttribute('data-modern-ui'), false);
   assert.equal(document.documentElement.getAttribute('data-color-scheme'), 'light');
 
-  // 2. SettingsGeneralTab renders '现代化 UI' (开启 / 关闭) and 7-locale Language CustomSelect
+  // 2. SettingsGeneralTab renders '现代化 UI' (开启 / 关闭) and data-driven Language CustomSelect
   tab = SettingsGeneralTab({});
   document.body.appendChild(tab.el);
   tab.refs.renderSettings({
@@ -239,7 +240,7 @@ test('applyAppearanceToRoot and SettingsGeneralTab toggle data-modern-ui + data-
   const langSelectOpts = tab.refs.languageSwitch.el.querySelectorAll('.select-option');
   assert.deepEqual(
     langSelectOpts.map((opt) => opt.querySelector('.select-option-text').textContent),
-    ['跟随系统', '简体中文', '繁體中文', 'English', '日本語', '한국어', 'Deutsch', 'Français']
+    ['跟随系统', ...SUPPORTED_LOCALE_ENTRIES.map((entry) => entry.nativeName)]
   );
   assert.equal(langSelectOpts[0].classList.contains('is-selected'), true);
   tab.refs.languageSwitch.el

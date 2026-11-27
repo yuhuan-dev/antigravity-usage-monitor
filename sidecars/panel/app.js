@@ -2,17 +2,71 @@
 'use strict';
 
 // --- shared/settings-normalization.mjs ---
-const { SUPPORTED_LOCALES, SUPPORTED_LANGUAGES, THEME_ACCENT_KEYS, FONT_SCALE_KEYS, TOPBAR_SLOT_KEYS, DEFAULT_TOPBAR_SLOTS, MIN_TOPBAR_SLOTS, MAX_TOPBAR_SLOTS, DEFAULT_CLI_STATUSLINE_SLOTS, MIN_CLI_STATUSLINE_SLOTS, MAX_CLI_STATUSLINE_SLOTS, CLI_STATUSLINE_PRESETS, OVERVIEW_MODULE_KEYS, DEFAULT_OVERVIEW_MODULES, DEFAULT_HOVER_MODULES, METRIC_CARD_STYLES, HOVER_METRIC_STYLES, DEFAULT_OVERVIEW_METRIC_STYLE, DEFAULT_HOVER_METRIC_STYLE, DEFAULT_HOVER_SYNC_OVERVIEW_METRICS, MAX_LARGE_METRIC_SLOTS, OVERVIEW_METRIC_KEYS, DEFAULT_OVERVIEW_METRICS, DEFAULT_HOVER_METRICS, STEP_TABLE_COLUMN_KEYS, DEFAULT_STEP_TABLE_COLUMNS, DEFAULT_STEP_TOKEN_COMBO_FORMAT, STEP_TOKEN_SEGMENT_ALIASES, POPOVER_WIDTH_MODES, MIN_POPOVER_WIDTH, MAX_POPOVER_WIDTH, DEFAULT_POPOVER_WIDTH, resolveLocaleFromLanguageTag, normalizeLanguageSetting, normalizeThemeAccent, normalizeFontScale, normalizeModelDisplayMode, normalizePopoverWidthMode, normalizePopoverWidth, parseStepTokenComboSegments, normalizeStepTokenComboFormat, normalizePluginUpdateMode, normalizeWindowMountMode, normalizeWeeklyLimitMode, normalizeTopbarCapsuleSlots, normalizeCliStatusLineSlots, resolveEffectiveCliStatusLineSlots, normalizeOverviewMetrics, normalizeOverviewModules, normalizeHoverModules, normalizeMetricCardStyle, normalizeOverviewMetricStyle, normalizeHoverMetricStyle, normalizeHoverSyncOverviewMetrics, normalizeHoverMetrics, resolveEffectiveMetricMatrixConfig, normalizeStepTableColumns, normalizeStandalonePort, normalizeModernUi, CONTEXT_AGENT_MODES, DEFAULT_CONTEXT_AGENT_MODE, QUOTA_DISPLAY_MODES, DEFAULT_QUOTA_DISPLAY_MODE, normalizeQuotaDisplayMode, ACCOUNT_QUOTA_REFRESH_MINUTES, DEFAULT_ACCOUNT_QUOTA_REFRESH_MINUTES, normalizeAccountQuotaRefreshMinutes, normalizeContextAgentMode, normalizeExperimentalQuotaReservation, normalizeExperimentalModernUi, normalizeAutoConfigureLaunch, normalizeEnableRemoteSshTelemetry, normalizeDeveloperModeEnabled, normalizeRiskyFeaturesEnabled, isRiskyFeaturesGateOpen, isContextWindowFeatureActive, isAccountSwitchFeatureActive } = (() => {
-const SUPPORTED_LOCALES = Object.freeze([
-  'zh-CN',
-  'zh-TW',
-  'en-US',
-  'ja-JP',
-  'ko-KR',
-  'de-DE',
-  'fr-FR',
+const { SUPPORTED_LOCALE_ENTRIES, SUPPORTED_LOCALES, SUPPORTED_LANGUAGES, THEME_ACCENT_KEYS, FONT_SCALE_KEYS, TOPBAR_SLOT_KEYS, DEFAULT_TOPBAR_SLOTS, MIN_TOPBAR_SLOTS, MAX_TOPBAR_SLOTS, DEFAULT_CLI_STATUSLINE_SLOTS, MIN_CLI_STATUSLINE_SLOTS, MAX_CLI_STATUSLINE_SLOTS, CLI_STATUSLINE_PRESETS, OVERVIEW_MODULE_KEYS, DEFAULT_OVERVIEW_MODULES, DEFAULT_HOVER_MODULES, METRIC_CARD_STYLES, HOVER_METRIC_STYLES, DEFAULT_OVERVIEW_METRIC_STYLE, DEFAULT_HOVER_METRIC_STYLE, DEFAULT_HOVER_SYNC_OVERVIEW_METRICS, MAX_LARGE_METRIC_SLOTS, OVERVIEW_METRIC_KEYS, DEFAULT_OVERVIEW_METRICS, DEFAULT_HOVER_METRICS, STEP_TABLE_COLUMN_KEYS, DEFAULT_STEP_TABLE_COLUMNS, DEFAULT_STEP_TOKEN_COMBO_FORMAT, STEP_TOKEN_SEGMENT_ALIASES, POPOVER_WIDTH_MODES, MIN_POPOVER_WIDTH, MAX_POPOVER_WIDTH, DEFAULT_POPOVER_WIDTH, resolveLocaleFromLanguageTag, normalizeLanguageSetting, normalizeThemeAccent, normalizeFontScale, normalizeModelDisplayMode, normalizePopoverWidthMode, normalizePopoverWidth, parseStepTokenComboSegments, normalizeStepTokenComboFormat, normalizePluginUpdateMode, normalizeWindowMountMode, normalizeWeeklyLimitMode, normalizeTopbarCapsuleSlots, normalizeCliStatusLineSlots, resolveEffectiveCliStatusLineSlots, normalizeOverviewMetrics, normalizeOverviewModules, normalizeHoverModules, normalizeMetricCardStyle, normalizeOverviewMetricStyle, normalizeHoverMetricStyle, normalizeHoverSyncOverviewMetrics, normalizeHoverMetrics, resolveEffectiveMetricMatrixConfig, normalizeStepTableColumns, normalizeStandalonePort, normalizeModernUi, CONTEXT_AGENT_MODES, DEFAULT_CONTEXT_AGENT_MODE, QUOTA_DISPLAY_MODES, DEFAULT_QUOTA_DISPLAY_MODE, normalizeQuotaDisplayMode, ACCOUNT_QUOTA_REFRESH_MINUTES, DEFAULT_ACCOUNT_QUOTA_REFRESH_MINUTES, normalizeAccountQuotaRefreshMinutes, normalizeContextAgentMode, normalizeExperimentalQuotaReservation, normalizeExperimentalModernUi, normalizeAutoConfigureLaunch, normalizeEnableRemoteSshTelemetry, normalizeDeveloperModeEnabled, normalizeRiskyFeaturesEnabled, isRiskyFeaturesGateOpen, isContextWindowFeatureActive, isAccountSwitchFeatureActive } = (() => {
+const SUPPORTED_LOCALE_ENTRIES = Object.freeze([
+  Object.freeze({
+    locale: 'zh-CN',
+    nativeName: '简体中文',
+    prefixes: Object.freeze(['zh']),
+  }),
+  Object.freeze({
+    locale: 'zh-TW',
+    nativeName: '繁體中文',
+    exactTags: Object.freeze(['zh-tw', 'zh-hk', 'zh-mo']),
+    prefixes: Object.freeze(['zh-hant']),
+  }),
+  Object.freeze({
+    locale: 'en-US',
+    nativeName: 'English',
+    prefixes: Object.freeze(['en']),
+  }),
+  Object.freeze({
+    locale: 'ja-JP',
+    nativeName: '日本語',
+    prefixes: Object.freeze(['ja']),
+  }),
+  Object.freeze({
+    locale: 'ko-KR',
+    nativeName: '한국어',
+    prefixes: Object.freeze(['ko']),
+  }),
+  Object.freeze({
+    locale: 'de-DE',
+    nativeName: 'Deutsch',
+    prefixes: Object.freeze(['de']),
+  }),
+  Object.freeze({
+    locale: 'fr-FR',
+    nativeName: 'Français',
+    prefixes: Object.freeze(['fr']),
+  }),
 ]);
+
+const SUPPORTED_LOCALES = Object.freeze(
+  SUPPORTED_LOCALE_ENTRIES.map((entry) => entry.locale)
+);
 const SUPPORTED_LANGUAGES = Object.freeze(['auto', ...SUPPORTED_LOCALES]);
+
+const LOCALE_EXACT_TAG_MAP = new Map();
+const LOCALE_PREFIX_MATCHERS = [];
+for (const entry of SUPPORTED_LOCALE_ENTRIES) {
+  LOCALE_EXACT_TAG_MAP.set(entry.locale.toLowerCase(), entry.locale);
+  if (Array.isArray(entry.exactTags)) {
+    for (const tag of entry.exactTags) {
+      LOCALE_EXACT_TAG_MAP.set(String(tag).toLowerCase(), entry.locale);
+    }
+  }
+  if (Array.isArray(entry.prefixes)) {
+    for (const prefix of entry.prefixes) {
+      LOCALE_PREFIX_MATCHERS.push({
+        prefix: String(prefix).toLowerCase(),
+        locale: entry.locale,
+      });
+    }
+  }
+}
+
+LOCALE_PREFIX_MATCHERS.sort((a, b) => b.prefix.length - a.prefix.length);
 
 const THEME_ACCENT_KEYS = Object.freeze([
   'host',
@@ -182,20 +236,14 @@ function resolveLocaleFromLanguageTag(rawTag, fallback = 'en-US') {
     .replace(/\..*$/, '')
     .toLowerCase();
   if (!clean || clean === 'c' || clean === 'posix') return fallback;
-  if (
-    clean === 'zh-tw' ||
-    clean === 'zh-hk' ||
-    clean === 'zh-mo' ||
-    clean.startsWith('zh-hant')
-  ) {
-    return 'zh-TW';
+  const exact = LOCALE_EXACT_TAG_MAP.get(clean);
+  if (exact) return exact;
+  for (let i = 0; i < LOCALE_PREFIX_MATCHERS.length; i += 1) {
+    const { prefix, locale } = LOCALE_PREFIX_MATCHERS[i];
+    if (clean === prefix || clean.startsWith(`${prefix}-`)) {
+      return locale;
+    }
   }
-  if (clean === 'zh' || clean.startsWith('zh-')) return 'zh-CN';
-  if (clean === 'ja' || clean.startsWith('ja-')) return 'ja-JP';
-  if (clean === 'ko' || clean.startsWith('ko-')) return 'ko-KR';
-  if (clean === 'de' || clean.startsWith('de-')) return 'de-DE';
-  if (clean === 'fr' || clean.startsWith('fr-')) return 'fr-FR';
-  if (clean === 'en' || clean.startsWith('en-')) return 'en-US';
   return fallback;
 }
 
@@ -578,7 +626,7 @@ function isAccountSwitchFeatureActive(settings) {
     isRiskyFeaturesGateOpen(settings) && settings.accountSwitchRiskAccepted === true
   );
 }
-return { SUPPORTED_LOCALES, SUPPORTED_LANGUAGES, THEME_ACCENT_KEYS, FONT_SCALE_KEYS, TOPBAR_SLOT_KEYS, DEFAULT_TOPBAR_SLOTS, MIN_TOPBAR_SLOTS, MAX_TOPBAR_SLOTS, DEFAULT_CLI_STATUSLINE_SLOTS, MIN_CLI_STATUSLINE_SLOTS, MAX_CLI_STATUSLINE_SLOTS, CLI_STATUSLINE_PRESETS, OVERVIEW_MODULE_KEYS, DEFAULT_OVERVIEW_MODULES, DEFAULT_HOVER_MODULES, METRIC_CARD_STYLES, HOVER_METRIC_STYLES, DEFAULT_OVERVIEW_METRIC_STYLE, DEFAULT_HOVER_METRIC_STYLE, DEFAULT_HOVER_SYNC_OVERVIEW_METRICS, MAX_LARGE_METRIC_SLOTS, OVERVIEW_METRIC_KEYS, DEFAULT_OVERVIEW_METRICS, DEFAULT_HOVER_METRICS, STEP_TABLE_COLUMN_KEYS, DEFAULT_STEP_TABLE_COLUMNS, DEFAULT_STEP_TOKEN_COMBO_FORMAT, STEP_TOKEN_SEGMENT_ALIASES, POPOVER_WIDTH_MODES, MIN_POPOVER_WIDTH, MAX_POPOVER_WIDTH, DEFAULT_POPOVER_WIDTH, resolveLocaleFromLanguageTag, normalizeLanguageSetting, normalizeThemeAccent, normalizeFontScale, normalizeModelDisplayMode, normalizePopoverWidthMode, normalizePopoverWidth, parseStepTokenComboSegments, normalizeStepTokenComboFormat, normalizePluginUpdateMode, normalizeWindowMountMode, normalizeWeeklyLimitMode, normalizeTopbarCapsuleSlots, normalizeCliStatusLineSlots, resolveEffectiveCliStatusLineSlots, normalizeOverviewMetrics, normalizeOverviewModules, normalizeHoverModules, normalizeMetricCardStyle, normalizeOverviewMetricStyle, normalizeHoverMetricStyle, normalizeHoverSyncOverviewMetrics, normalizeHoverMetrics, resolveEffectiveMetricMatrixConfig, normalizeStepTableColumns, normalizeStandalonePort, normalizeModernUi, CONTEXT_AGENT_MODES, DEFAULT_CONTEXT_AGENT_MODE, QUOTA_DISPLAY_MODES, DEFAULT_QUOTA_DISPLAY_MODE, normalizeQuotaDisplayMode, ACCOUNT_QUOTA_REFRESH_MINUTES, DEFAULT_ACCOUNT_QUOTA_REFRESH_MINUTES, normalizeAccountQuotaRefreshMinutes, normalizeContextAgentMode, normalizeExperimentalQuotaReservation, normalizeExperimentalModernUi, normalizeAutoConfigureLaunch, normalizeEnableRemoteSshTelemetry, normalizeDeveloperModeEnabled, normalizeRiskyFeaturesEnabled, isRiskyFeaturesGateOpen, isContextWindowFeatureActive, isAccountSwitchFeatureActive };
+return { SUPPORTED_LOCALE_ENTRIES, SUPPORTED_LOCALES, SUPPORTED_LANGUAGES, THEME_ACCENT_KEYS, FONT_SCALE_KEYS, TOPBAR_SLOT_KEYS, DEFAULT_TOPBAR_SLOTS, MIN_TOPBAR_SLOTS, MAX_TOPBAR_SLOTS, DEFAULT_CLI_STATUSLINE_SLOTS, MIN_CLI_STATUSLINE_SLOTS, MAX_CLI_STATUSLINE_SLOTS, CLI_STATUSLINE_PRESETS, OVERVIEW_MODULE_KEYS, DEFAULT_OVERVIEW_MODULES, DEFAULT_HOVER_MODULES, METRIC_CARD_STYLES, HOVER_METRIC_STYLES, DEFAULT_OVERVIEW_METRIC_STYLE, DEFAULT_HOVER_METRIC_STYLE, DEFAULT_HOVER_SYNC_OVERVIEW_METRICS, MAX_LARGE_METRIC_SLOTS, OVERVIEW_METRIC_KEYS, DEFAULT_OVERVIEW_METRICS, DEFAULT_HOVER_METRICS, STEP_TABLE_COLUMN_KEYS, DEFAULT_STEP_TABLE_COLUMNS, DEFAULT_STEP_TOKEN_COMBO_FORMAT, STEP_TOKEN_SEGMENT_ALIASES, POPOVER_WIDTH_MODES, MIN_POPOVER_WIDTH, MAX_POPOVER_WIDTH, DEFAULT_POPOVER_WIDTH, resolveLocaleFromLanguageTag, normalizeLanguageSetting, normalizeThemeAccent, normalizeFontScale, normalizeModelDisplayMode, normalizePopoverWidthMode, normalizePopoverWidth, parseStepTokenComboSegments, normalizeStepTokenComboFormat, normalizePluginUpdateMode, normalizeWindowMountMode, normalizeWeeklyLimitMode, normalizeTopbarCapsuleSlots, normalizeCliStatusLineSlots, resolveEffectiveCliStatusLineSlots, normalizeOverviewMetrics, normalizeOverviewModules, normalizeHoverModules, normalizeMetricCardStyle, normalizeOverviewMetricStyle, normalizeHoverMetricStyle, normalizeHoverSyncOverviewMetrics, normalizeHoverMetrics, resolveEffectiveMetricMatrixConfig, normalizeStepTableColumns, normalizeStandalonePort, normalizeModernUi, CONTEXT_AGENT_MODES, DEFAULT_CONTEXT_AGENT_MODE, QUOTA_DISPLAY_MODES, DEFAULT_QUOTA_DISPLAY_MODE, normalizeQuotaDisplayMode, ACCOUNT_QUOTA_REFRESH_MINUTES, DEFAULT_ACCOUNT_QUOTA_REFRESH_MINUTES, normalizeAccountQuotaRefreshMinutes, normalizeContextAgentMode, normalizeExperimentalQuotaReservation, normalizeExperimentalModernUi, normalizeAutoConfigureLaunch, normalizeEnableRemoteSshTelemetry, normalizeDeveloperModeEnabled, normalizeRiskyFeaturesEnabled, isRiskyFeaturesGateOpen, isContextWindowFeatureActive, isAccountSwitchFeatureActive };
 })();
 
 // --- shared/currency-catalog.mjs ---
@@ -2261,13 +2309,6 @@ const I18N_MESSAGES_ZH_CN = Object.freeze({
 
   'settings.gen.appearanceTitle': '界面与外观',
   'settings.gen.language': '界面语言',
-  'settings.gen.langZh': '简体中文',
-  'settings.gen.langZhTw': '繁體中文',
-  'settings.gen.langEn': 'English',
-  'settings.gen.langJa': '日本語',
-  'settings.gen.langKo': '한국어',
-  'settings.gen.langDe': 'Deutsch',
-  'settings.gen.langFr': 'Français',
   'settings.gen.langAuto': '跟随系统',
   'settings.gen.currencyLabel': '参考货币',
   'settings.gen.currencyAuto': '跟随界面语言（{code} {symbol}）',
@@ -3514,13 +3555,6 @@ const I18N_MESSAGES_ZH_TW = Object.freeze({
   "settings.resetBtn": "恢復預設",
   "settings.gen.appearanceTitle": "介面與外觀",
   "settings.gen.language": "介面語言",
-  "settings.gen.langZh": "简体中文",
-  "settings.gen.langZhTw": "繁體中文",
-  "settings.gen.langEn": "English",
-  "settings.gen.langJa": "日本語",
-  "settings.gen.langKo": "한국어",
-  "settings.gen.langDe": "Deutsch",
-  "settings.gen.langFr": "Français",
   "settings.gen.langAuto": "跟隨系統",
   "settings.gen.currencyLabel": "參考貨幣",
   "settings.gen.currencyAuto": "跟隨介面語言（{code} {symbol}）",
@@ -4778,13 +4812,6 @@ const I18N_MESSAGES_EN_US = Object.freeze({
 
   'settings.gen.appearanceTitle': 'Interface & Appearance',
   'settings.gen.language': 'Language',
-  'settings.gen.langZh': '简体中文',
-  'settings.gen.langZhTw': '繁體中文',
-  'settings.gen.langEn': 'English',
-  'settings.gen.langJa': '日本語',
-  'settings.gen.langKo': '한국어',
-  'settings.gen.langDe': 'Deutsch',
-  'settings.gen.langFr': 'Français',
   'settings.gen.langAuto': 'Follow System',
   'settings.gen.currencyLabel': 'Display Currency',
   'settings.gen.currencyAuto': 'Follow UI Language ({code} {symbol})',
@@ -6031,13 +6058,6 @@ const I18N_MESSAGES_JA_JP = Object.freeze({
   "settings.resetBtn": "リセット",
   "settings.gen.appearanceTitle": "インターフェースと外観",
   "settings.gen.language": "言語",
-  "settings.gen.langZh": "简体中文",
-  "settings.gen.langZhTw": "繁體中文",
-  "settings.gen.langEn": "English",
-  "settings.gen.langJa": "日本語",
-  "settings.gen.langKo": "한국어",
-  "settings.gen.langDe": "Deutsch",
-  "settings.gen.langFr": "Français",
   "settings.gen.langAuto": "システムに合わせる",
   "settings.gen.currencyLabel": "参考通貨",
   "settings.gen.currencyAuto": "表示言語に合わせる（{code} {symbol}）",
@@ -7277,13 +7297,6 @@ const I18N_MESSAGES_KO_KR = Object.freeze({
   "settings.resetBtn": "기본값 복원",
   "settings.gen.appearanceTitle": "인터페이스 및 모양",
   "settings.gen.language": "언어",
-  "settings.gen.langZh": "简体中文",
-  "settings.gen.langZhTw": "繁體中文",
-  "settings.gen.langEn": "English",
-  "settings.gen.langJa": "日本語",
-  "settings.gen.langKo": "한국어",
-  "settings.gen.langDe": "Deutsch",
-  "settings.gen.langFr": "Français",
   "settings.gen.langAuto": "시스템 설정 따르기",
   "settings.gen.currencyLabel": "참고 통화",
   "settings.gen.currencyAuto": "인터페이스 언어 따르기 ({code} {symbol})",
@@ -8523,13 +8536,6 @@ const I18N_MESSAGES_DE_DE = Object.freeze({
   "settings.resetBtn": "Zurücksetzen",
   "settings.gen.appearanceTitle": "Oberfläche & Darstellung",
   "settings.gen.language": "Sprache",
-  "settings.gen.langZh": "简体中文",
-  "settings.gen.langZhTw": "繁體中文",
-  "settings.gen.langEn": "English",
-  "settings.gen.langJa": "日本語",
-  "settings.gen.langKo": "한국어",
-  "settings.gen.langDe": "Deutsch",
-  "settings.gen.langFr": "Français",
   "settings.gen.langAuto": "System folgen",
   "settings.gen.currencyLabel": "Referenzwährung",
   "settings.gen.currencyAuto": "UI-Sprache folgen ({code} {symbol})",
@@ -9769,13 +9775,6 @@ const I18N_MESSAGES_FR_FR = Object.freeze({
   "settings.resetBtn": "Réinitialiser",
   "settings.gen.appearanceTitle": "Interface et apparence",
   "settings.gen.language": "Langue",
-  "settings.gen.langZh": "简体中文",
-  "settings.gen.langZhTw": "繁體中文",
-  "settings.gen.langEn": "English",
-  "settings.gen.langJa": "日本語",
-  "settings.gen.langKo": "한국어",
-  "settings.gen.langDe": "Deutsch",
-  "settings.gen.langFr": "Français",
   "settings.gen.langAuto": "Système",
   "settings.gen.currencyLabel": "Devise de référence",
   "settings.gen.currencyAuto": "Suivre la langue ({code} {symbol})",
@@ -12261,7 +12260,7 @@ return { defineComponent };
 })();
 
 // --- src/core/formatters.js ---
-const { formatMetric, formatSpeedMetric, formatCachePct, formatPctNumber, getSpeedToneClass, getCacheToneClass, getStepCostToneClass, getTtftToneClass, formatTokens, formatTokensPrecise, formatCnyApprox, formatSecondaryCostApprox, formatFxRateCaption, formatDateSpanBadge, formatTrendSlotFullLabel, formatUsd, speedReasonText, formatAnomalyKindLabel, formatAnomalyTagText, resolveModelAnomalySummary, formatStepAnomalyInlineSummary, buildStepAnomalyDiagnostic, buildStepCompactionDiagnostic, buildStepRevertedDiagnostic, formatTimingDetailSec, hasStepTimingData, buildStepTimingDiagnostic, buildModelAnomalyDiagnostic, sampleSummary, formatCountdown, formatCompactDateTime, formatElapsedSec, stripVendorModelPrefix, resolveModelDisplayInfo, mergeModelsByDisplayName, getAgentBadgeClass, formatQuotaPoolLabel, formatAgentBadgeText, formatAgentLabel, formatConversationMeta, formatLiveActivityLabel, formatLiveActivityDetail, getCanonicalModelColorSeed, resolveDeterministicModelColor, buildDeterministicModelColorMap } = (() => {
+const { formatShortMonthName, formatShortWeekdayName, formatMetric, formatSpeedMetric, formatCachePct, formatPctNumber, getSpeedToneClass, getCacheToneClass, getStepCostToneClass, getTtftToneClass, formatTokens, formatTokensPrecise, formatCnyApprox, formatSecondaryCostApprox, formatFxRateCaption, formatDateSpanBadge, formatTrendSlotFullLabel, formatUsd, speedReasonText, formatAnomalyKindLabel, formatAnomalyTagText, resolveModelAnomalySummary, formatStepAnomalyInlineSummary, buildStepAnomalyDiagnostic, buildStepCompactionDiagnostic, buildStepRevertedDiagnostic, formatTimingDetailSec, hasStepTimingData, buildStepTimingDiagnostic, buildModelAnomalyDiagnostic, sampleSummary, formatCountdown, formatCompactDateTime, formatElapsedSec, stripVendorModelPrefix, resolveModelDisplayInfo, mergeModelsByDisplayName, getAgentBadgeClass, formatQuotaPoolLabel, formatAgentBadgeText, formatAgentLabel, formatConversationMeta, formatLiveActivityLabel, formatLiveActivityDetail, getCanonicalModelColorSeed, resolveDeterministicModelColor, buildDeterministicModelColorMap } = (() => {
 const LOCALE_MONTH_SHORT = Object.freeze({
   'en-US': Object.freeze(['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']),
   'de-DE': Object.freeze(['Jan.', 'Feb.', 'Mär.', 'Apr.', 'Mai', 'Jun.', 'Jul.', 'Aug.', 'Sep.', 'Okt.', 'Nov.', 'Dez.']),
@@ -12277,6 +12276,64 @@ const LOCALE_WEEKDAY_SHORT = Object.freeze({
   'de-DE': Object.freeze(['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa']),
   'fr-FR': Object.freeze(['dim.', 'lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.']),
 });
+
+const MAX_INTL_LOCALE_CACHE = 64;
+const INTL_SHORT_MONTHS_CACHE = new Map();
+const INTL_SHORT_WEEKDAYS_CACHE = new Map();
+
+function getLocaleShortMonths(locale) {
+  if (LOCALE_MONTH_SHORT[locale]) return LOCALE_MONTH_SHORT[locale];
+  if (INTL_SHORT_MONTHS_CACHE.has(locale)) return INTL_SHORT_MONTHS_CACHE.get(locale);
+  let resolved = LOCALE_MONTH_SHORT['en-US'];
+  try {
+    if (typeof Intl !== 'undefined' && typeof Intl.DateTimeFormat === 'function') {
+      const fmt = new Intl.DateTimeFormat(locale, { month: 'short', timeZone: 'UTC' });
+      const list = Array.from({ length: 12 }, (_, m) => fmt.format(new Date(Date.UTC(2024, m, 15))));
+      if (list.every((s) => typeof s === 'string' && s.trim().length > 0)) {
+        resolved = Object.freeze(list);
+      }
+    }
+  } catch {
+
+  }
+  if (INTL_SHORT_MONTHS_CACHE.size < MAX_INTL_LOCALE_CACHE) {
+    INTL_SHORT_MONTHS_CACHE.set(locale, resolved);
+  }
+  return resolved;
+}
+
+function getLocaleShortWeekdays(locale) {
+  if (LOCALE_WEEKDAY_SHORT[locale]) return LOCALE_WEEKDAY_SHORT[locale];
+  if (INTL_SHORT_WEEKDAYS_CACHE.has(locale)) return INTL_SHORT_WEEKDAYS_CACHE.get(locale);
+  let resolved = LOCALE_WEEKDAY_SHORT['en-US'];
+  try {
+    if (typeof Intl !== 'undefined' && typeof Intl.DateTimeFormat === 'function') {
+      const fmt = new Intl.DateTimeFormat(locale, { weekday: 'short', timeZone: 'UTC' });
+
+      const list = Array.from({ length: 7 }, (_, d) => fmt.format(new Date(Date.UTC(2024, 0, 7 + d))));
+      if (list.every((s) => typeof s === 'string' && s.trim().length > 0)) {
+        resolved = Object.freeze(list);
+      }
+    }
+  } catch {
+
+  }
+  if (INTL_SHORT_WEEKDAYS_CACHE.size < MAX_INTL_LOCALE_CACHE) {
+    INTL_SHORT_WEEKDAYS_CACHE.set(locale, resolved);
+  }
+  return resolved;
+}
+
+function formatShortMonthName(monthIndex, locale, { stripTrailingDot = false } = {}) {
+  const loc = resolveFormatterLocale(locale);
+  const raw = getLocaleShortMonths(loc)[monthIndex] || '';
+  return stripTrailingDot ? raw.replace(/\.$/, '') : raw;
+}
+
+function formatShortWeekdayName(dayIndex, locale) {
+  const loc = resolveFormatterLocale(locale);
+  return getLocaleShortWeekdays(loc)[dayIndex] || '';
+}
 
 function resolveFormatterLocale(explicitLocale) {
   if (typeof explicitLocale === 'string' && explicitLocale.trim()) {
@@ -12399,7 +12456,7 @@ function formatLocalizedDayDate(dateObj, locale, includeYear) {
   if (locale === 'ko-KR') {
     return includeYear ? `${y}년 ${m}월 ${d}일` : `${m}월 ${d}일`;
   }
-  const mon = (LOCALE_MONTH_SHORT[locale] || LOCALE_MONTH_SHORT['en-US'])[dateObj.getMonth()] || '';
+  const mon = formatShortMonthName(dateObj.getMonth(), locale);
   if (locale === 'de-DE') {
     return includeYear ? `${d}. ${mon} ${y}` : `${d}. ${mon}`;
   }
@@ -12465,7 +12522,7 @@ function formatTrendSlotFullLabel(slot, { locale, showFullYear = false } = {}) {
       return `${datePart}${sep}${hh} - ${endHh}`;
     }
 
-    const wday = (LOCALE_WEEKDAY_SHORT[loc] || LOCALE_WEEKDAY_SHORT['en-US'])[sd.getDay()] || '';
+    const wday = formatShortWeekdayName(sd.getDay(), loc);
     return `${datePart} (${wday})`;
   }
 
@@ -13675,7 +13732,7 @@ function buildDeterministicModelColorMap(models = []) {
 
   return colorMap;
 }
-return { formatMetric, formatSpeedMetric, formatCachePct, formatPctNumber, getSpeedToneClass, getCacheToneClass, getStepCostToneClass, getTtftToneClass, formatTokens, formatTokensPrecise, formatCnyApprox, formatSecondaryCostApprox, formatFxRateCaption, formatDateSpanBadge, formatTrendSlotFullLabel, formatUsd, speedReasonText, formatAnomalyKindLabel, formatAnomalyTagText, resolveModelAnomalySummary, formatStepAnomalyInlineSummary, buildStepAnomalyDiagnostic, buildStepCompactionDiagnostic, buildStepRevertedDiagnostic, formatTimingDetailSec, hasStepTimingData, buildStepTimingDiagnostic, buildModelAnomalyDiagnostic, sampleSummary, formatCountdown, formatCompactDateTime, formatElapsedSec, stripVendorModelPrefix, resolveModelDisplayInfo, mergeModelsByDisplayName, getAgentBadgeClass, formatQuotaPoolLabel, formatAgentBadgeText, formatAgentLabel, formatConversationMeta, formatLiveActivityLabel, formatLiveActivityDetail, getCanonicalModelColorSeed, resolveDeterministicModelColor, buildDeterministicModelColorMap };
+return { formatShortMonthName, formatShortWeekdayName, formatMetric, formatSpeedMetric, formatCachePct, formatPctNumber, getSpeedToneClass, getCacheToneClass, getStepCostToneClass, getTtftToneClass, formatTokens, formatTokensPrecise, formatCnyApprox, formatSecondaryCostApprox, formatFxRateCaption, formatDateSpanBadge, formatTrendSlotFullLabel, formatUsd, speedReasonText, formatAnomalyKindLabel, formatAnomalyTagText, resolveModelAnomalySummary, formatStepAnomalyInlineSummary, buildStepAnomalyDiagnostic, buildStepCompactionDiagnostic, buildStepRevertedDiagnostic, formatTimingDetailSec, hasStepTimingData, buildStepTimingDiagnostic, buildModelAnomalyDiagnostic, sampleSummary, formatCountdown, formatCompactDateTime, formatElapsedSec, stripVendorModelPrefix, resolveModelDisplayInfo, mergeModelsByDisplayName, getAgentBadgeClass, formatQuotaPoolLabel, formatAgentBadgeText, formatAgentLabel, formatConversationMeta, formatLiveActivityLabel, formatLiveActivityDetail, getCanonicalModelColorSeed, resolveDeterministicModelColor, buildDeterministicModelColorMap };
 })();
 
 // --- src/core/stepInspector.js ---
@@ -23154,12 +23211,6 @@ function buildHeatmapMonthTicks(slots, firstDow, totalWeeks) {
   return ticks;
 }
 
-const LOCALE_SHORT_MONTHS = Object.freeze({
-  'en-US': Object.freeze(['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']),
-  'de-DE': Object.freeze(['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez']),
-  'fr-FR': Object.freeze(['janv', 'févr', 'mars', 'avr', 'mai', 'juin', 'juil', 'août', 'sept', 'oct', 'nov', 'déc']),
-});
-
 function normalizeHeatmapMode(mode) {
   return mode === 'week' || mode === 'month' || mode === 'all' ? mode : 'day';
 }
@@ -23390,7 +23441,11 @@ function buildHeatmapBarView(slots, firstDow, totalWeeks, mode, buildSegmentsFn)
     let activeMonths = 0;
     const nonZero = [];
     const activeLocale = getEffectiveLocale();
-    const shortMonths = LOCALE_SHORT_MONTHS[activeLocale] || null;
+    const useCjkMonthTemplate =
+      activeLocale === 'zh-CN' ||
+      activeLocale === 'zh-TW' ||
+      activeLocale === 'ja-JP' ||
+      activeLocale === 'ko-KR';
     const buckets = monthAccs.map((acc, idx) => {
       if (acc.tokens > 0) {
         activeMonths++;
@@ -23401,11 +23456,13 @@ function buildHeatmapBarView(slots, firstDow, totalWeeks, mode, buildSegmentsFn)
         peakIdx = idx;
       }
       const mNum = acc.month || 1;
-      const monShort = shortMonths ? shortMonths[mNum - 1] || `M${mNum}` : '';
-      const fullTitle = shortMonths
-        ? `${monShort} ${acc.year}`
-        : t('cons.monthFullLabel', { year: acc.year, m: mNum });
-      const shortLbl = shortMonths ? monShort : t('cons.monthLabel', { m: mNum });
+      const monShort = useCjkMonthTemplate
+        ? ''
+        : formatShortMonthName(mNum - 1, activeLocale, { stripTrailingDot: true }) || `M${mNum}`;
+      const fullTitle = useCjkMonthTemplate
+        ? t('cons.monthFullLabel', { year: acc.year, m: mNum })
+        : `${monShort} ${acc.year}`;
+      const shortLbl = useCjkMonthTemplate ? t('cons.monthLabel', { m: mNum }) : monShort;
       return finalizeHeatmapBucket(acc, fullTitle, shortLbl, buildSegmentsFn);
     });
     nonZero.sort((a, b) => a - b);
@@ -41483,13 +41540,10 @@ const { SettingsGeneralTab } = (() => {
 function getLanguageOptions() {
   return [
     { value: 'auto', label: t('settings.gen.langAuto') },
-    { value: 'zh-CN', label: t('settings.gen.langZh') },
-    { value: 'zh-TW', label: t('settings.gen.langZhTw') },
-    { value: 'en-US', label: t('settings.gen.langEn') },
-    { value: 'ja-JP', label: t('settings.gen.langJa') },
-    { value: 'ko-KR', label: t('settings.gen.langKo') },
-    { value: 'de-DE', label: t('settings.gen.langDe') },
-    { value: 'fr-FR', label: t('settings.gen.langFr') },
+    ...SUPPORTED_LOCALE_ENTRIES.map(({ locale, nativeName }) => ({
+      value: locale,
+      label: nativeName,
+    })),
   ];
 }
 

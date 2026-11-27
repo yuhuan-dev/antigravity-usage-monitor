@@ -1523,17 +1523,28 @@ test('5h quota cycle includes cycle-opening compaction CHECKPOINT and cross-boun
   assert.equal(payload.consumption.account.totalTokens, 491_000);
 });
 
-test('i18n static t(...) key completeness guard across all 7 locales, scopeAll formatters, and localized trend/export outputs', async () => {
+test('i18n static t(...) key completeness guard across all supported locales, backend copy, currency, and localized trend/export outputs', async () => {
   const { I18N_DICTIONARIES, setI18nLanguage } = await import('../src/i18n/index.js');
   const {
+    SUPPORTED_LOCALE_ENTRIES,
     SUPPORTED_LOCALES,
     normalizeLanguageSetting,
     resolveLocaleFromLanguageTag,
   } = await import('../shared/settings-normalization.mjs');
   const {
+    LOCALE_DEFAULT_CURRENCY,
+    SUPPORTED_CURRENCY_CODES,
+  } = await import('../shared/currency-catalog.mjs');
+  const { LOGIN_CALLBACK_COPY } = await import('../backend/account-login.mjs');
+  const { CLI_STATUS_COPY } = await import('../backend/cli-statusline-config.mjs');
+  const { STANDALONE_LOCALE_COPY } = await import('../backend/standalone-server.mjs');
+  const {
     formatAgentBadgeText,
     formatAgentLabel,
+    formatDateSpanBadge,
     formatQuotaPoolLabel,
+    formatShortMonthName,
+    formatShortWeekdayName,
     formatTrendSlotFullLabel,
   } = await import('../src/core/formatters.js');
   const { buildStructurePreviewTelemetry } = await import('../src/components/settings/structurePreviewMock.js');
@@ -1547,7 +1558,7 @@ test('i18n static t(...) key completeness guard across all 7 locales, scopeAll f
   const { createTrendAreaChart } = await import('../src/components/charts/TrendAreaChart.js');
   const { createMockDom } = await import('./mock-dom.mjs');
 
-  // 1. Every static t('...') call across sidecars/panel/src/** resolves in all 7 locales with 100% key & placeholder parity
+  // 1. Every registered locale in SUPPORTED_LOCALE_ENTRIES has full end-to-end coverage
   const srcRoot = fileURLToPath(new URL('../src', import.meta.url));
   const walkJs = (dir) => {
     const out = [];
@@ -1558,6 +1569,11 @@ test('i18n static t(...) key completeness guard across all 7 locales, scopeAll f
     }
     return out;
   };
+  assert.equal(new Set(SUPPORTED_LOCALES).size, SUPPORTED_LOCALES.length, 'SUPPORTED_LOCALES must have no duplicates');
+  for (const entry of SUPPORTED_LOCALE_ENTRIES) {
+    assert.equal(typeof entry.locale === 'string' && entry.locale.length > 0, true);
+    assert.equal(typeof entry.nativeName === 'string' && entry.nativeName.trim().length > 0, true);
+  }
   assert.deepEqual(
     Object.keys(I18N_DICTIONARIES).sort(),
     [...SUPPORTED_LOCALES].sort(),
@@ -1567,7 +1583,47 @@ test('i18n static t(...) key completeness guard across all 7 locales, scopeAll f
   const enKeys = new Set(Object.keys(enDict));
   const extractPh = (str) => [...String(str).matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort().join(',');
   const emojiRe = /\p{Extended_Pictographic}/u;
+  const currencyCodeSet = new Set(SUPPORTED_CURRENCY_CODES);
+  const sampleMs = new Date(2026, 10, 24, 10, 0, 0, 0).getTime();
   for (const loc of SUPPORTED_LOCALES) {
+    assert.equal(
+      fs.existsSync(join(srcRoot, 'i18n', `${loc}.js`)),
+      true,
+      `src/i18n/${loc}.js must exist for build-bundle.mjs`
+    );
+    assert.equal(resolveLocaleFromLanguageTag(loc), loc, `${loc} must round-trip in resolveLocaleFromLanguageTag`);
+    assert.equal(normalizeLanguageSetting(loc), loc, `${loc} must round-trip in normalizeLanguageSetting`);
+    assert.equal(
+      currencyCodeSet.has(LOCALE_DEFAULT_CURRENCY[loc]),
+      true,
+      `LOCALE_DEFAULT_CURRENCY[${loc}] must map to a supported currency`
+    );
+
+    const loginCopy = LOGIN_CALLBACK_COPY[loc];
+    assert.ok(loginCopy, `LOGIN_CALLBACK_COPY missing ${loc}`);
+    for (const field of ['htmlLang', 'okTitle', 'failTitle', 'detail']) {
+      assert.equal(typeof loginCopy[field] === 'string' && loginCopy[field].length > 0, true, `LOGIN_CALLBACK_COPY.${loc}.${field}`);
+    }
+
+    const standaloneCopy = STANDALONE_LOCALE_COPY[loc];
+    assert.ok(standaloneCopy, `STANDALONE_LOCALE_COPY missing ${loc}`);
+    for (const field of ['htmlLang', 'title', 'authTitle', 'desc', 'err', 'placeholder', 'submit']) {
+      assert.equal(typeof standaloneCopy[field] === 'string' && standaloneCopy[field].length > 0, true, `STANDALONE_LOCALE_COPY.${loc}.${field}`);
+    }
+
+    const cliCopy = CLI_STATUS_COPY[loc];
+    assert.ok(cliCopy, `CLI_STATUS_COPY missing ${loc}`);
+    for (const field of ['ctx', 'gen', 'idle', 'avg', 'sum', 'cache', 'quotaAuto', 'quotaEmpty', 'wk', 'idleZero']) {
+      assert.equal(typeof cliCopy[field] === 'string' && cliCopy[field].length > 0, true, `CLI_STATUS_COPY.${loc}.${field}`);
+    }
+    assert.equal(typeof cliCopy.active, 'function', `CLI_STATUS_COPY.${loc}.active`);
+    assert.equal(typeof cliCopy.activeSub, 'function', `CLI_STATUS_COPY.${loc}.activeSub`);
+    assert.ok(cliCopy.anom && typeof cliCopy.anom.error === 'function', `CLI_STATUS_COPY.${loc}.anom`);
+
+    assert.ok(formatShortMonthName(0, loc).length > 0, `${loc} short month name`);
+    assert.ok(formatShortWeekdayName(1, loc).length > 0, `${loc} short weekday name`);
+    assert.ok(formatDateSpanBadge(sampleMs, sampleMs + 86400_000, { locale: loc }).length > 0, `${loc} date span`);
+
     const dict = I18N_DICTIONARIES[loc];
     const locKeys = new Set(Object.keys(dict));
     assert.deepEqual([...enKeys].filter((k) => !locKeys.has(k)), [], `${loc} missing keys`);
@@ -1583,7 +1639,13 @@ test('i18n static t(...) key completeness guard across all 7 locales, scopeAll f
     }
   }
 
-  // BCP-47 tag normalization across all 7 locales + regional aliases
+  // Unlisted locales fall back gracefully via Intl.DateTimeFormat for month/weekday names
+  assert.equal(formatShortMonthName(2, 'de-DE', { stripTrailingDot: true }), 'Mär');
+  assert.equal(formatShortMonthName(0, 'fr-FR', { stripTrailingDot: true }), 'janv');
+  assert.ok(formatShortMonthName(0, 'vi-VN').length > 0);
+  assert.ok(formatShortWeekdayName(1, 'vi-VN').length > 0);
+
+  // BCP-47 tag normalization + regional aliases
   assert.equal(resolveLocaleFromLanguageTag('zh-HK'), 'zh-TW');
   assert.equal(resolveLocaleFromLanguageTag('zh-Hant-TW'), 'zh-TW');
   assert.equal(resolveLocaleFromLanguageTag('zh-Hans-CN'), 'zh-CN');
@@ -1591,11 +1653,6 @@ test('i18n static t(...) key completeness guard across all 7 locales, scopeAll f
   assert.equal(resolveLocaleFromLanguageTag('ko'), 'ko-KR');
   assert.equal(resolveLocaleFromLanguageTag('de-AT'), 'de-DE');
   assert.equal(resolveLocaleFromLanguageTag('fr-CA'), 'fr-FR');
-  assert.equal(normalizeLanguageSetting('ja-JP'), 'ja-JP');
-  assert.equal(normalizeLanguageSetting('zh-TW'), 'zh-TW');
-  assert.equal(normalizeLanguageSetting('ko-KR'), 'ko-KR');
-  assert.equal(normalizeLanguageSetting('de-DE'), 'de-DE');
-  assert.equal(normalizeLanguageSetting('fr-FR'), 'fr-FR');
 
   const missingKeys = [];
   for (const filePath of walkJs(srcRoot)) {
@@ -1783,6 +1840,15 @@ test('i18n static t(...) key completeness guard across all 7 locales, scopeAll f
     assert.doesNotMatch(stepsCsvKo, /[\u4e00-\u9fff]/);
     const stepsCsvTw = buildStepsCsv(backendLikeSteps, { locale: 'zh-TW', includeBom: false });
     assert.match(stepsCsvTw, /carbon-4-high·壓縮/);
+
+    // Every registered locale exports cleanly without leaking raw Chinese in non-CJK locales
+    for (const loc of SUPPORTED_LOCALES) {
+      const csv = buildStepsCsv(backendLikeSteps, { locale: loc, includeBom: false });
+      assert.ok(csv.length > 0, `${loc} CSV export non-empty`);
+      if (loc !== 'zh-CN' && loc !== 'zh-TW' && loc !== 'ja-JP') {
+        assert.doesNotMatch(csv, /[\u4e00-\u9fff]/, `${loc} CSV must not leak Chinese characters`);
+      }
+    }
   } finally {
     setI18nLanguage('zh-CN');
     globalThis.document = prevDoc;
