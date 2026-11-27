@@ -2482,6 +2482,18 @@ test('Host typography parity: Sidebar mirrors bridged host fonts in native mode 
   assert.match(css, /--host-font-sans:system-ui/);
   assert.match(css, /--host-font-mono:'Google Sans Code'/);
 
+  // 1b) --font-family and --editor-font-family map to --host-font-* when --font-sans/--font-mono are omitted
+  const legacyFontCss = buildHostThemeFallbackCss({
+    colorScheme: 'dark',
+    vars: {
+      '--background': '#1A1B26',
+      '--font-family': hostSans,
+      '--editor-font-family': hostMono,
+    },
+  });
+  assert.match(legacyFontCss, /--host-font-sans:system-ui/);
+  assert.match(legacyFontCss, /--host-font-mono:'Google Sans Code'/);
+
   // 2) Sidebar native mode (/preload.js sets inline colors only, no inline font vars):
   //    - captureNativeHostThemeSnapshot must NOT capture our own tokens.css computed --font-sans/--font-mono
   //    - syncHostThemeFallback must mirror CDP host --font-sans/--font-mono onto --host-font-sans/--host-font-mono
@@ -2548,6 +2560,21 @@ test('Host typography parity: Sidebar mirrors bridged host fonts in native mode 
     { doc: document, win: globalThis.window, isStandalone: false, telemetryLoaded: true }
   );
   assert.equal(nativeWithBridge.mode, 'native');
+  assert.equal(document.documentElement.style.getPropertyValue('--host-font-sans'), hostSans);
+  assert.equal(document.documentElement.style.getPropertyValue('--host-font-mono'), hostMono);
+
+  // Native mode also bridges --font-family / --editor-font-family when --font-sans / --font-mono are omitted
+  document.documentElement.style.removeProperty('--host-font-sans');
+  document.documentElement.style.removeProperty('--host-font-mono');
+  const nativeWithLegacyBridge = syncHostThemeFallback(
+    {
+      colorScheme: 'dark',
+      source: 'cdp',
+      vars: { '--background': '#1A1B26', '--font-family': hostSans, '--editor-font-family': hostMono },
+    },
+    { doc: document, win: globalThis.window, isStandalone: false, telemetryLoaded: true }
+  );
+  assert.equal(nativeWithLegacyBridge.mode, 'native');
   assert.equal(document.documentElement.style.getPropertyValue('--host-font-sans'), hostSans);
   assert.equal(document.documentElement.style.getPropertyValue('--host-font-mono'), hostMono);
 

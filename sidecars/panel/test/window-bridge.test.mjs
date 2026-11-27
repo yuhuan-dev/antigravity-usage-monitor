@@ -8084,6 +8084,89 @@ test('WindowOverlayShell mirrors host --font-sans and --font-mono onto portalHos
   }
 });
 
+test('WindowOverlayShell falls back to --font-family and --editor-font-family onto portalHost when --font-sans/--font-mono are omitted', async () => {
+  const { mountWindowOverlay } = await import('../src/components/layout/WindowOverlayShell.js');
+  const { createMockDom } = await import('./mock-dom.mjs');
+  const { WINDOW_BRIDGE_KEY } = await import('../shared/window-bridge-protocol.mjs');
+  const prevDoc = globalThis.document;
+  const prevWin = globalThis.window;
+  const prevRo = globalThis.ResizeObserver;
+  const prevMo = globalThis.MutationObserver;
+  const prevFetch = globalThis.fetch;
+
+  const { document } = createMockDom();
+  const hostSans = '"Google Sans Flex", "PingFang SC", sans-serif';
+  const hostMono = '"Google Sans Code", monospace';
+  globalThis.document = document;
+  globalThis.ResizeObserver = class {
+    observe() {}
+    disconnect() {}
+  };
+  globalThis.MutationObserver = class {
+    observe() {}
+    disconnect() {}
+  };
+  globalThis.fetch = async () => ({
+    ok: true,
+    status: 200,
+    json: async () => ({ settings: { modernUi: true, fontScale: 'md' } }),
+    text: async () => JSON.stringify({ settings: { modernUi: true, fontScale: 'md' } }),
+  });
+  globalThis.window = {
+    innerWidth: 1440,
+    innerHeight: 900,
+    location: { pathname: '/', href: 'http://127.0.0.1:41234/' },
+    [WINDOW_BRIDGE_KEY]: {
+      port: 0,
+      token: 't',
+      bundleVersion: 'v-font-fallback',
+      stylesCss: ':host{}',
+      initialTelemetry: { settings: { modernUi: true, fontScale: 'md' } },
+    },
+    getComputedStyle: (el) => {
+      if (el === document.documentElement) {
+        return {
+          getPropertyValue: (prop) => {
+            if (prop === '--background') return 'hsl(222 18% 10%)';
+            if (prop === '--font-family') return hostSans;
+            if (prop === '--editor-font-family') return hostMono;
+            return '';
+          },
+        };
+      }
+      return { getPropertyValue: () => '' };
+    },
+    addEventListener() {},
+    removeEventListener() {},
+    requestAnimationFrame: (cb) => setTimeout(cb, 0),
+    cancelAnimationFrame: (id) => clearTimeout(id),
+  };
+
+  let ov = null;
+  try {
+    ov = mountWindowOverlay();
+    const portalHost = document.getElementById('ag-usage-monitor-portal');
+    const capsuleHost = document.getElementById('ag-usage-monitor-capsule');
+    assert.ok(portalHost, 'portalHost mounted');
+    assert.equal(portalHost.style.getPropertyValue('--font-sans'), hostSans);
+    assert.equal(portalHost.style.getPropertyValue('--host-font-sans'), hostSans);
+    assert.equal(portalHost.style.getPropertyValue('--font-mono'), hostMono);
+    assert.equal(portalHost.style.getPropertyValue('--host-font-mono'), hostMono);
+    assert.equal(
+      capsuleHost?.style?.getPropertyValue?.('--font-sans') || '',
+      '',
+      'capsuleHost retains its own titlebar typography isolation'
+    );
+  } finally {
+    ov?.dispose?.();
+    globalThis.document = prevDoc;
+    globalThis.window = prevWin;
+    globalThis.ResizeObserver = prevRo;
+    globalThis.MutationObserver = prevMo;
+    globalThis.fetch = prevFetch;
+  }
+});
+
 test('isOneShotCliParentCommand & shouldSkipDaemonForParentProcess detect one-shot agy CLI across direct and shell-wrapped parents', async () => {
   assert.equal(
     isOneShotCliParentCommand(
