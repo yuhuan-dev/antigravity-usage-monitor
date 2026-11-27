@@ -907,6 +907,27 @@ html[data-standalone="true"][data-modern-ui="true"] .app-shell {
   color: var(--modern-active-accent);
 }
 
+[data-modern-ui="true"] .smgr-title-size {
+  border: none;
+  background: var(--modern-surface-subtle);
+}
+
+[data-modern-ui="true"] .smgr-title-size.is-filtered,
+[data-modern-ui="true"] .smgr-selected-size {
+  border: none;
+  background: var(--accent-primary-soft);
+}
+
+[data-modern-ui="true"] .smgr-badge.smgr-size-badge {
+  border: none;
+  background: var(--modern-surface-subtle);
+}
+
+[data-modern-ui="true"] .smgr-badge.smgr-size-badge.is-large {
+  border: none;
+  background: var(--metric-warn-soft);
+}
+
 [data-modern-ui="true"] .smgr-prefs-drawer,
 [data-modern-ui="true"] .smgr-guard-notice,
 [data-modern-ui="true"] .smgr-result,

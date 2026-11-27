@@ -1746,3 +1746,80 @@ export function cleanupProtectedMigrationArchives({
 
   return { removedFiles };
 }
+
+const DEFAULT_MAX_DIR_WALK_DEPTH = 12;
+const DEFAULT_MAX_DIR_WALK_ENTRIES = 20000;
+
+/**
+ * 递归统计已校验目录树内所有常规文件的真实磁盘占用字节数：
+ * - 使用显式栈迭代，避免深层目录递归爆栈；
+ * - 逐项以 `dirent.isSymbolicLink()` + `lstatSync` 双重拦截符号链接与 NTFS 联接点，永不跟随软链；
+ * - 对最大深度与最大遍历条目数做安全上界，防止畸形目录树拖死扫描。
+ *
+ * @param {string} rootDir
+ * @param {{ maxDepth?: number, maxEntries?: number }} [options={}]
+ * @returns {{ sizeBytes: number, truncated: boolean }}
+ */
+export function sumVerifiedDirTreeBytes(
+  rootDir,
+  { maxDepth = DEFAULT_MAX_DIR_WALK_DEPTH, maxEntries = DEFAULT_MAX_DIR_WALK_ENTRIES } = {}
+) {
+  const cleanRoot = String(rootDir || '').trim();
+  if (!cleanRoot) return { sizeBytes: 0, truncated: false };
+  try {
+    const rootStat = lstatSync(cleanRoot);
+    if (rootStat.isSymbolicLink() || !rootStat.isDirectory()) {
+      return { sizeBytes: 0, truncated: false };
+    }
+  } catch {
+    return { sizeBytes: 0, truncated: false };
+  }
+
+  const depthLimit = Math.max(0, Number(maxDepth) || 0);
+  const entryLimit = Math.max(1, Number(maxEntries) || DEFAULT_MAX_DIR_WALK_ENTRIES);
+  const stack = [{ dirPath: cleanRoot, depth: 0 }];
+  let sizeBytes = 0;
+  let visitedEntries = 0;
+  let truncated = false;
+
+  while (stack.length > 0) {
+    const { dirPath, depth } = stack.pop();
+    let entries = [];
+    try {
+      entries = readdirSync(dirPath, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    for (const entry of entries) {
+      if (visitedEntries >= entryLimit) {
+        truncated = true;
+        return { sizeBytes, truncated };
+      }
+      visitedEntries += 1;
+      if (!entry || entry.isSymbolicLink()) continue;
+      const name = String(entry.name || '');
+      if (!name || name === '.' || name === '..' || name.includes('/') || name.includes('\\') || name.includes('\0')) {
+        continue;
+      }
+      const childPath = join(dirPath, name);
+      let st = null;
+      try {
+        st = lstatSync(childPath);
+      } catch {
+        continue;
+      }
+      if (!st || st.isSymbolicLink()) continue;
+      if (st.isFile()) {
+        sizeBytes += Number(st.size || 0);
+      } else if (st.isDirectory()) {
+        if (depth < depthLimit) {
+          stack.push({ dirPath: childPath, depth: depth + 1 });
+        } else {
+          truncated = true;
+        }
+      }
+    }
+  }
+
+  return { sizeBytes, truncated };
+}
