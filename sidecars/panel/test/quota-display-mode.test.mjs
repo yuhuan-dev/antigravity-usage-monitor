@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import {
   DEFAULT_QUOTA_DISPLAY_MODE,
   QUOTA_DISPLAY_MODES,
@@ -159,6 +160,129 @@ test('QuotaPoolsWidget renders remaining percentage, remaining bar fill, warning
     });
     assert.match(metas[0].textContent, /· 已用 7\.6%$/);
     assert.equal(fills[0].style.getPropertyValue('--fill-w'), '7.6%');
+    assert.equal(legendEl.hidden, true, 'solo pool with reservation off hides legend');
+    assert.equal(
+      legendEl.querySelector('.quota-legend-item.is-external-item').hidden,
+      true,
+      'solo pool hides non-self legend item'
+    );
+
+    // Shared account externalUsedPct renders dashed theme-colored segment, legend item, and tooltips in BOTH used & remaining modes
+    const sharedPools = [
+      {
+        poolKey: 'Gemini',
+        poolLabel: 'Gemini',
+        family: 'Gemini',
+        usedPct: 24.0,
+        remainingPct: 76.0,
+        externalUsedPct: 14.0,
+        reservedPct: 2.0,
+        reservedLeaseCount: 1,
+        resetTime: new Date(Date.now() + 2 * 3600 * 1000).toISOString(),
+        weeklyUsedPct: 40.0,
+        weeklyRemainingPct: 60.0,
+        weeklyExternalUsedPct: 25.0,
+        weeklyReservedPct: 0,
+        weeklyReservedLeaseCount: 0,
+        weeklyResetTime: new Date(Date.now() + 5 * 24 * 3600 * 1000).toISOString(),
+      },
+    ];
+    const sharedData = {
+      account: { tierName: 'Google AI Ultra', planName: '20x' },
+      quotas: { pools: sharedPools, weekly: { isOfficial: true } },
+    };
+
+    // Used mode with both external + reserved
+    widget.refs.update({
+      data: {
+        ...sharedData,
+        settings: { experimentalQuotaReservation: true, quotaDisplayMode: 'used' },
+      },
+      minuteTick: 21,
+    });
+    const extBars = widget.el.querySelectorAll('.progress-fill-external');
+    const rsvBarsShared = widget.el.querySelectorAll('.progress-fill-reserved');
+    const tracksShared = widget.el.querySelectorAll('.progress-track');
+    assert.equal(extBars.length, 2);
+    assert.equal(tracksShared[0].classList.contains('is-remaining-mode'), false);
+    // 5h: self = 24 - 14 - 2 = 8%, ext = 14%, rsv = 2% (sum = 24%)
+    assert.equal(fills[0].style.getPropertyValue('--fill-w'), '8%');
+    assert.equal(extBars[0].style.getPropertyValue('--external-w'), '14%');
+    assert.equal(extBars[0].classList.contains('is-active'), true);
+    assert.equal(extBars[0].classList.contains('has-sep'), true);
+    assert.equal(rsvBarsShared[0].style.getPropertyValue('--reserved-w'), '2%');
+    assert.equal(rsvBarsShared[0].classList.contains('is-active'), true);
+    assert.equal(rsvBarsShared[0].classList.contains('has-sep'), true);
+    assert.match(metas[0].getAttribute('title') || '', /本机自用约 8\.0%.*非自用约 14\.0%.*预占约 2\.0%/);
+    // weekly: self = 40 - 25 = 15%, ext = 25%, rsv = 0%
+    assert.equal(fills[1].style.getPropertyValue('--fill-w'), '15%');
+    assert.equal(extBars[1].style.getPropertyValue('--external-w'), '25%');
+    assert.equal(rsvBarsShared[1].classList.contains('is-active'), false);
+    assert.match(metas[1].getAttribute('title') || '', /本机自用约 15\.0%.*非自用.*25\.0%/);
+
+    // Legend shows 实占 + 非自用 + 预占
+    assert.equal(legendEl.hidden, false);
+    assert.equal(legendEl.querySelector('.quota-legend-item.is-external-item').hidden, false);
+    assert.equal(legendEl.querySelector('.quota-legend-item.is-reserved-item').hidden, false);
+    assert.ok(legendEl.querySelector('.quota-legend-line.is-external'));
+    assert.match(legendEl.textContent, /非自用/);
+
+    // Reservation OFF with external usage present: legend stays visible with 实占 + 非自用, hiding 预占
+    widget.refs.update({
+      data: {
+        ...sharedData,
+        settings: { experimentalQuotaReservation: false, quotaDisplayMode: 'used' },
+      },
+      minuteTick: 22,
+    });
+    assert.equal(legendEl.hidden, false);
+    assert.equal(legendEl.querySelector('.quota-legend-item.is-external-item').hidden, false);
+    assert.equal(legendEl.querySelector('.quota-legend-item.is-reserved-item').hidden, true);
+    assert.equal(fills[0].style.getPropertyValue('--fill-w'), '10%');
+    assert.equal(extBars[0].style.getPropertyValue('--external-w'), '14%');
+    assert.equal(rsvBarsShared[0].classList.contains('is-active'), false);
+
+    // Remaining mode with external + reserved: non-overlapping widths summing <= 100%
+    widget.refs.update({
+      data: {
+        ...sharedData,
+        settings: { experimentalQuotaReservation: true, quotaDisplayMode: 'remaining' },
+      },
+      minuteTick: 23,
+    });
+    assert.equal(tracksShared[0].classList.contains('is-remaining-mode'), true);
+    assert.equal(fills[0].style.getPropertyValue('--fill-w'), '76%');
+    assert.equal(rsvBarsShared[0].style.getPropertyValue('--reserved-w'), '2%');
+    assert.equal(extBars[0].style.getPropertyValue('--external-w'), '14%');
+    assert.equal(extBars[0].classList.contains('is-active'), true);
+    const totalRemWidths =
+      parseFloat(fills[0].style.getPropertyValue('--fill-w')) +
+      parseFloat(rsvBarsShared[0].style.getPropertyValue('--reserved-w')) +
+      parseFloat(extBars[0].style.getPropertyValue('--external-w'));
+    assert.ok(totalRemWidths <= 100, `remaining mode widths must not exceed 100% (got ${totalRemWidths})`);
+
+    // English locale check for 非自用 -> Non-self
+    setI18nLanguage('en-US');
+    widget.refs.update({
+      data: {
+        ...sharedData,
+        settings: { experimentalQuotaReservation: true, quotaDisplayMode: 'used' },
+      },
+      minuteTick: 24,
+    });
+    assert.match(legendEl.querySelector('.quota-legend-item.is-external-item').textContent, /Non-self/);
+    assert.match(metas[0].getAttribute('title') || '', /Local self ~8\.0%.*Non-self ~14\.0%.*Reserved ~2\.0%/);
+
+    // Built styles.css renders external segment and legend swatch as current theme-color dashed lines
+    const builtStyles = fs.readFileSync(new URL('../styles.css', import.meta.url), 'utf8');
+    assert.match(
+      builtStyles,
+      /\.progress-fill-external\s*\{[^}]*repeating-linear-gradient\([\s\S]*?var\(--accent-primary\)/
+    );
+    assert.match(
+      builtStyles,
+      /\.quota-legend-line\.is-external\s*\{[^}]*repeating-linear-gradient\([\s\S]*?var\(--accent-primary\)/
+    );
 
     widget.destroy();
   } finally {

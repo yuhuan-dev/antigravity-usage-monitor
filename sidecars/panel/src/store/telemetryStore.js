@@ -1246,11 +1246,13 @@ export function isEquivalentTelemetry(prev, next) {
       pPools[i]?.remainingPct !== nPools[i]?.remainingPct ||
       pPools[i]?.reservedPct !== nPools[i]?.reservedPct ||
       pPools[i]?.reservedLeaseCount !== nPools[i]?.reservedLeaseCount ||
+      pPools[i]?.externalUsedPct !== nPools[i]?.externalUsedPct ||
       pPools[i]?.resetTime !== nPools[i]?.resetTime ||
       pPools[i]?.weeklyUsedPct !== nPools[i]?.weeklyUsedPct ||
       pPools[i]?.weeklyRemainingPct !== nPools[i]?.weeklyRemainingPct ||
       pPools[i]?.weeklyReservedPct !== nPools[i]?.weeklyReservedPct ||
       pPools[i]?.weeklyReservedLeaseCount !== nPools[i]?.weeklyReservedLeaseCount ||
+      pPools[i]?.weeklyExternalUsedPct !== nPools[i]?.weeklyExternalUsedPct ||
       pPools[i]?.weeklyResetTime !== nPools[i]?.weeklyResetTime ||
       pPools[i]?.cycle5h?.tokens !== nPools[i]?.cycle5h?.tokens ||
       pPools[i]?.cycle5h?.costUsd !== nPools[i]?.cycle5h?.costUsd ||

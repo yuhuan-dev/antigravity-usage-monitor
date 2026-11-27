@@ -1799,8 +1799,12 @@ const I18N_MESSAGES_ZH_CN = Object.freeze({
   'quota.remainingAndReset': '{reset} · 剩余 {remaining}%',
   'quota.reservedTip': '预占估算（试验性）：约 {rsv}%（实际已用约 {actual}%），静默约 10 分钟后未用差额自动退还',
   'quota.reservedTipMulti': '预占估算（试验性）：约 {rsv}%（检测到 {leases} 笔叠加租约，实际已用约 {actual}%），静默约 10 分钟后未用差额自动退还',
+  'quota.externalTip': '本机自用约 {self}% · 非自用（家庭组 / 其他设备）约 {ext}%',
+  'quota.externalReservedTip': '本机自用约 {self}% · 非自用约 {ext}% · 预占约 {rsv}%（静默约 10 分钟后未用差额自动退还）',
+  'quota.externalReservedTipMulti': '本机自用约 {self}% · 非自用约 {ext}% · 预占约 {rsv}%（{leases} 笔叠加租约，静默约 10 分钟后未用差额自动退还）',
   'quota.legendActual': '实占',
   'quota.legendRemaining': '剩余',
+  'quota.legendExternal': '非自用',
   'quota.legendReserved': '预占',
   'quota.cycle5hTitle': '当前 5h 周期累计 ({pool})：{tok} Tokens · {cost} · {calls} 次调用',
   'quota.cycleWkCustomTitle': '本周自然周累计：{tok} Tokens · {cost} · {calls} 次调用',
@@ -3053,8 +3057,12 @@ const I18N_MESSAGES_ZH_TW = Object.freeze({
   "quota.remainingAndReset": "{reset} · 剩餘 {remaining}%",
   "quota.reservedTip": "預佔估算（實驗性）：約 {rsv}%（實際已用約 {actual}%），閒置約 10 分鐘後未用差額自動退還",
   "quota.reservedTipMulti": "預佔估算（實驗性）：約 {rsv}%（偵測到 {leases} 筆疊加租約，實際已用約 {actual}%），閒置約 10 分鐘後未用差額自動退還",
+  "quota.externalTip": "本機自用約 {self}% · 非自用（家庭群組 / 其他裝置）約 {ext}%",
+  "quota.externalReservedTip": "本機自用約 {self}% · 非自用約 {ext}% · 預佔約 {rsv}%（閒置約 10 分鐘後未用差額自動退還）",
+  "quota.externalReservedTipMulti": "本機自用約 {self}% · 非自用約 {ext}% · 預佔約 {rsv}%（{leases} 筆疊加租約，閒置約 10 分鐘後未用差額自動退還）",
   "quota.legendActual": "實佔",
   "quota.legendRemaining": "剩餘",
+  "quota.legendExternal": "非自用",
   "quota.legendReserved": "預佔",
   "quota.cycle5hTitle": "目前 5h 週期累計 ({pool})：{tok} Tokens · {cost} · {calls} 次呼叫",
   "quota.cycleWkCustomTitle": "本自然週累計：{tok} Tokens · {cost} · {calls} 次呼叫",
@@ -4302,8 +4310,12 @@ const I18N_MESSAGES_EN_US = Object.freeze({
   'quota.remainingAndReset': '{reset} · {remaining}% left',
   'quota.reservedTip': 'Estimated lease reservation (Experimental): ~{rsv}% (~{actual}% actual used); unused share refunds after ~10 min idle',
   'quota.reservedTipMulti': 'Estimated lease reservation (Experimental): ~{rsv}% ({leases} stacked leases, ~{actual}% actual used); unused share refunds after ~10 min idle',
+  'quota.externalTip': 'Local self ~{self}% · Non-self (family / other device) ~{ext}%',
+  'quota.externalReservedTip': 'Local self ~{self}% · Non-self ~{ext}% · Reserved ~{rsv}% (unused share refunds after ~10 min idle)',
+  'quota.externalReservedTipMulti': 'Local self ~{self}% · Non-self ~{ext}% · Reserved ~{rsv}% ({leases} stacked leases, unused share refunds after ~10 min idle)',
   'quota.legendActual': 'Actual',
   'quota.legendRemaining': 'Remaining',
+  'quota.legendExternal': 'Non-self',
   'quota.legendReserved': 'Reserved',
   'quota.cycle5hTitle': 'Current 5h cycle ({pool}): {tok} Tokens · {cost} · {calls} calls',
   'quota.cycleWkCustomTitle': 'Current calendar week: {tok} Tokens · {cost} · {calls} calls',
@@ -5556,8 +5568,12 @@ const I18N_MESSAGES_JA_JP = Object.freeze({
   "quota.remainingAndReset": "{reset} · 残り {remaining}%",
   "quota.reservedTip": "予約リース推定（実験的）：約 {rsv}%（実使用約 {actual}%）。約10分のアイドル後に未使用分が返還されます",
   "quota.reservedTipMulti": "予約リース推定（実験的）：約 {rsv}%（重複リース {leases} 件、実使用約 {actual}%）。約10分のアイドル後に未使用分が返還されます",
+  "quota.externalTip": "この端末 約 {self}% · 他者利用（ファミリー / 他端末）約 {ext}%",
+  "quota.externalReservedTip": "この端末 約 {self}% · 他者利用 約 {ext}% · 予約 約 {rsv}%（約10分のアイドル後に未使用分が返還されます）",
+  "quota.externalReservedTipMulti": "この端末 約 {self}% · 他者利用 約 {ext}% · 予約 約 {rsv}%（重複リース {leases} 件、約10分のアイドル後に未使用分が返還されます）",
   "quota.legendActual": "実使用",
   "quota.legendRemaining": "残り",
+  "quota.legendExternal": "他者利用",
   "quota.legendReserved": "予約",
   "quota.cycle5hTitle": "現在の 5h サイクル ({pool})：{tok} トークン · {cost} · {calls} 回",
   "quota.cycleWkCustomTitle": "今週の暦週合計：{tok} トークン · {cost} · {calls} 回",
@@ -6795,8 +6811,12 @@ const I18N_MESSAGES_KO_KR = Object.freeze({
   "quota.remainingAndReset": "{reset} · 잔여 {remaining}%",
   "quota.reservedTip": "예상 임대 예약 (실험적): 약 {rsv}% (실제 사용 약 {actual}%); 약 10분 유휴 시 미사용분 자동 반환",
   "quota.reservedTipMulti": "예상 임대 예약 (실험적): 약 {rsv}% (중첩 임대 {leases}건, 실제 사용 약 {actual}%); 약 10분 유휴 시 미사용분 자동 반환",
+  "quota.externalTip": "로컬 사용 약 {self}% · 외부 사용(가족 / 다른 기기) 약 {ext}%",
+  "quota.externalReservedTip": "로컬 사용 약 {self}% · 외부 사용 약 {ext}% · 예약 약 {rsv}% (약 10분 유휴 시 미사용분 자동 반환)",
+  "quota.externalReservedTipMulti": "로컬 사용 약 {self}% · 외부 사용 약 {ext}% · 예약 약 {rsv}% (중첩 임대 {leases}건, 약 10분 유휴 시 미사용분 자동 반환)",
   "quota.legendActual": "실사용",
   "quota.legendRemaining": "잔여",
+  "quota.legendExternal": "외부 사용",
   "quota.legendReserved": "예약",
   "quota.cycle5hTitle": "현재 5시간 주기 ({pool}): {tok} 토큰 · {cost} · {calls}회 호출",
   "quota.cycleWkCustomTitle": "이번 주 (달력 기준): {tok} 토큰 · {cost} · {calls}회 호출",
@@ -8034,8 +8054,12 @@ const I18N_MESSAGES_DE_DE = Object.freeze({
   "quota.remainingAndReset": "{reset} · {remaining}% frei",
   "quota.reservedTip": "Geschätzte Lease-Reservierung (Experimentell): ~{rsv}% (~{actual}% real genutzt); ungenutzter Anteil wird nach ~10 Min. Leerlauf erstattet",
   "quota.reservedTipMulti": "Geschätzte Lease-Reservierung (Experimentell): ~{rsv}% ({leases} gestapelte Leases, ~{actual}% real genutzt); ungenutzter Anteil wird nach ~10 Min. Leerlauf erstattet",
+  "quota.externalTip": "Lokal ~{self}% · Fremdnutzung (Familie / anderes Gerät) ~{ext}%",
+  "quota.externalReservedTip": "Lokal ~{self}% · Fremdnutzung ~{ext}% · Reserviert ~{rsv}% (ungenutzter Anteil wird nach ~10 Min. Leerlauf erstattet)",
+  "quota.externalReservedTipMulti": "Lokal ~{self}% · Fremdnutzung ~{ext}% · Reserviert ~{rsv}% ({leases} gestapelte Leases, ungenutzter Anteil wird nach ~10 Min. Leerlauf erstattet)",
   "quota.legendActual": "Real",
   "quota.legendRemaining": "Verbleibend",
+  "quota.legendExternal": "Fremdnutzung",
   "quota.legendReserved": "Reserviert",
   "quota.cycle5hTitle": "Aktueller 5h-Zyklus ({pool}): {tok} Tokens · {cost} · {calls} Aufrufe",
   "quota.cycleWkCustomTitle": "Aktuelle Kalenderwoche: {tok} Tokens · {cost} · {calls} Aufrufe",
@@ -9273,8 +9297,12 @@ const I18N_MESSAGES_FR_FR = Object.freeze({
   "quota.remainingAndReset": "{reset} · {remaining}% restant",
   "quota.reservedTip": "Réservation de bail estimée (Expérimental) : ~{rsv}% (~{actual}% utilisé) ; le reste inutilisé est restitué après ~10 min d'inactivité",
   "quota.reservedTipMulti": "Réservation de bail estimée (Expérimental) : ~{rsv}% ({leases} baux cumulés, ~{actual}% utilisé) ; le reste inutilisé est restitué après ~10 min d'inactivité",
+  "quota.externalTip": "Local ~{self}% · Usage externe (famille / autre appareil) ~{ext}%",
+  "quota.externalReservedTip": "Local ~{self}% · Usage externe ~{ext}% · Réservé ~{rsv}% (reste inutilisé restitué après ~10 min d'inactivité)",
+  "quota.externalReservedTipMulti": "Local ~{self}% · Usage externe ~{ext}% · Réservé ~{rsv}% ({leases} baux cumulés, reste inutilisé restitué après ~10 min d'inactivité)",
   "quota.legendActual": "Réel",
   "quota.legendRemaining": "Restant",
+  "quota.legendExternal": "Usage externe",
   "quota.legendReserved": "Réservé",
   "quota.cycle5hTitle": "Cycle 5h actuel ({pool}) : {tok} Tokens · {cost} · {calls} appels",
   "quota.cycleWkCustomTitle": "Semaine civile en cours : {tok} Tokens · {cost} · {calls} appels",
@@ -18111,11 +18139,13 @@ function isEquivalentTelemetry(prev, next) {
       pPools[i]?.remainingPct !== nPools[i]?.remainingPct ||
       pPools[i]?.reservedPct !== nPools[i]?.reservedPct ||
       pPools[i]?.reservedLeaseCount !== nPools[i]?.reservedLeaseCount ||
+      pPools[i]?.externalUsedPct !== nPools[i]?.externalUsedPct ||
       pPools[i]?.resetTime !== nPools[i]?.resetTime ||
       pPools[i]?.weeklyUsedPct !== nPools[i]?.weeklyUsedPct ||
       pPools[i]?.weeklyRemainingPct !== nPools[i]?.weeklyRemainingPct ||
       pPools[i]?.weeklyReservedPct !== nPools[i]?.weeklyReservedPct ||
       pPools[i]?.weeklyReservedLeaseCount !== nPools[i]?.weeklyReservedLeaseCount ||
+      pPools[i]?.weeklyExternalUsedPct !== nPools[i]?.weeklyExternalUsedPct ||
       pPools[i]?.weeklyResetTime !== nPools[i]?.weeklyResetTime ||
       pPools[i]?.cycle5h?.tokens !== nPools[i]?.cycle5h?.tokens ||
       pPools[i]?.cycle5h?.costUsd !== nPools[i]?.cycle5h?.costUsd ||
@@ -29766,8 +29796,13 @@ function createPoolQuotaRow() {
   const left5h = h('span', { className: 'quota-win-left' }, [title5h, usage5h]);
   const meta5h = h('span', { className: 'panel-meta quota-win-meta text-mono', text: '--' });
   const fill5h = h('div', { className: 'progress-fill' });
+  const fillExternal5h = h('div', { className: 'progress-fill-external' });
   const fillReserved5h = h('div', { className: 'progress-fill-reserved' });
-  const track5h = h('div', { className: 'progress-track' }, [fill5h, fillReserved5h]);
+  const track5h = h('div', { className: 'progress-track' }, [
+    fill5h,
+    fillExternal5h,
+    fillReserved5h,
+  ]);
   const row5h = h('div', { style: 'display: flex; flex-direction: column; gap: 4px;' }, [
     h('div', { className: 'panel-header quota-win-head' }, [left5h, meta5h]),
     track5h,
@@ -29778,8 +29813,13 @@ function createPoolQuotaRow() {
   const leftWk = h('span', { className: 'quota-win-left' }, [titleWk, usageWk]);
   const metaWk = h('span', { className: 'panel-meta quota-win-meta text-mono', text: '--' });
   const fillWk = h('div', { className: 'progress-fill' });
+  const fillExternalWk = h('div', { className: 'progress-fill-external' });
   const fillReservedWk = h('div', { className: 'progress-fill-reserved' });
-  const trackWk = h('div', { className: 'progress-track' }, [fillWk, fillReservedWk]);
+  const trackWk = h('div', { className: 'progress-track' }, [
+    fillWk,
+    fillExternalWk,
+    fillReservedWk,
+  ]);
   const rowWk = h('div', { style: 'display: flex; flex-direction: column; gap: 4px;' }, [
     h('div', { className: 'panel-header quota-win-head' }, [leftWk, metaWk]),
     trackWk,
@@ -29800,6 +29840,7 @@ function createPoolQuotaRow() {
       meta5h,
       track5h,
       fill5h,
+      fillExternal5h,
       fillReserved5h,
       rowWk,
       leftWk,
@@ -29808,6 +29849,7 @@ function createPoolQuotaRow() {
       metaWk,
       trackWk,
       fillWk,
+      fillExternalWk,
       fillReservedWk,
     },
   };
@@ -29841,9 +29883,12 @@ function syncQuotaWindowMeter({
   showReserved,
   rawReservedPct,
   leaseCount,
+  showExternal = false,
+  rawExternalPct = 0,
   metaEl,
   trackEl,
   fillEl,
+  fillExternalEl = null,
   fillReservedEl,
 }) {
   const isRemaining = quotaDisplayMode === 'remaining';
@@ -29853,8 +29898,15 @@ function syncQuotaWindowMeter({
   const numReserved = showReserved && hasData ? Number(rawReservedPct || 0) : 0;
   const rsvVal =
     Number.isFinite(numReserved) && numReserved >= 0.05 ? Math.min(usedVal, numReserved) : 0;
-  const actualVal = Math.max(0, usedVal - rsvVal);
+  const numExternal = showExternal && hasData ? Number(rawExternalPct || 0) : 0;
+  const extVal =
+    Number.isFinite(numExternal) && numExternal >= 0.05
+      ? Math.min(Math.max(0, usedVal - rsvVal), numExternal)
+      : 0;
+  const selfUsedVal = Math.max(0, usedVal - rsvVal - extVal);
   const resetStr = hasData ? formatCountdown(resetTime) : '';
+
+  patchClasses(trackEl, { 'is-remaining-mode': isRemaining });
 
   patchText(
     metaEl,
@@ -29871,23 +29923,79 @@ function syncQuotaWindowMeter({
       : fallbackMetaText
   );
 
-  if (hasData && rsvVal > 0) {
+  if (hasData && (rsvVal > 0 || extVal > 0)) {
     const rsvStr = formatPctNumber(rsvVal);
-    const actualStr = formatPctNumber(actualVal);
+    const extStr = formatPctNumber(extVal);
+    const selfStr = formatPctNumber(selfUsedVal);
     const leases = Math.max(1, Number(leaseCount) || 1);
-    const tipText =
-      leases >= 2
-        ? t('quota.reservedTipMulti', { rsv: rsvStr, leases, actual: actualStr })
-        : t('quota.reservedTip', { rsv: rsvStr, actual: actualStr });
+    let tipText = null;
+    if (extVal > 0 && rsvVal > 0) {
+      tipText =
+        leases >= 2
+          ? t('quota.externalReservedTipMulti', {
+              self: selfStr,
+              ext: extStr,
+              rsv: rsvStr,
+              leases,
+            })
+          : t('quota.externalReservedTip', { self: selfStr, ext: extStr, rsv: rsvStr });
+    } else if (extVal > 0) {
+      tipText = t('quota.externalTip', { self: selfStr, ext: extStr });
+    } else {
+      tipText =
+        leases >= 2
+          ? t('quota.reservedTipMulti', { rsv: rsvStr, leases, actual: selfStr })
+          : t('quota.reservedTip', { rsv: rsvStr, actual: selfStr });
+    }
     patchAttr(metaEl, 'title', tipText);
     patchAttr(trackEl, 'title', tipText);
-    const primaryWidth = isRemaining
-      ? +Math.min(100, remVal).toFixed(2)
-      : +Math.min(100, actualVal).toFixed(2);
-    const rsvWidth = +Math.min(Math.max(0, 100 - primaryWidth), rsvVal).toFixed(2);
-    patchStyleVar(fillEl, '--fill-w', `${primaryWidth}%`);
-    patchStyleVar(fillReservedEl, '--reserved-w', `${rsvWidth}%`);
-    patchClasses(fillReservedEl, { 'is-active': true, 'has-sep': primaryWidth > 0 });
+
+    if (isRemaining) {
+      const primaryWidth = +Math.min(100, remVal).toFixed(2);
+      const rsvWidth =
+        rsvVal > 0 ? +Math.min(Math.max(0, 100 - primaryWidth), rsvVal).toFixed(2) : 0;
+      const extWidth =
+        extVal > 0
+          ? +Math.min(Math.max(0, 100 - primaryWidth - rsvWidth), extVal).toFixed(2)
+          : 0;
+      patchStyleVar(fillEl, '--fill-w', `${primaryWidth}%`);
+      patchStyleVar(fillReservedEl, '--reserved-w', `${rsvWidth}%`);
+      patchClasses(fillReservedEl, {
+        'is-active': rsvWidth > 0,
+        'has-sep': rsvWidth > 0 && primaryWidth > 0,
+      });
+      if (fillExternalEl) {
+        patchStyleVar(fillExternalEl, '--external-w', `${extWidth}%`);
+        patchClasses(fillExternalEl, {
+          'is-active': extWidth > 0,
+          'has-sep':
+            extWidth > 0 &&
+            primaryWidth + rsvWidth > 0 &&
+            primaryWidth + rsvWidth + extWidth >= 99.95,
+        });
+      }
+    } else {
+      const primaryWidth = +Math.min(100, selfUsedVal).toFixed(2);
+      const extWidth =
+        extVal > 0 ? +Math.min(Math.max(0, 100 - primaryWidth), extVal).toFixed(2) : 0;
+      const rsvWidth =
+        rsvVal > 0
+          ? +Math.min(Math.max(0, 100 - primaryWidth - extWidth), rsvVal).toFixed(2)
+          : 0;
+      patchStyleVar(fillEl, '--fill-w', `${primaryWidth}%`);
+      if (fillExternalEl) {
+        patchStyleVar(fillExternalEl, '--external-w', `${extWidth}%`);
+        patchClasses(fillExternalEl, {
+          'is-active': extWidth > 0,
+          'has-sep': extWidth > 0 && primaryWidth > 0,
+        });
+      }
+      patchStyleVar(fillReservedEl, '--reserved-w', `${rsvWidth}%`);
+      patchClasses(fillReservedEl, {
+        'is-active': rsvWidth > 0,
+        'has-sep': rsvWidth > 0 && primaryWidth + extWidth > 0,
+      });
+    }
   } else {
     patchAttr(metaEl, 'title', null);
     patchAttr(trackEl, 'title', null);
@@ -29897,6 +30005,10 @@ function syncQuotaWindowMeter({
         : 0
       : Math.min(100, usedVal);
     patchStyleVar(fillEl, '--fill-w', `${barWidth}%`);
+    if (fillExternalEl) {
+      patchStyleVar(fillExternalEl, '--external-w', '0%');
+      patchClasses(fillExternalEl, { 'is-active': false, 'has-sep': false });
+    }
     patchStyleVar(fillReservedEl, '--reserved-w', '0%');
     patchClasses(fillReservedEl, { 'is-active': false, 'has-sep': false });
   }
@@ -29983,9 +30095,12 @@ function syncPoolQuotaRow(refs, item, idx, rowEl) {
     showReserved: allowReserved,
     rawReservedPct: poolData?.reservedPct,
     leaseCount: poolData?.reservedLeaseCount,
+    showExternal: !isPending,
+    rawExternalPct: poolData?.externalUsedPct,
     metaEl: refs.meta5h,
     trackEl: refs.track5h,
     fillEl: refs.fill5h,
+    fillExternalEl: refs.fillExternal5h,
     fillReservedEl: refs.fillReserved5h,
   });
 
@@ -30034,9 +30149,12 @@ function syncPoolQuotaRow(refs, item, idx, rowEl) {
     showReserved: allowReserved && !useCustomWeekly,
     rawReservedPct: poolData?.weeklyReservedPct,
     leaseCount: poolData?.weeklyReservedLeaseCount,
+    showExternal: !isPending && !useCustomWeekly,
+    rawExternalPct: poolData?.weeklyExternalUsedPct,
     metaEl: refs.metaWk,
     trackEl: refs.trackWk,
     fillEl: refs.fillWk,
+    fillExternalEl: refs.fillExternalWk,
     fillReservedEl: refs.fillReservedWk,
   });
 }
@@ -30046,7 +30164,7 @@ function quotaPoolRowSig(item, idx) {
   const cWk = item.poolData?.cycleWeekly;
   const est = item.poolData?.rateEstimate;
   const fw = item.fallbackWeekly;
-  return `${getEffectiveLocale()}:${idx}:${item.poolLabel}:${item.isActivePool}:${Boolean(item.isPending)}:${Boolean(item.showReserved)}:${item.quotaDisplayMode || 'used'}:${item.minuteTick}:${item.poolData?.usedPct}:${item.poolData?.remainingPct}:${item.poolData?.reservedPct}:${item.poolData?.reservedLeaseCount}:${item.poolData?.resetTime}:${item.poolData?.weeklyUsedPct}:${item.poolData?.weeklyRemainingPct}:${item.poolData?.weeklyReservedPct}:${item.poolData?.weeklyReservedLeaseCount}:${item.poolData?.weeklyResetTime}:${c5h?.tokens}:${c5h?.costUsd}:${c5h?.calls}:${cWk?.tokens}:${cWk?.costUsd}:${cWk?.calls}:${est?.eqFull5hUsd}:${est?.eqFull5hTokens}:${est?.eqFullWeeklyUsd}:${est?.eqFullWeeklyTokens}:${fw?.isOfficial}:${fw?.usedPct}:${fw?.remainingPct}:${fw?.resetTime}:${fw?.title}:${fw?.tokens}:${fw?.costUsd}:${fw?.calls}`;
+  return `${getEffectiveLocale()}:${idx}:${item.poolLabel}:${item.isActivePool}:${Boolean(item.isPending)}:${Boolean(item.showReserved)}:${item.quotaDisplayMode || 'used'}:${item.minuteTick}:${item.poolData?.usedPct}:${item.poolData?.remainingPct}:${item.poolData?.reservedPct}:${item.poolData?.reservedLeaseCount}:${item.poolData?.externalUsedPct}:${item.poolData?.resetTime}:${item.poolData?.weeklyUsedPct}:${item.poolData?.weeklyRemainingPct}:${item.poolData?.weeklyReservedPct}:${item.poolData?.weeklyReservedLeaseCount}:${item.poolData?.weeklyExternalUsedPct}:${item.poolData?.weeklyResetTime}:${c5h?.tokens}:${c5h?.costUsd}:${c5h?.calls}:${cWk?.tokens}:${cWk?.costUsd}:${cWk?.calls}:${est?.eqFull5hUsd}:${est?.eqFull5hTokens}:${est?.eqFullWeeklyUsd}:${est?.eqFullWeeklyTokens}:${fw?.isOfficial}:${fw?.usedPct}:${fw?.remainingPct}:${fw?.resetTime}:${fw?.title}:${fw?.tokens}:${fw?.costUsd}:${fw?.calls}`;
 }
 
 function formatAccountTierBadge(account) {
@@ -30507,19 +30625,35 @@ const QuotaPoolsWidget = defineComponent({
     }
 
     const legendActualTextEl = h('span', { text: t('quota.legendActual') });
+    const legendExternalTextEl = h('span', { text: t('quota.legendExternal') });
     const legendReservedTextEl = h('span', { text: t('quota.legendReserved') });
+    const legendExternalItemEl = h(
+      'span',
+      { className: 'quota-legend-item is-external-item', hidden: true },
+      [
+        h('span', { className: 'quota-legend-line is-external', 'aria-hidden': 'true' }),
+        legendExternalTextEl,
+      ]
+    );
+    legendExternalItemEl.hidden = true;
+    const legendReservedItemEl = h(
+      'span',
+      { className: 'quota-legend-item is-reserved-item' },
+      [
+        h('span', { className: 'quota-legend-line is-reserved', 'aria-hidden': 'true' }),
+        legendReservedTextEl,
+      ]
+    );
     const reserveLegendEl = h(
       'div',
       { className: 'quota-reserve-legend', hidden: true },
       [
-        h('span', { className: 'quota-legend-item' }, [
+        h('span', { className: 'quota-legend-item is-actual-item' }, [
           h('span', { className: 'quota-legend-line is-actual', 'aria-hidden': 'true' }),
           legendActualTextEl,
         ]),
-        h('span', { className: 'quota-legend-item' }, [
-          h('span', { className: 'quota-legend-line is-reserved', 'aria-hidden': 'true' }),
-          legendReservedTextEl,
-        ]),
+        legendExternalItemEl,
+        legendReservedItemEl,
       ]
     );
 
@@ -30546,10 +30680,14 @@ const QuotaPoolsWidget = defineComponent({
         legendActualTextEl,
         quotaDisplayMode === 'remaining' ? t('quota.legendRemaining') : t('quota.legendActual')
       );
+      patchText(legendExternalTextEl, t('quota.legendExternal'));
       patchText(legendReservedTextEl, t('quota.legendReserved'));
       syncRatePopoverContent(data);
       if (!data) {
         reserveLegendEl.hidden = true;
+        patchAttr(reserveLegendEl, 'hidden', true);
+        legendExternalItemEl.hidden = true;
+        patchAttr(legendExternalItemEl, 'hidden', true);
         if (compactHover) {
           patchKeyedList(poolsListEl, buildQuotaPoolItems(null, 0, { isPending: true }), {
             keyFn: (item) => item.key,
@@ -30563,12 +30701,30 @@ const QuotaPoolsWidget = defineComponent({
 
       const quotas = data.quotas || {};
       const showReserved = data.settings?.experimentalQuotaReservation !== false;
-      reserveLegendEl.hidden = !showReserved;
       const effTick = Number.isFinite(minuteTick) ? minuteTick : Math.floor(Date.now() / 30000);
+      const poolItems = buildQuotaPoolItems(quotas, effTick, { showReserved, quotaDisplayMode });
+      const hasExternal = poolItems.some((item) => {
+        if (item.isPending) return false;
+        const pd = item.poolData;
+        const has5hExt = pd?.usedPct != null && Number(pd?.externalUsedPct || 0) >= 0.05;
+        const useCustomWk = Boolean(item.isActivePool && item.fallbackWeekly?.isOfficial === false);
+        const hasWkExt =
+          !useCustomWk &&
+          pd?.weeklyUsedPct != null &&
+          Number(pd?.weeklyExternalUsedPct || 0) >= 0.05;
+        return has5hExt || hasWkExt;
+      });
+      const showLegend = showReserved || hasExternal;
+      reserveLegendEl.hidden = !showLegend;
+      patchAttr(reserveLegendEl, 'hidden', !showLegend);
+      legendExternalItemEl.hidden = !hasExternal;
+      patchAttr(legendExternalItemEl, 'hidden', !hasExternal);
+      legendReservedItemEl.hidden = !showReserved;
+      patchAttr(legendReservedItemEl, 'hidden', !showReserved);
       patchText(tierBadge, formatAccountTierBadge(data.account));
       patchKeyedList(
         poolsListEl,
-        buildQuotaPoolItems(quotas, effTick, { showReserved, quotaDisplayMode }),
+        poolItems,
         {
           keyFn: (item) => item.key,
           sigFn: quotaPoolRowSig,
