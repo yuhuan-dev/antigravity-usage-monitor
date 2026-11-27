@@ -446,6 +446,17 @@ html[data-standalone="true"][data-modern-ui="true"] .app-shell {
   padding-top: 6px;
 }
 
+[data-modern-ui="true"] .live-steps-count,
+:host([data-modern-ui="true"]) .live-steps-count {
+  border: none;
+}
+
+[data-modern-ui="true"] .live-steps-list,
+:host([data-modern-ui="true"]) .live-steps-list {
+  border: none;
+  background: var(--modern-surface-subtle);
+}
+
 [data-modern-ui="true"] .live-sub-scroll-host.is-sub-animating > .scrollbar-rail {
   opacity: 0 !important;
   pointer-events: none;
@@ -1113,6 +1124,11 @@ html[data-standalone="true"][data-modern-ui="true"] .app-shell {
 :host([data-modern-ui="true"]) .wm-multi-header {
   border: none;
   padding-bottom: 6px;
+}
+
+[data-modern-ui="true"].wm-multi-panel.is-empty .wm-multi-header,
+:host([data-modern-ui="true"]) .wm-multi-panel.is-empty .wm-multi-header {
+  padding-bottom: 4px;
 }
 
 [data-modern-ui="true"].wm-multi-panel .live-task-card + .live-task-card,

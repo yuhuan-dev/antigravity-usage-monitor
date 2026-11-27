@@ -19,7 +19,9 @@ import {
   formatElapsedSec,
   formatLiveActivityDetail,
   formatLiveActivityLabel,
+  formatLiveTaskStepsProgress,
   getAgentBadgeClass,
+  getTaskStepsSignature,
 } from '../../core/formatters.js';
 import { createSvgIcon } from '../../icons/SvgIcon.js';
 import { getEffectiveLocale, t } from '../../i18n/index.js';
@@ -52,6 +54,8 @@ export function buildFallbackRunningConversations(
       isCurrentSelected: true,
       isMainRunning: Boolean(activeConv.isRunning),
       isRunning: true,
+      stepCount: Number(activeConv.stepCount || 0),
+      totalStepCount: Number(activeConv.totalStepCount || activeConv.stepCount || 0),
       mainActivity: activeConv.liveActivity || aggregated?.liveActivity || null,
       subagentCount: childAgents.length,
       swarmCount: swarmChildren.length,
@@ -133,6 +137,7 @@ export const LiveActivityWidget = defineComponent({
     });
 
     const manualSubExpandMap = new Map();
+    const manualStepsExpandMap = new Map();
     const activityTimersMap = new Map();
     let liveTickTimer = null;
     let latestUpdateArgs = null;
@@ -281,12 +286,19 @@ export const LiveActivityWidget = defineComponent({
           titleEl,
           ...(hereTagEl ? [hereTagEl] : []),
         ]),
-        h('div', { className: 'live-task-header-right' }, [
-          ...(metricsEl ? [metricsEl] : []),
-          subToggleBtn,
-          elapsedEl,
-        ]),
+        h(
+          'div',
+          { className: 'live-task-header-right' },
+          showSessionExtras ? [elapsedEl] : [subToggleBtn, elapsedEl]
+        ),
       ]);
+
+      const metaRowEl = showSessionExtras
+        ? h('div', { className: 'live-task-meta-row', hidden: true }, [
+            metricsEl,
+            subToggleBtn,
+          ])
+        : null;
 
       const mainBadge = h('span', {
         className: 'agent-badge badge-main',
@@ -317,6 +329,33 @@ export const LiveActivityWidget = defineComponent({
         mainDetail,
       ]);
 
+      const stepsCountBadge = h('span', {
+        className: 'live-steps-count text-mono',
+        text: '',
+      });
+      const stepsCurrentEl = h('span', {
+        className: 'live-steps-current',
+        hidden: true,
+        text: '',
+      });
+      const stepsChevron = createSvgIcon('chevron-down', {
+        size: 10,
+        className: 'live-steps-chevron',
+      });
+      const stepsSummaryBtn = h(
+        'button',
+        {
+          type: 'button',
+          className: 'live-steps-summary',
+        },
+        [stepsCountBadge, stepsCurrentEl, stepsChevron]
+      );
+      const stepsListEl = h('div', { className: 'live-steps-list', hidden: true });
+      const stepsBoxEl = h('div', { className: 'live-steps-box', hidden: true }, [
+        stepsSummaryBtn,
+        stepsListEl,
+      ]);
+
       const subListEl = h('div', { className: 'live-sub-list', hidden: true });
       const subScroll = CustomScrollbar({
         contentEl: subListEl,
@@ -326,6 +365,8 @@ export const LiveActivityWidget = defineComponent({
       const cardEl = h('div', { className: 'live-task-card' }, [
         headerEl,
         mainRowEl,
+        stepsBoxEl,
+        ...(metaRowEl ? [metaRowEl] : []),
         subScroll.el,
       ]);
 
@@ -337,6 +378,7 @@ export const LiveActivityWidget = defineComponent({
           titleEl,
           hereTagEl,
           metricsEl,
+          metaRowEl,
           subToggleBtn,
           subToggleLabel,
           subToggleChevron,
@@ -346,11 +388,27 @@ export const LiveActivityWidget = defineComponent({
           mainProgress,
           mainSep,
           mainDetail,
+          stepsBoxEl,
+          stepsSummaryBtn,
+          stepsCountBadge,
+          stepsCurrentEl,
+          stepsChevron,
+          stepsListEl,
           subListEl,
           subScroll,
           subAnimTimer: null,
           isCollapsingSubs: false,
         },
+      };
+    }
+
+    function createLiveStepItemRow() {
+      const dotEl = h('span', { className: 'live-step-dot', 'aria-hidden': 'true' });
+      const titleEl = h('span', { className: 'live-step-title', text: '' });
+      const rowEl = h('div', { className: 'live-step-item' }, [dotEl, titleEl]);
+      return {
+        el: rowEl,
+        refs: { rowEl, dotEl, titleEl },
       };
     }
 
@@ -398,11 +456,16 @@ export const LiveActivityWidget = defineComponent({
         rawRunningList = buildFallbackRunningConversations(data, { agents, aggregated });
       }
 
-      if (manualSubExpandMap.size > 0) {
+      if (manualSubExpandMap.size > 0 || manualStepsExpandMap.size > 0) {
         const runningIdsSet = new Set(rawRunningList.map((item) => item.cascadeId));
         for (const id of [...manualSubExpandMap.keys()]) {
           if (!runningIdsSet.has(id)) {
             manualSubExpandMap.delete(id);
+          }
+        }
+        for (const id of [...manualStepsExpandMap.keys()]) {
+          if (!runningIdsSet.has(id)) {
+            manualStepsExpandMap.delete(id);
           }
         }
       }
@@ -455,13 +518,15 @@ export const LiveActivityWidget = defineComponent({
               (item.subagents || []).some(
                 (s) => String(s?.cascadeId || '').toLowerCase() === hostRouteLower
               ));
+          const stepsSig = getTaskStepsSignature(item.mainActivity?.taskSteps);
+          const isStepsExp = Boolean(manualStepsExpandMap.get(item.cascadeId));
           const subSig = (item.subagents || [])
             .map(
               (s) =>
                 `${s.cascadeId}:${s.isRunning}:${s.swarmState || ''}:${s.stepCount}:${s.liveActivity?.signature || ''}:${s.liveActivity?.startedAtMs || 0}`
             )
             .join('|');
-          return `${locale}:${item.cascadeId}:${item.title}:${isHere}:${item.isMainRunning}:${item.subagentCount}:${item.swarmCount || 0}:${item.runningSubagentCount}:${isExp}:${item.latestTokPerSec ?? ''}:${item.contextUsedPct ?? ''}:${item.mainActivity?.signature || ''}:${item.mainActivity?.startedAtMs || 0}:${subSig}`;
+          return `${locale}:${item.cascadeId}:${item.title}:${isHere}:${item.isMainRunning}:${item.subagentCount}:${item.swarmCount || 0}:${item.runningSubagentCount}:${isExp}:${isStepsExp}:${stepsSig}:${item.latestTokPerSec ?? ''}:${item.contextUsedPct ?? ''}:${item.mainActivity?.signature || ''}:${item.mainActivity?.startedAtMs || 0}:${subSig}`;
         },
         createRow: createLiveTaskCard,
         updateRow: (refs, item) => {
@@ -504,6 +569,7 @@ export const LiveActivityWidget = defineComponent({
             };
           }
 
+          let hasExtrasMetrics = false;
           if (showSessionExtras && refs.hereTagEl && refs.metricsEl) {
             const isHere =
               Boolean(hostRouteLower) &&
@@ -524,6 +590,7 @@ export const LiveActivityWidget = defineComponent({
               metricParts.push(`${Math.round(Number(item.contextUsedPct))}%`);
             }
             const metricsStr = metricParts.join(' · ');
+            hasExtrasMetrics = Boolean(metricsStr);
             patchAttr(refs.metricsEl, 'hidden', !metricsStr);
             if (metricsStr) {
               patchText(refs.metricsEl, metricsStr);
@@ -531,6 +598,9 @@ export const LiveActivityWidget = defineComponent({
           }
 
           const subCount = Number(item.subagentCount || item.subagents?.length || 0);
+          if (refs.metaRowEl) {
+            patchAttr(refs.metaRowEl, 'hidden', !hasExtrasMetrics && subCount === 0);
+          }
           const swarmCount = Number(
             item.swarmCount ??
               (item.subagents || []).filter((s) => s?.agentKind === 'swarm_worker').length
@@ -677,7 +747,9 @@ export const LiveActivityWidget = defineComponent({
           );
 
           patchText(refs.mainPhase, mainLabel);
-          const progText = act.stepProgress ? `[${act.stepProgress}]` : '';
+          const progText = act.stepProgress
+            ? String(act.stepProgress).replace(/^\[|\]$/g, '').trim()
+            : '';
           patchAttr(refs.mainProgress, 'hidden', !progText);
           if (progText) {
             patchText(refs.mainProgress, progText);
@@ -687,8 +759,93 @@ export const LiveActivityWidget = defineComponent({
           patchAttr(refs.mainDetail, 'hidden', !detailStr);
           patchText(refs.mainDetail, detailStr);
 
+          const taskSteps =
+            act.taskSteps && Number(act.taskSteps.total) > 0 ? act.taskSteps : null;
+          patchAttr(refs.stepsBoxEl, 'hidden', !taskSteps);
+          if (taskSteps) {
+            const stepsDone = Math.max(0, Number(taskSteps.done || 0));
+            const stepsTotal = Math.max(1, Number(taskSteps.total || 0));
+            const allDone = stepsDone >= stepsTotal && Number(taskSteps.failed || 0) === 0;
+            const hasFailed = Number(taskSteps.failed || 0) > 0;
+            const stepItems = Array.isArray(taskSteps.items) ? taskSteps.items : [];
+            const canExpandSteps = interactive && stepItems.length > 0;
+            const stepsExpanded = canExpandSteps && Boolean(manualStepsExpandMap.get(item.cascadeId));
+
+            patchText(refs.stepsCountBadge, formatLiveTaskStepsProgress(taskSteps));
+            patchClasses(refs.stepsCountBadge, {
+              'is-done': allDone,
+              'is-failed': hasFailed,
+            });
+            const currentStepText =
+              String(taskSteps.currentTitle || '').trim() || (allDone ? t('live.stepsAllDone') : '');
+            patchAttr(refs.stepsCurrentEl, 'hidden', !currentStepText);
+            if (currentStepText) {
+              patchText(refs.stepsCurrentEl, currentStepText);
+            }
+            patchAttr(refs.stepsChevron, 'hidden', !canExpandSteps);
+            patchClasses(refs.stepsSummaryBtn, {
+              'is-expanded': stepsExpanded,
+              'is-static': !canExpandSteps,
+            });
+            patchAttr(
+              refs.stepsSummaryBtn,
+              'aria-expanded',
+              canExpandSteps ? (stepsExpanded ? 'true' : 'false') : null
+            );
+            patchAttr(
+              refs.stepsSummaryBtn,
+              'title',
+              canExpandSteps
+                ? stepsExpanded
+                  ? t('live.stepsCollapseTitle')
+                  : t('live.stepsExpandTitle')
+                : null
+            );
+            refs.stepsSummaryBtn.onclick = canExpandSteps
+              ? (e) => {
+                  e?.stopPropagation?.();
+                  manualStepsExpandMap.set(
+                    item.cascadeId,
+                    !Boolean(manualStepsExpandMap.get(item.cascadeId))
+                  );
+                  if (latestUpdateArgs) update(latestUpdateArgs);
+                  onLayoutChange?.();
+                }
+              : null;
+
+            const showStepsList = canExpandSteps && stepsExpanded;
+            patchAttr(refs.stepsListEl, 'hidden', !showStepsList);
+            if (showStepsList) {
+              patchKeyedList(refs.stepsListEl, stepItems, {
+                keyFn: (st, idx) => `${idx}:${st.title}`,
+                sigFn: (st) => `${st.status}:${st.title}`,
+                createRow: createLiveStepItemRow,
+                updateRow: (stepRefs, st) => {
+                  const status = String(st?.status || 'pending');
+                  patchClasses(stepRefs.rowEl, {
+                    'is-done': status === 'done',
+                    'is-in-progress': status === 'in_progress',
+                    'is-failed': status === 'failed',
+                    'is-skipped': status === 'skipped',
+                    'is-pending':
+                      status !== 'done' &&
+                      status !== 'in_progress' &&
+                      status !== 'failed' &&
+                      status !== 'skipped',
+                  });
+                  patchText(stepRefs.titleEl, st?.title || '');
+                },
+              });
+            }
+          } else {
+            refs.stepsSummaryBtn.onclick = null;
+          }
+
           if (interactive && !showSessionExtras) {
-            const fullTooltip = `[${convTitle}] ${t('fmt.mainAgent')} · ${mainLabel}${progText ? ` ${progText}` : ''}${detailStr ? ` · ${detailStr}` : ''}`;
+            const stepsSummarySuffix = taskSteps
+              ? ` · ${formatLiveTaskStepsProgress(taskSteps)}${taskSteps.currentTitle ? ` ${taskSteps.currentTitle}` : ''}`
+              : '';
+            const fullTooltip = `[${convTitle}] ${t('fmt.mainAgent')} · ${mainLabel}${progText ? ` ${progText}` : ''}${detailStr ? ` · ${detailStr}` : ''}${stepsSummarySuffix}`;
             patchAttr(refs.cardEl, 'title', fullTooltip);
           }
 
@@ -780,7 +937,10 @@ export const LiveActivityWidget = defineComponent({
                   ? formatLiveActivityLabel(subAct, 'live.running')
                   : formatLiveActivityLabel(subAct, idleFallbackKey);
                 const subDetail = formatLiveActivityDetail(subAct);
-                const subProg = subAct.stepProgress ? ` [${subAct.stepProgress}]` : '';
+                const subProgClean = subAct.stepProgress
+                  ? String(subAct.stepProgress).replace(/^\[|\]$/g, '').trim()
+                  : '';
+                const subProg = subProgClean ? ` ${subProgClean}` : '';
                 const summaryStr = showSessionExtras
                   ? sub.isRunning
                     ? `${subLabel}${subProg}${subDetail ? ` · ${subDetail}` : ''}`

@@ -2896,7 +2896,7 @@ test('P2 regressions: bundler regex-after-paren lexer, shared URI/prompt/atomic 
   assert.equal(latestQuery, '');
   assert.equal(sBox.clearBtnEl.hasAttribute('hidden'), true);
 
-  // 4. Declarative settingsBackup round-trips all 40 portable keys + coupled legacy flags
+  // 4. Declarative settingsBackup round-trips all 41 portable keys + coupled legacy flags
   const exported = buildExportableSettingsJson({
     language: 'en-US',
     displayCurrency: 'MYR',
@@ -2904,6 +2904,7 @@ test('P2 regressions: bundler regex-after-paren lexer, shared URI/prompt/atomic 
     modelDisplayMode: 'upstream_compact',
     pluginUpdateMode: 'auto',
     windowMountMode: 'composer',
+    topbarMultiSessionMode: 'running_only',
     hoverSyncOverviewMetrics: false,
     hoverMetricStyle: 'hybrid',
     hoverMetricHybridRatio: 38,
@@ -2916,9 +2917,11 @@ test('P2 regressions: bundler regex-after-paren lexer, shared URI/prompt/atomic 
     accountQuotaRefreshMinutes: 180,
   });
   const parsedExport = JSON.parse(exported);
-  assert.equal(Object.keys(parsedExport.settings).length, 40);
+  assert.equal(Object.keys(parsedExport.settings).length, 41);
   assert.equal(parsedExport.settings.displayCurrency, 'MYR');
   assert.equal(parsedExport.settings.quotaDisplayMode, 'remaining');
+  assert.equal(parsedExport.settings.topbarMultiSessionMode, 'running_only');
+  assert.equal(parsedExport.settings.showTopbarMultiSession, true);
   assert.equal(parsedExport.settings.hoverMetricStyle, 'hybrid');
   assert.equal(parsedExport.settings.hoverMetricHybridRatio, 38);
   assert.equal(parsedExport.settings.overviewMetricStyle, 'hybrid');
@@ -2932,6 +2935,17 @@ test('P2 regressions: bundler regex-after-paren lexer, shared URI/prompt/atomic 
   );
   assert.equal(reimported.ok, true);
   assert.equal('orchestratorIdMode' in reimported.patch, false);
+  assert.equal(reimported.patch.topbarMultiSessionMode, 'running_only');
+  assert.equal(reimported.patch.showTopbarMultiSession, true);
+  const legacyMultiImport = parseImportedSettingsJson(
+    JSON.stringify({
+      schemaVersion: parsedExport.schemaVersion,
+      settings: { showTopbarMultiSession: false },
+    })
+  );
+  assert.equal(legacyMultiImport.ok, true);
+  assert.equal(legacyMultiImport.patch.topbarMultiSessionMode, 'hide');
+  assert.equal(legacyMultiImport.patch.showTopbarMultiSession, false);
   assert.equal(reimported.patch.hoverSyncOverviewMetrics, false);
   assert.equal(reimported.patch.hoverMetricStyle, 'hybrid');
   assert.equal(reimported.patch.hoverMetricHybridRatio, 38);

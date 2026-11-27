@@ -586,11 +586,12 @@ test('Capsule 4-stage responsive hysteresis and backend settings default/overrid
   assert.equal(computeCapsuleLayoutMode(200, 'wide', { showMulti: false }), 'wide');
   assert.equal(computeCapsuleLayoutMode(150, 'wide', { showMulti: false }), 'compact');
 
-  // Backend harness verifies windowMountMode, enableWindowOverlay, showTopbarMultiSession, and topbarCapsuleSlots defaults & normalization
+  // Backend harness verifies windowMountMode, enableWindowOverlay, topbarMultiSessionMode/showTopbarMultiSession, and topbarCapsuleSlots defaults & normalization
   const defaultEnv = backendHarness({ settings: {} });
   const defaultPayload = await defaultEnv.buildTelemetryPayloadInternal('', false, {});
   assert.equal(defaultPayload.settings.windowMountMode, 'dual');
   assert.equal(defaultPayload.settings.enableWindowOverlay, true);
+  assert.equal(defaultPayload.settings.topbarMultiSessionMode, 'show');
   assert.equal(defaultPayload.settings.showTopbarMultiSession, true);
   assert.deepEqual(Array.from(defaultPayload.settings.topbarCapsuleSlots), [
     'tps',
@@ -608,12 +609,23 @@ test('Capsule 4-stage responsive hysteresis and backend settings default/overrid
   const disabledPayload = await disabledEnv.buildTelemetryPayloadInternal('', false, {});
   assert.equal(disabledPayload.settings.windowMountMode, 'sidebar');
   assert.equal(disabledPayload.settings.enableWindowOverlay, false);
+  assert.equal(disabledPayload.settings.topbarMultiSessionMode, 'hide');
   assert.equal(disabledPayload.settings.showTopbarMultiSession, false);
   assert.deepEqual(Array.from(disabledPayload.settings.topbarCapsuleSlots), [
     'gemini_5h',
     'ttft',
     'claude_weekly',
   ]);
+
+  const runningOnlyEnv = backendHarness({
+    settings: {
+      topbarMultiSessionMode: 'running_only',
+      showTopbarMultiSession: false,
+    },
+  });
+  const runningOnlyPayload = await runningOnlyEnv.buildTelemetryPayloadInternal('', false, {});
+  assert.equal(runningOnlyPayload.settings.topbarMultiSessionMode, 'running_only');
+  assert.equal(runningOnlyPayload.settings.showTopbarMultiSession, true);
 
   const composerEnv = backendHarness({
     settings: {
@@ -705,6 +717,7 @@ test('Compiled app.js mounts dual Shadow DOM hosts, tracks /c/<uuid> routes, pro
     autoUpdatePlugin: false,
     windowMountMode: 'dual',
     enableWindowOverlay: true,
+    topbarMultiSessionMode: 'show',
     showTopbarMultiSession: true,
     contextAgentMode: 'main',
     enableCliStatusLine: true,
@@ -830,6 +843,11 @@ test('Compiled app.js mounts dual Shadow DOM hosts, tracks /c/<uuid> routes, pro
         }
         if (patch.pluginUpdateMode !== undefined && patch.autoUpdatePlugin === undefined) {
           mockSettings.autoUpdatePlugin = patch.pluginUpdateMode === 'auto';
+        }
+        if (patch.topbarMultiSessionMode !== undefined && patch.showTopbarMultiSession === undefined) {
+          mockSettings.showTopbarMultiSession = patch.topbarMultiSessionMode !== 'hide';
+        } else if (patch.showTopbarMultiSession !== undefined && patch.topbarMultiSessionMode === undefined) {
+          mockSettings.topbarMultiSessionMode = patch.showTopbarMultiSession ? 'show' : 'hide';
         }
         return {
           ok: true,
@@ -1357,6 +1375,9 @@ test('Compiled app.js mounts dual Shadow DOM hosts, tracks /c/<uuid> routes, pro
     assert.equal(liveTaskCard.querySelector('.live-task-title').textContent, 'Background Security Audit');
     assert.equal(liveTaskCard.querySelector('.badge-main').hasAttribute('hidden'), false, 'Session with subagents shows 主 badge');
     assert.equal(liveTaskCard.querySelector('.live-activity-phase').textContent, '执行命令');
+    assert.equal(liveTaskCard.querySelector('.live-activity-progress').textContent, '1/2', 'Activity progress pill renders without square brackets');
+    assert.equal(liveTaskCard.querySelector('.live-task-header-right .wm-task-metrics'), null, 'Metrics moved out of header row to prevent title crowding');
+    assert.equal(liveTaskCard.querySelector('.live-task-meta-row .wm-task-metrics')?.textContent, '64.2 t/s · 48%');
     assert.equal(liveTaskCard.querySelector('.live-sub-list').hasAttribute('hidden'), false, 'Active subagents auto-expanded');
     assert.equal(liveTaskCard.querySelector('.live-sub-role').textContent, 'Auth Researcher');
     assert.equal(soloTaskCard.querySelector('.live-task-title').textContent, 'Solo Refactor Task');
@@ -1753,9 +1774,9 @@ test('Compiled app.js mounts dual Shadow DOM hosts, tracks /c/<uuid> routes, pro
     assert.equal(mockSettings.enableWindowOverlay, true, 'enableWindowOverlay persisted back to true');
     assert.equal(previewCapsuleBar.getAttribute('data-mount-mode'), 'dual');
 
-    // Toggle popover width mode (auto -> custom 640px -> step +10px -> auto), topbar multi-session switch, capsule/hover context agent mode (main -> auto -> main), and separate CLI bottom capsule switch
+    // Toggle popover width mode (auto -> custom 640px -> step +10px -> auto), topbar multi-session 3-way mode (hide -> running_only -> show), capsule/hover context agent mode (main -> auto -> main), and separate CLI bottom capsule switch
     const topbarSegBtns = sec0.querySelectorAll('.seg-btn');
-    assert.equal(topbarSegBtns.length, 6, 'App mount card renders 6 segmented buttons (Popover width + Topbar multi-session + Capsule/Hover context mode)');
+    assert.equal(topbarSegBtns.length, 7, 'App mount card renders 7 segmented buttons (Popover width [2] + Running sessions mode [3] + Capsule/Hover context mode [2])');
     const cliSegBtns = cliSec.querySelectorAll('.seg-btn');
     assert.equal(cliSegBtns.length, 2, 'Separate CLI section card renders 2 segmented buttons for CLI bottom capsule toggle');
     const popWidthInput = sec0.querySelector('.num-field');
@@ -1778,22 +1799,30 @@ test('Compiled app.js mounts dual Shadow DOM hosts, tracks /c/<uuid> routes, pro
     await new Promise((r) => setTimeout(r, 30));
     assert.equal(mockSettings.popoverWidthMode, 'auto', 'Popover width mode restored to auto');
 
-    topbarSegBtns[3].dispatchEvent({ type: 'click', stopPropagation() {} });
+    topbarSegBtns[4].dispatchEvent({ type: 'click', stopPropagation() {} });
     await new Promise((r) => setTimeout(r, 30));
+    assert.equal(mockSettings.topbarMultiSessionMode, 'hide');
     assert.equal(mockSettings.showTopbarMultiSession, false);
     assert.equal(multiBtn.hasAttribute('hidden'), true, 'Topbar multi-session button hidden immediately');
     assert.equal(previewMultiBtn.hasAttribute('hidden'), true, 'Preview multi-session button hidden immediately');
     assert.equal(capsuleHost.getAttribute('data-multi'), 'off');
+    topbarSegBtns[3].dispatchEvent({ type: 'click', stopPropagation() {} });
+    await new Promise((r) => setTimeout(r, 30));
+    assert.equal(mockSettings.topbarMultiSessionMode, 'running_only');
+    assert.equal(mockSettings.showTopbarMultiSession, true);
+    assert.equal(multiBtn.hasAttribute('hidden'), false, 'Running sessions button stays visible in running_only when sessions are active');
+    assert.equal(previewMultiBtn.hasAttribute('hidden'), false, 'Preview button stays visible in running_only because mock preview has an active session');
     topbarSegBtns[2].dispatchEvent({ type: 'click', stopPropagation() {} });
     await new Promise((r) => setTimeout(r, 30));
+    assert.equal(mockSettings.topbarMultiSessionMode, 'show');
     assert.equal(mockSettings.showTopbarMultiSession, true);
     assert.equal(multiBtn.hasAttribute('hidden'), false, 'Topbar multi-session button restored immediately');
     assert.equal(previewMultiBtn.hasAttribute('hidden'), false, 'Preview multi-session button restored immediately');
 
-    topbarSegBtns[5].dispatchEvent({ type: 'click', stopPropagation() {} });
+    topbarSegBtns[6].dispatchEvent({ type: 'click', stopPropagation() {} });
     await new Promise((r) => setTimeout(r, 30));
     assert.equal(mockSettings.contextAgentMode, 'auto', 'Capsule/Hover context mode switches to follow active (auto)');
-    topbarSegBtns[4].dispatchEvent({ type: 'click', stopPropagation() {} });
+    topbarSegBtns[5].dispatchEvent({ type: 'click', stopPropagation() {} });
     await new Promise((r) => setTimeout(r, 30));
     assert.equal(mockSettings.contextAgentMode, 'main', 'Capsule/Hover context mode switches back to lock main agent');
 
@@ -6995,6 +7024,7 @@ test('Issue #35: topbar capsule and hover HUD lock to main agent by default, tog
     modernUi: true,
     windowMountMode: 'dual',
     enableWindowOverlay: true,
+    topbarMultiSessionMode: 'show',
     showTopbarMultiSession: true,
     contextAgentMode: 'main',
     topbarCapsuleSlots: ['tps', 'ttft', 'context'],
@@ -8097,4 +8127,209 @@ test('window-bridge stop({ disposeWindows: true }) preserves Desktop overlay usi
     await new Promise((resolve) => cdpServer.close(resolve));
     fs.rmSync(tmpDir, { recursive: true, force: true });
   }
+});
+
+test('WindowOverlayShell enforces running_only visibility, right-sidebar multi-panel clamping, compact empty width, and progress pill CSS alignment', async (t) => {
+  const [{ mountWindowOverlay }, { getRightSidebarLeftEdge }, { WINDOW_BRIDGE_KEY }, { telemetryStore }, { uiStore }] =
+    await Promise.all([
+      import('../src/components/layout/WindowOverlayShell.js'),
+      import('../src/components/layout/overlayHostAnchors.js'),
+      import('../shared/window-bridge-protocol.mjs'),
+      import('../src/store/telemetryStore.js'),
+      import('../src/store/uiStore.js'),
+    ]);
+
+  const stylesCss = fs.readFileSync(new URL('../styles.css', import.meta.url), 'utf8');
+  assert.match(
+    stylesCss,
+    /\.wm-multi-panel\s*\{[^}]*width:\s*min\(calc\(376px \* var\(--ui-panel-scale, 1\)\),\s*calc\(100vw - 24px\)\);/,
+    'Multi-session popover base width trimmed to 376px'
+  );
+  assert.match(
+    stylesCss,
+    /\.wm-multi-panel\.is-empty\s*\{[^}]*width:\s*min\(calc\(256px \* var\(--ui-panel-scale, 1\)\),\s*calc\(100vw - 24px\)\);/,
+    'Empty multi-session popover uses compact 256px width'
+  );
+  assert.match(
+    stylesCss,
+    /\.live-activity-progress\s*\{[^}]*display:\s*inline-flex;[^}]*align-items:\s*center;[^}]*justify-content:\s*center;[^}]*font-size:\s*var\(--fs-sm\);[^}]*line-height:\s*1;[^}]*min-height:\s*calc\(17px \* var\(--ui-font-scale, 1\)\);[^}]*padding:\s*2px 6px;/s,
+    'Activity progress pill uses inline-flex centering and var(--fs-sm) alignment'
+  );
+
+  const prevDoc = globalThis.document;
+  const prevWin = globalThis.window;
+  const prevRO = globalThis.ResizeObserver;
+  const prevMO = globalThis.MutationObserver;
+  const prevTel = telemetryStore.getState();
+  const prevUi = uiStore.getState();
+
+  const { document: doc, body, makeElement } = createMockDom({
+    defaultRect: { left: 760, right: 980, top: 6, bottom: 32, width: 220, height: 26 },
+  });
+
+  // Host left sidebar (0..240), main titlebar (240..1000), right aux pane sash at x=1000 inside vw=1440
+  const navEl = makeElement('div');
+  navEl.setAttribute('role', 'navigation');
+  navEl.getBoundingClientRect = () => ({ left: 0, right: 240, top: 0, bottom: 900, width: 240, height: 900 });
+  body.appendChild(navEl);
+
+  const titlebar = makeElement('div');
+  titlebar.className = 'flex items-center @container/titlebar';
+  titlebar.getBoundingClientRect = () => ({ left: 240, right: 1000, top: 0, bottom: 40, width: 760, height: 40 });
+  const titleLeft = makeElement('div');
+  titleLeft.getBoundingClientRect = () => ({ left: 252, right: 410, top: 8, bottom: 32, width: 158, height: 24 });
+  const titleRight = makeElement('div');
+  titleRight.className = 'shrink-0 flex items-center';
+  const nativeBtn = makeElement('button');
+  nativeBtn.getBoundingClientRect = () => ({ left: 952, right: 992, top: 8, bottom: 32, width: 40, height: 24 });
+  titleRight.appendChild(nativeBtn);
+  titlebar.appendChild(titleLeft);
+  titlebar.appendChild(titleRight);
+  body.appendChild(titlebar);
+
+  const auxSash = makeElement('div');
+  auxSash.setAttribute('data-testid', 'aux-pane-sash');
+  auxSash.getBoundingClientRect = () => ({ left: 1000, right: 1004, top: 0, bottom: 900, width: 4, height: 900 });
+  body.appendChild(auxSash);
+
+  globalThis.document = doc;
+  globalThis.ResizeObserver = class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  };
+  globalThis.MutationObserver = class {
+    observe() {}
+    disconnect() {}
+  };
+  globalThis.window = {
+    innerWidth: 1440,
+    innerHeight: 900,
+    document: doc,
+    location: { pathname: '/c/aaaaaaaa-1111-2222-3333-bbbbbbbbbbbb' },
+    getComputedStyle: () => ({ display: 'flex', visibility: 'visible', paddingRight: '8px', getPropertyValue: () => '' }),
+    [WINDOW_BRIDGE_KEY]: {
+      port: 49153,
+      token: 'multi-bounds-tok',
+      bundleVersion: '1',
+      stylesCss,
+    },
+    addEventListener() {},
+    removeEventListener() {},
+    requestAnimationFrame: (cb) => {
+      cb();
+      return 1;
+    },
+    cancelAnimationFrame() {},
+  };
+
+  let ov = null;
+  t.after(() => {
+    ov?.dispose?.();
+    telemetryStore.setState(prevTel, { sync: true });
+    uiStore.setState(prevUi, { sync: true });
+    globalThis.document = prevDoc;
+    globalThis.window = prevWin;
+    globalThis.ResizeObserver = prevRO;
+    globalThis.MutationObserver = prevMO;
+  });
+
+  // 1. getRightSidebarLeftEdge resolves aux-pane-sash and falls back to titlebar right edge when sash is absent
+  assert.equal(getRightSidebarLeftEdge(1440), 1000);
+  auxSash.setAttribute('hidden', '');
+  assert.equal(getRightSidebarLeftEdge(1440), 1000, 'Falls back to main titlebar right edge when aux sash is absent');
+  auxSash.removeAttribute('hidden');
+
+  const mkPayload = ({ mode = 'show', running = [] } = {}) => ({
+    settings: {
+      windowMountMode: 'dual',
+      enableWindowOverlay: true,
+      topbarMultiSessionMode: mode,
+      showTopbarMultiSession: mode !== 'hide',
+      topbarCapsuleSlots: ['tps', 'ttft', 'context'],
+      fontScale: 'md',
+    },
+    runningConversations: running,
+    activeConversation: {
+      cascadeId: 'aaaaaaaa-1111-2222-3333-bbbbbbbbbbbb',
+      title: 'Main Window',
+      isRunning: running.length > 0,
+      latestTokPerSec: 65,
+      contextUsedPct: 35,
+    },
+    conversations: [],
+    quotas: { pools: [] },
+  });
+
+  const runningFixture = [
+    {
+      cascadeId: 'aaaaaaaa-1111-2222-3333-bbbbbbbbbbbb',
+      title: 'Long Session Title That Must Stay Readable',
+      isRunning: true,
+      isMainRunning: true,
+      latestTokPerSec: 65,
+      contextUsedPct: 35,
+      mainActivity: {
+        phase: 'tool',
+        actionKey: 'edit_file',
+        label: '修改文件',
+        detail: 'WindowOverlayShell.js',
+        stepProgress: '3/5',
+        startedAtMs: Date.now() - 3000,
+        signature: 'edit:3/5',
+      },
+      subagentCount: 0,
+      runningSubagentCount: 0,
+      subagents: [],
+    },
+  ];
+
+  telemetryStore.setState({ telemetry: mkPayload({ mode: 'show', running: [] }) }, { sync: true });
+  ov = mountWindowOverlay();
+  const capsuleHost = doc.getElementById('ag-usage-monitor-capsule');
+  const portalHost = doc.getElementById('ag-usage-monitor-portal');
+  const multiBtn = capsuleHost.shadowRoot.querySelector('.wm-multi-btn');
+  const multiPanelEl = portalHost.shadowRoot.querySelector('.wm-multi-panel');
+  const multiRunningMetaEl = multiPanelEl.querySelector('.wm-multi-header .panel-meta');
+  multiBtn.getBoundingClientRect = () => ({ left: 740, right: 820, top: 6, bottom: 32, width: 80, height: 26 });
+  multiPanelEl.getBoundingClientRect = () => {
+    const isEmpty = multiPanelEl.classList.contains('is-empty');
+    return { left: 0, right: isEmpty ? 256 : 376, top: 0, bottom: isEmpty ? 88 : 280, width: isEmpty ? 256 : 376, height: isEmpty ? 88 : 280 };
+  };
+
+  // 2. Empty state in 'show' mode: .is-empty active, duplicate header meta hidden, clamped strictly left of auxSash (x=1000)
+  multiBtn.dispatchEvent({ type: 'click', stopPropagation() {} });
+  assert.equal(ov.isMultiOpen(), true);
+  assert.equal(multiPanelEl.classList.contains('is-empty'), true);
+  assert.equal(multiRunningMetaEl.hasAttribute('hidden'), true, 'Empty state omits redundant header idle copy');
+  const emptyLeft = parseFloat(multiPanelEl.style.left);
+  assert.equal(multiPanelEl.style.maxWidth, '738px', 'maxWidth constrained to [minLeft=252, maxRight=990]');
+  assert.ok(emptyLeft >= 252 && emptyLeft + 256 <= 990, `Empty multi-panel stays clear of right sidebar (left=${emptyLeft})`);
+
+  // 3. Running session arrives: .is-empty cleared, meta restored, 376px panel shifts left so left + 376 <= 990
+  telemetryStore.setState({ telemetry: mkPayload({ mode: 'show', running: runningFixture }) }, { sync: true });
+  assert.equal(multiPanelEl.classList.contains('is-empty'), false);
+  assert.equal(multiRunningMetaEl.hasAttribute('hidden'), false);
+  const busyLeft = parseFloat(multiPanelEl.style.left);
+  assert.ok(busyLeft >= 252 && busyLeft + 376 <= 990, `Active 376px multi-panel clamped clear of right sidebar (left=${busyLeft})`);
+
+  // 4. Switch to 'running_only' while running -> still visible & stays open; once idle -> button hides & pinned popover auto-closes
+  telemetryStore.setState({ telemetry: mkPayload({ mode: 'running_only', running: runningFixture }) }, { sync: true });
+  assert.equal(multiBtn.hasAttribute('hidden'), false);
+  assert.equal(capsuleHost.getAttribute('data-multi'), 'on');
+
+  telemetryStore.setState({ telemetry: mkPayload({ mode: 'running_only', running: [] }) }, { sync: true });
+  assert.equal(multiBtn.hasAttribute('hidden'), true, 'running_only hides multiBtn when 0 sessions are running');
+  assert.equal(capsuleHost.getAttribute('data-multi'), 'off');
+  assert.equal(ov.isMultiOpen(), false, 'Open/pinned multi-session popover closes when running_only hides trigger');
+  assert.equal(multiPanelEl.hasAttribute('hidden'), true);
+
+  // Attempting to open via hover/click while hidden stays blocked
+  multiBtn.dispatchEvent({ type: 'mouseenter', clientX: 760, clientY: 18 });
+  assert.equal(ov.isMultiOpen(), false);
+
+  // When a running session reappears in running_only mode, button returns immediately
+  telemetryStore.setState({ telemetry: mkPayload({ mode: 'running_only', running: runningFixture }) }, { sync: true });
+  assert.equal(multiBtn.hasAttribute('hidden'), false);
+  assert.equal(capsuleHost.getAttribute('data-multi'), 'on');
 });

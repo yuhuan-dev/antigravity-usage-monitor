@@ -33,6 +33,7 @@ import {
   normalizeStepTokenComboFormat,
   normalizeThemeAccent,
   normalizeTopbarCapsuleSlots,
+  normalizeTopbarMultiSessionMode,
   normalizeWeeklyLimitMode,
   normalizeWindowMountMode,
 } from '../../shared/settings-normalization.mjs';
@@ -211,7 +212,26 @@ const PORTABLE_SETTING_DESCRIPTORS = Object.freeze([
   normField('standalonePort', normalizeStandalonePort),
   normField('autoConfigureLaunch', normalizeAutoConfigureLaunch),
   normField('enableRemoteSshTelemetry', normalizeEnableRemoteSshTelemetry),
-  boolField('showTopbarMultiSession', true),
+  {
+    exportTo: (src, out) => {
+      const mode = normalizeTopbarMultiSessionMode(
+        src.topbarMultiSessionMode,
+        src.showTopbarMultiSession
+      );
+      out.topbarMultiSessionMode = mode;
+      out.showTopbarMultiSession = mode !== 'hide';
+    },
+    importTo: (src, hasKey, patch) => {
+      if (hasKey('topbarMultiSessionMode') || hasKey('showTopbarMultiSession')) {
+        const mode = normalizeTopbarMultiSessionMode(
+          src.topbarMultiSessionMode,
+          src.showTopbarMultiSession
+        );
+        patch.topbarMultiSessionMode = mode;
+        patch.showTopbarMultiSession = mode !== 'hide';
+      }
+    },
+  },
   normField('contextAgentMode', normalizeContextAgentMode),
   arrayField('topbarCapsuleSlots', normalizeTopbarCapsuleSlots),
   arrayField('hoverModules', normalizeHoverModules),

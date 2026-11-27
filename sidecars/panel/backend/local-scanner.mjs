@@ -1940,27 +1940,48 @@ function resolveBestLiveActivity(
     transcriptSteps.length > 0 ? extractLiveActivity(transcriptSteps, true, fallbackMs) : null;
 
   if (rpcAct && transcriptAct) {
+    const mergeTaskSteps = (winner, loser, canInheritTaskSteps) => {
+      if (!winner || winner.taskSteps || !loser?.taskSteps || !canInheritTaskSteps) {
+        return winner;
+      }
+      return { ...winner, taskSteps: loser.taskSteps };
+    };
     // 1. 先按真实 Cortex 步骤序号对齐比较：尚未刷入 transcript.jsonl 的新步骤（如正在进行的 CHECKPOINT 压缩或流式回复）优先采用 RPC
     const rpcStepIdx = getMaxMeaningfulStepIndex(rpcRawSteps);
     const transStepIdx = getMaxMeaningfulStepIndex(transcriptSteps);
     if (rpcStepIdx >= 0 && transStepIdx >= 0 && rpcStepIdx !== transStepIdx) {
-      return rpcStepIdx > transStepIdx ? rpcAct : transcriptAct;
+      if (rpcStepIdx > transStepIdx) {
+        return mergeTaskSteps(rpcAct, transcriptAct, false);
+      }
+      const transcriptHasNewUserTurn = transcriptSteps.some((st) => {
+        const idx = Number(st?.step_index ?? st?.stepIndex);
+        return (
+          String(st?.type || '').toUpperCase().includes('USER_INPUT') &&
+          Number.isFinite(idx) &&
+          idx > rpcStepIdx
+        );
+      });
+      return mergeTaskSteps(transcriptAct, rpcAct, !transcriptHasNewUserTurn);
     }
 
     // 2. 同一步骤序号下优先采用语义更明确的状态（上下文压缩 > 工具执行 > 流式生成 > 工具后置思考）
     const rpcScore = scoreLiveActivitySpecificity(rpcAct);
     const transScore = scoreLiveActivitySpecificity(transcriptAct);
     if (rpcScore !== transScore) {
-      return rpcScore > transScore ? rpcAct : transcriptAct;
+      return rpcScore > transScore
+        ? mergeTaskSteps(rpcAct, transcriptAct, true)
+        : mergeTaskSteps(transcriptAct, rpcAct, true);
     }
 
     // 3. 同一步骤且均为压缩态时，优先采用携带精确完成时刻的 RPC 状态；常规步骤则优先采用含完整参数的 transcript.jsonl
     const rpcMs = Number(rpcAct.startedAtMs || 0);
     const transMs = Number(transcriptAct.startedAtMs || 0);
     if (rpcAct.phase === 'compacting' && rpcMs !== transMs) {
-      return rpcMs >= transMs ? rpcAct : transcriptAct;
+      return rpcMs >= transMs
+        ? mergeTaskSteps(rpcAct, transcriptAct, true)
+        : mergeTaskSteps(transcriptAct, rpcAct, true);
     }
-    return transcriptAct;
+    return mergeTaskSteps(transcriptAct, rpcAct, true);
   }
   return (
     transcriptAct ||

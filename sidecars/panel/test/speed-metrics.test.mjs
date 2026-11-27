@@ -406,3 +406,127 @@ test('extractContextBreakdown parses split top-level SKILLS, RULES, SUBAGENTS, a
   assert.equal(breakdown.messagesTokens, 126431);
   assert.equal(breakdown.totalTokens, 148852);
 });
+
+test('extractLiveActivity supports update_steps checklist (RPC, transcript, partial JSON, turn isolation) and update_focus', () => {
+  // 1. Streaming partial update_steps JSON extracts actionKey + partial taskSteps
+  const partialStepsStep = {
+    type: 'CORTEX_STEP_TYPE_PLANNER_RESPONSE',
+    status: 'CORTEX_STEP_STATUS_STREAMING',
+    metadata: { createdAt: '2026-01-01T00:00:05Z' },
+    plannerResponse: {
+      toolCalls: [
+        {
+          name: 'update_steps',
+          argumentsJson:
+            '{"steps":[{"title":"Inspect overlay anchors","status":"done"},{"title":"Wire running_only mode","status":"in_progress"},{"title":"Run test',
+        },
+      ],
+    },
+  };
+  const actPartial = extractLiveActivity([partialStepsStep], true);
+  assert.equal(actPartial.phase, 'tool');
+  assert.equal(actPartial.actionKey, 'update_steps');
+  assert.ok(actPartial.taskSteps);
+  assert.equal(actPartial.taskSteps.total, 2);
+  assert.equal(actPartial.taskSteps.done, 1);
+  assert.equal(actPartial.taskSteps.inProgress, 1);
+  assert.equal(actPartial.taskSteps.currentTitle, 'Wire running_only mode');
+  assert.deepEqual(actPartial.taskSteps.items, [
+    { title: 'Inspect overlay anchors', status: 'done' },
+    { title: 'Wire running_only mode', status: 'in_progress' },
+  ]);
+
+  // 2. Full update_steps + update_focus in same turn persists taskSteps across subsequent tool calls
+  const userTurn1 = {
+    type: 'CORTEX_STEP_TYPE_USER_INPUT',
+    userInput: { userResponse: 'Old turn request' },
+  };
+  const oldTurnSteps = {
+    type: 'CORTEX_STEP_TYPE_PLANNER_RESPONSE',
+    status: 'CORTEX_STEP_STATUS_DONE',
+    metadata: { createdAt: '2026-01-01T00:00:01Z' },
+    plannerResponse: {
+      toolCalls: [
+        {
+          name: 'update_steps',
+          argumentsJson: JSON.stringify({
+            steps: [{ title: 'Stale old turn step', status: 'done' }],
+          }),
+        },
+      ],
+    },
+  };
+  const userTurn2 = {
+    type: 'CORTEX_STEP_TYPE_USER_INPUT',
+    userInput: { userResponse: 'Current turn request' },
+  };
+  const updateFocusStep = {
+    type: 'CORTEX_STEP_TYPE_PLANNER_RESPONSE',
+    status: 'CORTEX_STEP_STATUS_STREAMING',
+    metadata: { createdAt: '2026-01-01T00:00:10Z' },
+    plannerResponse: {
+      toolCalls: [
+        {
+          name: 'update_focus',
+          argumentsJson: JSON.stringify({ focus: 'Refining multi-session popover bounds' }),
+        },
+      ],
+    },
+  };
+  const actFocus = extractLiveActivity([userTurn1, oldTurnSteps, userTurn2, updateFocusStep], true);
+  assert.equal(actFocus.phase, 'tool');
+  assert.equal(actFocus.actionKey, 'update_focus');
+  assert.equal(actFocus.detail, 'Refining multi-session popover bounds');
+  assert.equal(actFocus.taskSteps, undefined, 'Previous turn update_steps must not leak after latest USER_INPUT');
+
+  // 3. transcript.jsonl format with 14 steps caps items at 12 while keeping accurate counts, and carries forward onto edit_file
+  const fourteenSteps = Array.from({ length: 14 }, (_, i) => ({
+    title: `Checklist item ${i + 1}`,
+    status: i < 4 ? 'done' : i === 4 ? 'in_progress' : i === 5 ? 'failed' : i === 6 ? 'skipped' : 'pending',
+  }));
+  const transcriptStepsPlanner = {
+    step_index: 12,
+    type: 'PLANNER_RESPONSE',
+    status: 'DONE',
+    created_at: '2026-01-01T00:00:12Z',
+    tool_calls: [
+      {
+        name: 'update_steps',
+        args: { steps: JSON.stringify(fourteenSteps) },
+      },
+    ],
+  };
+  const transcriptStepsResult = {
+    step_index: 13,
+    type: 'GENERIC',
+    status: 'DONE',
+    created_at: '2026-01-01T00:00:13Z',
+  };
+  const followUpEdit = {
+    step_index: 14,
+    type: 'PLANNER_RESPONSE',
+    status: 'DONE',
+    created_at: '2026-01-01T00:00:14Z',
+    tool_calls: [
+      {
+        name: 'edit_file',
+        args: { Path: '"f:\\\\repo\\\\LiveActivityWidget.js"' },
+      },
+    ],
+  };
+  const actCarried = extractLiveActivity(
+    [userTurn2, transcriptStepsPlanner, transcriptStepsResult, followUpEdit],
+    true
+  );
+  assert.equal(actCarried.phase, 'tool');
+  assert.equal(actCarried.actionKey, 'edit_file');
+  assert.equal(actCarried.detail, 'LiveActivityWidget.js');
+  assert.ok(actCarried.taskSteps);
+  assert.equal(actCarried.taskSteps.total, 14);
+  assert.equal(actCarried.taskSteps.done, 4);
+  assert.equal(actCarried.taskSteps.inProgress, 1);
+  assert.equal(actCarried.taskSteps.failed, 1);
+  assert.equal(actCarried.taskSteps.skipped, 1);
+  assert.equal(actCarried.taskSteps.currentTitle, 'Checklist item 5');
+  assert.equal(actCarried.taskSteps.items.length, 12);
+});

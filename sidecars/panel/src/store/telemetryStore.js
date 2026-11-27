@@ -17,6 +17,7 @@ import {
   formatLiveActivityDetail,
   formatLiveActivityLabel,
   getAgentBadgeClass,
+  getTaskStepsSignature,
 } from '../core/formatters.js';
 import { normalizeI18nLanguage, t } from '../i18n/index.js';
 import { normalizeDisplayCurrency } from '../../shared/currency-catalog.mjs';
@@ -44,6 +45,7 @@ import {
   DEFAULT_QUOTA_DISPLAY_MODE,
   DEFAULT_STEP_TABLE_COLUMNS,
   DEFAULT_STEP_TOKEN_COMBO_FORMAT,
+  DEFAULT_TOPBAR_MULTI_SESSION_MODE,
   DEFAULT_TOPBAR_SLOTS,
   MAX_LARGE_METRIC_SLOTS,
   MAX_METRIC_HYBRID_RATIO,
@@ -53,8 +55,10 @@ import {
   OVERVIEW_METRIC_KEYS,
   OVERVIEW_MODULE_KEYS,
   STEP_TABLE_COLUMN_KEYS,
+  TOPBAR_MULTI_SESSION_MODES,
   TOPBAR_SLOT_KEYS,
   isRiskyFeaturesGateOpen,
+  isTopbarMultiSessionVisible,
   normalizeAccountQuotaRefreshMinutes,
   normalizeAutoConfigureLaunch,
   normalizeCliStatusLineSlots,
@@ -80,6 +84,7 @@ import {
   normalizeStepTableColumns,
   normalizeStepTokenComboFormat,
   normalizeTopbarCapsuleSlots,
+  normalizeTopbarMultiSessionMode,
   normalizeWeeklyLimitMode,
   normalizeWindowMountMode,
   parseStepTokenComboSegments,
@@ -501,6 +506,8 @@ function reconcileIncomingTelemetrySettings(payload, reqSettingsRev) {
 
 export const CLIENT_TOPBAR_SLOT_KEYS = TOPBAR_SLOT_KEYS;
 export const DEFAULT_CLIENT_TOPBAR_SLOTS = DEFAULT_TOPBAR_SLOTS;
+export const CLIENT_TOPBAR_MULTI_SESSION_MODES = TOPBAR_MULTI_SESSION_MODES;
+export const DEFAULT_CLIENT_TOPBAR_MULTI_SESSION_MODE = DEFAULT_TOPBAR_MULTI_SESSION_MODE;
 export const DEFAULT_CLIENT_CONTEXT_AGENT_MODE = DEFAULT_CONTEXT_AGENT_MODE;
 export const CLIENT_CLI_STATUSLINE_PRESETS = CLI_STATUSLINE_PRESETS;
 export const DEFAULT_CLIENT_CLI_STATUSLINE_SLOTS = DEFAULT_CLI_STATUSLINE_SLOTS;
@@ -533,6 +540,8 @@ export const normalizeClientPopoverWidthMode = normalizePopoverWidthMode;
 export const normalizeClientPopoverWidth = normalizePopoverWidth;
 export const normalizeClientModelDisplayMode = normalizeModelDisplayMode;
 export const normalizeClientTopbarSlots = normalizeTopbarCapsuleSlots;
+export const normalizeClientTopbarMultiSessionMode = normalizeTopbarMultiSessionMode;
+export const isClientTopbarMultiSessionVisible = isTopbarMultiSessionVisible;
 export const normalizeClientContextAgentMode = normalizeContextAgentMode;
 export const normalizeClientQuotaDisplayMode = normalizeQuotaDisplayMode;
 export const normalizeClientExperimentalQuotaReservation = normalizeExperimentalQuotaReservation;
@@ -682,6 +691,18 @@ export function isEquivalentTelemetry(prev, next) {
     return false;
   }
   if (!sameArr(pSet?.cliStatusLineSlots, nSet?.cliStatusLineSlots)) return false;
+  if (
+    normalizeClientTopbarMultiSessionMode(
+      pSet?.topbarMultiSessionMode,
+      pSet?.showTopbarMultiSession
+    ) !==
+    normalizeClientTopbarMultiSessionMode(
+      nSet?.topbarMultiSessionMode,
+      nSet?.showTopbarMultiSession
+    )
+  ) {
+    return false;
+  }
   if ((pSet?.showTopbarMultiSession !== false) !== (nSet?.showTopbarMultiSession !== false)) {
     return false;
   }
@@ -865,7 +886,9 @@ export function isEquivalentTelemetry(prev, next) {
   }
   if (
     pAct?.liveActivity?.signature !== nAct?.liveActivity?.signature ||
-    pAct?.liveActivity?.startedAtMs !== nAct?.liveActivity?.startedAtMs
+    pAct?.liveActivity?.startedAtMs !== nAct?.liveActivity?.startedAtMs ||
+    getTaskStepsSignature(pAct?.liveActivity?.taskSteps) !==
+      getTaskStepsSignature(nAct?.liveActivity?.taskSteps)
   ) {
     return false;
   }
@@ -880,7 +903,9 @@ export function isEquivalentTelemetry(prev, next) {
   }
   if (
     pAct?.aggregated?.liveActivity?.signature !== nAct?.aggregated?.liveActivity?.signature ||
-    pAct?.aggregated?.liveActivity?.startedAtMs !== nAct?.aggregated?.liveActivity?.startedAtMs
+    pAct?.aggregated?.liveActivity?.startedAtMs !== nAct?.aggregated?.liveActivity?.startedAtMs ||
+    getTaskStepsSignature(pAct?.aggregated?.liveActivity?.taskSteps) !==
+      getTaskStepsSignature(nAct?.aggregated?.liveActivity?.taskSteps)
   ) {
     return false;
   }
@@ -938,6 +963,8 @@ export function isEquivalentTelemetry(prev, next) {
       pa?.stepCount !== na?.stepCount ||
       pa?.isRunning !== na?.isRunning ||
       pa?.liveActivity?.signature !== na?.liveActivity?.signature ||
+      getTaskStepsSignature(pa?.liveActivity?.taskSteps) !==
+        getTaskStepsSignature(na?.liveActivity?.taskSteps) ||
       pa?.latestTokPerSec !== na?.latestTokPerSec ||
       pa?.latestTtftSec !== na?.latestTtftSec ||
       pa?.lastKnownTtftSec !== na?.lastKnownTtftSec ||
@@ -1334,7 +1361,9 @@ export function isEquivalentTelemetry(prev, next) {
       pr?.runningSubagentCount !== nr?.runningSubagentCount ||
       (pr?.runningSwarmCount || 0) !== (nr?.runningSwarmCount || 0) ||
       pr?.mainActivity?.signature !== nr?.mainActivity?.signature ||
-      pr?.mainActivity?.startedAtMs !== nr?.mainActivity?.startedAtMs
+      pr?.mainActivity?.startedAtMs !== nr?.mainActivity?.startedAtMs ||
+      getTaskStepsSignature(pr?.mainActivity?.taskSteps) !==
+        getTaskStepsSignature(nr?.mainActivity?.taskSteps)
     ) {
       return false;
     }
@@ -1350,7 +1379,9 @@ export function isEquivalentTelemetry(prev, next) {
         pSubs[j]?.isRunning !== nSubs[j]?.isRunning ||
         pSubs[j]?.stepCount !== nSubs[j]?.stepCount ||
         pSubs[j]?.liveActivity?.signature !== nSubs[j]?.liveActivity?.signature ||
-        pSubs[j]?.liveActivity?.startedAtMs !== nSubs[j]?.liveActivity?.startedAtMs
+        pSubs[j]?.liveActivity?.startedAtMs !== nSubs[j]?.liveActivity?.startedAtMs ||
+        getTaskStepsSignature(pSubs[j]?.liveActivity?.taskSteps) !==
+          getTaskStepsSignature(nSubs[j]?.liveActivity?.taskSteps)
       ) {
         return false;
       }
@@ -2053,8 +2084,17 @@ export async function saveSettingsPatch(patch) {
   if (Object.prototype.hasOwnProperty.call(safePatch, 'enableCliStatusLine')) {
     safePatch.enableCliStatusLine = Boolean(safePatch.enableCliStatusLine);
   }
-  if (Object.prototype.hasOwnProperty.call(safePatch, 'showTopbarMultiSession')) {
-    safePatch.showTopbarMultiSession = Boolean(safePatch.showTopbarMultiSession);
+  if (Object.prototype.hasOwnProperty.call(safePatch, 'topbarMultiSessionMode')) {
+    const normMultiMode = normalizeClientTopbarMultiSessionMode(
+      safePatch.topbarMultiSessionMode,
+      safePatch.showTopbarMultiSession
+    );
+    safePatch.topbarMultiSessionMode = normMultiMode;
+    safePatch.showTopbarMultiSession = normMultiMode !== 'hide';
+  } else if (Object.prototype.hasOwnProperty.call(safePatch, 'showTopbarMultiSession')) {
+    const nextShowMulti = Boolean(safePatch.showTopbarMultiSession);
+    safePatch.showTopbarMultiSession = nextShowMulti;
+    safePatch.topbarMultiSessionMode = nextShowMulti ? 'show' : 'hide';
   }
   if (Object.prototype.hasOwnProperty.call(safePatch, 'contextAgentMode')) {
     safePatch.contextAgentMode = normalizeClientContextAgentMode(safePatch.contextAgentMode);

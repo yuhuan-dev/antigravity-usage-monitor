@@ -647,14 +647,14 @@
   animation: wm-popover-in var(--dur-instant) var(--ease-fast);
 }
 
-/* 左侧在线多会话实时看板浮层（单层无套娃细线卡片，宽度与排版密度与侧边栏保持一致） */
+/* 左侧在线多会话实时看板浮层（单层无套娃细线卡片，紧凑宽幅且受控避让右侧栏） */
 .wm-multi-panel {
   position: fixed;
   top: 42px;
   left: 12px;
-  width: min(calc(522px * var(--ui-panel-scale, 1)), calc(100vw - 24px));
+  width: min(calc(376px * var(--ui-panel-scale, 1)), calc(100vw - 24px));
   max-height: calc(100vh - 54px);
-  padding: 12px 14px;
+  padding: 10px 12px;
   display: flex;
   flex-direction: column;
   gap: 0;
@@ -671,6 +671,11 @@
   z-index: 2147483002;
   transform-origin: top left;
   animation: wm-popover-in var(--dur-instant) var(--ease-fast);
+}
+
+.wm-multi-panel.is-empty {
+  width: min(calc(256px * var(--ui-panel-scale, 1)), calc(100vw - 24px));
+  padding: 10px 12px;
 }
 
 .wm-popover-panel.is-above {
@@ -800,6 +805,14 @@
   border-bottom: 1px solid var(--border-hairline);
 }
 
+.wm-multi-header .panel-meta[hidden] {
+  display: none !important;
+}
+
+.wm-multi-panel.is-empty .wm-multi-header {
+  padding-bottom: 6px;
+}
+
 /* 多会话单层面板内去除重复边框与底色，对齐侧边栏任务卡片间距与左侧基线 */
 .wm-multi-panel .live-activity-list {
   gap: 0;
@@ -811,6 +824,27 @@
   border: none;
   border-radius: 0;
   background: transparent;
+}
+
+.wm-multi-panel .live-task-header {
+  gap: var(--space-2);
+}
+
+.wm-multi-panel .live-task-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-left: 18px;
+  min-width: 0;
+}
+
+.wm-multi-panel .live-task-meta-row[hidden] {
+  display: none !important;
+}
+
+.wm-multi-panel .live-sub-role {
+  max-width: 112px;
 }
 
 .wm-multi-panel .live-task-card:first-child {
@@ -829,10 +863,10 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-3);
-  min-height: 36px;
-  padding: 10px 0 2px;
-  font-size: var(--fs-base);
+  gap: var(--space-2);
+  min-height: 26px;
+  padding: 7px 0 1px;
+  font-size: var(--fs-base-sm);
   color: var(--text-secondary);
 }
 
