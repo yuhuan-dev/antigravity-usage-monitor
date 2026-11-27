@@ -712,9 +712,11 @@ test('Compiled app.js mounts dual Shadow DOM hosts, tracks /c/<uuid> routes, pro
     hoverModules: ['metrics', 'context', 'quotas'],
     hoverSyncOverviewMetrics: true,
     hoverMetricStyle: 'medium',
+    hoverMetricHybridRatio: 50,
     hoverMetrics: ['tps', 'ttft', 'avg_tps', 'step_cost'],
     overviewModules: ['metrics', 'context', 'quotas', 'live_tasks'],
     overviewMetricStyle: 'medium',
+    overviewMetricHybridRatio: 50,
     overviewMetrics: ['tps', 'ttft', 'avg_tps', 'step_cost'],
     stepTableColumns: ['step', 'model', 'tps', 'ttft', 'tokens_combo', 'cache', 'cost'],
     showStepTurnRail: false,
@@ -2025,13 +2027,36 @@ test('Compiled app.js mounts dual Shadow DOM hosts, tracks /c/<uuid> routes, pro
     await new Promise((r) => setTimeout(r, 40));
     assert.deepEqual(mockSettings.hoverModules, ['metrics', 'context', 'quotas']);
 
-    // Switch real-time metrics style to Large while synced with Live Overview -> updates overviewMetricStyle & dims 4th metric row
+    // Switch real-time metrics style to Hybrid and Large while synced with Live Overview -> updates overviewMetricStyle & hybrid ratio
     const [hoverStyleGroup, hoverSyncGroup] = sec1.querySelectorAll('.segmented');
     const hoverStyleBtns = hoverStyleGroup.querySelectorAll('.seg-btn');
     const hoverSyncBtns = hoverSyncGroup.querySelectorAll('.seg-btn');
-    assert.equal(hoverStyleBtns.length, 2, 'Hover metric style segmented switch has Medium and Large options');
+    assert.equal(hoverStyleBtns.length, 3, 'Hover metric style segmented switch has Medium, Hybrid, and Large options');
     assert.equal(hoverSyncBtns.length, 2, 'Hover sync toggle has On and Off options');
+
+    // Switch to Hybrid while synced -> updates overviewMetricStyle='hybrid', renders 1 hero + 3 compact cells + draggable splitter, keeps 4th metric undimmed
     hoverStyleBtns[1].dispatchEvent({ type: 'click', stopPropagation() {} });
+    await new Promise((r) => setTimeout(r, 30));
+    assert.equal(mockSettings.hoverSyncOverviewMetrics, true);
+    assert.equal(mockSettings.overviewMetricStyle, 'hybrid');
+    const hoverHybridMatrix = hoverPreviewWidgets.children[0];
+    assert.equal(hoverHybridMatrix.classList.contains('is-hybrid'), true, 'Hover preview switches to hybrid layout');
+    assert.equal(hoverHybridMatrix.getAttribute('data-cols'), '4');
+    assert.equal(hoverHybridMatrix.querySelectorAll('.matrix-cell.is-trend-card.is-hybrid-hero').length, 1);
+    assert.equal(hoverHybridMatrix.querySelectorAll('.matrix-cell').length, 4);
+    const hoverMetricRows = hoverMetricsWrap.querySelectorAll('.editable-slot-row');
+    assert.equal(hoverMetricRows[3].classList.contains('is-dimmed'), false, '4th metric row stays visible in Hybrid mode');
+    const syncedHoverSplitter = hoverHybridMatrix.querySelector('.matrix-hybrid-splitter');
+    assert.ok(syncedHoverSplitter, 'Hybrid hover preview mounts draggable border splitter');
+    hoverHybridMatrix.getBoundingClientRect = () => ({ left: 0, top: 0, right: 400, bottom: 120, width: 400, height: 120 });
+    syncedHoverSplitter.dispatchEvent({ type: 'pointerdown', button: 0, clientX: 200, clientY: 60, preventDefault() {}, stopPropagation() {} });
+    mockDocument.dispatchEvent({ type: 'pointermove', clientX: 248, clientY: 60, preventDefault() {} });
+    mockDocument.dispatchEvent({ type: 'pointerup', clientX: 248, clientY: 60 });
+    await new Promise((r) => setTimeout(r, 30));
+    assert.equal(mockSettings.overviewMetricHybridRatio, 62, 'Dragging synced hover hybrid splitter persists overviewMetricHybridRatio');
+
+    // Switch to Large while synced with Live Overview -> updates overviewMetricStyle & dims 4th metric row
+    hoverStyleBtns[2].dispatchEvent({ type: 'click', stopPropagation() {} });
     await new Promise((r) => setTimeout(r, 30));
     assert.equal(mockSettings.hoverSyncOverviewMetrics, true);
     assert.equal(mockSettings.overviewMetricStyle, 'large');
@@ -2043,15 +2068,28 @@ test('Compiled app.js mounts dual Shadow DOM hosts, tracks /c/<uuid> routes, pro
     assert.equal(hoverPreviewWidgets.children[0].getAttribute('data-cols'), '3');
     assert.equal(hoverPreviewWidgets.children[0].querySelectorAll('.matrix-cell.is-trend-card').length, 3);
     assert.equal(hoverPreviewWidgets.children[0].querySelectorAll('.cell-sparkline-svg').length, 3);
-    const hoverMetricRows = hoverMetricsWrap.querySelectorAll('.editable-slot-row');
     assert.equal(hoverMetricRows.length, 4, 'Unified 1-4 metric list preserves 4th metric row in Large mode');
     assert.equal(hoverMetricRows[3].classList.contains('is-dimmed'), true, '4th metric row dimmed in Large mode');
 
-    // Turn off Sync with Live Overview -> Hover detaches cleanly while Overview stays Large
+    // Turn off Sync with Live Overview -> Hover detaches cleanly while preserving overview style & hybrid ratio
     hoverSyncBtns[1].dispatchEvent({ type: 'click', stopPropagation() {} });
     await new Promise((r) => setTimeout(r, 30));
     assert.equal(mockSettings.hoverSyncOverviewMetrics, false);
     assert.equal(mockSettings.hoverMetricStyle, 'large');
+    assert.equal(mockSettings.hoverMetricHybridRatio, 62, 'Detaching hover carries over current overview hybrid ratio');
+    // Detached Hover switches to Hybrid and drags splitter -> updates hoverMetricHybridRatio only
+    hoverStyleBtns[1].dispatchEvent({ type: 'click', stopPropagation() {} });
+    await new Promise((r) => setTimeout(r, 30));
+    assert.equal(mockSettings.hoverMetricStyle, 'hybrid');
+    const detachedSplitter = hoverPreviewWidgets.children[0].querySelector('.matrix-hybrid-splitter');
+    hoverPreviewWidgets.children[0].getBoundingClientRect = () => ({ left: 0, top: 0, right: 400, bottom: 120, width: 400, height: 120 });
+    detachedSplitter.dispatchEvent({ type: 'pointerdown', button: 0, clientX: 248, clientY: 60, preventDefault() {}, stopPropagation() {} });
+    mockDocument.dispatchEvent({ type: 'pointermove', clientX: 144, clientY: 60, preventDefault() {} });
+    mockDocument.dispatchEvent({ type: 'pointerup', clientX: 144, clientY: 60 });
+    await new Promise((r) => setTimeout(r, 30));
+    assert.equal(mockSettings.hoverMetricHybridRatio, 36, 'Detached hover splitter updates hoverMetricHybridRatio independently');
+    assert.equal(mockSettings.overviewMetricHybridRatio, 62, 'Detached hover splitter does not alter overviewMetricHybridRatio');
+
     hoverStyleBtns[0].dispatchEvent({ type: 'click', stopPropagation() {} });
     await new Promise((r) => setTimeout(r, 30));
     assert.equal(mockSettings.hoverMetricStyle, 'medium');
@@ -2059,11 +2097,12 @@ test('Compiled app.js mounts dual Shadow DOM hosts, tracks /c/<uuid> routes, pro
     assert.equal(hoverPreviewWidgets.children[0].classList.contains('is-large-trend'), false);
     assert.equal(hoverPreviewWidgets.children[0].getAttribute('data-cols'), '4');
     assert.equal(hoverMetricRows[3].classList.contains('is-dimmed'), false, '4th metric row restored when switching back to Medium');
-    // Reset hover pane restores sync=true and hover defaults
+    // Reset hover pane restores sync=true and hover defaults (including hoverMetricHybridRatio=50)
     sec1.querySelector('.btn-ghost-sm').dispatchEvent({ type: 'click', stopPropagation() {} });
     await new Promise((r) => setTimeout(r, 40));
     assert.equal(mockSettings.hoverSyncOverviewMetrics, true);
     assert.equal(mockSettings.hoverMetricStyle, 'medium');
+    assert.equal(mockSettings.hoverMetricHybridRatio, 50);
 
     // Pane 2 (3rd-level tab 'overview'): Live Overview Layout + real overview UI preview
     const sec2 = accordionSections[3];

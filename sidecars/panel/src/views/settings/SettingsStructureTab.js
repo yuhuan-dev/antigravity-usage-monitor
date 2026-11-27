@@ -25,10 +25,12 @@ import {
 import {
   DEFAULT_CLIENT_CONTEXT_AGENT_MODE,
   DEFAULT_CLIENT_HOVER_METRICS,
+  DEFAULT_CLIENT_HOVER_METRIC_HYBRID_RATIO,
   DEFAULT_CLIENT_HOVER_METRIC_STYLE,
   DEFAULT_CLIENT_HOVER_MODULES,
   DEFAULT_CLIENT_HOVER_SYNC_OVERVIEW_METRICS,
   DEFAULT_CLIENT_OVERVIEW_METRICS,
+  DEFAULT_CLIENT_OVERVIEW_METRIC_HYBRID_RATIO,
   DEFAULT_CLIENT_OVERVIEW_METRIC_STYLE,
   DEFAULT_CLIENT_OVERVIEW_MODULES,
   DEFAULT_CLIENT_POPOVER_WIDTH,
@@ -41,10 +43,12 @@ import {
   MIN_CLIENT_POPOVER_WIDTH,
   normalizeClientCliStatusLineSlots,
   normalizeClientContextAgentMode,
+  normalizeClientHoverMetricHybridRatio,
   normalizeClientHoverMetricStyle,
   normalizeClientHoverMetrics,
   normalizeClientHoverModules,
   normalizeClientHoverSyncOverviewMetrics,
+  normalizeClientOverviewMetricHybridRatio,
   normalizeClientOverviewMetricStyle,
   normalizeClientOverviewMetrics,
   normalizeClientOverviewModules,
@@ -113,6 +117,7 @@ function getContextAgentModeOptions() {
 function getHoverMetricStyleOptions() {
   return [
     { value: 'medium', label: t('settings.str.hoverMetricStyleMedium') },
+    { value: 'hybrid', label: t('settings.str.hoverMetricStyleHybrid') },
     { value: 'large', label: t('settings.str.hoverMetricStyleLarge') },
   ];
 }
@@ -267,9 +272,11 @@ export const SettingsStructureTab = defineComponent({
     let draftHoverModules = [...DEFAULT_CLIENT_HOVER_MODULES];
     let draftHoverSyncOverview = DEFAULT_CLIENT_HOVER_SYNC_OVERVIEW_METRICS;
     let draftHoverMetricStyle = DEFAULT_CLIENT_HOVER_METRIC_STYLE;
+    let draftHoverMetricHybridRatio = DEFAULT_CLIENT_HOVER_METRIC_HYBRID_RATIO;
     let draftHoverMetrics = [...DEFAULT_CLIENT_HOVER_METRICS];
     let draftOverviewModules = [...DEFAULT_CLIENT_OVERVIEW_MODULES];
     let draftOverviewMetricStyle = DEFAULT_CLIENT_OVERVIEW_METRIC_STYLE;
+    let draftOverviewMetricHybridRatio = DEFAULT_CLIENT_OVERVIEW_METRIC_HYBRID_RATIO;
     let draftOverviewMetrics = [...DEFAULT_CLIENT_OVERVIEW_METRICS];
     let draftQuotaDisplayMode = DEFAULT_CLIENT_QUOTA_DISPLAY_MODE;
     let draftShowStepTurnRail = false;
@@ -317,9 +324,11 @@ export const SettingsStructureTab = defineComponent({
           hoverModules: draftHoverModules,
           hoverSyncOverviewMetrics: draftHoverSyncOverview,
           hoverMetricStyle: draftHoverMetricStyle,
+          hoverMetricHybridRatio: draftHoverMetricHybridRatio,
           hoverMetrics: draftHoverMetrics,
           overviewModules: draftOverviewModules,
           overviewMetricStyle: draftOverviewMetricStyle,
+          overviewMetricHybridRatio: draftOverviewMetricHybridRatio,
           overviewMetrics: draftOverviewMetrics,
           quotaDisplayMode: draftQuotaDisplayMode,
           showStepTurnRail: draftShowStepTurnRail,
@@ -967,6 +976,31 @@ export const SettingsStructureTab = defineComponent({
       props.onLayoutChange?.();
       void persistStructurePatch(overviewSection, { overviewMetrics: draftOverviewMetrics });
     };
+    const commitHoverHybridRatio = (nextRatio) => {
+      const normalized = normalizeClientHoverMetricHybridRatio(nextRatio);
+      if (draftHoverSyncOverview) {
+        draftOverviewMetricHybridRatio = normalized;
+        syncOverviewSectionMeta();
+        syncHoverSectionMeta();
+        void persistStructurePatch(hoverSection, {
+          overviewMetricHybridRatio: draftOverviewMetricHybridRatio,
+        });
+      } else {
+        draftHoverMetricHybridRatio = normalized;
+        syncHoverSectionMeta();
+        void persistStructurePatch(hoverSection, {
+          hoverMetricHybridRatio: draftHoverMetricHybridRatio,
+        });
+      }
+    };
+    const commitOverviewHybridRatio = (nextRatio) => {
+      draftOverviewMetricHybridRatio = normalizeClientOverviewMetricHybridRatio(nextRatio);
+      syncOverviewSectionMeta();
+      if (draftHoverSyncOverview) syncHoverSectionMeta();
+      void persistStructurePatch(overviewSection, {
+        overviewMetricHybridRatio: draftOverviewMetricHybridRatio,
+      });
+    };
 
     const hoverPreviewHost = createDynamicWidgetHost({
       containerEl: hoverWidgetsContainerEl,
@@ -1002,6 +1036,16 @@ export const SettingsStructureTab = defineComponent({
         syncHoverMetricListProps();
       },
       onReorderMetrics: commitHoverMetricsOrder,
+      onPreviewHybridRatio: (previewRatio) => {
+        const normalized = normalizeClientHoverMetricHybridRatio(previewRatio);
+        if (draftHoverSyncOverview) {
+          draftOverviewMetricHybridRatio = normalized;
+          refreshOverviewPreview();
+        } else {
+          draftHoverMetricHybridRatio = normalized;
+        }
+      },
+      onResizeHybridRatio: commitHoverHybridRatio,
     });
     const hoverPreviewCanvas = h('div', { className: 'structure-preview-canvas' }, [
       hoverPreviewTipEl,
@@ -1074,6 +1118,7 @@ export const SettingsStructureTab = defineComponent({
         if (!nextSync) {
           // Detach smoothly from current Live Overview settings without visual jump
           draftHoverMetricStyle = draftOverviewMetricStyle;
+          draftHoverMetricHybridRatio = draftOverviewMetricHybridRatio;
           draftHoverMetrics = [...draftOverviewMetrics];
           draftHoverSyncOverview = false;
           syncHoverSectionMeta();
@@ -1081,6 +1126,7 @@ export const SettingsStructureTab = defineComponent({
           void persistStructurePatch(hoverSection, {
             hoverSyncOverviewMetrics: false,
             hoverMetricStyle: draftHoverMetricStyle,
+            hoverMetricHybridRatio: draftHoverMetricHybridRatio,
             hoverMetrics: draftHoverMetrics,
           });
         } else {
@@ -1147,6 +1193,7 @@ export const SettingsStructureTab = defineComponent({
         draftHoverModules = [...DEFAULT_CLIENT_HOVER_MODULES];
         draftHoverSyncOverview = DEFAULT_CLIENT_HOVER_SYNC_OVERVIEW_METRICS;
         draftHoverMetricStyle = DEFAULT_CLIENT_HOVER_METRIC_STYLE;
+        draftHoverMetricHybridRatio = DEFAULT_CLIENT_HOVER_METRIC_HYBRID_RATIO;
         draftHoverMetrics = [...DEFAULT_CLIENT_HOVER_METRICS];
         syncHoverSectionMeta();
         props.onLayoutChange?.();
@@ -1156,6 +1203,7 @@ export const SettingsStructureTab = defineComponent({
             hoverModules: [...DEFAULT_CLIENT_HOVER_MODULES],
             hoverSyncOverviewMetrics: DEFAULT_CLIENT_HOVER_SYNC_OVERVIEW_METRICS,
             hoverMetricStyle: DEFAULT_CLIENT_HOVER_METRIC_STYLE,
+            hoverMetricHybridRatio: DEFAULT_CLIENT_HOVER_METRIC_HYBRID_RATIO,
             hoverMetrics: [...DEFAULT_CLIENT_HOVER_METRICS],
           },
           'settings.resetDone'
@@ -1165,7 +1213,7 @@ export const SettingsStructureTab = defineComponent({
         hoverPreviewCanvas,
         h('div', { className: 'settings-divider' }),
         h('div', { className: 'form-row' }, [
-          h('div', { className: 'settings-inline-row' }, [
+          h('div', { className: 'settings-inline-row is-wrap-narrow' }, [
             hoverMetricStyleLabelEl,
             hoverMetricStyleSwitch.el,
           ]),
@@ -1224,6 +1272,7 @@ export const SettingsStructureTab = defineComponent({
         isSameList(draftHoverModules, DEFAULT_CLIENT_HOVER_MODULES) &&
         draftHoverSyncOverview === DEFAULT_CLIENT_HOVER_SYNC_OVERVIEW_METRICS &&
         draftHoverMetricStyle === DEFAULT_CLIENT_HOVER_METRIC_STYLE &&
+        draftHoverMetricHybridRatio === DEFAULT_CLIENT_HOVER_METRIC_HYBRID_RATIO &&
         isSameList(draftHoverMetrics, DEFAULT_CLIENT_HOVER_METRICS);
       hoverSection.refs.setResetDisabled(isDefault);
       refreshHoverPreview();
@@ -1257,6 +1306,13 @@ export const SettingsStructureTab = defineComponent({
         }
       },
       onReorderMetrics: commitOverviewMetricsOrder,
+      onPreviewHybridRatio: (previewRatio) => {
+        draftOverviewMetricHybridRatio = normalizeClientOverviewMetricHybridRatio(previewRatio);
+        if (draftHoverSyncOverview) {
+          refreshHoverPreview();
+        }
+      },
+      onResizeHybridRatio: commitOverviewHybridRatio,
     });
     const overviewPreviewCanvas = h('div', { className: 'structure-preview-canvas' }, [
       overviewPreviewContainerEl,
@@ -1371,6 +1427,7 @@ export const SettingsStructureTab = defineComponent({
       onReset: () => {
         draftOverviewModules = [...DEFAULT_CLIENT_OVERVIEW_MODULES];
         draftOverviewMetricStyle = DEFAULT_CLIENT_OVERVIEW_METRIC_STYLE;
+        draftOverviewMetricHybridRatio = DEFAULT_CLIENT_OVERVIEW_METRIC_HYBRID_RATIO;
         draftOverviewMetrics = [...DEFAULT_CLIENT_OVERVIEW_METRICS];
         draftQuotaDisplayMode = DEFAULT_CLIENT_QUOTA_DISPLAY_MODE;
         syncOverviewSectionMeta();
@@ -1385,6 +1442,7 @@ export const SettingsStructureTab = defineComponent({
           {
             overviewModules: [...DEFAULT_CLIENT_OVERVIEW_MODULES],
             overviewMetricStyle: DEFAULT_CLIENT_OVERVIEW_METRIC_STYLE,
+            overviewMetricHybridRatio: DEFAULT_CLIENT_OVERVIEW_METRIC_HYBRID_RATIO,
             overviewMetrics: [...DEFAULT_CLIENT_OVERVIEW_METRICS],
             quotaDisplayMode: DEFAULT_CLIENT_QUOTA_DISPLAY_MODE,
           },
@@ -1395,7 +1453,7 @@ export const SettingsStructureTab = defineComponent({
         overviewPreviewCanvas,
         h('div', { className: 'settings-divider' }),
         h('div', { className: 'form-row' }, [
-          h('div', { className: 'settings-inline-row' }, [
+          h('div', { className: 'settings-inline-row is-wrap-narrow' }, [
             overviewMetricStyleLabelEl,
             overviewMetricStyleSwitch.el,
           ]),
@@ -1452,6 +1510,7 @@ export const SettingsStructureTab = defineComponent({
       const isDefault =
         isSameList(draftOverviewModules, DEFAULT_CLIENT_OVERVIEW_MODULES) &&
         draftOverviewMetricStyle === DEFAULT_CLIENT_OVERVIEW_METRIC_STYLE &&
+        draftOverviewMetricHybridRatio === DEFAULT_CLIENT_OVERVIEW_METRIC_HYBRID_RATIO &&
         isSameList(draftOverviewMetrics, DEFAULT_CLIENT_OVERVIEW_METRICS) &&
         draftQuotaDisplayMode === DEFAULT_CLIENT_QUOTA_DISPLAY_MODE;
       overviewSection.refs.setResetDisabled(isDefault);
@@ -1842,9 +1901,15 @@ export const SettingsStructureTab = defineComponent({
         settings.hoverSyncOverviewMetrics
       );
       draftHoverMetricStyle = normalizeClientHoverMetricStyle(settings.hoverMetricStyle);
+      draftHoverMetricHybridRatio = normalizeClientHoverMetricHybridRatio(
+        settings.hoverMetricHybridRatio
+      );
       draftHoverMetrics = normalizeClientHoverMetrics(settings.hoverMetrics);
       draftOverviewModules = normalizeClientOverviewModules(settings.overviewModules);
       draftOverviewMetricStyle = normalizeClientOverviewMetricStyle(settings.overviewMetricStyle);
+      draftOverviewMetricHybridRatio = normalizeClientOverviewMetricHybridRatio(
+        settings.overviewMetricHybridRatio
+      );
       draftOverviewMetrics = normalizeClientOverviewMetrics(settings.overviewMetrics);
       draftQuotaDisplayMode = normalizeClientQuotaDisplayMode(settings.quotaDisplayMode);
       draftShowStepTurnRail = settings.showStepTurnRail === true;

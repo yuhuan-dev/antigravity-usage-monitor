@@ -3027,3 +3027,437 @@ test('Direct preview drag-to-reorder works for module stacks, 1D/2D metric grids
   sortableStepTable.refs.renderStepTable(sampleSteps, 'live-steps', ['time', 'model', 'tps'], 'zh-CN');
   assert.equal(sortableStepTable.refs.stepsTableEl.classList.contains('is-col-reorderable'), false);
 });
+
+test('Hybrid metric matrix mode: normalization, 1..4 layouts, border drag-to-resize, double-click/keyboard reset, reorder isolation, and LiveOverview persistence', async (t) => {
+  const {
+    DEFAULT_HOVER_METRIC_HYBRID_RATIO,
+    DEFAULT_METRIC_HYBRID_RATIO,
+    DEFAULT_OVERVIEW_METRIC_HYBRID_RATIO,
+    MAX_METRIC_HYBRID_RATIO,
+    METRIC_CARD_STYLES,
+    MIN_METRIC_HYBRID_RATIO,
+    normalizeHoverMetricHybridRatio,
+    normalizeMetricCardStyle,
+    normalizeMetricHybridRatio,
+    normalizeOverviewMetricHybridRatio,
+    resolveEffectiveMetricMatrixConfig,
+  } = await import('../shared/settings-normalization.mjs');
+  const { createDynamicWidgetHost } = await import('../src/registries/widgetRegistry.js');
+  const { LiveOverviewView } = await import('../src/views/LiveOverviewView.js');
+
+  // 1) Shared normalization & backend schema checks
+  assert.deepEqual([...METRIC_CARD_STYLES], ['medium', 'hybrid', 'large']);
+  assert.equal(MIN_METRIC_HYBRID_RATIO, 28);
+  assert.equal(MAX_METRIC_HYBRID_RATIO, 72);
+  assert.equal(DEFAULT_METRIC_HYBRID_RATIO, 50);
+  assert.equal(DEFAULT_SETTINGS_SCHEMA.overviewMetricHybridRatio, DEFAULT_OVERVIEW_METRIC_HYBRID_RATIO);
+  assert.equal(DEFAULT_SETTINGS_SCHEMA.hoverMetricHybridRatio, DEFAULT_HOVER_METRIC_HYBRID_RATIO);
+
+  assert.equal(normalizeMetricCardStyle('hybrid'), 'hybrid');
+  assert.equal(normalizeMetricCardStyle('MIXED'), 'hybrid');
+  assert.equal(normalizeMetricCardStyle('mix'), 'hybrid');
+  assert.equal(normalizeMetricCardStyle('large'), 'large');
+  assert.equal(normalizeMetricCardStyle('invalid'), 'medium');
+
+  assert.equal(normalizeMetricHybridRatio(undefined), 50);
+  assert.equal(normalizeMetricHybridRatio(null), 50);
+  assert.equal(normalizeMetricHybridRatio(''), 50);
+  assert.equal(normalizeMetricHybridRatio('abc'), 50);
+  assert.equal(normalizeMetricHybridRatio(true), 50);
+  assert.equal(normalizeMetricHybridRatio(0), 28);
+  assert.equal(normalizeMetricHybridRatio(-10), 28);
+  assert.equal(normalizeMetricHybridRatio(15), 28);
+  assert.equal(normalizeMetricHybridRatio(90), 72);
+  assert.equal(normalizeOverviewMetricHybridRatio(43.6), 44);
+  assert.equal(normalizeHoverMetricHybridRatio('61'), 61);
+
+  const normalizedFull = normalizeFullSettings({
+    overviewMetricStyle: 'hybrid',
+    overviewMetricHybridRatio: 88,
+    hoverMetricStyle: 'mixed',
+    hoverMetricHybridRatio: 12,
+  });
+  assert.equal(normalizedFull.overviewMetricStyle, 'hybrid');
+  assert.equal(normalizedFull.overviewMetricHybridRatio, 72);
+  assert.equal(normalizedFull.hoverMetricStyle, 'hybrid');
+  assert.equal(normalizedFull.hoverMetricHybridRatio, 28);
+
+  const syncedHoverCfg = resolveEffectiveMetricMatrixConfig('hover', {
+    hoverSyncOverviewMetrics: true,
+    overviewMetricStyle: 'hybrid',
+    overviewMetricHybridRatio: 64,
+    overviewMetrics: ['tps', 'ttft', 'avg_tps', 'step_cost'],
+    hoverMetricStyle: 'medium',
+    hoverMetricHybridRatio: 35,
+    hoverMetrics: ['ttft', 'tps'],
+  });
+  assert.equal(syncedHoverCfg.style, 'hybrid');
+  assert.equal(syncedHoverCfg.isHybrid, true);
+  assert.equal(syncedHoverCfg.isLarge, false);
+  assert.equal(syncedHoverCfg.hybridRatio, 64);
+  assert.deepEqual(syncedHoverCfg.metrics, ['tps', 'ttft', 'avg_tps', 'step_cost']);
+
+  const detachedHoverCfg = resolveEffectiveMetricMatrixConfig('hover', {
+    hoverSyncOverviewMetrics: false,
+    overviewMetricStyle: 'large',
+    overviewMetricHybridRatio: 64,
+    overviewMetrics: ['tps', 'ttft', 'avg_tps', 'step_cost'],
+    hoverMetricStyle: 'hybrid',
+    hoverMetricHybridRatio: 37,
+    hoverMetrics: ['cache_hit', 'ttft', 'avg_tps', 'step_cost'],
+  });
+  assert.equal(detachedHoverCfg.style, 'hybrid');
+  assert.equal(detachedHoverCfg.isHybrid, true);
+  assert.equal(detachedHoverCfg.isLarge, false);
+  assert.equal(detachedHoverCfg.hybridRatio, 37);
+  assert.deepEqual(detachedHoverCfg.metrics, ['cache_hit', 'ttft', 'avg_tps', 'step_cost']);
+
+  assert.equal(
+    isEquivalentTelemetry(
+      { settings: { overviewMetricStyle: 'hybrid', overviewMetricHybridRatio: 50 } },
+      { settings: { overviewMetricStyle: 'hybrid', overviewMetricHybridRatio: 60 } }
+    ),
+    false,
+    'isEquivalentTelemetry detects overviewMetricHybridRatio change'
+  );
+  assert.equal(
+    isEquivalentTelemetry(
+      { settings: { hoverMetricStyle: 'hybrid', hoverMetricHybridRatio: 50 } },
+      { settings: { hoverMetricStyle: 'hybrid', hoverMetricHybridRatio: 40 } }
+    ),
+    false,
+    'isEquivalentTelemetry detects hoverMetricHybridRatio change'
+  );
+
+  // 2) Setup Mock DOM + ResizeObserver + mock sidecar fetch for widget & LiveOverviewView tests
+  const prevDoc = globalThis.document;
+  const prevWin = globalThis.window;
+  const prevRaf = globalThis.requestAnimationFrame;
+  const prevCancelRaf = globalThis.cancelAnimationFrame;
+  const prevRO = globalThis.ResizeObserver;
+  const prevLocale = i18nStore.getState().locale;
+  const prevTelState = { ...telemetryStore.getState() };
+  const prevUiState = { ...uiStore.getState() };
+
+  const { document } = createMockDom();
+  const winListeners = new Map();
+  const savedPatches = [];
+  const roInstances = [];
+  globalThis.ResizeObserver = class MockHybridResizeObserver {
+    constructor(cb) {
+      this.cb = cb;
+      this.observed = new Set();
+      roInstances.push(this);
+    }
+    observe(el) {
+      this.observed.add(el);
+    }
+    unobserve(el) {
+      this.observed.delete(el);
+    }
+    disconnect() {
+      this.observed.clear();
+    }
+    emit(entries) {
+      this.cb(entries);
+    }
+  };
+  globalThis.document = document;
+  globalThis.window = {
+    innerWidth: 1280,
+    innerHeight: 800,
+    location: { pathname: '/' },
+    getComputedStyle: () => ({ columnGap: '0px', gap: '0px' }),
+    addEventListener(type, fn) {
+      if (!winListeners.has(type)) winListeners.set(type, new Set());
+      winListeners.get(type).add(fn);
+    },
+    removeEventListener(type, fn) {
+      winListeners.get(type)?.delete(fn);
+    },
+    sidecar: {
+      fetch: async (_url, opts) => {
+        if (opts?.method === 'POST' && opts?.body) {
+          const parsed = JSON.parse(opts.body);
+          savedPatches.push(parsed);
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({
+              ok: true,
+              settings: { ...(telemetryStore.getState().telemetry?.settings || {}), ...parsed },
+            }),
+          };
+        }
+        return { ok: true, status: 200, json: async () => ({ ok: true }) };
+      },
+    },
+  };
+  globalThis.requestAnimationFrame = (cb) => setTimeout(cb, 0);
+  globalThis.cancelAnimationFrame = (id) => clearTimeout(id);
+
+  let host = null;
+  let readonlyHybrid = null;
+  let liveView = null;
+  t.after(() => {
+    host?.destroy?.();
+    readonlyHybrid?.destroy?.();
+    liveView?.destroy?.();
+    setI18nLanguage(prevLocale);
+    telemetryStore.setState(prevTelState, { sync: true });
+    uiStore.setState(prevUiState, { sync: true });
+    globalThis.document = prevDoc;
+    globalThis.window = prevWin;
+    globalThis.requestAnimationFrame = prevRaf;
+    globalThis.cancelAnimationFrame = prevCancelRaf;
+    globalThis.ResizeObserver = prevRO;
+  });
+
+  setI18nLanguage('zh-CN');
+
+  // Non-interactive hover overlay matrix applies hybrid vars cleanly without mounting a splitter
+  readonlyHybrid = MetricMatrixWidget({ mode: 'hover' });
+  readonlyHybrid.refs.update({
+    data: buildStructurePreviewTelemetry(
+      {},
+      {
+        hoverSyncOverviewMetrics: false,
+        hoverMetricStyle: 'hybrid',
+        hoverMetricHybridRatio: 58,
+        hoverMetrics: ['tps', 'ttft', 'avg_tps', 'step_cost'],
+      }
+    ),
+  });
+  assert.equal(readonlyHybrid.el.classList.contains('is-hybrid'), true);
+  assert.equal(readonlyHybrid.el.style.getPropertyValue('--hybrid-left-fr'), '58fr');
+  assert.equal(readonlyHybrid.el.style.getPropertyValue('--hybrid-right-half-fr'), '21fr');
+  assert.equal(readonlyHybrid.el.querySelector('.matrix-hybrid-splitter'), null);
+  assert.equal(readonlyHybrid.el.children.length, 4);
+
+  // Interactive host with module reorder + metric reorder + hybrid splitter resize
+  const modCommits = [];
+  const metCommits = [];
+  const ratioPreviews = [];
+  const ratioCommits = [];
+  const containerEl = document.createElement('div');
+  document.body.appendChild(containerEl);
+  host = createDynamicWidgetHost({
+    containerEl,
+    mode: 'overview',
+    preview: true,
+    onReorderModules: (k) => modCommits.push(k),
+    onReorderMetrics: (k) => metCommits.push(k),
+    onPreviewHybridRatio: (r) => ratioPreviews.push(r),
+    onResizeHybridRatio: (r) => ratioCommits.push(r),
+  });
+
+  const makeHybridData = (metrics, ratio = 50) =>
+    buildStructurePreviewTelemetry(
+      {},
+      {
+        overviewModules: ['metrics', 'context', 'quotas'],
+        overviewMetricStyle: 'hybrid',
+        overviewMetricHybridRatio: ratio,
+        overviewMetrics: metrics,
+      }
+    );
+
+  // 1-metric hybrid: 1 hero trend card, NO splitter
+  host.update({ moduleKeys: ['metrics', 'context', 'quotas'], data: makeHybridData(['tps'], 55) });
+  const matrixEl = host.getInstance('metrics').el;
+  assert.equal(matrixEl.classList.contains('is-hybrid'), true);
+  assert.equal(matrixEl.classList.contains('is-large-trend'), false);
+  assert.equal(matrixEl.getAttribute('data-cols'), '1');
+  assert.equal(matrixEl.querySelectorAll('.matrix-cell').length, 1);
+  assert.equal(matrixEl.querySelectorAll('.matrix-cell.is-trend-card.is-hybrid-hero').length, 1);
+  assert.equal(matrixEl.querySelector('.matrix-hybrid-splitter'), null);
+
+  // 2-metric hybrid: 1 hero + 1 compact + splitter (--hybrid-col-gaps = 1)
+  host.update({ moduleKeys: ['metrics', 'context', 'quotas'], data: makeHybridData(['tps', 'ttft'], 55) });
+  assert.equal(matrixEl.getAttribute('data-cols'), '2');
+  assert.equal(matrixEl.style.getPropertyValue('--hybrid-col-gaps'), '1');
+  assert.equal(matrixEl.querySelectorAll('.matrix-cell.is-trend-card.is-hybrid-hero').length, 1);
+  assert.equal(
+    matrixEl.querySelectorAll('.matrix-cell').filter((el) => !el.classList.contains('is-trend-card')).length,
+    1
+  );
+  assert.ok(matrixEl.querySelector('.matrix-hybrid-splitter'));
+
+  // 3-metric hybrid: 1 hero + 2 compact + splitter (--hybrid-col-gaps = 1)
+  host.update({
+    moduleKeys: ['metrics', 'context', 'quotas'],
+    data: makeHybridData(['tps', 'ttft', 'avg_tps'], 48),
+  });
+  assert.equal(matrixEl.getAttribute('data-cols'), '3');
+  assert.equal(matrixEl.style.getPropertyValue('--hybrid-col-gaps'), '1');
+  assert.equal(matrixEl.querySelectorAll('.matrix-cell.is-trend-card.is-hybrid-hero').length, 1);
+  assert.equal(
+    matrixEl.querySelectorAll('.matrix-cell').filter((el) => !el.classList.contains('is-trend-card')).length,
+    2
+  );
+
+  // 4-metric hybrid: 1 hero + 3 compact + splitter (--hybrid-col-gaps = 2)
+  host.update({
+    moduleKeys: ['metrics', 'context', 'quotas'],
+    data: makeHybridData(['tps', 'ttft', 'avg_tps', 'step_cost'], 50),
+  });
+  assert.equal(matrixEl.getAttribute('data-cols'), '4');
+  assert.equal(matrixEl.style.getPropertyValue('--hybrid-col-gaps'), '2');
+  assert.equal(matrixEl.style.getPropertyValue('--hybrid-left-fr'), '50fr');
+  assert.equal(matrixEl.style.getPropertyValue('--hybrid-right-fr'), '50fr');
+  assert.equal(matrixEl.style.getPropertyValue('--hybrid-right-half-fr'), '25fr');
+  assert.equal(matrixEl.style.getPropertyValue('--hybrid-split-pct'), '50%');
+  const cells4 = matrixEl.querySelectorAll('.matrix-cell');
+  assert.equal(cells4.length, 4);
+  assert.equal(cells4[0].classList.contains('is-trend-card'), true);
+  assert.equal(cells4[0].classList.contains('is-hybrid-hero'), true);
+  assert.equal(cells4[1].classList.contains('is-trend-card'), false);
+  assert.equal(cells4[2].classList.contains('is-trend-card'), false);
+  assert.equal(cells4[3].classList.contains('is-trend-card'), false);
+
+  const splitterEl = matrixEl.querySelector('.matrix-hybrid-splitter');
+  assert.ok(splitterEl);
+  assert.equal(splitterEl.getAttribute('role'), 'separator');
+  assert.equal(splitterEl.getAttribute('aria-orientation'), 'vertical');
+  assert.equal(splitterEl.getAttribute('aria-valuenow'), '50');
+  assert.equal(matrixEl.lastChild, splitterEl, 'Splitter stays trailing after metric cells');
+
+  // 3) Splitter pointer drag updates ratio live, clamps [28..72], blocks cell/module drag, and commits once on pointerup
+  matrixEl.getBoundingClientRect = () => ({ left: 100, top: 0, right: 500, bottom: 130, width: 400, height: 130 });
+  let stopPropCalled = false;
+  let preventDefaultCalled = false;
+  splitterEl.dispatchEvent({
+    type: 'pointerdown',
+    button: 0,
+    clientX: 300,
+    clientY: 60,
+    stopPropagation() {
+      stopPropCalled = true;
+    },
+    preventDefault() {
+      preventDefaultCalled = true;
+    },
+  });
+  assert.equal(stopPropCalled, true, 'Splitter pointerdown stops propagation to parent drag handlers');
+  assert.equal(preventDefaultCalled, true, 'Splitter pointerdown prevents text selection');
+
+  // Drag right to 65% (left=100 + 260 = 360)
+  document.dispatchEvent({ type: 'pointermove', clientX: 360, clientY: 60, preventDefault() {} });
+  assert.equal(matrixEl.classList.contains('is-resizing-hybrid'), true);
+  assert.equal(matrixEl.classList.contains('is-dragging-matrix'), false, 'Splitter drag must not start cell reorder');
+  assert.equal(containerEl.classList.contains('is-dragging-modules'), false, 'Splitter drag must not start module drag');
+  assert.equal(matrixEl.style.getPropertyValue('--hybrid-left-fr'), '65fr');
+  assert.equal(matrixEl.style.getPropertyValue('--hybrid-right-fr'), '35fr');
+  assert.equal(matrixEl.style.getPropertyValue('--hybrid-right-half-fr'), '17.5fr');
+  assert.equal(matrixEl.style.getPropertyValue('--hybrid-split-pct'), '65%');
+  assert.equal(splitterEl.getAttribute('aria-valuenow'), '65');
+  assert.equal(ratioPreviews.at(-1), 65);
+  assert.equal(ratioCommits.length, 0, 'Must not commit before pointerup');
+
+  // Drag past max -> clamps cleanly at 72%
+  document.dispatchEvent({ type: 'pointermove', clientX: 490, clientY: 60, preventDefault() {} });
+  assert.equal(matrixEl.style.getPropertyValue('--hybrid-split-pct'), '72%');
+
+  // Drag back to 62% and release
+  document.dispatchEvent({ type: 'pointermove', clientX: 348, clientY: 60, preventDefault() {} });
+  document.dispatchEvent({ type: 'pointerup', clientX: 348, clientY: 60 });
+  assert.equal(matrixEl.classList.contains('is-resizing-hybrid'), false);
+  assert.deepEqual(ratioCommits, [62]);
+
+  // Escape mid-drag reverts smoothly without committing
+  splitterEl.dispatchEvent({ type: 'pointerdown', button: 0, clientX: 348, clientY: 60, stopPropagation() {}, preventDefault() {} });
+  document.dispatchEvent({ type: 'pointermove', clientX: 160, clientY: 60, preventDefault() {} });
+  assert.equal(matrixEl.style.getPropertyValue('--hybrid-split-pct'), '28%');
+  document.dispatchEvent({ type: 'keydown', key: 'Escape' });
+  assert.equal(matrixEl.classList.contains('is-resizing-hybrid'), false);
+  assert.equal(matrixEl.style.getPropertyValue('--hybrid-split-pct'), '62%', 'Escape reverts to pre-drag ratio');
+  assert.deepEqual(ratioCommits, [62], 'Cancelled drag does not commit');
+
+  // ResizeObserver updates hero sparkline step density cleanly when ratio widens hero card
+  const heroWrap = cells4[0].querySelector('.cell-sparkline-wrap');
+  const hostRO = roInstances.find((ro) => ro.observed.has(heroWrap));
+  assert.ok(hostRO, 'Hybrid hero sparkline wrap is observed by ResizeObserver');
+  hostRO.emit([{ target: heroWrap, contentRect: { width: 210 } }]);
+  await new Promise((r) => setTimeout(r, 20));
+  assert.equal(cells4[0].querySelector('.cell-sparkline-svg').getAttribute('viewBox'), '0 0 210 34');
+  assert.equal(
+    cells4[0].querySelector('.cell-sparkline-line').getAttribute('points').split(' ').length,
+    resolveAdaptiveSparklineSpec(210, 2).maxPoints
+  );
+
+  // Double-click resets ratio to 50%
+  splitterEl.dispatchEvent({ type: 'dblclick', stopPropagation() {}, preventDefault() {} });
+  assert.equal(matrixEl.style.getPropertyValue('--hybrid-split-pct'), '50%');
+  assert.deepEqual(ratioCommits, [62, 50]);
+
+  // Keyboard navigation on separator adjusts and clamps cleanly
+  splitterEl.dispatchEvent({ type: 'keydown', key: 'ArrowRight', shiftKey: true, stopPropagation() {}, preventDefault() {} });
+  assert.equal(matrixEl.style.getPropertyValue('--hybrid-split-pct'), '55%');
+  splitterEl.dispatchEvent({ type: 'keydown', key: 'Home', stopPropagation() {}, preventDefault() {} });
+  assert.equal(matrixEl.style.getPropertyValue('--hybrid-split-pct'), '28%');
+  splitterEl.dispatchEvent({ type: 'keydown', key: 'End', stopPropagation() {}, preventDefault() {} });
+  assert.equal(matrixEl.style.getPropertyValue('--hybrid-split-pct'), '72%');
+  splitterEl.dispatchEvent({ type: 'keydown', key: 'Enter', stopPropagation() {}, preventDefault() {} });
+  assert.equal(matrixEl.style.getPropertyValue('--hybrid-split-pct'), '50%');
+  assert.deepEqual(ratioCommits, [62, 50, 55, 28, 72, 50]);
+
+  // 4) Metric reorder in hybrid mode still works seamlessly alongside splitter & promotes new index 0 to hero trend card
+  const hybridRects = [
+    { left: 0, right: 200, top: 0, bottom: 120, width: 200, height: 120 },
+    { left: 206, right: 300, top: 0, bottom: 57, width: 94, height: 57 },
+    { left: 306, right: 400, top: 0, bottom: 57, width: 94, height: 57 },
+    { left: 206, right: 400, top: 63, bottom: 120, width: 194, height: 57 },
+  ];
+  const currentCells = matrixEl.querySelectorAll('.matrix-cell');
+  for (let i = 0; i < 4; i += 1) {
+    currentCells[i].getBoundingClientRect = () => hybridRects[i];
+  }
+  currentCells[1].dispatchEvent({
+    type: 'pointerdown',
+    button: 0,
+    clientX: 250,
+    clientY: 28,
+    preventDefault() {},
+    stopPropagation() {},
+  });
+  document.dispatchEvent({ type: 'pointermove', clientX: 80, clientY: 60, preventDefault() {} });
+  assert.equal(matrixEl.classList.contains('is-dragging-matrix'), true);
+  document.dispatchEvent({ type: 'pointerup', clientX: 80, clientY: 60 });
+  assert.deepEqual(metCommits[0], ['ttft', 'tps', 'avg_tps', 'step_cost']);
+  const reorderedCells = matrixEl.querySelectorAll('.matrix-cell');
+  assert.equal(reorderedCells[0].getAttribute('data-metric-key'), 'ttft');
+  assert.equal(reorderedCells[0].classList.contains('is-hybrid-hero'), true);
+  assert.equal(reorderedCells[1].getAttribute('data-metric-key'), 'tps');
+  assert.equal(reorderedCells[1].classList.contains('is-hybrid-hero'), false);
+  assert.equal(matrixEl.lastChild, splitterEl, 'Splitter remains after reordered metric cells');
+  assert.equal(modCommits.length, 0);
+
+  // 5) LiveOverviewView wires splitter drag to saveSettingsPatch({ overviewMetricHybridRatio })
+  uiStore.setState({ activeView: 'overview' }, { sync: true });
+  liveView = LiveOverviewView({});
+  document.body.appendChild(liveView.el);
+  telemetryStore.setState(
+    { telemetry: makeHybridData(['tps', 'ttft', 'avg_tps', 'step_cost'], 50) },
+    { sync: true }
+  );
+  const liveMatrixEl = liveView.el.querySelector('.telemetry-matrix.is-hybrid');
+  assert.ok(liveMatrixEl, 'LiveOverviewView renders hybrid matrix');
+  const liveSplitter = liveMatrixEl.querySelector('.matrix-hybrid-splitter');
+  assert.ok(liveSplitter, 'LiveOverviewView mounts draggable hybrid splitter');
+  liveMatrixEl.getBoundingClientRect = () => ({ left: 0, top: 0, right: 400, bottom: 120, width: 400, height: 120 });
+  liveSplitter.dispatchEvent({ type: 'pointerdown', button: 0, clientX: 200, clientY: 60, preventDefault() {}, stopPropagation() {} });
+  document.dispatchEvent({ type: 'pointermove', clientX: 232, clientY: 60, preventDefault() {} });
+  document.dispatchEvent({ type: 'pointerup', clientX: 232, clientY: 60 });
+  await new Promise((r) => setTimeout(r, 20));
+  assert.equal(savedPatches.length, 1);
+  assert.deepEqual(savedPatches[0], { overviewMetricHybridRatio: 58 });
+
+  // 6) Built styles.css contains hybrid grid layout, splitter styling, and narrow-width media guard
+  const builtStyles = fs.readFileSync(new URL('../styles.css', import.meta.url), 'utf8');
+  assert.match(builtStyles, /\.telemetry-matrix\.is-hybrid\[data-cols="4"\]/);
+  assert.match(builtStyles, /\.matrix-hybrid-splitter\s*\{/);
+  assert.match(
+    builtStyles,
+    /\.telemetry-matrix:not\(\.is-hybrid\):not\(\[data-cols="1"\]\):not\(\[data-cols="2"\]\)/
+  );
+});

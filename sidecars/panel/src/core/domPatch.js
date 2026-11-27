@@ -653,7 +653,7 @@ export function findScrollableAncestor(el) {
 }
 
 const INTERACTIVE_DRAG_TAGS = new Set(['BUTTON', 'INPUT', 'SELECT', 'TEXTAREA', 'A', 'LABEL']);
-const INTERACTIVE_DRAG_ROLES = new Set(['button', 'combobox', 'listbox', 'option', 'switch', 'tab']);
+const INTERACTIVE_DRAG_ROLES = new Set(['button', 'combobox', 'listbox', 'option', 'separator', 'switch', 'tab']);
 
 export function isInteractiveDragTarget(target, boundaryEl = null) {
   let cur = target;
