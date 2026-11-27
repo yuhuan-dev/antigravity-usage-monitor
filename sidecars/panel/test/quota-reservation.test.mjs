@@ -2874,7 +2874,11 @@ test('quota-reservation: suppresses post-refund idle replica ping-pong and self-
     true,
     'genuine shared pool with 17% unexplained burn retains externalUsage detection'
   );
-  assert.equal(pShared.get('Gemini').rateEstimate?.externalUsage?.usedWeeklyPct, 0.6);
+  assert.equal(
+    pShared.get('Gemini').rateEstimate?.externalUsage?.usedWeeklyPct,
+    17.0,
+    'calibrated shared pool reconciles stale 0.6% externalUsedPct up to the full 17.0% unexplained residual'
+  );
 });
 
 test('quota-reservation: prevents solo hypersensitivity (high-usage self-heal, scan lag, idle jitter, pricing variance, delayed rollback, incomplete scan)', () => {
@@ -3636,4 +3640,369 @@ test('quota-reservation: multi-user baseline/reset init, tentative lease expiry 
   });
   assert.equal(pResetExt.get('Gemini').externalUsedPct, 8.5, 'cycle reset with 0 local calls initializes externalUsedPct');
   assert.equal(pResetExt.get('Gemini').reservedPct, 0);
+});
+
+test('quota-reservation: closed-loop cycle residual reconciles stale undercount, peer 5h gap, and shields solo uncalibrated 3x models', () => {
+  // 1. Real-world $600 weekly pool ($170.39 local Neon + minor uncalibrated Hydrogen/Carbon, 98.48% official, 0.91% lease, stale 28% external):
+  // must heal weeklyExternalUsedPct from 28.0% -> 69.2% (so self = 28.4%), and peer-corroborate 5h 0.9% external without lighting shared-active
+  const persistedReal = {
+    version: 2,
+    savedAt: new Date(T0).toISOString(),
+    buckets: {
+      'local::real-shared@example.com::Gemini::5h': {
+        resetTimeMs: RESET_5H,
+        lastQuotaTs: T0,
+        lastOfficialUsedPct: 3.633,
+        lastCycleCostUsd: 2.3938,
+        lastCycleCalls: 55,
+        lastUnpricedCalls: 0,
+        lastModelCostsUsd: { 'Gemini 4 Neon': 2.3938 },
+        ratePctPerUsd: 0.66664,
+        rateSamples: 62,
+        rateWindow: [0.6666, 0.6667, 0.6666, 0.6667, 0.6666],
+        modelRates: {
+          'Gemini 4 Neon': {
+            ratePctPerUsd: 0.66664,
+            rateSamples: 18,
+            rateWindow: [0.6666, 0.6667, 0.6666],
+            lastSeenMs: T0,
+          },
+        },
+        activeLeases: [
+          {
+            amountPct: 1.16,
+            remainingPct: 1.16,
+            createdAtMs: T0 - 60_000,
+            lastTouchedMs: T0 - 10_000,
+            sessionCount: 1,
+            confirmed: true,
+            tentative: false,
+          },
+        ],
+        hasExternalUsage: false,
+        externalUsedPct: 0,
+        externalEvents: 0,
+        lastExternalUsageAtMs: 0,
+      },
+      'local::real-shared@example.com::Gemini::weekly': {
+        resetTimeMs: RESET_WK,
+        lastQuotaTs: T0,
+        lastOfficialUsedPct: 98.484,
+        lastCycleCostUsd: 170.393,
+        lastCycleCalls: 1648,
+        lastUnpricedCalls: 0,
+        lastModelCostsUsd: {
+          'Gemini 4 Neon': 162.7202,
+          'Gemini 4 Hydrogen': 7.3474,
+          'Gemini 4 Carbon': 0.3255,
+        },
+        ratePctPerUsd: 0.16666,
+        rateSamples: 95,
+        rateWindow: [0.1667, 0.1666, 0.1667, 0.1666, 0.1667],
+        modelRates: {
+          'Gemini 4 Neon': {
+            ratePctPerUsd: 0.16666,
+            rateSamples: 58,
+            rateWindow: [0.1667, 0.1666, 0.1667],
+            lastSeenMs: T0,
+          },
+        },
+        activeLeases: [
+          {
+            amountPct: 0.985,
+            remainingPct: 0.9105,
+            createdAtMs: T0 - 60_000,
+            lastTouchedMs: T0 - 10_000,
+            sessionCount: 1,
+            confirmed: true,
+            tentative: false,
+          },
+        ],
+        hasExternalUsage: true,
+        externalUsedPct: 28.0,
+        externalEvents: 30,
+        lastExternalUsageAtMs: T0 - 4 * 3600 * 1000,
+      },
+    },
+    events: [],
+  };
+  let savedPayload = null;
+  const realTracker = createQuotaReservationTracker({
+    loadState: () => persistedReal,
+    saveState: (p) => {
+      savedPayload = JSON.parse(JSON.stringify(p));
+    },
+  });
+  const realPools = new Map([
+    [
+      'Gemini',
+      {
+        poolKey: 'Gemini',
+        poolLabel: 'Gemini',
+        family: 'Gemini',
+        has5h: true,
+        hasWeekly: true,
+        remainingFraction: 1 - 0.03633,
+        usedPct: 3.6,
+        resetTime: new Date(RESET_5H).toISOString(),
+        weeklyRemainingFraction: 1 - 0.98484,
+        weeklyUsedPct: 98.5,
+        weeklyResetTime: new Date(RESET_WK).toISOString(),
+      },
+    ],
+  ]);
+  const realStats = new Map([
+    [
+      'Gemini',
+      {
+        cycle5h: { costUsd: 2.3938, calls: 55, unpricedCalls: 0 },
+        cycleWeekly: { costUsd: 170.393, calls: 1648, unpricedCalls: 0 },
+        exactCost5hUsd: 2.3938,
+        exactCostWeeklyUsd: 170.393,
+        modelCosts5h: { 'Gemini 4 Neon': 2.3938 },
+        modelCostsWeekly: {
+          'Gemini 4 Neon': 162.7202,
+          'Gemini 4 Hydrogen': 7.3474,
+          'Gemini 4 Carbon': 0.3255,
+        },
+        recent10m: { lastActivityMs: T0, activeSessionCount: 1, costUsd: 1.0 },
+      },
+    ],
+  ]);
+  realTracker.updatePools({
+    endpointId: 'local',
+    accountScope: 'real-shared@example.com',
+    quotaPoolsMap: realPools,
+    poolCycleStats: realStats,
+    runningPoolKeys: new Set(['Gemini']),
+    quotaFetchedAtMs: T0,
+    nowMs: T0 + 15_000,
+  });
+  const gReal = realPools.get('Gemini');
+  assert.equal(gReal.weeklyReservedPct, 0.9);
+  assert.equal(
+    gReal.weeklyExternalUsedPct,
+    69.2,
+    'weekly externalUsedPct heals from stale 28.0% to 69.2% (matching 98.48% - 0.91% lease - 28.40% local)'
+  );
+  assert.equal(
+    gReal.externalUsedPct,
+    0.9,
+    '5h bucket peer-corroborated against shared weekly recovers 0.9% external residual'
+  );
+  assert.equal(
+    gReal.rateEstimate?.externalUsage?.activeRecently,
+    false,
+    'closed-loop residual reconciliation does not falsely trigger 15m shared-active badge'
+  );
+  assert.ok(savedPayload, 'healed externalUsedPct persisted to state');
+
+  // 2. Zero upward ratchet: in-flight local turn before .pb flush temporarily raises unexplained, then relaxes back when cost arrives
+  const tLag = T0 + 30_000;
+  const pInFlight = new Map([
+    [
+      'Gemini',
+      {
+        ...realPools.get('Gemini'),
+        weeklyRemainingFraction: 1 - 0.98684, // +0.20% before $1.20 local flush
+        weeklyUsedPct: 98.7,
+      },
+    ],
+  ]);
+  realTracker.updatePools({
+    endpointId: 'local',
+    accountScope: 'real-shared@example.com',
+    quotaPoolsMap: pInFlight,
+    poolCycleStats: realStats,
+    runningPoolKeys: new Set(['Gemini']),
+    quotaFetchedAtMs: tLag,
+    nowMs: tLag,
+  });
+  const tFlush = tLag + 10_000;
+  const statsFlushed = new Map([
+    [
+      'Gemini',
+      {
+        ...realStats.get('Gemini'),
+        cycleWeekly: { costUsd: 171.593, calls: 1649, unpricedCalls: 0 },
+        exactCostWeeklyUsd: 171.593,
+        modelCostsWeekly: {
+          'Gemini 4 Neon': 163.9202,
+          'Gemini 4 Hydrogen': 7.3474,
+          'Gemini 4 Carbon': 0.3255,
+        },
+      },
+    ],
+  ]);
+  const pFlushed = new Map([
+    [
+      'Gemini',
+      {
+        ...pInFlight.get('Gemini'),
+      },
+    ],
+  ]);
+  realTracker.updatePools({
+    endpointId: 'local',
+    accountScope: 'real-shared@example.com',
+    quotaPoolsMap: pFlushed,
+    poolCycleStats: statsFlushed,
+    runningPoolKeys: new Set(['Gemini']),
+    quotaFetchedAtMs: tFlush,
+    nowMs: tFlush,
+  });
+  assert.equal(
+    pFlushed.get('Gemini').weeklyExternalUsedPct,
+    69.2,
+    'externalUsedPct relaxes back to 69.2% once local $1.20 step flushes (zero upward ratchet)'
+  );
+
+  // 3. Solo multi-model shield: $100 calibrated Neon (1x) + $50 uncalibrated Carbon (3x) -> 41.67% official must NOT false-trigger external usage
+  const soloMultiTracker = createQuotaReservationTracker({
+    loadState: () => ({
+      version: 2,
+      savedAt: new Date(T0).toISOString(),
+      buckets: {
+        'local::solo-carbon@example.com::Gemini::weekly': {
+          resetTimeMs: RESET_WK,
+          lastQuotaTs: T0,
+          lastOfficialUsedPct: 41.67,
+          lastCycleCostUsd: 150.0,
+          lastCycleCalls: 300,
+          lastUnpricedCalls: 0,
+          lastModelCostsUsd: { 'Gemini 4 Neon': 100.0, 'Gemini 4 Carbon': 50.0 },
+          ratePctPerUsd: 0.16667,
+          rateSamples: 20,
+          rateWindow: [0.1667, 0.1667, 0.1667, 0.1667, 0.1667],
+          modelRates: {
+            'Gemini 4 Neon': {
+              ratePctPerUsd: 0.16667,
+              rateSamples: 20,
+              rateWindow: [0.1667, 0.1667, 0.1667],
+              lastSeenMs: T0,
+            },
+          },
+          activeLeases: [],
+          hasExternalUsage: false,
+          externalUsedPct: 0,
+          externalEvents: 0,
+          lastExternalUsageAtMs: 0,
+        },
+      },
+      events: [],
+    }),
+  });
+  const pSoloMulti = new Map([
+    [
+      'Gemini',
+      {
+        poolKey: 'Gemini',
+        poolLabel: 'Gemini',
+        family: 'Gemini',
+        has5h: false,
+        hasWeekly: true,
+        weeklyRemainingFraction: 1 - 0.4167,
+        weeklyUsedPct: 41.7,
+        weeklyResetTime: new Date(RESET_WK).toISOString(),
+      },
+    ],
+  ]);
+  soloMultiTracker.updatePools({
+    endpointId: 'local',
+    accountScope: 'solo-carbon@example.com',
+    quotaPoolsMap: pSoloMulti,
+    poolCycleStats: new Map([
+      [
+        'Gemini',
+        {
+          cycleWeekly: { costUsd: 150.0, calls: 300, unpricedCalls: 0 },
+          exactCostWeeklyUsd: 150.0,
+          modelCostsWeekly: { 'Gemini 4 Neon': 100.0, 'Gemini 4 Carbon': 50.0 },
+        },
+      ],
+    ]),
+    quotaFetchedAtMs: T0,
+    nowMs: T0 + 20_000,
+  });
+  assert.equal(
+    pSoloMulti.get('Gemini').weeklyExternalUsedPct,
+    0,
+    'solo pool with 33% uncalibrated 3x Carbon spend must NOT falsely attribute to external usage'
+  );
+  assert.equal(pSoloMulti.get('Gemini').rateEstimate?.externalUsage ?? null, null);
+
+  // 4. Standalone promotion on calibrated bucket after huge offline external burn (67% official, $100 calibrated Neon -> 50.3% external)
+  const offlineTracker = createQuotaReservationTracker({
+    loadState: () => ({
+      version: 2,
+      savedAt: new Date(T0).toISOString(),
+      buckets: {
+        'local::offline-shared@example.com::Gemini::weekly': {
+          resetTimeMs: RESET_WK,
+          lastQuotaTs: T0,
+          lastOfficialUsedPct: 67.0,
+          lastCycleCostUsd: 100.0,
+          lastCycleCalls: 500,
+          lastUnpricedCalls: 0,
+          lastModelCostsUsd: { 'Gemini 4 Neon': 100.0 },
+          ratePctPerUsd: 0.16667,
+          rateSamples: 15,
+          rateWindow: [0.1667, 0.1667, 0.1667, 0.1667, 0.1667],
+          modelRates: {
+            'Gemini 4 Neon': {
+              ratePctPerUsd: 0.16667,
+              rateSamples: 15,
+              rateWindow: [0.1667, 0.1667, 0.1667],
+              lastSeenMs: T0,
+            },
+          },
+          activeLeases: [],
+          hasExternalUsage: false,
+          externalUsedPct: 0,
+          externalEvents: 0,
+          lastExternalUsageAtMs: 0,
+        },
+      },
+      events: [],
+    }),
+  });
+  const pOffline = new Map([
+    [
+      'Gemini',
+      {
+        poolKey: 'Gemini',
+        poolLabel: 'Gemini',
+        family: 'Gemini',
+        has5h: false,
+        hasWeekly: true,
+        weeklyRemainingFraction: 1 - 0.67,
+        weeklyUsedPct: 67.0,
+        weeklyResetTime: new Date(RESET_WK).toISOString(),
+      },
+    ],
+  ]);
+  offlineTracker.updatePools({
+    endpointId: 'local',
+    accountScope: 'offline-shared@example.com',
+    quotaPoolsMap: pOffline,
+    poolCycleStats: new Map([
+      [
+        'Gemini',
+        {
+          cycleWeekly: { costUsd: 100.0, calls: 500, unpricedCalls: 0 },
+          exactCostWeeklyUsd: 100.0,
+          modelCostsWeekly: { 'Gemini 4 Neon': 100.0 },
+        },
+      ],
+    ]),
+    quotaFetchedAtMs: T0,
+    nowMs: T0 + 20_000,
+  });
+  assert.equal(
+    pOffline.get('Gemini').weeklyExternalUsedPct,
+    50.3,
+    'calibrated bucket with 50.3% unexplained residual promotes cleanly to external usage'
+  );
+  assert.equal(pOffline.get('Gemini').rateEstimate?.externalUsage?.detected, true);
+  assert.equal(pOffline.get('Gemini').rateEstimate?.externalUsage?.activeRecently, false);
 });

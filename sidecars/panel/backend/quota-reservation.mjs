@@ -52,6 +52,11 @@ export const QR_EXTERNAL_BASELINE_MAX_LOCAL_COST_USD = 0.05;
 export const QR_EXTERNAL_LOCAL_COVER_RATIO = 0.02;
 export const QR_EXTERNAL_SOLO_DRIFT_RATIO = 0.12;
 export const QR_EXTERNAL_SOLO_DRIFT_FLOOR_PCT = 0.25;
+export const QR_EXTERNAL_RESIDUAL_MIN_SAMPLES = 5;
+export const QR_EXTERNAL_PEER_RESIDUAL_MIN_PCT = 0.5;
+export const QR_EXTERNAL_MODEL_UNCERT_MULT = 2.0;
+export const QR_EXTERNAL_HIGH_COVERAGE_MAX_UNCAL_SHARE = 0.15;
+export const QR_EXTERNAL_RECONCILE_DEADBAND_PCT = 0.02;
 export const QR_LEASE_REJECT_SURPLUS_RATIO = 0.06;
 export const QR_EXTERNAL_SCAN_LAG_RECONCILE_MS = 2 * 60 * 1000;
 export const QR_CO_MOVE_MIN_5H_EXCESS_PCT = 0.35;
@@ -1095,8 +1100,67 @@ function qrReconcileExpiredTentativeLeases(
   return attrPct;
 }
 
-function qrReconcileExternalUsageBound(st, safeUsed, safeCost, safeModelCosts, nowMs) {
-  if (!st || (!st.hasExternalUsage && !(Number(st.externalUsedPct) > 0))) return false;
+function qrComputeModelUncertainty(st, safeCost, safeModelCosts) {
+  const fallbackRate = st?.ratePctPerUsd;
+  if (!st || !Number.isFinite(fallbackRate) || fallbackRate <= 0 || safeCost <= 0) {
+    return { uncalibratedCostShare: 0, modelUncertPct: 0 };
+  }
+  const modelCosts = safeModelCosts && typeof safeModelCosts === 'object' ? safeModelCosts : null;
+  if (!modelCosts) {
+    return { uncalibratedCostShare: 0, modelUncertPct: 0 };
+  }
+  const entries = Object.entries(modelCosts);
+  if (entries.length === 0) {
+    return { uncalibratedCostShare: 0, modelUncertPct: 0 };
+  }
+  const modelRates = st.modelRates && typeof st.modelRates === 'object' ? st.modelRates : {};
+  let attributedCost = 0;
+  let uncalibratedCost = 0;
+  let calibratedModelCount = 0;
+  for (const [mKey, costVal] of entries) {
+    const c = Number(costVal) || 0;
+    if (c <= 0) continue;
+    attributedCost += c;
+    const mr = modelRates[mKey];
+    if (mr && mr.rateSamples >= 2 && Number.isFinite(mr.ratePctPerUsd) && mr.ratePctPerUsd > 0) {
+      calibratedModelCount += 1;
+    } else {
+      uncalibratedCost += c;
+    }
+  }
+  if (attributedCost <= 0) {
+    return { uncalibratedCostShare: 0, modelUncertPct: 0 };
+  }
+  if (calibratedModelCount === 0 && entries.length === 1) {
+    return { uncalibratedCostShare: 0, modelUncertPct: 0 };
+  }
+  const missingCost = Math.max(0, safeCost - attributedCost);
+  const totalUncalibratedCost = uncalibratedCost + missingCost;
+  const uncalibratedCostShare = qrClamp(
+    totalUncalibratedCost / Math.max(safeCost, attributedCost),
+    0,
+    1
+  );
+  const modelUncertPct = totalUncalibratedCost * fallbackRate * QR_EXTERNAL_MODEL_UNCERT_MULT;
+  return { uncalibratedCostShare, modelUncertPct };
+}
+
+function qrReconcileExternalUsageBound(
+  st,
+  safeUsed,
+  safeCost,
+  safeModelCosts,
+  nowMs,
+  {
+    localScanIncomplete = false,
+    hasRunningLocalSession = false,
+    suppressIdleExternal = false,
+    peerHasExternalUsage = false,
+  } = {}
+) {
+  if (!st) return false;
+  const curExtPct = Number(st.externalUsedPct) || 0;
+  const hasExistingExternal = Boolean(st.hasExternalUsage || curExtPct > 0);
   const cycleInfo = qrComputeCycleUnexplained(
     st,
     safeUsed,
@@ -1104,63 +1168,133 @@ function qrReconcileExternalUsageBound(st, safeUsed, safeCost, safeModelCosts, n
     safeModelCosts,
     st.lastUnpricedCalls || 0
   );
-  // 本周期累计外部消耗物理上不可能超过（官方累计已用 - 活跃租约 - 已校准本机下界）
-  const maxExternalBound = cycleInfo.isCalibrated
-    ? Math.max(
-        0,
-        safeUsed -
-          cycleInfo.leaseSum -
-          cycleInfo.localExpectedPct * (1 - QR_EXTERNAL_SOLO_DRIFT_RATIO)
-      )
-    : Math.max(0, safeUsed - cycleInfo.leaseSum);
+
+  if (!hasExistingExternal && !cycleInfo.isCalibrated) {
+    return false;
+  }
+
   let mutated = false;
-  const curExtPct = Number(st.externalUsedPct) || 0;
-  if (curExtPct > maxExternalBound + 1e-3) {
-    const clamped = maxExternalBound < QR_MIN_DISPLAY_RESERVED_PCT ? 0 : maxExternalBound;
-    if (Math.abs(curExtPct - clamped) > 1e-3) {
-      st.externalUsedPct = clamped;
-      mutated = true;
+  const maxResidualCap = Math.max(0, safeUsed - cycleInfo.leaseSum);
+
+  if (hasExistingExternal) {
+    // 本周期累计外部消耗物理上不可能超过（官方累计已用 - 活跃租约 - 已校准本机下界）
+    const maxExternalBound = cycleInfo.isCalibrated
+      ? Math.max(
+          0,
+          safeUsed -
+            cycleInfo.leaseSum -
+            cycleInfo.localExpectedPct * (1 - QR_EXTERNAL_SOLO_DRIFT_RATIO)
+        )
+      : maxResidualCap;
+    if (curExtPct > maxExternalBound + 1e-3) {
+      const clamped = maxExternalBound < QR_MIN_DISPLAY_RESERVED_PCT ? 0 : maxExternalBound;
+      if (Math.abs(curExtPct - clamped) > 1e-3) {
+        st.externalUsedPct = clamped;
+        mutated = true;
+      }
+    }
+    const recentExt =
+      (Number(st.lastExternalUsageAtMs) || 0) > 0 &&
+      nowMs >= st.lastExternalUsageAtMs &&
+      nowMs - st.lastExternalUsageAtMs <= QR_EXTERNAL_ACTIVE_WINDOW_MS;
+    const fullyExplainedByLocal =
+      cycleInfo.isCalibrated &&
+      safeCost > 0 &&
+      safeUsed >= 0.05 &&
+      cycleInfo.unexplainedPct < QR_MIN_DISPLAY_RESERVED_PCT;
+    const explainedWithinSoloDrift =
+      cycleInfo.isCalibrated &&
+      safeCost > 0 &&
+      safeUsed >= 0.05 &&
+      !recentExt &&
+      cycleInfo.unexplainedPct <= cycleInfo.soloTolerance;
+    const pollutedUncalibratedColdStart =
+      !cycleInfo.isCalibrated &&
+      st.ratePctPerUsd === null &&
+      (st.lastUnpricedCalls || 0) === 0 &&
+      !recentExt &&
+      safeCost >= 1.0 &&
+      safeUsed >= 1.0 &&
+      (Number(st.externalEvents) || 0) <= 1 &&
+      (Number(st.externalUsedPct) || 0) > 0 &&
+      (Number(st.externalUsedPct) || 0) <= safeUsed * 0.1;
+    if (fullyExplainedByLocal || explainedWithinSoloDrift || pollutedUncalibratedColdStart) {
+      if (
+        st.hasExternalUsage ||
+        (Number(st.externalUsedPct) || 0) > 0 ||
+        (Number(st.externalEvents) || 0) > 0 ||
+        (Number(st.lastExternalUsageAtMs) || 0) > 0
+      ) {
+        st.hasExternalUsage = false;
+        st.externalUsedPct = 0;
+        st.externalEvents = 0;
+        st.lastExternalUsageAtMs = 0;
+        mutated = true;
+      }
+      return mutated;
     }
   }
-  const recentExt =
-    (Number(st.lastExternalUsageAtMs) || 0) > 0 &&
-    nowMs >= st.lastExternalUsageAtMs &&
-    nowMs - st.lastExternalUsageAtMs <= QR_EXTERNAL_ACTIVE_WINDOW_MS;
-  const fullyExplainedByLocal =
+
+  // 已校准周期总账闭环对齐：修复升级前存量、离线/切号期间、活跃期小步并发外部消耗及租约过期导致的非自用漏算
+  if (
     cycleInfo.isCalibrated &&
-    safeCost > 0 &&
-    safeUsed >= 0.05 &&
-    cycleInfo.unexplainedPct < QR_MIN_DISPLAY_RESERVED_PCT;
-  const explainedWithinSoloDrift =
-    cycleInfo.isCalibrated &&
-    safeCost > 0 &&
-    safeUsed >= 0.05 &&
-    !recentExt &&
-    cycleInfo.unexplainedPct <= cycleInfo.soloTolerance;
-  const pollutedUncalibratedColdStart =
-    !cycleInfo.isCalibrated &&
-    st.ratePctPerUsd === null &&
-    (st.lastUnpricedCalls || 0) === 0 &&
-    !recentExt &&
-    safeCost >= 1.0 &&
-    safeUsed >= 1.0 &&
-    (Number(st.externalEvents) || 0) <= 1 &&
-    (Number(st.externalUsedPct) || 0) > 0 &&
-    (Number(st.externalUsedPct) || 0) <= safeUsed * 0.1;
-  if (fullyExplainedByLocal || explainedWithinSoloDrift || pollutedUncalibratedColdStart) {
-    if (
-      st.hasExternalUsage ||
-      (Number(st.externalUsedPct) || 0) > 0 ||
-      (Number(st.externalEvents) || 0) > 0 ||
-      (Number(st.lastExternalUsageAtMs) || 0) > 0
-    ) {
-      st.hasExternalUsage = false;
-      st.externalUsedPct = 0;
-      st.externalEvents = 0;
-      st.lastExternalUsageAtMs = 0;
-      mutated = true;
+    !localScanIncomplete &&
+    !suppressIdleExternal &&
+    st.pendingDrop === null &&
+    maxResidualCap >= QR_MIN_DISPLAY_RESERVED_PCT
+  ) {
+    const { uncalibratedCostShare, modelUncertPct } = qrComputeModelUncertainty(
+      st,
+      safeCost,
+      safeModelCosts
+    );
+    const upwardGuardTol = cycleInfo.soloTolerance + modelUncertPct;
+    const highCoverage = uncalibratedCostShare <= QR_EXTERNAL_HIGH_COVERAGE_MAX_UNCAL_SHARE;
+
+    if (st.hasExternalUsage) {
+      if (cycleInfo.unexplainedPct > upwardGuardTol) {
+        const currentAfterClamp = Number(st.externalUsedPct) || 0;
+        const targetExtPct = highCoverage
+          ? qrClamp(cycleInfo.unexplainedPct, 0, maxResidualCap)
+          : qrClamp(
+              Math.max(currentAfterClamp, cycleInfo.unexplainedPct - modelUncertPct),
+              0,
+              maxResidualCap
+            );
+        if (Math.abs(currentAfterClamp - targetExtPct) >= QR_EXTERNAL_RECONCILE_DEADBAND_PCT) {
+          st.externalUsedPct =
+            targetExtPct < QR_MIN_DISPLAY_RESERVED_PCT ? 0 : targetExtPct;
+          mutated = true;
+        }
+      }
+    } else {
+      const peerCorroborated =
+        peerHasExternalUsage &&
+        cycleInfo.unexplainedPct >= Math.max(QR_EXTERNAL_PEER_RESIDUAL_MIN_PCT, upwardGuardTol);
+      const standaloneConfirmed =
+        !peerHasExternalUsage &&
+        (Number(st.rateSamples) || 0) >= QR_EXTERNAL_RESIDUAL_MIN_SAMPLES &&
+        (!hasRunningLocalSession ||
+          cycleInfo.unexplainedPct >= Math.max(5.0, upwardGuardTol * 1.5)) &&
+        cycleInfo.unexplainedPct >=
+          Math.max(QR_EXTERNAL_BASELINE_USED_PCT, upwardGuardTol * 1.25);
+      if (peerCorroborated || standaloneConfirmed) {
+        const targetExtPct = qrClamp(
+          highCoverage
+            ? cycleInfo.unexplainedPct
+            : Math.max(0, cycleInfo.unexplainedPct - modelUncertPct),
+          0,
+          maxResidualCap
+        );
+        if (targetExtPct >= QR_MIN_DISPLAY_RESERVED_PCT) {
+          st.hasExternalUsage = true;
+          st.externalUsedPct = targetExtPct;
+          mutated = true;
+        }
+      }
     }
   }
+
   return mutated;
 }
 
@@ -1449,6 +1583,7 @@ export function createQuotaReservationTracker({ loadState = null, saveState = nu
     suppressIdleExternal = false,
     forceExternalJump = false,
     peerLastExternalUsageAtMs = 0,
+    peerHasExternalUsage = false,
     nowMs = Date.now(),
   }) {
     if (officialUsedPct === null || !Number.isFinite(officialUsedPct)) {
@@ -1557,7 +1692,12 @@ export function createQuotaReservationTracker({ loadState = null, saveState = nu
       st.externalEvents = 0;
       st.lastExternalUsageAtMs = 0;
       st.idleUnexplainedAccumPct = 0;
-      qrReconcileExternalUsageBound(st, safeUsed, safeCost, safeModelCosts, nowMs);
+      qrReconcileExternalUsageBound(st, safeUsed, safeCost, safeModelCosts, nowMs, {
+        localScanIncomplete,
+        hasRunningLocalSession,
+        suppressIdleExternal,
+        peerHasExternalUsage,
+      });
       qrRefreshBucketDensities(st, safeCost, safePricedTokens, safeModelCosts, safeModelTokens);
       qrUpdateSlopeSamples(
         st,
@@ -1660,7 +1800,13 @@ export function createQuotaReservationTracker({ loadState = null, saveState = nu
         safeUsed,
         st.lastCycleCostUsd,
         st.lastModelCostsUsd,
-        nowMs
+        nowMs,
+        {
+          localScanIncomplete,
+          hasRunningLocalSession,
+          suppressIdleExternal,
+          peerHasExternalUsage,
+        }
       );
       const out = qrFormatOutput(st, safeUsed);
       if (cachePrune.prunedCount > 0) {
@@ -1673,6 +1819,13 @@ export function createQuotaReservationTracker({ loadState = null, saveState = nu
         );
         recordLog(cacheTentativeExtPct > 0 ? 'external_usage' : 'expire', out);
       } else if (extReconciled) {
+        qrResetSlopeAnchor(
+          st,
+          qrComputeNetLocalUsedPct(st, safeUsed),
+          st.lastCycleCostUsd,
+          st.lastCycleCalls,
+          st.lastUnpricedCalls
+        );
         persistIfNeeded('external_usage', nowMs);
       } else if (prevDensity === null && st.usdPerMTok !== null) {
         persistIfNeeded('normal', nowMs);
@@ -2281,7 +2434,13 @@ export function createQuotaReservationTracker({ loadState = null, saveState = nu
       safeUsed,
       safeCost,
       safeModelCosts,
-      nowMs
+      nowMs,
+      {
+        localScanIncomplete,
+        hasRunningLocalSession,
+        suppressIdleExternal,
+        peerHasExternalUsage,
+      }
     );
     const netLocalUsed = qrComputeNetLocalUsedPct(st, safeUsed);
     if (prunedExpiredLeases) {
@@ -2444,6 +2603,7 @@ export function createQuotaReservationTracker({ loadState = null, saveState = nu
                 suppressIdleExternal: isFiveHOnlyServerLease,
                 forceExternalJump: isProportionalExternal,
                 peerLastExternalUsageAtMs: peerExtTs5h,
+                peerHasExternalUsage: Boolean(prevWkSt?.hasExternalUsage),
                 nowMs,
               })
             : {
@@ -2453,9 +2613,10 @@ export function createQuotaReservationTracker({ loadState = null, saveState = nu
                 externalUsedPct: 0,
               };
 
+        const updated5hSt = used5hExact !== null ? buckets.get(key5h) || null : null;
         const updated5hExtTs = Math.max(
           peerExtTsWk,
-          Number(buckets.get(key5h)?.lastExternalUsageAtMs) || 0
+          Number(updated5hSt?.lastExternalUsageAtMs) || 0
         );
 
         const resWk =
@@ -2480,6 +2641,7 @@ export function createQuotaReservationTracker({ loadState = null, saveState = nu
                 localScanIncomplete,
                 forceExternalJump: isProportionalExternal,
                 peerLastExternalUsageAtMs: updated5hExtTs,
+                peerHasExternalUsage: Boolean(updated5hSt?.hasExternalUsage),
                 nowMs,
               })
             : {
@@ -2514,7 +2676,13 @@ export function createQuotaReservationTracker({ loadState = null, saveState = nu
             used5hExact,
             st5hNow.lastCycleCostUsd,
             st5hNow.lastModelCostsUsd,
-            nowMs
+            nowMs,
+            {
+              localScanIncomplete,
+              hasRunningLocalSession,
+              suppressIdleExternal: isFiveHOnlyServerLease,
+              peerHasExternalUsage: Boolean(stWkNow?.hasExternalUsage),
+            }
           );
           res5h = qrFormatOutput(st5hNow, used5hExact);
           persistIfNeeded('external_usage', nowMs);
