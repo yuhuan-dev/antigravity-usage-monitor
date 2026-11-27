@@ -700,6 +700,12 @@
   border-color: var(--accent-primary-border);
 }
 
+.slot-size-pill[data-badge-tone="third"] {
+  color: var(--metric-ok);
+  background: var(--metric-ok-soft);
+  border-color: color-mix(in srgb, var(--metric-ok) 38%, var(--border-hairline));
+}
+
 .slot-size-pill[data-badge-tone="narrow"] {
   color: var(--metric-info);
   background: var(--metric-info-soft);

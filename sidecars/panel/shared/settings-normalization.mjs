@@ -137,12 +137,12 @@ export const DEFAULT_OVERVIEW_METRIC_STYLE = 'medium';
 export const DEFAULT_HOVER_METRIC_STYLE = 'medium';
 export const DEFAULT_HOVER_SYNC_OVERVIEW_METRICS = true;
 export const MAX_LARGE_METRIC_SLOTS = 3;
-export const METRIC_GRID_COLS = 4;
+export const METRIC_GRID_COLS = 12;
 export const METRIC_GRID_ROWS = Object.freeze([1, 2]);
 export const DEFAULT_METRIC_ROWS = 1;
 export const DEFAULT_OVERVIEW_METRIC_ROWS = DEFAULT_METRIC_ROWS;
 export const DEFAULT_HOVER_METRIC_ROWS = DEFAULT_METRIC_ROWS;
-export const METRIC_CARD_SIZES = Object.freeze(['sm', 'wide', 'narrow', 'tall']);
+export const METRIC_CARD_SIZES = Object.freeze(['sm', 'third', 'wide', 'narrow', 'tall']);
 export const DEFAULT_OVERVIEW_METRIC_SIZES = Object.freeze({});
 export const DEFAULT_HOVER_METRIC_SIZES = Object.freeze({});
 export const METRIC_TEXT_MODES = Object.freeze(['both', 'title', 'sub', 'none']);
@@ -621,10 +621,15 @@ export const normalizeOverviewMetricRows = normalizeMetricGridRows;
 export const normalizeHoverMetricRows = normalizeMetricGridRows;
 
 /**
- * 归一化单张实时指标卡片的 Bento 网格尺寸（`'sm'` 1×1、`'wide'` 2×1、`'tall'` 2×2）。
+ * 归一化单张实时指标卡片的 12 列 Bento 网格尺寸：
+ * - `'sm'`（小 1×1，占 3/12 列）
+ * - `'third'`（中 1/3 宽，占 4/12 列，每行 3 张）
+ * - `'wide'`（宽 2×1，占 6/12 列，每行 2 张）
+ * - `'narrow'`（竖 1×2，占 3/12 列 × 2 层）
+ * - `'tall'`（大 2×2，占 6/12 列 × 2 层）
  *
  * @param {unknown} raw
- * @returns {'sm'|'wide'|'tall'}
+ * @returns {'sm'|'third'|'wide'|'narrow'|'tall'}
  */
 export function normalizeMetricCardSize(raw) {
   const val = String(raw ?? '').trim().toLowerCase();
@@ -634,8 +639,20 @@ export function normalizeMetricCardSize(raw) {
   if (val === 'narrow' || val === 'col' || val === 'slim' || val === 'vertical' || val === '1x2') {
     return 'narrow';
   }
-  if (val === 'wide' || val === 'md' || val === '2x1' || val === 'trend') {
+  if (val === 'wide' || val === '2x1' || val === 'trend' || val === 'half') {
     return 'wide';
+  }
+  if (
+    val === 'third' ||
+    val === 'md' ||
+    val === 'medium_trend' ||
+    val === '1/3' ||
+    val === '3up' ||
+    val === '1.33x1' ||
+    val === '1.333x1' ||
+    val === 'tri'
+  ) {
+    return 'third';
   }
   return 'sm';
 }
@@ -646,7 +663,7 @@ export function normalizeMetricCardSize(raw) {
  * @param {unknown} raw
  * @param {string[]} [metricsList]
  * @param {unknown} [legacyStyle]
- * @returns {Record<string, 'wide'|'narrow'|'tall'>}
+ * @returns {Record<string, 'third'|'wide'|'narrow'|'tall'>}
  */
 export function normalizeMetricCardSizes(raw, metricsList = null, legacyStyle = undefined) {
   if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
@@ -670,7 +687,7 @@ export function normalizeMetricCardSizes(raw, metricsList = null, legacyStyle = 
     if (style === 'large') {
       const out = {};
       for (const key of list) {
-        if (OVERVIEW_METRIC_KEYS.includes(key)) out[key] = 'wide';
+        if (OVERVIEW_METRIC_KEYS.includes(key)) out[key] = 'third';
       }
       return out;
     }
@@ -735,17 +752,44 @@ export function deriveMetricCardStyleFromLayout(rows, metrics, sizesMap) {
     });
     if (effSizes.every((s) => s === 'sm')) return 'medium';
     const checkLen = Math.min(MAX_LARGE_METRIC_SLOTS, effSizes.length);
-    if (effSizes.slice(0, checkLen).every((s) => s === 'wide')) return 'large';
+    if (effSizes.slice(0, checkLen).every((s) => s === 'third' || s === 'wide')) return 'large';
   }
   return 'hybrid';
 }
 
+function getMetricCardColSpan(effSize) {
+  if (effSize === 'wide' || effSize === 'tall') return 6;
+  if (effSize === 'third') return 4;
+  return 3;
+}
+
+function pushMetricGhostRunsForRow(occRow, rowNumber, out) {
+  let c = 0;
+  while (c < METRIC_GRID_COLS) {
+    if (occRow[c]) {
+      c += 1;
+      continue;
+    }
+    const start = c;
+    while (c < METRIC_GRID_COLS && !occRow[c]) c += 1;
+    let pos = start;
+    let rem = c - start;
+    const step = rem === 4 || rem === 8 ? 4 : 3;
+    while (rem > 0) {
+      const span = rem >= step ? step : rem;
+      out.push({ colStart: pos + 1, colSpan: span, rowStart: rowNumber });
+      pos += span;
+      rem -= span;
+    }
+  }
+}
+
 /**
- * 将实时指标列表与单卡尺寸打包进 4 列 × (1 或 2) 层固定高度的 Bento 网格：
- * - 每张卡片严格按真实有效尺寸占格（`sm` 1×1 / `wide` 2×1 / `narrow` 1×2 / `tall` 2×2），绝不偷偷将 1×1 变形伪装成 2×1；
+ * 将实时指标列表与单卡尺寸打包进 12 列 × (1 或 2) 层固定高度的 Bento 网格：
+ * - 每张卡片严格按真实有效尺寸占格（`sm` 3/12、`third` 4/12、`wide` 6/12、`narrow` 3/12×2、`tall` 6/12×2），绝不偷偷变形；
  * - 1 层模式下 `tall` (2×2) 视觉降级为 `wide` (2×1)、`narrow` (1×2) 降级为 `sm` (1×1)，同时完整保留原始偏好；
- * - 2 层模式下若前置单行卡占满第 1 行导致后续跨双层卡片（1×2 / 2×2）放不下，自动将前置卡片紧凑折入左侧列区腾出右侧整列；
- * - 编辑态 (`includeGhostCells: true`) 在所有未占用格位诚实渲染虚线引导空槽。
+ * - 2 层模式下支持上 3 张 `third` + 下 4 张 `sm`、两层 6 张 `third` 等自由组合；若前置单行卡占满第 1 行导致后续跨双层卡片（1×2 / 2×2）放不下，自动将前置卡片紧凑折入左侧列区腾出右侧整列；
+ * - 编辑态 (`includeGhostCells: true`) 在未占用连续列段按 1/3 或 1/4 宽度合并渲染诚实虚线引导空槽。
  *
  * @param {{
  *   rows?: 1|2|number,
@@ -772,38 +816,6 @@ export function packMetricBentoLayout({
     return rawSize;
   };
 
-  // 兼容 1 层 1~3 张全宽趋势卡均匀并排布局（如从旧版 large 升级或前 1~3 项均为宽趋势卡）
-  const uniformWideCount = Math.min(MAX_LARGE_METRIC_SLOTS, list.length);
-  if (
-    safeRows === 1 &&
-    uniformWideCount > 0 &&
-    list.slice(0, uniformWideCount).every((key) => resolveEffSize(key) === 'wide')
-  ) {
-    const placements = list.slice(0, uniformWideCount).map((key, idx) => ({
-      key,
-      index: idx,
-      rawSize: normalizeMetricCardSize(sizesMap[key]),
-      size: 'wide',
-      isTrend: true,
-      isWide: true,
-      isNarrow: false,
-      isTall: false,
-      colStart: idx + 1,
-      colSpan: 1,
-      rowStart: 1,
-      rowSpan: 1,
-    }));
-    return {
-      rows: 1,
-      effectiveRows: 1,
-      gridCols: uniformWideCount,
-      isThreeUpTrend: true,
-      placements,
-      overflowKeys: list.slice(uniformWideCount),
-      ghostCells: [],
-    };
-  }
-
   const occ = Array.from({ length: safeRows }, () => Array(METRIC_GRID_COLS).fill(false));
   const placements = [];
   const overflowKeys = [];
@@ -811,7 +823,7 @@ export function packMetricBentoLayout({
   function tryRepackForTwoRowCard(existingPlacements, newWidth) {
     if (safeRows !== 2) return null;
     const leftLimit = METRIC_GRID_COLS - newWidth;
-    if (leftLimit < 1) return null;
+    if (leftLimit < 3) return null;
     const leftOcc = [Array(leftLimit).fill(false), Array(leftLimit).fill(false)];
     const coords = new Array(existingPlacements.length);
 
@@ -891,7 +903,7 @@ export function packMetricBentoLayout({
     const key = list[i];
     const rawSize = normalizeMetricCardSize(sizesMap[key]);
     const effSize = resolveEffSize(key);
-    const w = effSize === 'wide' || effSize === 'tall' ? 2 : 1;
+    const w = getMetricCardColSpan(effSize);
     const h = effSize === 'narrow' || effSize === 'tall' ? 2 : 1;
     let placed = false;
 
@@ -918,6 +930,7 @@ export function packMetricBentoLayout({
             rawSize,
             size: effSize,
             isTrend: effSize !== 'sm',
+            isThird: effSize === 'third',
             isWide: effSize === 'wide',
             isNarrow: effSize === 'narrow',
             isTall: effSize === 'tall',
@@ -956,6 +969,7 @@ export function packMetricBentoLayout({
           rawSize,
           size: effSize,
           isTrend: true,
+          isThird: false,
           isWide: false,
           isNarrow: effSize === 'narrow',
           isTall: effSize === 'tall',
@@ -975,25 +989,34 @@ export function packMetricBentoLayout({
 
   if (safeRows === 1) {
     const usedCols = placements.reduce((acc, item) => acc + item.colSpan, 0);
+    const isUniformThirdRow = placements.length > 0 && placements.every((p) => p.size === 'third');
+    const showRow1Ghosts = includeGhostCells && overflowKeys.length > 0 && usedCols < METRIC_GRID_COLS;
+    const ghostCells = [];
+    if (showRow1Ghosts) {
+      pushMetricGhostRunsForRow(occ[0], 1, ghostCells);
+    }
     return {
       rows: 1,
       effectiveRows: 1,
-      gridCols: Math.max(1, Math.min(METRIC_GRID_COLS, usedCols)),
-      isThreeUpTrend: false,
+      gridCols: showRow1Ghosts ? METRIC_GRID_COLS : Math.max(1, Math.min(METRIC_GRID_COLS, usedCols)),
+      displayCols: Math.max(1, Math.min(4, placements.length)),
+      isThreeUpTrend: isUniformThirdRow,
       placements,
       overflowKeys,
-      ghostCells: [],
+      ghostCells,
     };
   }
 
   const row2HasAny = occ[1].some(Boolean);
   if (!row2HasAny && !includeGhostCells) {
     const usedCols = placements.reduce((acc, item) => acc + item.colSpan, 0);
+    const isUniformThirdRow = placements.length > 0 && placements.every((p) => p.size === 'third');
     return {
       rows: 2,
       effectiveRows: 1,
       gridCols: Math.max(1, Math.min(METRIC_GRID_COLS, usedCols)),
-      isThreeUpTrend: false,
+      displayCols: Math.max(1, Math.min(4, placements.length)),
+      isThreeUpTrend: isUniformThirdRow,
       placements,
       overflowKeys,
       ghostCells: [],
@@ -1002,19 +1025,16 @@ export function packMetricBentoLayout({
 
   const ghostCells = [];
   if (includeGhostCells) {
-    for (let r = 0; r < 2; r += 1) {
-      for (let c = 0; c < METRIC_GRID_COLS; c += 1) {
-        if (!occ[r][c]) {
-          ghostCells.push({ colStart: c + 1, rowStart: r + 1 });
-        }
-      }
-    }
+    pushMetricGhostRunsForRow(occ[0], 1, ghostCells);
+    pushMetricGhostRunsForRow(occ[1], 2, ghostCells);
   }
 
+  const allThird = placements.length > 0 && placements.every((p) => p.size === 'third');
   return {
     rows: 2,
     effectiveRows: 2,
     gridCols: METRIC_GRID_COLS,
+    displayCols: allThird ? 3 : 4,
     isThreeUpTrend: false,
     placements,
     overflowKeys,

@@ -2330,7 +2330,7 @@ html[data-standalone="true"] .app-shell {
   --metric-row-h: calc(20px + 54px * var(--ui-font-scale, 1));
   position: relative;
   display: grid;
-  grid-template-columns: repeat(var(--matrix-cols, 4), minmax(0, 1fr));
+  grid-template-columns: repeat(var(--matrix-cols, 12), minmax(0, 1fr));
   grid-template-rows: var(--metric-row-h);
   flex-shrink: 0;
   border: 1px solid var(--border-hairline);
@@ -2590,6 +2590,7 @@ html[data-standalone="true"] .app-shell {
 }
 
 .telemetry-matrix > .matrix-cell.is-wide-card,
+.telemetry-matrix > .matrix-cell.is-third-card,
 .telemetry-matrix.is-large-trend > .matrix-cell.is-trend-card {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -2600,6 +2601,7 @@ html[data-standalone="true"] .app-shell {
 }
 
 .telemetry-matrix[data-metric-text="title"] > .matrix-cell.is-wide-card .cell-label,
+.telemetry-matrix[data-metric-text="title"] > .matrix-cell.is-third-card .cell-label,
 .telemetry-matrix.is-large-trend[data-metric-text="title"] > .matrix-cell.is-trend-card .cell-label {
   grid-column: 1;
   grid-row: 1;
@@ -2607,6 +2609,7 @@ html[data-standalone="true"] .app-shell {
 }
 
 .telemetry-matrix[data-metric-text="title"] > .matrix-cell.is-wide-card .cell-trend-metric,
+.telemetry-matrix[data-metric-text="title"] > .matrix-cell.is-third-card .cell-trend-metric,
 .telemetry-matrix.is-large-trend[data-metric-text="title"] > .matrix-cell.is-trend-card .cell-trend-metric {
   grid-column: 2;
   grid-row: 1;
@@ -2615,17 +2618,20 @@ html[data-standalone="true"] .app-shell {
 }
 
 .telemetry-matrix[data-metric-text="title"] > .matrix-cell.is-wide-card .cell-sparkline-wrap,
+.telemetry-matrix[data-metric-text="title"] > .matrix-cell.is-third-card .cell-sparkline-wrap,
 .telemetry-matrix.is-large-trend[data-metric-text="title"] > .matrix-cell.is-trend-card .cell-sparkline-wrap {
   grid-column: 1 / -1;
   grid-row: 2;
 }
 
 .telemetry-matrix[data-metric-text="sub"] > .matrix-cell.is-wide-card,
+.telemetry-matrix[data-metric-text="sub"] > .matrix-cell.is-third-card,
 .telemetry-matrix.is-large-trend[data-metric-text="sub"] > .matrix-cell.is-trend-card {
   grid-template-columns: auto minmax(0, 1fr);
 }
 
 .telemetry-matrix[data-metric-text="sub"] > .matrix-cell.is-wide-card .cell-trend-metric,
+.telemetry-matrix[data-metric-text="sub"] > .matrix-cell.is-third-card .cell-trend-metric,
 .telemetry-matrix.is-large-trend[data-metric-text="sub"] > .matrix-cell.is-trend-card .cell-trend-metric {
   grid-column: 1;
   grid-row: 1;
@@ -2633,6 +2639,7 @@ html[data-standalone="true"] .app-shell {
 }
 
 .telemetry-matrix[data-metric-text="sub"] > .matrix-cell.is-wide-card .cell-trend-sub,
+.telemetry-matrix[data-metric-text="sub"] > .matrix-cell.is-third-card .cell-trend-sub,
 .telemetry-matrix.is-large-trend[data-metric-text="sub"] > .matrix-cell.is-trend-card .cell-trend-sub {
   grid-column: 2;
   grid-row: 1;
@@ -2641,18 +2648,21 @@ html[data-standalone="true"] .app-shell {
 }
 
 .telemetry-matrix[data-metric-text="sub"] > .matrix-cell.is-wide-card .cell-sparkline-wrap,
+.telemetry-matrix[data-metric-text="sub"] > .matrix-cell.is-third-card .cell-sparkline-wrap,
 .telemetry-matrix.is-large-trend[data-metric-text="sub"] > .matrix-cell.is-trend-card .cell-sparkline-wrap {
   grid-column: 1 / -1;
   grid-row: 2;
 }
 
 .telemetry-matrix[data-metric-text="none"] > .matrix-cell.is-wide-card,
+.telemetry-matrix[data-metric-text="none"] > .matrix-cell.is-third-card,
 .telemetry-matrix.is-large-trend[data-metric-text="none"] > .matrix-cell.is-trend-card {
   grid-template-columns: minmax(0, 1fr);
   row-gap: 3px;
 }
 
 .telemetry-matrix[data-metric-text="none"] > .matrix-cell.is-wide-card .cell-trend-metric,
+.telemetry-matrix[data-metric-text="none"] > .matrix-cell.is-third-card .cell-trend-metric,
 .telemetry-matrix.is-large-trend[data-metric-text="none"] > .matrix-cell.is-trend-card .cell-trend-metric {
   grid-column: 1;
   grid-row: 1;
@@ -2660,17 +2670,20 @@ html[data-standalone="true"] .app-shell {
 }
 
 .telemetry-matrix[data-metric-text="none"] > .matrix-cell.is-wide-card .cell-trend-num,
+.telemetry-matrix[data-metric-text="none"] > .matrix-cell.is-third-card .cell-trend-num,
 .telemetry-matrix.is-large-trend[data-metric-text="none"] > .matrix-cell.is-trend-card .cell-trend-num {
   font-size: var(--fs-hero);
 }
 
 .telemetry-matrix[data-metric-text="none"] > .matrix-cell.is-wide-card .cell-sparkline-wrap,
+.telemetry-matrix[data-metric-text="none"] > .matrix-cell.is-third-card .cell-sparkline-wrap,
 .telemetry-matrix.is-large-trend[data-metric-text="none"] > .matrix-cell.is-trend-card .cell-sparkline-wrap {
   grid-column: 1;
   grid-row: 2;
 }
 
 .telemetry-matrix[data-metric-text="both"] > .matrix-cell.is-wide-card,
+.telemetry-matrix[data-metric-text="both"] > .matrix-cell.is-third-card,
 .telemetry-matrix.is-large-trend[data-metric-text="both"] > .matrix-cell.is-trend-card {
   grid-template-columns: auto minmax(0, 1fr);
   row-gap: 4px;
@@ -2678,6 +2691,7 @@ html[data-standalone="true"] .app-shell {
 }
 
 .telemetry-matrix[data-metric-text="both"] > .matrix-cell.is-wide-card .cell-label,
+.telemetry-matrix[data-metric-text="both"] > .matrix-cell.is-third-card .cell-label,
 .telemetry-matrix.is-large-trend[data-metric-text="both"] > .matrix-cell.is-trend-card .cell-label {
   grid-column: 1;
   grid-row: 1;
@@ -2685,6 +2699,7 @@ html[data-standalone="true"] .app-shell {
 }
 
 .telemetry-matrix[data-metric-text="both"] > .matrix-cell.is-wide-card .cell-trend-sub,
+.telemetry-matrix[data-metric-text="both"] > .matrix-cell.is-third-card .cell-trend-sub,
 .telemetry-matrix.is-large-trend[data-metric-text="both"] > .matrix-cell.is-trend-card .cell-trend-sub {
   grid-column: 2;
   grid-row: 1;
@@ -2693,6 +2708,7 @@ html[data-standalone="true"] .app-shell {
 }
 
 .telemetry-matrix[data-metric-text="both"] > .matrix-cell.is-wide-card .cell-trend-metric,
+.telemetry-matrix[data-metric-text="both"] > .matrix-cell.is-third-card .cell-trend-metric,
 .telemetry-matrix.is-large-trend[data-metric-text="both"] > .matrix-cell.is-trend-card .cell-trend-metric {
   grid-column: 1;
   grid-row: 2;
@@ -2700,6 +2716,7 @@ html[data-standalone="true"] .app-shell {
 }
 
 .telemetry-matrix[data-metric-text="both"] > .matrix-cell.is-wide-card .cell-sparkline-wrap,
+.telemetry-matrix[data-metric-text="both"] > .matrix-cell.is-third-card .cell-sparkline-wrap,
 .telemetry-matrix.is-large-trend[data-metric-text="both"] > .matrix-cell.is-trend-card .cell-sparkline-wrap {
   grid-column: 2;
   grid-row: 2;
@@ -2708,6 +2725,8 @@ html[data-standalone="true"] .app-shell {
   min-width: 34px;
 }
 
+.telemetry-matrix > .matrix-cell.is-third-card,
+.telemetry-matrix[data-metric-text="both"] > .matrix-cell.is-third-card,
 .telemetry-matrix.is-large-trend[data-cols="3"] > .matrix-cell.is-trend-card {
   column-gap: 6px;
   padding: 7px 10px;
@@ -2932,7 +2951,7 @@ html[data-standalone="true"] .app-shell {
 }
 
 .matrix-ghost-cell {
-  grid-column: var(--ghost-col-start, auto) / span 1;
+  grid-column: var(--ghost-col-start, auto) / span var(--ghost-col-span, 3);
   grid-row: var(--ghost-row-start, 2) / span 1;
   height: 100%;
   min-height: 0;
@@ -7170,6 +7189,12 @@ html[data-standalone="true"] .app-shell {
   border-color: var(--accent-primary-border);
 }
 
+.slot-size-pill[data-badge-tone="third"] {
+  color: var(--metric-ok);
+  background: var(--metric-ok-soft);
+  border-color: color-mix(in srgb, var(--metric-ok) 38%, var(--border-hairline));
+}
+
 .slot-size-pill[data-badge-tone="narrow"] {
   color: var(--metric-info);
   background: var(--metric-info-soft);
@@ -10473,6 +10498,10 @@ html[data-standalone="true"][data-modern-ui="true"] .app-shell {
   padding: 8px 11px;
 }
 
+[data-modern-ui="true"] .telemetry-matrix > .matrix-cell.is-third-card {
+  padding: 8px 10px;
+}
+
 [data-modern-ui="true"] .telemetry-matrix > .matrix-cell.is-narrow-card {
   padding: 9px 10px 8px;
 }
@@ -10494,6 +10523,10 @@ html[data-standalone="true"][data-modern-ui="true"] .app-shell {
 [data-modern-ui="true"] .telemetry-matrix[data-metric-text="both"] > .matrix-cell.is-wide-card,
 [data-modern-ui="true"] .telemetry-matrix.is-large-trend[data-metric-text="both"] > .matrix-cell.is-trend-card {
   padding: 8px 11px;
+}
+
+[data-modern-ui="true"] .telemetry-matrix[data-metric-text="both"] > .matrix-cell.is-third-card {
+  padding: 8px 10px;
 }
 
 [data-modern-ui="true"] .matrix-ghost-cell {
@@ -10894,6 +10927,16 @@ html[data-standalone="true"][data-modern-ui="true"] .app-shell {
 
 [data-modern-ui="true"] .slot-size-pill.is-active:hover {
   background: color-mix(in srgb, var(--accent-primary) 20%, transparent);
+}
+
+[data-modern-ui="true"] .slot-size-pill[data-badge-tone="third"] {
+  border: none;
+  color: var(--metric-ok);
+  background: var(--metric-ok-soft);
+}
+
+[data-modern-ui="true"] .slot-size-pill[data-badge-tone="third"]:hover {
+  background: color-mix(in srgb, var(--metric-ok) 20%, transparent);
 }
 
 [data-modern-ui="true"] .slot-size-pill[data-badge-tone="narrow"] {

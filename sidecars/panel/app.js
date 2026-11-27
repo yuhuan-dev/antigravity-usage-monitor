@@ -138,12 +138,12 @@ const DEFAULT_OVERVIEW_METRIC_STYLE = 'medium';
 const DEFAULT_HOVER_METRIC_STYLE = 'medium';
 const DEFAULT_HOVER_SYNC_OVERVIEW_METRICS = true;
 const MAX_LARGE_METRIC_SLOTS = 3;
-const METRIC_GRID_COLS = 4;
+const METRIC_GRID_COLS = 12;
 const METRIC_GRID_ROWS = Object.freeze([1, 2]);
 const DEFAULT_METRIC_ROWS = 1;
 const DEFAULT_OVERVIEW_METRIC_ROWS = DEFAULT_METRIC_ROWS;
 const DEFAULT_HOVER_METRIC_ROWS = DEFAULT_METRIC_ROWS;
-const METRIC_CARD_SIZES = Object.freeze(['sm', 'wide', 'narrow', 'tall']);
+const METRIC_CARD_SIZES = Object.freeze(['sm', 'third', 'wide', 'narrow', 'tall']);
 const DEFAULT_OVERVIEW_METRIC_SIZES = Object.freeze({});
 const DEFAULT_HOVER_METRIC_SIZES = Object.freeze({});
 const METRIC_TEXT_MODES = Object.freeze(['both', 'title', 'sub', 'none']);
@@ -500,8 +500,20 @@ function normalizeMetricCardSize(raw) {
   if (val === 'narrow' || val === 'col' || val === 'slim' || val === 'vertical' || val === '1x2') {
     return 'narrow';
   }
-  if (val === 'wide' || val === 'md' || val === '2x1' || val === 'trend') {
+  if (val === 'wide' || val === '2x1' || val === 'trend' || val === 'half') {
     return 'wide';
+  }
+  if (
+    val === 'third' ||
+    val === 'md' ||
+    val === 'medium_trend' ||
+    val === '1/3' ||
+    val === '3up' ||
+    val === '1.33x1' ||
+    val === '1.333x1' ||
+    val === 'tri'
+  ) {
+    return 'third';
   }
   return 'sm';
 }
@@ -528,7 +540,7 @@ function normalizeMetricCardSizes(raw, metricsList = null, legacyStyle = undefin
     if (style === 'large') {
       const out = {};
       for (const key of list) {
-        if (OVERVIEW_METRIC_KEYS.includes(key)) out[key] = 'wide';
+        if (OVERVIEW_METRIC_KEYS.includes(key)) out[key] = 'third';
       }
       return out;
     }
@@ -579,9 +591,36 @@ function deriveMetricCardStyleFromLayout(rows, metrics, sizesMap) {
     });
     if (effSizes.every((s) => s === 'sm')) return 'medium';
     const checkLen = Math.min(MAX_LARGE_METRIC_SLOTS, effSizes.length);
-    if (effSizes.slice(0, checkLen).every((s) => s === 'wide')) return 'large';
+    if (effSizes.slice(0, checkLen).every((s) => s === 'third' || s === 'wide')) return 'large';
   }
   return 'hybrid';
+}
+
+function getMetricCardColSpan(effSize) {
+  if (effSize === 'wide' || effSize === 'tall') return 6;
+  if (effSize === 'third') return 4;
+  return 3;
+}
+
+function pushMetricGhostRunsForRow(occRow, rowNumber, out) {
+  let c = 0;
+  while (c < METRIC_GRID_COLS) {
+    if (occRow[c]) {
+      c += 1;
+      continue;
+    }
+    const start = c;
+    while (c < METRIC_GRID_COLS && !occRow[c]) c += 1;
+    let pos = start;
+    let rem = c - start;
+    const step = rem === 4 || rem === 8 ? 4 : 3;
+    while (rem > 0) {
+      const span = rem >= step ? step : rem;
+      out.push({ colStart: pos + 1, colSpan: span, rowStart: rowNumber });
+      pos += span;
+      rem -= span;
+    }
+  }
 }
 
 function packMetricBentoLayout({
@@ -602,37 +641,6 @@ function packMetricBentoLayout({
     return rawSize;
   };
 
-  const uniformWideCount = Math.min(MAX_LARGE_METRIC_SLOTS, list.length);
-  if (
-    safeRows === 1 &&
-    uniformWideCount > 0 &&
-    list.slice(0, uniformWideCount).every((key) => resolveEffSize(key) === 'wide')
-  ) {
-    const placements = list.slice(0, uniformWideCount).map((key, idx) => ({
-      key,
-      index: idx,
-      rawSize: normalizeMetricCardSize(sizesMap[key]),
-      size: 'wide',
-      isTrend: true,
-      isWide: true,
-      isNarrow: false,
-      isTall: false,
-      colStart: idx + 1,
-      colSpan: 1,
-      rowStart: 1,
-      rowSpan: 1,
-    }));
-    return {
-      rows: 1,
-      effectiveRows: 1,
-      gridCols: uniformWideCount,
-      isThreeUpTrend: true,
-      placements,
-      overflowKeys: list.slice(uniformWideCount),
-      ghostCells: [],
-    };
-  }
-
   const occ = Array.from({ length: safeRows }, () => Array(METRIC_GRID_COLS).fill(false));
   const placements = [];
   const overflowKeys = [];
@@ -640,7 +648,7 @@ function packMetricBentoLayout({
   function tryRepackForTwoRowCard(existingPlacements, newWidth) {
     if (safeRows !== 2) return null;
     const leftLimit = METRIC_GRID_COLS - newWidth;
-    if (leftLimit < 1) return null;
+    if (leftLimit < 3) return null;
     const leftOcc = [Array(leftLimit).fill(false), Array(leftLimit).fill(false)];
     const coords = new Array(existingPlacements.length);
 
@@ -718,7 +726,7 @@ function packMetricBentoLayout({
     const key = list[i];
     const rawSize = normalizeMetricCardSize(sizesMap[key]);
     const effSize = resolveEffSize(key);
-    const w = effSize === 'wide' || effSize === 'tall' ? 2 : 1;
+    const w = getMetricCardColSpan(effSize);
     const h = effSize === 'narrow' || effSize === 'tall' ? 2 : 1;
     let placed = false;
 
@@ -745,6 +753,7 @@ function packMetricBentoLayout({
             rawSize,
             size: effSize,
             isTrend: effSize !== 'sm',
+            isThird: effSize === 'third',
             isWide: effSize === 'wide',
             isNarrow: effSize === 'narrow',
             isTall: effSize === 'tall',
@@ -782,6 +791,7 @@ function packMetricBentoLayout({
           rawSize,
           size: effSize,
           isTrend: true,
+          isThird: false,
           isWide: false,
           isNarrow: effSize === 'narrow',
           isTall: effSize === 'tall',
@@ -801,25 +811,34 @@ function packMetricBentoLayout({
 
   if (safeRows === 1) {
     const usedCols = placements.reduce((acc, item) => acc + item.colSpan, 0);
+    const isUniformThirdRow = placements.length > 0 && placements.every((p) => p.size === 'third');
+    const showRow1Ghosts = includeGhostCells && overflowKeys.length > 0 && usedCols < METRIC_GRID_COLS;
+    const ghostCells = [];
+    if (showRow1Ghosts) {
+      pushMetricGhostRunsForRow(occ[0], 1, ghostCells);
+    }
     return {
       rows: 1,
       effectiveRows: 1,
-      gridCols: Math.max(1, Math.min(METRIC_GRID_COLS, usedCols)),
-      isThreeUpTrend: false,
+      gridCols: showRow1Ghosts ? METRIC_GRID_COLS : Math.max(1, Math.min(METRIC_GRID_COLS, usedCols)),
+      displayCols: Math.max(1, Math.min(4, placements.length)),
+      isThreeUpTrend: isUniformThirdRow,
       placements,
       overflowKeys,
-      ghostCells: [],
+      ghostCells,
     };
   }
 
   const row2HasAny = occ[1].some(Boolean);
   if (!row2HasAny && !includeGhostCells) {
     const usedCols = placements.reduce((acc, item) => acc + item.colSpan, 0);
+    const isUniformThirdRow = placements.length > 0 && placements.every((p) => p.size === 'third');
     return {
       rows: 2,
       effectiveRows: 1,
       gridCols: Math.max(1, Math.min(METRIC_GRID_COLS, usedCols)),
-      isThreeUpTrend: false,
+      displayCols: Math.max(1, Math.min(4, placements.length)),
+      isThreeUpTrend: isUniformThirdRow,
       placements,
       overflowKeys,
       ghostCells: [],
@@ -828,19 +847,16 @@ function packMetricBentoLayout({
 
   const ghostCells = [];
   if (includeGhostCells) {
-    for (let r = 0; r < 2; r += 1) {
-      for (let c = 0; c < METRIC_GRID_COLS; c += 1) {
-        if (!occ[r][c]) {
-          ghostCells.push({ colStart: c + 1, rowStart: r + 1 });
-        }
-      }
-    }
+    pushMetricGhostRunsForRow(occ[0], 1, ghostCells);
+    pushMetricGhostRunsForRow(occ[1], 2, ghostCells);
   }
 
+  const allThird = placements.length > 0 && placements.every((p) => p.size === 'third');
   return {
     rows: 2,
     effectiveRows: 2,
     gridCols: METRIC_GRID_COLS,
+    displayCols: allThird ? 3 : 4,
     isThreeUpTrend: false,
     placements,
     overflowKeys,
@@ -2956,12 +2972,13 @@ const I18N_MESSAGES_ZH_CN = Object.freeze({
   'settings.str.metricTextSub': '仅副标',
   'settings.str.metricTextNone': '仅数值',
   'settings.str.metricSizeSm': '小',
+  'settings.str.metricSizeThird': '中',
   'settings.str.metricSizeWide': '宽',
   'settings.str.metricSizeNarrow': '竖',
   'settings.str.metricSizeTall': '大',
-  'settings.str.metricResizeHandleAria': '调整指标卡片尺寸（小 / 宽 / 竖 / 大）',
-  'settings.str.metricResizeHandleHint': '拖动切换 小 / 宽 / 竖 / 大 占格，点击快速循环切换',
-  'settings.str.metricSizePillHint': '点击切换卡片尺寸（小 1×1 / 宽 2×1 / 竖 1×2 / 大 2×2）',
+  'settings.str.metricResizeHandleAria': '调整指标卡片尺寸（小 / 中 / 宽 / 竖 / 大）',
+  'settings.str.metricResizeHandleHint': '拖动切换 小 / 中 / 宽 / 竖 / 大 占格，点击快速循环切换',
+  'settings.str.metricSizePillHint': '点击切换卡片尺寸（小 1×1 / 中 1/3 / 宽 2×1 / 竖 1×2 / 大 2×2）',
   'settings.str.hoverSyncOverviewLabel': '与实时监控同步',
   'settings.str.hoverMetricsLabel': '实时指标',
   'settings.str.hoverMetricsInactiveHint': '当前悬浮窗已移出「实时指标」模块，重新添加模块后即生效',
@@ -4231,12 +4248,13 @@ const I18N_MESSAGES_ZH_TW = Object.freeze({
   "settings.str.metricTextSub": "僅副標",
   "settings.str.metricTextNone": "僅數值",
   "settings.str.metricSizeSm": "小",
+  "settings.str.metricSizeThird": "中",
   "settings.str.metricSizeWide": "寬",
   "settings.str.metricSizeNarrow": "豎",
   "settings.str.metricSizeTall": "大",
-  "settings.str.metricResizeHandleAria": "調整指標卡片尺寸（小 / 寬 / 豎 / 大）",
-  "settings.str.metricResizeHandleHint": "拖曳切換 小 / 寬 / 豎 / 大 占格，點擊快速循環切換",
-  "settings.str.metricSizePillHint": "點擊切換卡片尺寸（小 1×1 / 寬 2×1 / 豎 1×2 / 大 2×2）",
+  "settings.str.metricResizeHandleAria": "調整指標卡片尺寸（小 / 中 / 寬 / 豎 / 大）",
+  "settings.str.metricResizeHandleHint": "拖曳切換 小 / 中 / 寬 / 豎 / 大 占格，點擊快速循環切換",
+  "settings.str.metricSizePillHint": "點擊切換卡片尺寸（小 1×1 / 中 1/3 / 寬 2×1 / 豎 1×2 / 大 2×2）",
   "settings.str.hoverSyncOverviewLabel": "與即時監控同步",
   "settings.str.hoverMetricsLabel": "即時指標",
   "settings.str.hoverMetricsInactiveHint": "目前懸浮窗已隱藏「即時指標」模組，於下方重新新增模組後即可顯示",
@@ -5521,12 +5539,13 @@ const I18N_MESSAGES_EN_US = Object.freeze({
   'settings.str.metricTextSub': 'Note',
   'settings.str.metricTextNone': 'Value',
   'settings.str.metricSizeSm': 'S',
+  'settings.str.metricSizeThird': 'M',
   'settings.str.metricSizeWide': 'W',
   'settings.str.metricSizeNarrow': 'V',
   'settings.str.metricSizeTall': 'L',
-  'settings.str.metricResizeHandleAria': 'Resize metric card (S / W / V / L)',
-  'settings.str.metricResizeHandleHint': 'Drag to snap between 1×1 / 2×1 / 1×2 / 2×2 grid sizes, or click to cycle',
-  'settings.str.metricSizePillHint': 'Click to cycle card size (1×1 / 2×1 / 1×2 / 2×2)',
+  'settings.str.metricResizeHandleAria': 'Resize metric card (S / M / W / V / L)',
+  'settings.str.metricResizeHandleHint': 'Drag to snap between 1×1 / 1/3 / 2×1 / 1×2 / 2×2 grid sizes, or click to cycle',
+  'settings.str.metricSizePillHint': 'Click to cycle card size (1×1 / 1/3 / 2×1 / 1×2 / 2×2)',
   'settings.str.hoverSyncOverviewLabel': 'Sync with Live Overview',
   'settings.str.hoverMetricsLabel': 'Live Metrics',
   'settings.str.hoverMetricsInactiveHint': '"Live Metrics" is hidden in Hover modules; add it below to display',
@@ -6796,12 +6815,13 @@ const I18N_MESSAGES_JA_JP = Object.freeze({
   "settings.str.metricTextSub": "補足",
   "settings.str.metricTextNone": "数値のみ",
   "settings.str.metricSizeSm": "小",
+  "settings.str.metricSizeThird": "中",
   "settings.str.metricSizeWide": "横長",
   "settings.str.metricSizeNarrow": "縦長",
   "settings.str.metricSizeTall": "大",
-  "settings.str.metricResizeHandleAria": "指標カードサイズを変更（小 / 横長 / 縦長 / 大）",
-  "settings.str.metricResizeHandleHint": "ドラッグで 1×1 / 2×1 / 1×2 / 2×2 にスナップ、クリックで順番に切替",
-  "settings.str.metricSizePillHint": "クリックでカードサイズを切替（1×1 / 2×1 / 1×2 / 2×2）",
+  "settings.str.metricResizeHandleAria": "指標カードサイズを変更（小 / 中 / 横長 / 縦長 / 大）",
+  "settings.str.metricResizeHandleHint": "ドラッグで 1×1 / 1/3 / 2×1 / 1×2 / 2×2 にスナップ、クリックで順番に切替",
+  "settings.str.metricSizePillHint": "クリックでカードサイズを切替（1×1 / 1/3 / 2×1 / 1×2 / 2×2）",
   "settings.str.hoverSyncOverviewLabel": "ライブ配置と同期",
   "settings.str.hoverMetricsLabel": "ライブ指標",
   "settings.str.hoverMetricsInactiveHint": "「ライブ指標」はホバーモジュールから外れています。下から追加すると表示されます",
@@ -8066,12 +8086,13 @@ const I18N_MESSAGES_KO_KR = Object.freeze({
   "settings.str.metricTextSub": "보조만",
   "settings.str.metricTextNone": "수치만",
   "settings.str.metricSizeSm": "소",
+  "settings.str.metricSizeThird": "중",
   "settings.str.metricSizeWide": "와이드",
   "settings.str.metricSizeNarrow": "세로",
   "settings.str.metricSizeTall": "대",
-  "settings.str.metricResizeHandleAria": "지표 카드 크기 변경 (소 / 와이드 / 세로 / 대)",
-  "settings.str.metricResizeHandleHint": "드래그해 1×1 / 2×1 / 1×2 / 2×2 격자로 스냅, 클릭으로 순환 전환",
-  "settings.str.metricSizePillHint": "클릭해 카드 크기 전환 (1×1 / 2×1 / 1×2 / 2×2)",
+  "settings.str.metricResizeHandleAria": "지표 카드 크기 변경 (소 / 중 / 와이드 / 세로 / 대)",
+  "settings.str.metricResizeHandleHint": "드래그해 1×1 / 1/3 / 2×1 / 1×2 / 2×2 격자로 스냅, 클릭으로 순환 전환",
+  "settings.str.metricSizePillHint": "클릭해 카드 크기 전환 (1×1 / 1/3 / 2×1 / 1×2 / 2×2)",
   "settings.str.hoverSyncOverviewLabel": "실시간 개요와 동기화",
   "settings.str.hoverMetricsLabel": "실시간 지표",
   "settings.str.hoverMetricsInactiveHint": "호버 모듈에서 \"실시간 지표\"가 숨겨져 있습니다. 표시하려면 아래에서 추가하세요",
@@ -9336,12 +9357,13 @@ const I18N_MESSAGES_DE_DE = Object.freeze({
   "settings.str.metricTextSub": "Info",
   "settings.str.metricTextNone": "Wert",
   "settings.str.metricSizeSm": "S",
+  "settings.str.metricSizeThird": "M",
   "settings.str.metricSizeWide": "B",
   "settings.str.metricSizeNarrow": "H",
   "settings.str.metricSizeTall": "G",
-  "settings.str.metricResizeHandleAria": "Metrikkarten-Größe anpassen (1×1 / 2×1 / 1×2 / 2×2)",
-  "settings.str.metricResizeHandleHint": "Ziehen zum Einrasten (1×1 / 2×1 / 1×2 / 2×2) oder klicken zum Wechseln",
-  "settings.str.metricSizePillHint": "Klicken zum Wechseln der Kartengröße (1×1 / 2×1 / 1×2 / 2×2)",
+  "settings.str.metricResizeHandleAria": "Metrikkarten-Größe anpassen (1×1 / 1/3 / 2×1 / 1×2 / 2×2)",
+  "settings.str.metricResizeHandleHint": "Ziehen zum Einrasten (1×1 / 1/3 / 2×1 / 1×2 / 2×2) oder klicken zum Wechseln",
+  "settings.str.metricSizePillHint": "Klicken zum Wechseln der Kartengröße (1×1 / 1/3 / 2×1 / 1×2 / 2×2)",
   "settings.str.hoverSyncOverviewLabel": "Mit Live-Übersicht synchr.",
   "settings.str.hoverMetricsLabel": "Live-Metriken",
   "settings.str.hoverMetricsInactiveHint": "„Live-Metriken“ ist in Hover-Modulen ausgeblendet; unten zur Anzeige hinzufügen",
@@ -10606,12 +10628,13 @@ const I18N_MESSAGES_FR_FR = Object.freeze({
   "settings.str.metricTextSub": "Note",
   "settings.str.metricTextNone": "Valeur",
   "settings.str.metricSizeSm": "S",
+  "settings.str.metricSizeThird": "M",
   "settings.str.metricSizeWide": "L",
   "settings.str.metricSizeNarrow": "V",
   "settings.str.metricSizeTall": "XL",
-  "settings.str.metricResizeHandleAria": "Redimensionner la carte métrique (1×1 / 2×1 / 1×2 / 2×2)",
-  "settings.str.metricResizeHandleHint": "Glisser pour aimanter (1×1 / 2×1 / 1×2 / 2×2) ou cliquer pour alterner",
-  "settings.str.metricSizePillHint": "Cliquer pour changer la taille de carte (1×1 / 2×1 / 1×2 / 2×2)",
+  "settings.str.metricResizeHandleAria": "Redimensionner la carte métrique (1×1 / 1/3 / 2×1 / 1×2 / 2×2)",
+  "settings.str.metricResizeHandleHint": "Glisser pour aimanter (1×1 / 1/3 / 2×1 / 1×2 / 2×2) ou cliquer pour alterner",
+  "settings.str.metricSizePillHint": "Cliquer pour changer la taille de carte (1×1 / 1/3 / 2×1 / 1×2 / 2×2)",
   "settings.str.hoverSyncOverviewLabel": "Synchro avec Vue globale",
   "settings.str.hoverMetricsLabel": "Métriques temps réel",
   "settings.str.hoverMetricsInactiveHint": "« Métriques temps réel » est masqué dans le survol ; ajoutez-le ci-dessous pour l’afficher",
@@ -29542,18 +29565,22 @@ function buildNextSizesMap(baseSizes, key, nextSize) {
 
 function cycleMetricCardSize(currentEffSize, rows) {
   if (rows === 2) {
-    if (currentEffSize === 'sm') return 'wide';
+    if (currentEffSize === 'sm') return 'third';
+    if (currentEffSize === 'third') return 'wide';
     if (currentEffSize === 'wide') return 'narrow';
     if (currentEffSize === 'narrow') return 'tall';
     return 'sm';
   }
-  return currentEffSize === 'sm' ? 'wide' : 'sm';
+  if (currentEffSize === 'sm') return 'third';
+  if (currentEffSize === 'third') return 'wide';
+  return 'sm';
 }
 
 function formatMetricSizeBadge(size) {
   if (size === 'tall') return `${t('settings.str.metricSizeTall')} 2×2`;
   if (size === 'narrow') return `${t('settings.str.metricSizeNarrow')} 1×2`;
   if (size === 'wide') return `${t('settings.str.metricSizeWide')} 2×1`;
+  if (size === 'third') return `${t('settings.str.metricSizeThird')} 1/3`;
   return `${t('settings.str.metricSizeSm')} 1×1`;
 }
 
@@ -29625,9 +29652,9 @@ function readMatrixGridGaps(matrixEl, cellEls) {
 }
 
 function computePlacementPixelRect(placement, layout, matrixRect, colGap, rowGap) {
-  const cols = Math.max(1, Number(layout?.gridCols || 4));
+  const cols = Math.max(1, Number(layout?.gridCols || CLIENT_METRIC_GRID_COLS));
   const rows = Math.max(1, Number(layout?.effectiveRows || 1));
-  const colW = Math.max(16, (matrixRect.width - colGap * (cols - 1)) / cols);
+  const colW = Math.max(4, (matrixRect.width - colGap * (cols - 1)) / cols);
   const rowH = Math.max(16, (matrixRect.height - rowGap * (rows - 1)) / rows);
   const left = matrixRect.left + (placement.colStart - 1) * (colW + colGap);
   const top = matrixRect.top + (placement.rowStart - 1) * (rowH + rowGap);
@@ -29976,14 +30003,20 @@ const MetricMatrixWidget = defineComponent({
       const startEffSize = placement.size;
       const rowsAtStart = currentLayoutRows;
       const effectiveRowsAtStart = Math.max(1, currentEffectiveRows);
-      const startLogicalCols = startEffSize === 'wide' || startEffSize === 'tall' ? 2 : 1;
+      const startLogicalCols =
+        startEffSize === 'wide' || startEffSize === 'tall'
+          ? 6
+          : startEffSize === 'third'
+            ? 4
+            : 3;
       const startLogicalRows = startEffSize === 'narrow' || startEffSize === 'tall' ? 2 : 1;
 
       const matrixRect = matrixEl.getBoundingClientRect?.();
       const rawMatrixW = Number(matrixRect?.width || 0);
       const rawMatrixH = Number(matrixRect?.height || 0);
+      const gridColsAtStart = Math.max(1, currentGridCols || CLIENT_METRIC_GRID_COLS);
       const unitW =
-        Number.isFinite(rawMatrixW) && rawMatrixW > 0 ? rawMatrixW / CLIENT_METRIC_GRID_COLS : 96;
+        Number.isFinite(rawMatrixW) && rawMatrixW > 0 ? rawMatrixW / gridColsAtStart : 32;
       const unitH =
         Number.isFinite(rawMatrixH) && rawMatrixH > 0
           ? rawMatrixH / effectiveRowsAtStart
@@ -29993,16 +30026,28 @@ const MetricMatrixWidget = defineComponent({
       let workingSizes = { ...startSizes };
 
       function resolveSnappedSize(clientX, clientY, startX, startY) {
-        const spanCols = startLogicalCols + (Number(clientX) - Number(startX)) / Math.max(24, unitW);
+        const spanCols = startLogicalCols + (Number(clientX) - Number(startX)) / Math.max(8, unitW);
         const spanRows = startLogicalRows + (Number(clientY) - Number(startY)) / Math.max(24, unitH);
-        const curIsWide = workingSize === 'wide' || workingSize === 'tall';
         const curIsTall = workingSize === 'narrow' || workingSize === 'tall';
-        const nextIsWide = curIsWide ? spanCols > 1.28 : spanCols >= 1.45;
         const nextIsTall =
           rowsAtStart === 2 ? (curIsTall ? spanRows > 1.28 : spanRows >= 1.45) : false;
-        if (nextIsWide && nextIsTall) return 'tall';
-        if (nextIsWide) return 'wide';
-        if (nextIsTall) return 'narrow';
+        if (nextIsTall) {
+          const curIsWide = workingSize === 'wide' || workingSize === 'tall';
+          const nextIsWide = curIsWide ? spanCols > 4.25 : spanCols >= 4.65;
+          return nextIsWide ? 'tall' : 'narrow';
+        }
+        if (workingSize === 'wide' || workingSize === 'tall') {
+          if (spanCols <= 3.35) return 'sm';
+          if (spanCols <= 4.75) return 'third';
+          return 'wide';
+        }
+        if (workingSize === 'third') {
+          if (spanCols >= 5.15) return 'wide';
+          if (spanCols <= 3.35) return 'sm';
+          return 'third';
+        }
+        if (spanCols >= 5.15) return 'wide';
+        if (spanCols >= 3.55) return 'third';
         return 'sm';
       }
 
@@ -30029,12 +30074,18 @@ const MetricMatrixWidget = defineComponent({
           } else if (!prefersReducedMotion()) {
             const targetCell = getMetricCellByKey(cellKey);
             if (targetCell?.style && !targetCell.classList?.contains?.('is-bento-flipping')) {
-              const targetLogicalCols = workingSize === 'wide' || workingSize === 'tall' ? 2 : 1;
+              const targetLogicalCols =
+                workingSize === 'wide' || workingSize === 'tall'
+                  ? 6
+                  : workingSize === 'third'
+                    ? 4
+                    : 3;
               const targetLogicalRows = workingSize === 'narrow' || workingSize === 'tall' ? 2 : 1;
               const remCols =
-                startLogicalCols -
-                targetLogicalCols +
-                (Number(clientX) - Number(startX)) / Math.max(24, unitW);
+                (startLogicalCols -
+                  targetLogicalCols +
+                  (Number(clientX) - Number(startX)) / Math.max(8, unitW)) /
+                3;
               const remRows =
                 startLogicalRows -
                 targetLogicalRows +
@@ -30551,6 +30602,7 @@ const MetricMatrixWidget = defineComponent({
         if (i < targetCount) {
           const spec = ghostSpecs[i];
           patchStyleVar(ghostEl, '--ghost-col-start', String(spec.colStart));
+          patchStyleVar(ghostEl, '--ghost-col-span', String(spec.colSpan || 3));
           patchStyleVar(ghostEl, '--ghost-row-start', String(spec.rowStart));
           if (ghostEl.parentNode !== matrixEl) {
             matrixEl.appendChild(ghostEl);
@@ -30629,6 +30681,8 @@ const MetricMatrixWidget = defineComponent({
                   e.preventDefault?.();
                   e.stopPropagation?.();
                   if (placement.size === 'sm') {
+                    commitMetricCardSizeImmediate(boundMetricKey, 'third');
+                  } else if (placement.size === 'third') {
                     commitMetricCardSizeImmediate(boundMetricKey, 'wide');
                   } else if (placement.size === 'narrow') {
                     commitMetricCardSizeImmediate(boundMetricKey, 'tall');
@@ -30637,6 +30691,8 @@ const MetricMatrixWidget = defineComponent({
                   e.preventDefault?.();
                   e.stopPropagation?.();
                   if (placement.size === 'wide') {
+                    commitMetricCardSizeImmediate(boundMetricKey, 'third');
+                  } else if (placement.size === 'third') {
                     commitMetricCardSizeImmediate(boundMetricKey, 'sm');
                   } else if (placement.size === 'tall') {
                     commitMetricCardSizeImmediate(boundMetricKey, 'narrow');
@@ -30646,7 +30702,7 @@ const MetricMatrixWidget = defineComponent({
                   e.stopPropagation?.();
                   if (placement.size === 'sm') {
                     commitMetricCardSizeImmediate(boundMetricKey, 'narrow');
-                  } else if (placement.size === 'wide') {
+                  } else if (placement.size === 'third' || placement.size === 'wide') {
                     commitMetricCardSizeImmediate(boundMetricKey, 'tall');
                   }
                 } else if (e?.key === 'ArrowUp') {
@@ -30781,13 +30837,13 @@ const MetricMatrixWidget = defineComponent({
       lastSparkGeomSig = sparkGeomSig;
 
       patchClasses(matrixEl, {
-        'is-bento': !layout.isThreeUpTrend,
+        'is-bento': true,
         'is-large-trend': layout.isThreeUpTrend,
         'is-two-row': layout.effectiveRows === 2,
         'is-metrics-reorderable': canDragCells,
         'is-metrics-resizable': hasMetricResize,
       });
-      patchAttr(matrixEl, 'data-cols', String(layout.gridCols));
+      patchAttr(matrixEl, 'data-cols', String(layout.displayCols || 4));
       patchAttr(matrixEl, 'data-rows', String(layout.effectiveRows));
       patchAttr(matrixEl, 'data-metric-text', textMode);
       patchStyleVar(matrixEl, '--matrix-cols', String(layout.gridCols));
@@ -30833,6 +30889,7 @@ const MetricMatrixWidget = defineComponent({
             isTrend: false,
             isTall: false,
             isNarrow: false,
+            isThird: false,
             isWide: false,
             isResizingThis,
             sizeBadgeText,
@@ -30843,14 +30900,10 @@ const MetricMatrixWidget = defineComponent({
         }
         const isNarrow = Boolean(p.isNarrow);
         const isTall = Boolean(p.isTall);
-        const isWide = !isTall && !isNarrow;
-        const fallbackSparkCols = layout.isThreeUpTrend
-          ? layout.gridCols
-          : isNarrow
-            ? 3
-            : !isTall && (p.colSpan >= 3 || (layout.gridCols <= 2 && p.colSpan === layout.gridCols))
-              ? 1
-              : 2;
+        const isThird = Boolean(p.isThird);
+        const isWide = Boolean(p.isWide);
+        const widthFrac = p.colSpan / Math.max(1, layout.gridCols);
+        const fallbackSparkCols = widthFrac >= 0.75 ? 1 : widthFrac >= 0.45 ? 2 : 3;
         const fallbackSparkHeight = isTall
           ? textMode === 'none'
             ? 76
@@ -30888,6 +30941,7 @@ const MetricMatrixWidget = defineComponent({
           isTrend: true,
           isTall,
           isNarrow,
+          isThird,
           isWide,
           isResizingThis,
           sizeBadgeText,
@@ -30909,7 +30963,7 @@ const MetricMatrixWidget = defineComponent({
         keyFn: (cell) => cell.key,
         sigFn: (cell) => {
           const p = cell.placement;
-          return `${locale}:${cell.textMode}:${p.size}:${p.isTrend ? 'T' : 'C'}:${p.isTall ? 'H' : p.isNarrow ? 'V' : ''}:${p.colStart}:${p.colSpan}:${p.rowStart}:${p.rowSpan}:${cell.isResizingThis ? 'R' : ''}:${cell.sizeBadgeText}:${cell.key}:${cell.label}:${cell.valueClass}:${cell.valueText}:${cell.subClass}:${cell.subText}:${cell.sparkSig}:${dragHint || ''}`;
+          return `${locale}:${cell.textMode}:${p.size}:${p.isTrend ? 'T' : 'C'}:${p.isTall ? 'H' : p.isNarrow ? 'V' : p.isThird ? 'M' : ''}:${p.colStart}:${p.colSpan}:${p.rowStart}:${p.rowSpan}:${cell.isResizingThis ? 'R' : ''}:${cell.sizeBadgeText}:${cell.key}:${cell.label}:${cell.valueClass}:${cell.valueText}:${cell.subClass}:${cell.subText}:${cell.sparkSig}:${dragHint || ''}`;
         },
         createRow: createMetricCellNode,
         updateRow: (refs, cell) => {
@@ -30926,6 +30980,7 @@ const MetricMatrixWidget = defineComponent({
           patchStyleVar(refs.el, '--cell-row-span', String(p.rowSpan));
           patchClasses(refs.el, {
             'is-trend-card': cell.isTrend,
+            'is-third-card': cell.isThird,
             'is-wide-card': cell.isWide,
             'is-narrow-card': cell.isNarrow,
             'is-tall-card': cell.isTall,
@@ -44804,7 +44859,9 @@ function formatMetricSizePillSpec(metricKey, rows, sizesMap) {
         ? t('settings.str.metricSizeNarrow')
         : eff === 'wide'
           ? t('settings.str.metricSizeWide')
-          : t('settings.str.metricSizeSm');
+          : eff === 'third'
+            ? t('settings.str.metricSizeThird')
+            : t('settings.str.metricSizeSm');
   return {
     text,
     title: t('settings.str.metricSizePillHint'),
@@ -44821,15 +44878,19 @@ function cycleDraftMetricCardSize(baseSizes, metricKey, rows) {
   const nextSize =
     rows === 2
       ? curEff === 'sm'
-        ? 'wide'
-        : curEff === 'wide'
-          ? 'narrow'
-          : curEff === 'narrow'
-            ? 'tall'
-            : 'sm'
+        ? 'third'
+        : curEff === 'third'
+          ? 'wide'
+          : curEff === 'wide'
+            ? 'narrow'
+            : curEff === 'narrow'
+              ? 'tall'
+              : 'sm'
       : curEff === 'sm'
-        ? 'wide'
-        : 'sm';
+        ? 'third'
+        : curEff === 'third'
+          ? 'wide'
+          : 'sm';
   const next = { ...(baseSizes || {}) };
   if (nextSize === 'sm') {
     delete next[metricKey];

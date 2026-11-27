@@ -184,7 +184,9 @@ function formatMetricSizePillSpec(metricKey, rows, sizesMap) {
         ? t('settings.str.metricSizeNarrow')
         : eff === 'wide'
           ? t('settings.str.metricSizeWide')
-          : t('settings.str.metricSizeSm');
+          : eff === 'third'
+            ? t('settings.str.metricSizeThird')
+            : t('settings.str.metricSizeSm');
   return {
     text,
     title: t('settings.str.metricSizePillHint'),
@@ -201,15 +203,19 @@ function cycleDraftMetricCardSize(baseSizes, metricKey, rows) {
   const nextSize =
     rows === 2
       ? curEff === 'sm'
-        ? 'wide'
-        : curEff === 'wide'
-          ? 'narrow'
-          : curEff === 'narrow'
-            ? 'tall'
-            : 'sm'
+        ? 'third'
+        : curEff === 'third'
+          ? 'wide'
+          : curEff === 'wide'
+            ? 'narrow'
+            : curEff === 'narrow'
+              ? 'tall'
+              : 'sm'
       : curEff === 'sm'
-        ? 'wide'
-        : 'sm';
+        ? 'third'
+        : curEff === 'third'
+          ? 'wide'
+          : 'sm';
   const next = { ...(baseSizes || {}) };
   if (nextSize === 'sm') {
     delete next[metricKey];

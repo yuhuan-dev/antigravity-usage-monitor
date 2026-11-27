@@ -3200,9 +3200,9 @@ test('Bento metric grid (Option A): 2-tier height, 4-col sm/wide/tall packing, e
   const { LiveOverviewView } = await import('../src/views/LiveOverviewView.js');
 
   // 1) Shared normalization, legacy style migration & backend schema checks
-  assert.equal(METRIC_GRID_COLS, 4);
+  assert.equal(METRIC_GRID_COLS, 12);
   assert.deepEqual([...METRIC_GRID_ROWS], [1, 2]);
-  assert.deepEqual([...METRIC_CARD_SIZES], ['sm', 'wide', 'narrow', 'tall']);
+  assert.deepEqual([...METRIC_CARD_SIZES], ['sm', 'third', 'wide', 'narrow', 'tall']);
   assert.equal(MAX_OVERVIEW_METRICS, 8);
   assert.equal(DEFAULT_SETTINGS_SCHEMA.overviewMetricRows, DEFAULT_OVERVIEW_METRIC_ROWS);
   assert.equal(DEFAULT_SETTINGS_SCHEMA.hoverMetricRows, DEFAULT_HOVER_METRIC_ROWS);
@@ -3219,6 +3219,9 @@ test('Bento metric grid (Option A): 2-tier height, 4-col sm/wide/tall packing, e
   assert.equal(normalizeHoverMetricRows(1), 1);
 
   assert.equal(normalizeMetricCardSize('sm'), 'sm');
+  assert.equal(normalizeMetricCardSize('third'), 'third');
+  assert.equal(normalizeMetricCardSize('1/3'), 'third');
+  assert.equal(normalizeMetricCardSize('1.333x1'), 'third');
   assert.equal(normalizeMetricCardSize('wide'), 'wide');
   assert.equal(normalizeMetricCardSize('2x1'), 'wide');
   assert.equal(normalizeMetricCardSize('narrow'), 'narrow');
@@ -3228,12 +3231,12 @@ test('Bento metric grid (Option A): 2-tier height, 4-col sm/wide/tall packing, e
   assert.equal(normalizeMetricCardSize('unknown'), 'sm');
 
   assert.deepEqual(
-    normalizeMetricCardSizes({ tps: 'tall', ttft: 'sm', avg_tps: '1x2', cost: 'wide', nope: 'wide' }),
-    { tps: 'tall', avg_tps: 'narrow', step_cost: 'wide' }
+    normalizeMetricCardSizes({ tps: 'tall', ttft: '1/3', avg_tps: '1x2', cost: 'wide', nope: 'wide' }),
+    { tps: 'tall', ttft: 'third', avg_tps: 'narrow', step_cost: 'wide' }
   );
   assert.deepEqual(
     normalizeMetricCardSizes(undefined, ['tps', 'ttft', 'avg_tps'], 'large'),
-    { tps: 'wide', ttft: 'wide', avg_tps: 'wide' }
+    { tps: 'third', ttft: 'third', avg_tps: 'third' }
   );
   assert.deepEqual(
     normalizeMetricCardSizes(undefined, ['cache_hit', 'ttft', 'avg_tps'], 'hybrid'),
@@ -3254,38 +3257,112 @@ test('Bento metric grid (Option A): 2-tier height, 4-col sm/wide/tall packing, e
   assert.equal(normalizedLegacy.overviewMetricStyle, 'hybrid');
   assert.equal(normalizedLegacy.hoverMetricRows, 1);
   assert.deepEqual(normalizedLegacy.hoverMetricSizes, {
-    tps: 'wide',
-    ttft: 'wide',
-    avg_tps: 'wide',
+    tps: 'third',
+    ttft: 'third',
+    avg_tps: 'third',
   });
   assert.equal(normalizedLegacy.hoverMetricStyle, 'large');
 
-  // 2) Deterministic honest Bento packing (1-row, 2-row, 1x2 narrow, downgrade, zero fake auto-stretch, overflow, ghost cells)
+  // 2) Deterministic honest 12-col Bento packing (1/4 sm, 1/3 third, 1/2 wide, 1x2 narrow, 2x2 tall, downgrade, overflow, chunked ghost cells)
   const pack1RowDowngrade = packMetricBentoLayout({
     rows: 1,
     metrics: ['tps', 'ttft', 'avg_tps', 'step_cost'],
     sizes: { tps: 'tall', ttft: 'narrow' },
   });
   assert.equal(pack1RowDowngrade.effectiveRows, 1);
-  assert.equal(pack1RowDowngrade.gridCols, 4);
+  assert.equal(pack1RowDowngrade.gridCols, 12);
+  assert.equal(pack1RowDowngrade.displayCols, 3);
   assert.equal(pack1RowDowngrade.placements.length, 3);
   assert.equal(pack1RowDowngrade.placements[0].size, 'wide', 'tall downgrades visually to wide in 1-row');
+  assert.equal(pack1RowDowngrade.placements[0].colSpan, 6);
   assert.equal(pack1RowDowngrade.placements[0].rawSize, 'tall');
   assert.equal(pack1RowDowngrade.placements[1].size, 'sm', 'narrow (1x2) downgrades visually to sm (1x1) in 1-row');
+  assert.equal(pack1RowDowngrade.placements[1].colSpan, 3);
   assert.equal(pack1RowDowngrade.placements[1].rawSize, 'narrow');
   assert.deepEqual(pack1RowDowngrade.overflowKeys, ['step_cost']);
 
+  // 1-row 3-up (1/3 width x 3 = 12 cols) works natively without hidden wide-card magic
   const pack3Up = packMetricBentoLayout({
     rows: 1,
     metrics: ['tps', 'ttft', 'avg_tps', 'step_cost'],
-    sizes: { tps: 'wide', ttft: 'wide', avg_tps: 'wide' },
+    sizes: { tps: 'third', ttft: 'third', avg_tps: 'third' },
   });
   assert.equal(pack3Up.isThreeUpTrend, true);
-  assert.equal(pack3Up.gridCols, 3);
+  assert.equal(pack3Up.gridCols, 12);
+  assert.equal(pack3Up.displayCols, 3);
   assert.equal(pack3Up.placements.length, 3);
+  assert.deepEqual(
+    pack3Up.placements.map((p) => `${p.key}@${p.colStart}+${p.colSpan}`),
+    ['tps@1+4', 'ttft@5+4', 'avg_tps@9+4']
+  );
   assert.deepEqual(pack3Up.overflowKeys, ['step_cost']);
 
-  // Honest sizing: 2x2 + three 1x1 NEVER fakes the 3rd 1x1 into a 2x1 card; edit mode exposes 1 ghost cell at (4,2)
+  // 2-row mixed 12-col Bento: Row 1 = three 1/3 trend cards + Row 2 = four 1/4 compact cards (zero gap, zero overflow)
+  const pack2RowThirdAndSm = packMetricBentoLayout({
+    rows: 2,
+    metrics: ['tps', 'ttft', 'avg_tps', 'step_cost', 'session_cost', 'cache_hit', 'session_tokens'],
+    sizes: { tps: 'third', ttft: 'third', avg_tps: 'third' },
+    includeGhostCells: true,
+  });
+  assert.equal(pack2RowThirdAndSm.effectiveRows, 2);
+  assert.equal(pack2RowThirdAndSm.gridCols, 12);
+  assert.equal(pack2RowThirdAndSm.placements.length, 7);
+  assert.deepEqual(pack2RowThirdAndSm.overflowKeys, []);
+  assert.equal(pack2RowThirdAndSm.ghostCells.length, 0);
+  assert.deepEqual(
+    pack2RowThirdAndSm.placements.map((p) => `${p.key}:${p.size}@${p.colStart},${p.rowStart},${p.colSpan}x${p.rowSpan}`),
+    [
+      'tps:third@1,1,4x1',
+      'ttft:third@5,1,4x1',
+      'avg_tps:third@9,1,4x1',
+      'step_cost:sm@1,2,3x1',
+      'session_cost:sm@4,2,3x1',
+      'cache_hit:sm@7,2,3x1',
+      'session_tokens:sm@10,2,3x1',
+    ]
+  );
+
+  // 2-row 6-up: two full rows of 1/3 trend cards
+  const pack2RowSixThird = packMetricBentoLayout({
+    rows: 2,
+    metrics: ['tps', 'ttft', 'avg_tps', 'step_cost', 'session_cost', 'cache_hit'],
+    sizes: { tps: 'third', ttft: 'third', avg_tps: 'third', step_cost: 'third', session_cost: 'third', cache_hit: 'third' },
+    includeGhostCells: true,
+  });
+  assert.equal(pack2RowSixThird.placements.length, 6);
+  assert.equal(pack2RowSixThird.displayCols, 3);
+  assert.equal(pack2RowSixThird.ghostCells.length, 0);
+
+  // 2-row partial 1/3 row emits matching 4-col (1/3) ghost cell on Row 1 + four 3-col ghosts on Row 2
+  const pack2RowTwoThird = packMetricBentoLayout({
+    rows: 2,
+    metrics: ['tps', 'ttft'],
+    sizes: { tps: 'third', ttft: 'third' },
+    includeGhostCells: true,
+  });
+  assert.deepEqual(pack2RowTwoThird.ghostCells[0], { colStart: 9, colSpan: 4, rowStart: 1 });
+  assert.equal(pack2RowTwoThird.ghostCells.length, 5);
+
+  // 1-row mixed 1/3 + two 1/4: live mode collapses gridCols to 10 (no dead sliver), edit mode shows honest 2-col ghost
+  const pack1RowMixLive = packMetricBentoLayout({
+    rows: 1,
+    metrics: ['tps', 'ttft', 'avg_tps', 'step_cost'],
+    sizes: { tps: 'third' },
+    includeGhostCells: false,
+  });
+  assert.equal(pack1RowMixLive.gridCols, 10);
+  assert.equal(pack1RowMixLive.ghostCells.length, 0);
+  assert.deepEqual(pack1RowMixLive.overflowKeys, ['step_cost']);
+  const pack1RowMixEdit = packMetricBentoLayout({
+    rows: 1,
+    metrics: ['tps', 'ttft', 'avg_tps', 'step_cost'],
+    sizes: { tps: 'third' },
+    includeGhostCells: true,
+  });
+  assert.equal(pack1RowMixEdit.gridCols, 12);
+  assert.deepEqual(pack1RowMixEdit.ghostCells, [{ colStart: 11, colSpan: 2, rowStart: 1 }]);
+
+  // Honest sizing: 2x2 + three 1x1 NEVER fakes the 3rd 1x1 into a 2x1 card; edit mode exposes 1 ghost cell at (10,2,span 3)
   const pack2RowHero = packMetricBentoLayout({
     rows: 2,
     metrics: ['tps', 'ttft', 'avg_tps', 'step_cost'],
@@ -3293,19 +3370,19 @@ test('Bento metric grid (Option A): 2-tier height, 4-col sm/wide/tall packing, e
     includeGhostCells: true,
   });
   assert.equal(pack2RowHero.effectiveRows, 2);
-  assert.equal(pack2RowHero.gridCols, 4);
+  assert.equal(pack2RowHero.gridCols, 12);
   assert.equal(pack2RowHero.placements.length, 4);
   assert.deepEqual(pack2RowHero.overflowKeys, []);
   assert.equal(pack2RowHero.placements[0].colStart, 1);
-  assert.equal(pack2RowHero.placements[0].colSpan, 2);
+  assert.equal(pack2RowHero.placements[0].colSpan, 6);
   assert.equal(pack2RowHero.placements[0].rowStart, 1);
   assert.equal(pack2RowHero.placements[0].rowSpan, 2);
-  assert.equal(pack2RowHero.placements[3].colStart, 3);
-  assert.equal(pack2RowHero.placements[3].colSpan, 1, '1x1 card stays honestly 1x1 instead of mutating into fake 2x1');
+  assert.equal(pack2RowHero.placements[3].colStart, 7);
+  assert.equal(pack2RowHero.placements[3].colSpan, 3, '1x1 card stays honestly 3/12 instead of mutating into fake 2x1');
   assert.equal(pack2RowHero.placements[3].isTrend, false);
-  assert.deepEqual(pack2RowHero.ghostCells, [{ colStart: 4, rowStart: 2 }]);
+  assert.deepEqual(pack2RowHero.ghostCells, [{ colStart: 10, colSpan: 3, rowStart: 2 }]);
 
-  // Explicit 2x2 + two 2x1 fills all 8 cells with 0 ghosts and full sparklines
+  // Explicit 2x2 + two 2x1 fills all 24 cols with 0 ghosts and full sparklines
   const pack2Row3Cards = packMetricBentoLayout({
     rows: 2,
     metrics: ['tps', 'cache_hit', 'ttft'],
@@ -3314,10 +3391,10 @@ test('Bento metric grid (Option A): 2-tier height, 4-col sm/wide/tall packing, e
   });
   assert.equal(pack2Row3Cards.placements.length, 3);
   assert.equal(pack2Row3Cards.ghostCells.length, 0);
-  assert.equal(pack2Row3Cards.placements[1].colSpan, 2);
+  assert.equal(pack2Row3Cards.placements[1].colSpan, 6);
   assert.equal(pack2Row3Cards.placements[1].isWide, true);
   assert.equal(pack2Row3Cards.placements[1].isTrend, true);
-  assert.equal(pack2Row3Cards.placements[2].colSpan, 2);
+  assert.equal(pack2Row3Cards.placements[2].colSpan, 6);
   assert.equal(pack2Row3Cards.placements[2].rowStart, 2);
   assert.equal(pack2Row3Cards.placements[2].isWide, true);
 
@@ -3333,12 +3410,12 @@ test('Bento metric grid (Option A): 2-tier height, 4-col sm/wide/tall packing, e
   assert.equal(pack2RowNarrow.ghostCells.length, 0);
   assert.deepEqual(
     pack2RowNarrow.placements.map((p) => `${p.key}:${p.size}@${p.colStart},${p.rowStart},${p.colSpan}x${p.rowSpan}`),
-    ['tps:tall@1,1,2x2', 'ttft:sm@3,1,1x1', 'avg_tps:sm@3,2,1x1', 'cache_hit:narrow@4,1,1x2']
+    ['tps:tall@1,1,6x2', 'ttft:sm@7,1,3x1', 'avg_tps:sm@7,2,3x1', 'cache_hit:narrow@10,1,3x2']
   );
   assert.equal(pack2RowNarrow.placements[3].isNarrow, true);
   assert.equal(pack2RowNarrow.placements[3].isTrend, true);
 
-  // Middle 2x2 hero placement (5 cards) fills all 8 cells cleanly
+  // Middle 2x2 hero placement (5 cards) fills all 24 cols cleanly
   const pack2RowMid5 = packMetricBentoLayout({
     rows: 2,
     metrics: ['ttft', 'tps', 'cache_hit', 'avg_tps', 'step_cost'],
@@ -3346,15 +3423,15 @@ test('Bento metric grid (Option A): 2-tier height, 4-col sm/wide/tall packing, e
   });
   assert.equal(pack2RowMid5.placements.length, 5);
   assert.deepEqual(pack2RowMid5.overflowKeys, []);
-  assert.equal(pack2RowMid5.placements[1].colStart, 2, '2x2 hero card sits in middle columns 2-3');
-  assert.equal(pack2RowMid5.placements[1].colSpan, 2);
+  assert.equal(pack2RowMid5.placements[1].colStart, 4, '2x2 hero card sits in middle columns 4-9');
+  assert.equal(pack2RowMid5.placements[1].colSpan, 6);
   assert.equal(pack2RowMid5.placements[1].rowSpan, 2);
   assert.deepEqual(
     pack2RowMid5.placements.map((p) => `${p.key}@${p.colStart},${p.rowStart}`),
-    ['ttft@1,1', 'tps@2,1', 'cache_hit@4,1', 'avg_tps@1,2', 'step_cost@4,2']
+    ['ttft@1,1', 'tps@4,1', 'cache_hit@10,1', 'avg_tps@1,2', 'step_cost@10,2']
   );
 
-  // Trailing 2x2 after 3 small cards repacks small cards into left 2x2 instead of overflowing the tall card
+  // Trailing 2x2 after 3 small cards repacks small cards into left 6 cols instead of overflowing the tall card
   const pack2RowRightTall = packMetricBentoLayout({
     rows: 2,
     metrics: ['ttft', 'cache_hit', 'avg_tps', 'tps'],
@@ -3363,9 +3440,9 @@ test('Bento metric grid (Option A): 2-tier height, 4-col sm/wide/tall packing, e
   });
   assert.equal(pack2RowRightTall.placements.length, 4);
   assert.deepEqual(pack2RowRightTall.overflowKeys, []);
-  assert.equal(pack2RowRightTall.placements[3].colStart, 3, 'Trailing 2x2 lands on right cols 3-4');
-  assert.equal(pack2RowRightTall.placements[2].colSpan, 1, 'Left-bottom 1x1 card stays honest 1x1');
-  assert.deepEqual(pack2RowRightTall.ghostCells, [{ colStart: 2, rowStart: 2 }]);
+  assert.equal(pack2RowRightTall.placements[3].colStart, 7, 'Trailing 2x2 lands on right cols 7-12');
+  assert.equal(pack2RowRightTall.placements[2].colSpan, 3, 'Left-bottom 1x1 card stays honest 3/12');
+  assert.deepEqual(pack2RowRightTall.ghostCells, [{ colStart: 4, colSpan: 3, rowStart: 2 }]);
 
   const pack2RowEditGhosts = packMetricBentoLayout({
     rows: 2,
@@ -3374,7 +3451,7 @@ test('Bento metric grid (Option A): 2-tier height, 4-col sm/wide/tall packing, e
     includeGhostCells: true,
   });
   assert.equal(pack2RowEditGhosts.effectiveRows, 2);
-  assert.equal(pack2RowEditGhosts.ghostCells.length, 4, 'Edit mode shows 4 Row-2 ghost cells when Row 2 is empty');
+  assert.equal(pack2RowEditGhosts.ghostCells.length, 4, 'Edit mode shows 4 chunked Row-2 ghost cells when Row 2 is empty');
 
   const pack2RowReadonlyCollapse = packMetricBentoLayout({
     rows: 2,
@@ -3607,25 +3684,31 @@ test('Bento metric grid (Option A): 2-tier height, 4-col sm/wide/tall packing, e
   assert.equal(stopPropCalled, true, 'Resize handle pointerdown stops propagation to reorder drag');
   assert.equal(preventDefaultCalled, true);
 
-  // Pull right +60px (unitW=100 -> spanCols=1.60 >= 1.45) -> snaps live to 'wide' (2x1)
-  document.dispatchEvent({ type: 'pointermove', clientX: 156, clientY: 68, preventDefault() {} });
+  // Pull right +25px (unitW=33.33 -> spanCols=3.75 >= 3.55) -> snaps live to 'third' (1/3 width)
+  document.dispatchEvent({ type: 'pointermove', clientX: 121, clientY: 68, preventDefault() {} });
   assert.equal(matrixEl.classList.contains('is-resizing-metric'), true);
   assert.equal(matrixEl.classList.contains('is-dragging-matrix'), false, 'Resize drag must not start cell reorder');
   assert.equal(containerEl.classList.contains('is-dragging-modules'), false, 'Resize drag must not start module drag');
-  assert.equal(matrixEl.querySelectorAll('.matrix-cell')[0].getAttribute('data-card-size'), 'wide');
+  assert.equal(matrixEl.querySelectorAll('.matrix-cell')[0].getAttribute('data-card-size'), 'third');
+  assert.equal(matrixEl.querySelectorAll('.matrix-cell')[0].classList.contains('is-third-card'), true);
   assert.equal(matrixEl.querySelectorAll('.matrix-cell')[0].querySelector('.matrix-cell-size-badge').hasAttribute('hidden'), false);
-  assert.deepEqual(sizePreviews.at(-1), { tps: 'wide' });
+  assert.deepEqual(sizePreviews.at(-1), { tps: 'third' });
   assert.equal(sizeCommits.length, 0, 'Must not commit before pointerup');
 
-  // Pull down +50px (unitH=72 -> spanRows=1.69 >= 1.45) -> snaps live to 'tall' (2x2) and leaves 1 honest ghost slot (7/8 occupied)
-  document.dispatchEvent({ type: 'pointermove', clientX: 156, clientY: 118, preventDefault() {} });
+  // Continue pulling right to +80px (spanCols=5.40 >= 5.15) -> snaps live to 'wide' (2x1)
+  document.dispatchEvent({ type: 'pointermove', clientX: 176, clientY: 68, preventDefault() {} });
+  assert.equal(matrixEl.querySelectorAll('.matrix-cell')[0].getAttribute('data-card-size'), 'wide');
+  assert.deepEqual(sizePreviews.at(-1), { tps: 'wide' });
+
+  // Pull down +50px (unitH=72 -> spanRows=1.69 >= 1.45) -> snaps live to 'tall' (2x2) and leaves 1 honest ghost slot (3/12 on Row 2)
+  document.dispatchEvent({ type: 'pointermove', clientX: 176, clientY: 118, preventDefault() {} });
   assert.equal(matrixEl.querySelectorAll('.matrix-cell')[0].getAttribute('data-card-size'), 'tall');
   assert.equal(matrixEl.querySelectorAll('.matrix-cell')[0].classList.contains('is-tall-card'), true);
-  assert.equal(matrixEl.querySelectorAll('.matrix-ghost-cell').length, 1, '7/8 occupied 2-row grid honestly renders 1 ghost cell');
+  assert.equal(matrixEl.querySelectorAll('.matrix-ghost-cell').length, 1, '2x2 + three 1x1 2-row grid honestly renders 1 ghost cell');
   assert.deepEqual(sizePreviews.at(-1), { tps: 'tall' });
 
   // Release commits once
-  document.dispatchEvent({ type: 'pointerup', clientX: 156, clientY: 118 });
+  document.dispatchEvent({ type: 'pointerup', clientX: 176, clientY: 118 });
   assert.equal(matrixEl.classList.contains('is-resizing-metric'), false);
   assert.deepEqual(sizeCommits, [{ tps: 'tall' }]);
 
@@ -3666,11 +3749,13 @@ test('Bento metric grid (Option A): 2-tier height, 4-col sm/wide/tall packing, e
   document.dispatchEvent({ type: 'pointerup', clientX: 96, clientY: 120 });
   assert.deepEqual(sizeCommits.at(-1), { tps: 'narrow' });
 
-  // Keyboard arrows navigate 2D grid sizes cleanly (narrow -> tall -> wide -> sm -> narrow -> sm)
+  // Keyboard arrows navigate 2D 5-size grid cleanly (narrow -> tall -> wide -> third -> sm -> narrow -> sm)
   firstHandle.dispatchEvent({ type: 'keydown', key: 'ArrowRight', stopPropagation() {}, preventDefault() {} });
   assert.equal(matrixEl.querySelectorAll('.matrix-cell')[0].getAttribute('data-card-size'), 'tall');
   firstHandle.dispatchEvent({ type: 'keydown', key: 'ArrowUp', stopPropagation() {}, preventDefault() {} });
   assert.equal(matrixEl.querySelectorAll('.matrix-cell')[0].getAttribute('data-card-size'), 'wide');
+  firstHandle.dispatchEvent({ type: 'keydown', key: 'ArrowLeft', stopPropagation() {}, preventDefault() {} });
+  assert.equal(matrixEl.querySelectorAll('.matrix-cell')[0].getAttribute('data-card-size'), 'third');
   firstHandle.dispatchEvent({ type: 'keydown', key: 'ArrowLeft', stopPropagation() {}, preventDefault() {} });
   assert.equal(matrixEl.querySelectorAll('.matrix-cell')[0].getAttribute('data-card-size'), 'sm');
   firstHandle.dispatchEvent({ type: 'keydown', key: 'ArrowDown', stopPropagation() {}, preventDefault() {} });
@@ -3702,7 +3787,7 @@ test('Bento metric grid (Option A): 2-tier height, 4-col sm/wide/tall packing, e
   for (let i = 0; i < 4; i += 1) {
     currentCells[i].getBoundingClientRect = () => bentoRects[i];
   }
-  // Drag Row-2 2x1 card (step_cost) straight UP to Row-1 Col 3-4
+  // Drag Row-2 2x1 card (step_cost) straight UP to Row-1 Col 7-12
   currentCells[3].dispatchEvent({
     type: 'pointerdown',
     button: 0,
@@ -3726,10 +3811,10 @@ test('Bento metric grid (Option A): 2-tier height, 4-col sm/wide/tall packing, e
   assert.deepEqual(
     metCommits[0],
     ['tps', 'step_cost', 'ttft', 'avg_tps'],
-    '2x1 card cleanly moves up to Row 1 Col 3-4 while pushing Row-1 1x1 cards down to Row 2'
+    '2x1 card cleanly moves up to Row 1 Col 7-12 while pushing Row-1 1x1 cards down to Row 2'
   );
   assert.equal(matrixEl.querySelector('[data-metric-key="step_cost"]').style.getPropertyValue('--cell-row-start'), '1');
-  assert.equal(matrixEl.querySelector('[data-metric-key="step_cost"]').style.getPropertyValue('--cell-col-span'), '2');
+  assert.equal(matrixEl.querySelector('[data-metric-key="step_cost"]').style.getPropertyValue('--cell-col-span'), '6');
   assert.equal(modCommits.length, 0);
 
   // Dragging 2x2 hero card dead-center (50%) into a 5-card 2-row grid snaps cleanly to middle columns 2-3
@@ -3780,8 +3865,8 @@ test('Bento metric grid (Option A): 2-tier height, 4-col sm/wide/tall packing, e
   );
   assert.equal(
     matrixEl.querySelector('[data-metric-key="tps"]').style.getPropertyValue('--cell-col-start'),
-    '2',
-    '2x2 hero card lands in middle columns 2-3'
+    '4',
+    '2x2 hero card lands in middle columns 4-9'
   );
 
   // Default card text mode is 'title' (title + value, subtext hidden), and all 4 modes toggle cleanly with unified 2-column DOM & adaptive sparkline height
@@ -3844,6 +3929,7 @@ test('Bento metric grid (Option A): 2-tier height, 4-col sm/wide/tall packing, e
   assert.match(builtStyles, /grid-template-rows:\s*repeat\(2,\s*var\(--metric-row-h\)\)/);
   assert.doesNotMatch(builtStyles, /\.telemetry-matrix\.is-two-row\[data-metric-text="none"\]/);
   assert.match(builtStyles, /\.telemetry-matrix\.is-bento\s*>\s*\.matrix-cell/);
+  assert.match(builtStyles, /\.telemetry-matrix\s*>\s*\.matrix-cell\.is-third-card/);
   assert.match(builtStyles, /\.telemetry-matrix\s*>\s*\.matrix-cell\.is-narrow-card\s*\{/);
   assert.match(builtStyles, /\.telemetry-matrix\s*>\s*\.matrix-cell\.is-tall-card\s*\{/);
   assert.match(builtStyles, /\.telemetry-matrix\[data-metric-text="title"\]\s*>\s*\.matrix-cell\.is-wide-card\s+\.cell-sparkline-wrap/);
@@ -3853,6 +3939,7 @@ test('Bento metric grid (Option A): 2-tier height, 4-col sm/wide/tall packing, e
   assert.match(builtStyles, /\.telemetry-matrix\.is-bento-animating\s*>\s*\.matrix-cell\.is-bento-flipping\s*\{/);
   assert.match(builtStyles, /\.slot-size-pill\s*\{/);
   assert.match(builtStyles, /\[data-modern-ui="true"\]\s+\.slot-size-pill,\s*\[data-modern-ui="true"\]\s+\.matrix-cell-size-badge\s*\{\s*border:\s*none;/);
+  assert.match(builtStyles, /\[data-modern-ui="true"\]\s+\.slot-size-pill\[data-badge-tone="third"\]\s*\{\s*border:\s*none;/);
   assert.doesNotMatch(builtStyles, /\.matrix-hybrid-splitter\s*\{/);
   assert.doesNotMatch(builtStyles, /\.is-resizing-hybrid/);
 });

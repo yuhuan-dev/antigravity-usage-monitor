@@ -2976,9 +2976,9 @@ test('P2 regressions: bundler regex-after-paren lexer, shared URI/prompt/atomic 
   assert.equal(legacyBentoImport.patch.hoverMetricStyle, 'hybrid');
   assert.equal(legacyBentoImport.patch.overviewMetricRows, 1);
   assert.deepEqual(legacyBentoImport.patch.overviewMetricSizes, {
-    tps: 'wide',
-    ttft: 'wide',
-    avg_tps: 'wide',
+    tps: 'third',
+    ttft: 'third',
+    avg_tps: 'third',
   });
   assert.equal(legacyBentoImport.patch.overviewMetricStyle, 'large');
   assert.equal(reimported.patch.quotaDisplayMode, 'remaining');

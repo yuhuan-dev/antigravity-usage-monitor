@@ -405,6 +405,10 @@ html[data-standalone="true"][data-modern-ui="true"] .app-shell {
   padding: 8px 11px;
 }
 
+[data-modern-ui="true"] .telemetry-matrix > .matrix-cell.is-third-card {
+  padding: 8px 10px;
+}
+
 [data-modern-ui="true"] .telemetry-matrix > .matrix-cell.is-narrow-card {
   padding: 9px 10px 8px;
 }
@@ -426,6 +430,10 @@ html[data-standalone="true"][data-modern-ui="true"] .app-shell {
 [data-modern-ui="true"] .telemetry-matrix[data-metric-text="both"] > .matrix-cell.is-wide-card,
 [data-modern-ui="true"] .telemetry-matrix.is-large-trend[data-metric-text="both"] > .matrix-cell.is-trend-card {
   padding: 8px 11px;
+}
+
+[data-modern-ui="true"] .telemetry-matrix[data-metric-text="both"] > .matrix-cell.is-third-card {
+  padding: 8px 10px;
 }
 
 [data-modern-ui="true"] .matrix-ghost-cell {
@@ -831,6 +839,16 @@ html[data-standalone="true"][data-modern-ui="true"] .app-shell {
 
 [data-modern-ui="true"] .slot-size-pill.is-active:hover {
   background: color-mix(in srgb, var(--accent-primary) 20%, transparent);
+}
+
+[data-modern-ui="true"] .slot-size-pill[data-badge-tone="third"] {
+  border: none;
+  color: var(--metric-ok);
+  background: var(--metric-ok-soft);
+}
+
+[data-modern-ui="true"] .slot-size-pill[data-badge-tone="third"]:hover {
+  background: color-mix(in srgb, var(--metric-ok) 20%, transparent);
 }
 
 [data-modern-ui="true"] .slot-size-pill[data-badge-tone="narrow"] {

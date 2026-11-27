@@ -82,18 +82,22 @@ function buildNextSizesMap(baseSizes, key, nextSize) {
 
 function cycleMetricCardSize(currentEffSize, rows) {
   if (rows === 2) {
-    if (currentEffSize === 'sm') return 'wide';
+    if (currentEffSize === 'sm') return 'third';
+    if (currentEffSize === 'third') return 'wide';
     if (currentEffSize === 'wide') return 'narrow';
     if (currentEffSize === 'narrow') return 'tall';
     return 'sm';
   }
-  return currentEffSize === 'sm' ? 'wide' : 'sm';
+  if (currentEffSize === 'sm') return 'third';
+  if (currentEffSize === 'third') return 'wide';
+  return 'sm';
 }
 
 function formatMetricSizeBadge(size) {
   if (size === 'tall') return `${t('settings.str.metricSizeTall')} 2×2`;
   if (size === 'narrow') return `${t('settings.str.metricSizeNarrow')} 1×2`;
   if (size === 'wide') return `${t('settings.str.metricSizeWide')} 2×1`;
+  if (size === 'third') return `${t('settings.str.metricSizeThird')} 1/3`;
   return `${t('settings.str.metricSizeSm')} 1×1`;
 }
 
@@ -165,9 +169,9 @@ function readMatrixGridGaps(matrixEl, cellEls) {
 }
 
 function computePlacementPixelRect(placement, layout, matrixRect, colGap, rowGap) {
-  const cols = Math.max(1, Number(layout?.gridCols || 4));
+  const cols = Math.max(1, Number(layout?.gridCols || CLIENT_METRIC_GRID_COLS));
   const rows = Math.max(1, Number(layout?.effectiveRows || 1));
-  const colW = Math.max(16, (matrixRect.width - colGap * (cols - 1)) / cols);
+  const colW = Math.max(4, (matrixRect.width - colGap * (cols - 1)) / cols);
   const rowH = Math.max(16, (matrixRect.height - rowGap * (rows - 1)) / rows);
   const left = matrixRect.left + (placement.colStart - 1) * (colW + colGap);
   const top = matrixRect.top + (placement.rowStart - 1) * (rowH + rowGap);
@@ -516,14 +520,20 @@ export const MetricMatrixWidget = defineComponent({
       const startEffSize = placement.size;
       const rowsAtStart = currentLayoutRows;
       const effectiveRowsAtStart = Math.max(1, currentEffectiveRows);
-      const startLogicalCols = startEffSize === 'wide' || startEffSize === 'tall' ? 2 : 1;
+      const startLogicalCols =
+        startEffSize === 'wide' || startEffSize === 'tall'
+          ? 6
+          : startEffSize === 'third'
+            ? 4
+            : 3;
       const startLogicalRows = startEffSize === 'narrow' || startEffSize === 'tall' ? 2 : 1;
 
       const matrixRect = matrixEl.getBoundingClientRect?.();
       const rawMatrixW = Number(matrixRect?.width || 0);
       const rawMatrixH = Number(matrixRect?.height || 0);
+      const gridColsAtStart = Math.max(1, currentGridCols || CLIENT_METRIC_GRID_COLS);
       const unitW =
-        Number.isFinite(rawMatrixW) && rawMatrixW > 0 ? rawMatrixW / CLIENT_METRIC_GRID_COLS : 96;
+        Number.isFinite(rawMatrixW) && rawMatrixW > 0 ? rawMatrixW / gridColsAtStart : 32;
       const unitH =
         Number.isFinite(rawMatrixH) && rawMatrixH > 0
           ? rawMatrixH / effectiveRowsAtStart
@@ -533,16 +543,28 @@ export const MetricMatrixWidget = defineComponent({
       let workingSizes = { ...startSizes };
 
       function resolveSnappedSize(clientX, clientY, startX, startY) {
-        const spanCols = startLogicalCols + (Number(clientX) - Number(startX)) / Math.max(24, unitW);
+        const spanCols = startLogicalCols + (Number(clientX) - Number(startX)) / Math.max(8, unitW);
         const spanRows = startLogicalRows + (Number(clientY) - Number(startY)) / Math.max(24, unitH);
-        const curIsWide = workingSize === 'wide' || workingSize === 'tall';
         const curIsTall = workingSize === 'narrow' || workingSize === 'tall';
-        const nextIsWide = curIsWide ? spanCols > 1.28 : spanCols >= 1.45;
         const nextIsTall =
           rowsAtStart === 2 ? (curIsTall ? spanRows > 1.28 : spanRows >= 1.45) : false;
-        if (nextIsWide && nextIsTall) return 'tall';
-        if (nextIsWide) return 'wide';
-        if (nextIsTall) return 'narrow';
+        if (nextIsTall) {
+          const curIsWide = workingSize === 'wide' || workingSize === 'tall';
+          const nextIsWide = curIsWide ? spanCols > 4.25 : spanCols >= 4.65;
+          return nextIsWide ? 'tall' : 'narrow';
+        }
+        if (workingSize === 'wide' || workingSize === 'tall') {
+          if (spanCols <= 3.35) return 'sm';
+          if (spanCols <= 4.75) return 'third';
+          return 'wide';
+        }
+        if (workingSize === 'third') {
+          if (spanCols >= 5.15) return 'wide';
+          if (spanCols <= 3.35) return 'sm';
+          return 'third';
+        }
+        if (spanCols >= 5.15) return 'wide';
+        if (spanCols >= 3.55) return 'third';
         return 'sm';
       }
 
@@ -569,12 +591,18 @@ export const MetricMatrixWidget = defineComponent({
           } else if (!prefersReducedMotion()) {
             const targetCell = getMetricCellByKey(cellKey);
             if (targetCell?.style && !targetCell.classList?.contains?.('is-bento-flipping')) {
-              const targetLogicalCols = workingSize === 'wide' || workingSize === 'tall' ? 2 : 1;
+              const targetLogicalCols =
+                workingSize === 'wide' || workingSize === 'tall'
+                  ? 6
+                  : workingSize === 'third'
+                    ? 4
+                    : 3;
               const targetLogicalRows = workingSize === 'narrow' || workingSize === 'tall' ? 2 : 1;
               const remCols =
-                startLogicalCols -
-                targetLogicalCols +
-                (Number(clientX) - Number(startX)) / Math.max(24, unitW);
+                (startLogicalCols -
+                  targetLogicalCols +
+                  (Number(clientX) - Number(startX)) / Math.max(8, unitW)) /
+                3;
               const remRows =
                 startLogicalRows -
                 targetLogicalRows +
@@ -1091,6 +1119,7 @@ export const MetricMatrixWidget = defineComponent({
         if (i < targetCount) {
           const spec = ghostSpecs[i];
           patchStyleVar(ghostEl, '--ghost-col-start', String(spec.colStart));
+          patchStyleVar(ghostEl, '--ghost-col-span', String(spec.colSpan || 3));
           patchStyleVar(ghostEl, '--ghost-row-start', String(spec.rowStart));
           if (ghostEl.parentNode !== matrixEl) {
             matrixEl.appendChild(ghostEl);
@@ -1169,6 +1198,8 @@ export const MetricMatrixWidget = defineComponent({
                   e.preventDefault?.();
                   e.stopPropagation?.();
                   if (placement.size === 'sm') {
+                    commitMetricCardSizeImmediate(boundMetricKey, 'third');
+                  } else if (placement.size === 'third') {
                     commitMetricCardSizeImmediate(boundMetricKey, 'wide');
                   } else if (placement.size === 'narrow') {
                     commitMetricCardSizeImmediate(boundMetricKey, 'tall');
@@ -1177,6 +1208,8 @@ export const MetricMatrixWidget = defineComponent({
                   e.preventDefault?.();
                   e.stopPropagation?.();
                   if (placement.size === 'wide') {
+                    commitMetricCardSizeImmediate(boundMetricKey, 'third');
+                  } else if (placement.size === 'third') {
                     commitMetricCardSizeImmediate(boundMetricKey, 'sm');
                   } else if (placement.size === 'tall') {
                     commitMetricCardSizeImmediate(boundMetricKey, 'narrow');
@@ -1186,7 +1219,7 @@ export const MetricMatrixWidget = defineComponent({
                   e.stopPropagation?.();
                   if (placement.size === 'sm') {
                     commitMetricCardSizeImmediate(boundMetricKey, 'narrow');
-                  } else if (placement.size === 'wide') {
+                  } else if (placement.size === 'third' || placement.size === 'wide') {
                     commitMetricCardSizeImmediate(boundMetricKey, 'tall');
                   }
                 } else if (e?.key === 'ArrowUp') {
@@ -1321,13 +1354,13 @@ export const MetricMatrixWidget = defineComponent({
       lastSparkGeomSig = sparkGeomSig;
 
       patchClasses(matrixEl, {
-        'is-bento': !layout.isThreeUpTrend,
+        'is-bento': true,
         'is-large-trend': layout.isThreeUpTrend,
         'is-two-row': layout.effectiveRows === 2,
         'is-metrics-reorderable': canDragCells,
         'is-metrics-resizable': hasMetricResize,
       });
-      patchAttr(matrixEl, 'data-cols', String(layout.gridCols));
+      patchAttr(matrixEl, 'data-cols', String(layout.displayCols || 4));
       patchAttr(matrixEl, 'data-rows', String(layout.effectiveRows));
       patchAttr(matrixEl, 'data-metric-text', textMode);
       patchStyleVar(matrixEl, '--matrix-cols', String(layout.gridCols));
@@ -1373,6 +1406,7 @@ export const MetricMatrixWidget = defineComponent({
             isTrend: false,
             isTall: false,
             isNarrow: false,
+            isThird: false,
             isWide: false,
             isResizingThis,
             sizeBadgeText,
@@ -1383,14 +1417,10 @@ export const MetricMatrixWidget = defineComponent({
         }
         const isNarrow = Boolean(p.isNarrow);
         const isTall = Boolean(p.isTall);
-        const isWide = !isTall && !isNarrow;
-        const fallbackSparkCols = layout.isThreeUpTrend
-          ? layout.gridCols
-          : isNarrow
-            ? 3
-            : !isTall && (p.colSpan >= 3 || (layout.gridCols <= 2 && p.colSpan === layout.gridCols))
-              ? 1
-              : 2;
+        const isThird = Boolean(p.isThird);
+        const isWide = Boolean(p.isWide);
+        const widthFrac = p.colSpan / Math.max(1, layout.gridCols);
+        const fallbackSparkCols = widthFrac >= 0.75 ? 1 : widthFrac >= 0.45 ? 2 : 3;
         const fallbackSparkHeight = isTall
           ? textMode === 'none'
             ? 76
@@ -1428,6 +1458,7 @@ export const MetricMatrixWidget = defineComponent({
           isTrend: true,
           isTall,
           isNarrow,
+          isThird,
           isWide,
           isResizingThis,
           sizeBadgeText,
@@ -1449,7 +1480,7 @@ export const MetricMatrixWidget = defineComponent({
         keyFn: (cell) => cell.key,
         sigFn: (cell) => {
           const p = cell.placement;
-          return `${locale}:${cell.textMode}:${p.size}:${p.isTrend ? 'T' : 'C'}:${p.isTall ? 'H' : p.isNarrow ? 'V' : ''}:${p.colStart}:${p.colSpan}:${p.rowStart}:${p.rowSpan}:${cell.isResizingThis ? 'R' : ''}:${cell.sizeBadgeText}:${cell.key}:${cell.label}:${cell.valueClass}:${cell.valueText}:${cell.subClass}:${cell.subText}:${cell.sparkSig}:${dragHint || ''}`;
+          return `${locale}:${cell.textMode}:${p.size}:${p.isTrend ? 'T' : 'C'}:${p.isTall ? 'H' : p.isNarrow ? 'V' : p.isThird ? 'M' : ''}:${p.colStart}:${p.colSpan}:${p.rowStart}:${p.rowSpan}:${cell.isResizingThis ? 'R' : ''}:${cell.sizeBadgeText}:${cell.key}:${cell.label}:${cell.valueClass}:${cell.valueText}:${cell.subClass}:${cell.subText}:${cell.sparkSig}:${dragHint || ''}`;
         },
         createRow: createMetricCellNode,
         updateRow: (refs, cell) => {
@@ -1466,6 +1497,7 @@ export const MetricMatrixWidget = defineComponent({
           patchStyleVar(refs.el, '--cell-row-span', String(p.rowSpan));
           patchClasses(refs.el, {
             'is-trend-card': cell.isTrend,
+            'is-third-card': cell.isThird,
             'is-wide-card': cell.isWide,
             'is-narrow-card': cell.isNarrow,
             'is-tall-card': cell.isTall,

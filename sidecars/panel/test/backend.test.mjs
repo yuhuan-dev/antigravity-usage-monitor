@@ -4011,12 +4011,12 @@ test('executeSettingsAction preserves 1-row mixed Bento layout when adding/reord
   assert.deepEqual(r3.overviewMetricSizes, { tps: 'wide' });
   assert.deepEqual(r3.overviewMetrics, ['ttft', 'tps', 'cache_hit', 'step_cost']);
 
-  // Genuine legacy style-only upgrade (e.g. changing style to 'large' without rows/sizes) still works
+  // Genuine legacy style-only upgrade (e.g. changing style to 'large' without rows/sizes) migrates cleanly to 1/3 ('third') cards
   const r4 = JSON.parse(h.executeSettingsAction({ overviewMetricStyle: 'large' }).body);
   assert.equal(r4.overviewMetricRows, 1);
   assert.equal(r4.overviewMetricStyle, 'large');
-  assert.equal(r4.overviewMetricSizes.ttft, 'wide');
-  assert.equal(r4.overviewMetricSizes.tps, 'wide');
+  assert.equal(r4.overviewMetricSizes.ttft, 'third');
+  assert.equal(r4.overviewMetricSizes.tps, 'third');
 
   // Metric card text visibility mode defaults to 'title' and persists cleanly across both overview & hover
   assert.equal(r4.overviewMetricTextMode, 'title');
