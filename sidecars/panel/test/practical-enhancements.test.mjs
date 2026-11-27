@@ -2896,7 +2896,7 @@ test('P2 regressions: bundler regex-after-paren lexer, shared URI/prompt/atomic 
   assert.equal(latestQuery, '');
   assert.equal(sBox.clearBtnEl.hasAttribute('hidden'), true);
 
-  // 4. Declarative settingsBackup round-trips all 38 portable keys + coupled legacy flags
+  // 4. Declarative settingsBackup round-trips all 40 portable keys + coupled legacy flags
   const exported = buildExportableSettingsJson({
     language: 'en-US',
     displayCurrency: 'MYR',
@@ -2905,18 +2905,24 @@ test('P2 regressions: bundler regex-after-paren lexer, shared URI/prompt/atomic 
     pluginUpdateMode: 'auto',
     windowMountMode: 'composer',
     hoverSyncOverviewMetrics: false,
-    hoverMetricStyle: 'large',
+    hoverMetricStyle: 'hybrid',
+    hoverMetricHybridRatio: 38,
     hoverMetrics: ['tps', 'cache_hit', 'ttft', 'step_cost'],
-    overviewMetricStyle: 'large',
+    overviewMetricStyle: 'hybrid',
+    overviewMetricHybridRatio: 62,
     quotaDisplayMode: 'remaining',
     showStepFilterToolbar: true,
     experimentalQuotaReservation: true,
     accountQuotaRefreshMinutes: 180,
   });
   const parsedExport = JSON.parse(exported);
-  assert.equal(Object.keys(parsedExport.settings).length, 38);
+  assert.equal(Object.keys(parsedExport.settings).length, 40);
   assert.equal(parsedExport.settings.displayCurrency, 'MYR');
   assert.equal(parsedExport.settings.quotaDisplayMode, 'remaining');
+  assert.equal(parsedExport.settings.hoverMetricStyle, 'hybrid');
+  assert.equal(parsedExport.settings.hoverMetricHybridRatio, 38);
+  assert.equal(parsedExport.settings.overviewMetricStyle, 'hybrid');
+  assert.equal(parsedExport.settings.overviewMetricHybridRatio, 62);
   assert.equal('orchestratorIdMode' in parsedExport.settings, false);
   const reimported = parseImportedSettingsJson(
     JSON.stringify({
@@ -2927,9 +2933,23 @@ test('P2 regressions: bundler regex-after-paren lexer, shared URI/prompt/atomic 
   assert.equal(reimported.ok, true);
   assert.equal('orchestratorIdMode' in reimported.patch, false);
   assert.equal(reimported.patch.hoverSyncOverviewMetrics, false);
-  assert.equal(reimported.patch.hoverMetricStyle, 'large');
+  assert.equal(reimported.patch.hoverMetricStyle, 'hybrid');
+  assert.equal(reimported.patch.hoverMetricHybridRatio, 38);
   assert.deepEqual(reimported.patch.hoverMetrics, ['tps', 'cache_hit', 'ttft', 'step_cost']);
-  assert.equal(reimported.patch.overviewMetricStyle, 'large');
+  assert.equal(reimported.patch.overviewMetricStyle, 'hybrid');
+  assert.equal(reimported.patch.overviewMetricHybridRatio, 62);
+  const clampedImport = parseImportedSettingsJson(
+    JSON.stringify({
+      hoverMetricStyle: 'mixed',
+      hoverMetricHybridRatio: 10,
+      overviewMetricStyle: 'hybrid',
+      overviewMetricHybridRatio: 95,
+    })
+  );
+  assert.equal(clampedImport.ok, true);
+  assert.equal(clampedImport.patch.hoverMetricStyle, 'hybrid');
+  assert.equal(clampedImport.patch.hoverMetricHybridRatio, 28);
+  assert.equal(clampedImport.patch.overviewMetricHybridRatio, 72);
   assert.equal(reimported.patch.quotaDisplayMode, 'remaining');
   assert.equal(reimported.patch.modernUi, false);
   assert.equal(reimported.patch.experimentalModernUi, false);

@@ -2,7 +2,7 @@
 'use strict';
 
 // --- shared/settings-normalization.mjs ---
-const { SUPPORTED_LOCALE_ENTRIES, SUPPORTED_LOCALES, SUPPORTED_LANGUAGES, THEME_ACCENT_KEYS, FONT_SCALE_KEYS, TOPBAR_SLOT_KEYS, DEFAULT_TOPBAR_SLOTS, MIN_TOPBAR_SLOTS, MAX_TOPBAR_SLOTS, DEFAULT_CLI_STATUSLINE_SLOTS, MIN_CLI_STATUSLINE_SLOTS, MAX_CLI_STATUSLINE_SLOTS, CLI_STATUSLINE_PRESETS, OVERVIEW_MODULE_KEYS, DEFAULT_OVERVIEW_MODULES, DEFAULT_HOVER_MODULES, METRIC_CARD_STYLES, HOVER_METRIC_STYLES, DEFAULT_OVERVIEW_METRIC_STYLE, DEFAULT_HOVER_METRIC_STYLE, DEFAULT_HOVER_SYNC_OVERVIEW_METRICS, MAX_LARGE_METRIC_SLOTS, OVERVIEW_METRIC_KEYS, DEFAULT_OVERVIEW_METRICS, DEFAULT_HOVER_METRICS, STEP_TABLE_COLUMN_KEYS, DEFAULT_STEP_TABLE_COLUMNS, DEFAULT_STEP_TOKEN_COMBO_FORMAT, STEP_TOKEN_SEGMENT_ALIASES, POPOVER_WIDTH_MODES, MIN_POPOVER_WIDTH, MAX_POPOVER_WIDTH, DEFAULT_POPOVER_WIDTH, resolveLocaleFromLanguageTag, normalizeLanguageSetting, normalizeThemeAccent, normalizeFontScale, normalizeModelDisplayMode, normalizePopoverWidthMode, normalizePopoverWidth, parseStepTokenComboSegments, normalizeStepTokenComboFormat, normalizePluginUpdateMode, normalizeWindowMountMode, normalizeWeeklyLimitMode, normalizeTopbarCapsuleSlots, normalizeCliStatusLineSlots, resolveEffectiveCliStatusLineSlots, normalizeOverviewMetrics, normalizeOverviewModules, normalizeHoverModules, normalizeMetricCardStyle, normalizeOverviewMetricStyle, normalizeHoverMetricStyle, normalizeHoverSyncOverviewMetrics, normalizeHoverMetrics, resolveEffectiveMetricMatrixConfig, normalizeStepTableColumns, normalizeStandalonePort, normalizeModernUi, CONTEXT_AGENT_MODES, DEFAULT_CONTEXT_AGENT_MODE, QUOTA_DISPLAY_MODES, DEFAULT_QUOTA_DISPLAY_MODE, normalizeQuotaDisplayMode, ACCOUNT_QUOTA_REFRESH_MINUTES, DEFAULT_ACCOUNT_QUOTA_REFRESH_MINUTES, normalizeAccountQuotaRefreshMinutes, normalizeContextAgentMode, normalizeExperimentalQuotaReservation, normalizeExperimentalModernUi, normalizeAutoConfigureLaunch, normalizeEnableRemoteSshTelemetry, normalizeDeveloperModeEnabled, normalizeRiskyFeaturesEnabled, isRiskyFeaturesGateOpen, isContextWindowFeatureActive, isAccountSwitchFeatureActive } = (() => {
+const { SUPPORTED_LOCALE_ENTRIES, SUPPORTED_LOCALES, SUPPORTED_LANGUAGES, THEME_ACCENT_KEYS, FONT_SCALE_KEYS, TOPBAR_SLOT_KEYS, DEFAULT_TOPBAR_SLOTS, MIN_TOPBAR_SLOTS, MAX_TOPBAR_SLOTS, DEFAULT_CLI_STATUSLINE_SLOTS, MIN_CLI_STATUSLINE_SLOTS, MAX_CLI_STATUSLINE_SLOTS, CLI_STATUSLINE_PRESETS, OVERVIEW_MODULE_KEYS, DEFAULT_OVERVIEW_MODULES, DEFAULT_HOVER_MODULES, METRIC_CARD_STYLES, HOVER_METRIC_STYLES, DEFAULT_OVERVIEW_METRIC_STYLE, DEFAULT_HOVER_METRIC_STYLE, DEFAULT_HOVER_SYNC_OVERVIEW_METRICS, MAX_LARGE_METRIC_SLOTS, MIN_METRIC_HYBRID_RATIO, MAX_METRIC_HYBRID_RATIO, DEFAULT_METRIC_HYBRID_RATIO, DEFAULT_OVERVIEW_METRIC_HYBRID_RATIO, DEFAULT_HOVER_METRIC_HYBRID_RATIO, OVERVIEW_METRIC_KEYS, DEFAULT_OVERVIEW_METRICS, DEFAULT_HOVER_METRICS, STEP_TABLE_COLUMN_KEYS, DEFAULT_STEP_TABLE_COLUMNS, DEFAULT_STEP_TOKEN_COMBO_FORMAT, STEP_TOKEN_SEGMENT_ALIASES, POPOVER_WIDTH_MODES, MIN_POPOVER_WIDTH, MAX_POPOVER_WIDTH, DEFAULT_POPOVER_WIDTH, resolveLocaleFromLanguageTag, normalizeLanguageSetting, normalizeThemeAccent, normalizeFontScale, normalizeModelDisplayMode, normalizePopoverWidthMode, normalizePopoverWidth, parseStepTokenComboSegments, normalizeStepTokenComboFormat, normalizePluginUpdateMode, normalizeWindowMountMode, normalizeWeeklyLimitMode, normalizeTopbarCapsuleSlots, normalizeCliStatusLineSlots, resolveEffectiveCliStatusLineSlots, normalizeOverviewMetrics, normalizeOverviewModules, normalizeHoverModules, normalizeMetricCardStyle, normalizeOverviewMetricStyle, normalizeHoverMetricStyle, normalizeMetricHybridRatio, normalizeOverviewMetricHybridRatio, normalizeHoverMetricHybridRatio, normalizeHoverSyncOverviewMetrics, normalizeHoverMetrics, resolveEffectiveMetricMatrixConfig, normalizeStepTableColumns, normalizeStandalonePort, normalizeModernUi, CONTEXT_AGENT_MODES, DEFAULT_CONTEXT_AGENT_MODE, QUOTA_DISPLAY_MODES, DEFAULT_QUOTA_DISPLAY_MODE, normalizeQuotaDisplayMode, ACCOUNT_QUOTA_REFRESH_MINUTES, DEFAULT_ACCOUNT_QUOTA_REFRESH_MINUTES, normalizeAccountQuotaRefreshMinutes, normalizeContextAgentMode, normalizeExperimentalQuotaReservation, normalizeExperimentalModernUi, normalizeAutoConfigureLaunch, normalizeEnableRemoteSshTelemetry, normalizeDeveloperModeEnabled, normalizeRiskyFeaturesEnabled, isRiskyFeaturesGateOpen, isContextWindowFeatureActive, isAccountSwitchFeatureActive } = (() => {
 const SUPPORTED_LOCALE_ENTRIES = Object.freeze([
   Object.freeze({
     locale: 'zh-CN',
@@ -132,12 +132,17 @@ const DEFAULT_OVERVIEW_MODULES = Object.freeze([
 
 const DEFAULT_HOVER_MODULES = Object.freeze(['metrics', 'context', 'quotas']);
 
-const METRIC_CARD_STYLES = Object.freeze(['medium', 'large']);
+const METRIC_CARD_STYLES = Object.freeze(['medium', 'hybrid', 'large']);
 const HOVER_METRIC_STYLES = METRIC_CARD_STYLES;
 const DEFAULT_OVERVIEW_METRIC_STYLE = 'medium';
 const DEFAULT_HOVER_METRIC_STYLE = 'medium';
 const DEFAULT_HOVER_SYNC_OVERVIEW_METRICS = true;
 const MAX_LARGE_METRIC_SLOTS = 3;
+const MIN_METRIC_HYBRID_RATIO = 28;
+const MAX_METRIC_HYBRID_RATIO = 72;
+const DEFAULT_METRIC_HYBRID_RATIO = 50;
+const DEFAULT_OVERVIEW_METRIC_HYBRID_RATIO = DEFAULT_METRIC_HYBRID_RATIO;
+const DEFAULT_HOVER_METRIC_HYBRID_RATIO = DEFAULT_METRIC_HYBRID_RATIO;
 
 const OVERVIEW_METRIC_KEYS = Object.freeze([
   'tps',
@@ -454,11 +459,28 @@ function normalizeHoverModules(raw) {
 
 function normalizeMetricCardStyle(raw) {
   const val = String(raw ?? '').trim().toLowerCase();
-  return val === 'large' || val === 'sparkline' || val === 'trend' ? 'large' : 'medium';
+  if (val === 'large' || val === 'sparkline' || val === 'trend') return 'large';
+  if (val === 'hybrid' || val === 'mixed' || val === 'mix') return 'hybrid';
+  return 'medium';
 }
 
 const normalizeOverviewMetricStyle = normalizeMetricCardStyle;
 const normalizeHoverMetricStyle = normalizeMetricCardStyle;
+
+function normalizeMetricHybridRatio(raw) {
+  if (raw === undefined || raw === null || raw === '' || typeof raw === 'boolean') {
+    return DEFAULT_METRIC_HYBRID_RATIO;
+  }
+  const num = Number(raw);
+  if (!Number.isFinite(num)) return DEFAULT_METRIC_HYBRID_RATIO;
+  return Math.max(
+    MIN_METRIC_HYBRID_RATIO,
+    Math.min(MAX_METRIC_HYBRID_RATIO, Math.round(num))
+  );
+}
+
+const normalizeOverviewMetricHybridRatio = normalizeMetricHybridRatio;
+const normalizeHoverMetricHybridRatio = normalizeMetricHybridRatio;
 
 function normalizeHoverSyncOverviewMetrics(raw) {
   return raw !== false;
@@ -475,15 +497,21 @@ function resolveEffectiveMetricMatrixConfig(mode, settings = {}) {
   const style = syncOverview
     ? normalizeOverviewMetricStyle(s.overviewMetricStyle)
     : normalizeHoverMetricStyle(s.hoverMetricStyle);
+  const hybridRatio = syncOverview
+    ? normalizeOverviewMetricHybridRatio(s.overviewMetricHybridRatio)
+    : normalizeHoverMetricHybridRatio(s.hoverMetricHybridRatio);
   const allMetrics = syncOverview
     ? normalizeOverviewMetrics(s.overviewMetrics)
     : normalizeHoverMetrics(s.hoverMetrics);
   const isLarge = style === 'large';
+  const isHybrid = style === 'hybrid';
   const metrics = isLarge ? allMetrics.slice(0, MAX_LARGE_METRIC_SLOTS) : allMetrics;
   return {
     syncOverview,
     style,
     isLarge,
+    isHybrid,
+    hybridRatio,
     allMetrics,
     metrics,
   };
@@ -626,7 +654,7 @@ function isAccountSwitchFeatureActive(settings) {
     isRiskyFeaturesGateOpen(settings) && settings.accountSwitchRiskAccepted === true
   );
 }
-return { SUPPORTED_LOCALE_ENTRIES, SUPPORTED_LOCALES, SUPPORTED_LANGUAGES, THEME_ACCENT_KEYS, FONT_SCALE_KEYS, TOPBAR_SLOT_KEYS, DEFAULT_TOPBAR_SLOTS, MIN_TOPBAR_SLOTS, MAX_TOPBAR_SLOTS, DEFAULT_CLI_STATUSLINE_SLOTS, MIN_CLI_STATUSLINE_SLOTS, MAX_CLI_STATUSLINE_SLOTS, CLI_STATUSLINE_PRESETS, OVERVIEW_MODULE_KEYS, DEFAULT_OVERVIEW_MODULES, DEFAULT_HOVER_MODULES, METRIC_CARD_STYLES, HOVER_METRIC_STYLES, DEFAULT_OVERVIEW_METRIC_STYLE, DEFAULT_HOVER_METRIC_STYLE, DEFAULT_HOVER_SYNC_OVERVIEW_METRICS, MAX_LARGE_METRIC_SLOTS, OVERVIEW_METRIC_KEYS, DEFAULT_OVERVIEW_METRICS, DEFAULT_HOVER_METRICS, STEP_TABLE_COLUMN_KEYS, DEFAULT_STEP_TABLE_COLUMNS, DEFAULT_STEP_TOKEN_COMBO_FORMAT, STEP_TOKEN_SEGMENT_ALIASES, POPOVER_WIDTH_MODES, MIN_POPOVER_WIDTH, MAX_POPOVER_WIDTH, DEFAULT_POPOVER_WIDTH, resolveLocaleFromLanguageTag, normalizeLanguageSetting, normalizeThemeAccent, normalizeFontScale, normalizeModelDisplayMode, normalizePopoverWidthMode, normalizePopoverWidth, parseStepTokenComboSegments, normalizeStepTokenComboFormat, normalizePluginUpdateMode, normalizeWindowMountMode, normalizeWeeklyLimitMode, normalizeTopbarCapsuleSlots, normalizeCliStatusLineSlots, resolveEffectiveCliStatusLineSlots, normalizeOverviewMetrics, normalizeOverviewModules, normalizeHoverModules, normalizeMetricCardStyle, normalizeOverviewMetricStyle, normalizeHoverMetricStyle, normalizeHoverSyncOverviewMetrics, normalizeHoverMetrics, resolveEffectiveMetricMatrixConfig, normalizeStepTableColumns, normalizeStandalonePort, normalizeModernUi, CONTEXT_AGENT_MODES, DEFAULT_CONTEXT_AGENT_MODE, QUOTA_DISPLAY_MODES, DEFAULT_QUOTA_DISPLAY_MODE, normalizeQuotaDisplayMode, ACCOUNT_QUOTA_REFRESH_MINUTES, DEFAULT_ACCOUNT_QUOTA_REFRESH_MINUTES, normalizeAccountQuotaRefreshMinutes, normalizeContextAgentMode, normalizeExperimentalQuotaReservation, normalizeExperimentalModernUi, normalizeAutoConfigureLaunch, normalizeEnableRemoteSshTelemetry, normalizeDeveloperModeEnabled, normalizeRiskyFeaturesEnabled, isRiskyFeaturesGateOpen, isContextWindowFeatureActive, isAccountSwitchFeatureActive };
+return { SUPPORTED_LOCALE_ENTRIES, SUPPORTED_LOCALES, SUPPORTED_LANGUAGES, THEME_ACCENT_KEYS, FONT_SCALE_KEYS, TOPBAR_SLOT_KEYS, DEFAULT_TOPBAR_SLOTS, MIN_TOPBAR_SLOTS, MAX_TOPBAR_SLOTS, DEFAULT_CLI_STATUSLINE_SLOTS, MIN_CLI_STATUSLINE_SLOTS, MAX_CLI_STATUSLINE_SLOTS, CLI_STATUSLINE_PRESETS, OVERVIEW_MODULE_KEYS, DEFAULT_OVERVIEW_MODULES, DEFAULT_HOVER_MODULES, METRIC_CARD_STYLES, HOVER_METRIC_STYLES, DEFAULT_OVERVIEW_METRIC_STYLE, DEFAULT_HOVER_METRIC_STYLE, DEFAULT_HOVER_SYNC_OVERVIEW_METRICS, MAX_LARGE_METRIC_SLOTS, MIN_METRIC_HYBRID_RATIO, MAX_METRIC_HYBRID_RATIO, DEFAULT_METRIC_HYBRID_RATIO, DEFAULT_OVERVIEW_METRIC_HYBRID_RATIO, DEFAULT_HOVER_METRIC_HYBRID_RATIO, OVERVIEW_METRIC_KEYS, DEFAULT_OVERVIEW_METRICS, DEFAULT_HOVER_METRICS, STEP_TABLE_COLUMN_KEYS, DEFAULT_STEP_TABLE_COLUMNS, DEFAULT_STEP_TOKEN_COMBO_FORMAT, STEP_TOKEN_SEGMENT_ALIASES, POPOVER_WIDTH_MODES, MIN_POPOVER_WIDTH, MAX_POPOVER_WIDTH, DEFAULT_POPOVER_WIDTH, resolveLocaleFromLanguageTag, normalizeLanguageSetting, normalizeThemeAccent, normalizeFontScale, normalizeModelDisplayMode, normalizePopoverWidthMode, normalizePopoverWidth, parseStepTokenComboSegments, normalizeStepTokenComboFormat, normalizePluginUpdateMode, normalizeWindowMountMode, normalizeWeeklyLimitMode, normalizeTopbarCapsuleSlots, normalizeCliStatusLineSlots, resolveEffectiveCliStatusLineSlots, normalizeOverviewMetrics, normalizeOverviewModules, normalizeHoverModules, normalizeMetricCardStyle, normalizeOverviewMetricStyle, normalizeHoverMetricStyle, normalizeMetricHybridRatio, normalizeOverviewMetricHybridRatio, normalizeHoverMetricHybridRatio, normalizeHoverSyncOverviewMetrics, normalizeHoverMetrics, resolveEffectiveMetricMatrixConfig, normalizeStepTableColumns, normalizeStandalonePort, normalizeModernUi, CONTEXT_AGENT_MODES, DEFAULT_CONTEXT_AGENT_MODE, QUOTA_DISPLAY_MODES, DEFAULT_QUOTA_DISPLAY_MODE, normalizeQuotaDisplayMode, ACCOUNT_QUOTA_REFRESH_MINUTES, DEFAULT_ACCOUNT_QUOTA_REFRESH_MINUTES, normalizeAccountQuotaRefreshMinutes, normalizeContextAgentMode, normalizeExperimentalQuotaReservation, normalizeExperimentalModernUi, normalizeAutoConfigureLaunch, normalizeEnableRemoteSshTelemetry, normalizeDeveloperModeEnabled, normalizeRiskyFeaturesEnabled, isRiskyFeaturesGateOpen, isContextWindowFeatureActive, isAccountSwitchFeatureActive };
 })();
 
 // --- shared/currency-catalog.mjs ---
@@ -2499,7 +2527,10 @@ const I18N_MESSAGES_ZH_CN = Object.freeze({
   'settings.str.addHoverModule': '添加模块 ({count}/{max})',
   'settings.str.hoverMetricStyleLabel': '实时指标尺寸',
   'settings.str.hoverMetricStyleMedium': '中 · 紧凑数值',
+  'settings.str.hoverMetricStyleHybrid': '混合',
   'settings.str.hoverMetricStyleLarge': '大 · 趋势折线',
+  'settings.str.hybridSplitterAria': '调整混合指标左右宽度比例',
+  'settings.str.hybridSplitterHint': '左右拖动调整宽度比例，双击恢复默认 50%',
   'settings.str.hoverSyncOverviewLabel': '与实时监控同步',
   'settings.str.hoverMetricsLabel': '实时指标',
   'settings.str.hoverMetricsInactiveHint': '当前悬浮窗已移出「实时指标」模块，重新添加模块后即生效',
@@ -3755,7 +3786,10 @@ const I18N_MESSAGES_ZH_TW = Object.freeze({
   "settings.str.addHoverModule": "新增模組 ({count}/{max})",
   "settings.str.hoverMetricStyleLabel": "即時指標尺寸",
   "settings.str.hoverMetricStyleMedium": "中 · 精簡數值",
+  "settings.str.hoverMetricStyleHybrid": "混合",
   "settings.str.hoverMetricStyleLarge": "大 · 趨勢折線",
+  "settings.str.hybridSplitterAria": "調整混合指標左右寬度比例",
+  "settings.str.hybridSplitterHint": "左右拖曳調整寬度比例，雙擊恢復預設 50%",
   "settings.str.hoverSyncOverviewLabel": "與即時監控同步",
   "settings.str.hoverMetricsLabel": "即時指標",
   "settings.str.hoverMetricsInactiveHint": "目前懸浮窗已隱藏「即時指標」模組，於下方重新新增模組後即可顯示",
@@ -5026,7 +5060,10 @@ const I18N_MESSAGES_EN_US = Object.freeze({
   'settings.str.addHoverModule': 'Add Module ({count}/{max})',
   'settings.str.hoverMetricStyleLabel': 'Live Metrics Size',
   'settings.str.hoverMetricStyleMedium': 'Medium · Compact',
+  'settings.str.hoverMetricStyleHybrid': 'Hybrid',
   'settings.str.hoverMetricStyleLarge': 'Large · Sparkline',
+  'settings.str.hybridSplitterAria': 'Resize hybrid metric width ratio',
+  'settings.str.hybridSplitterHint': 'Drag left or right to resize width ratio, double-click to reset (50%)',
   'settings.str.hoverSyncOverviewLabel': 'Sync with Live Overview',
   'settings.str.hoverMetricsLabel': 'Live Metrics',
   'settings.str.hoverMetricsInactiveHint': '"Live Metrics" is hidden in Hover modules; add it below to display',
@@ -6282,7 +6319,10 @@ const I18N_MESSAGES_JA_JP = Object.freeze({
   "settings.str.addHoverModule": "モジュール追加 ({count}/{max})",
   "settings.str.hoverMetricStyleLabel": "ライブ指標サイズ",
   "settings.str.hoverMetricStyleMedium": "中 · コンパクト",
+  "settings.str.hoverMetricStyleHybrid": "混合",
   "settings.str.hoverMetricStyleLarge": "大 · スパークライン",
+  "settings.str.hybridSplitterAria": "混合指標の左右幅比率を調整",
+  "settings.str.hybridSplitterHint": "左右にドラッグして幅比率を調整、ダブルクリックで 50% にリセット",
   "settings.str.hoverSyncOverviewLabel": "ライブ配置と同期",
   "settings.str.hoverMetricsLabel": "ライブ指標",
   "settings.str.hoverMetricsInactiveHint": "「ライブ指標」はホバーモジュールから外れています。下から追加すると表示されます",
@@ -7533,7 +7573,10 @@ const I18N_MESSAGES_KO_KR = Object.freeze({
   "settings.str.addHoverModule": "모듈 추가 ({count}/{max})",
   "settings.str.hoverMetricStyleLabel": "실시간 지표 크기",
   "settings.str.hoverMetricStyleMedium": "중간 · 컴팩트",
+  "settings.str.hoverMetricStyleHybrid": "혼합",
   "settings.str.hoverMetricStyleLarge": "크게 · 스파크라인",
+  "settings.str.hybridSplitterAria": "혼합 지표 좌우 너비 비율 조절",
+  "settings.str.hybridSplitterHint": "좌우로 드래그해 너비 비율 조절, 더블클릭으로 50% 초기화",
   "settings.str.hoverSyncOverviewLabel": "실시간 개요와 동기화",
   "settings.str.hoverMetricsLabel": "실시간 지표",
   "settings.str.hoverMetricsInactiveHint": "호버 모듈에서 \"실시간 지표\"가 숨겨져 있습니다. 표시하려면 아래에서 추가하세요",
@@ -8784,7 +8827,10 @@ const I18N_MESSAGES_DE_DE = Object.freeze({
   "settings.str.addHoverModule": "Modul hinzufügen ({count}/{max})",
   "settings.str.hoverMetricStyleLabel": "Live-Metrikgröße",
   "settings.str.hoverMetricStyleMedium": "Mittel · Kompakt",
+  "settings.str.hoverMetricStyleHybrid": "Mix",
   "settings.str.hoverMetricStyleLarge": "Groß · Sparkline",
+  "settings.str.hybridSplitterAria": "Breitenverhältnis der Mix-Metriken anpassen",
+  "settings.str.hybridSplitterHint": "Nach links/rechts ziehen zum Anpassen, Doppelklick für 50 % Standard",
   "settings.str.hoverSyncOverviewLabel": "Mit Live-Übersicht synchr.",
   "settings.str.hoverMetricsLabel": "Live-Metriken",
   "settings.str.hoverMetricsInactiveHint": "„Live-Metriken“ ist in Hover-Modulen ausgeblendet; unten zur Anzeige hinzufügen",
@@ -10035,7 +10081,10 @@ const I18N_MESSAGES_FR_FR = Object.freeze({
   "settings.str.addHoverModule": "Ajouter module ({count}/{max})",
   "settings.str.hoverMetricStyleLabel": "Taille métriques temps réel",
   "settings.str.hoverMetricStyleMedium": "Moyenne · Compact",
+  "settings.str.hoverMetricStyleHybrid": "Mixte",
   "settings.str.hoverMetricStyleLarge": "Grande · Courbe",
+  "settings.str.hybridSplitterAria": "Ajuster le ratio de largeur des métriques mixtes",
+  "settings.str.hybridSplitterHint": "Glisser gauche/droite pour ajuster la largeur, double-clic pour 50 %",
   "settings.str.hoverSyncOverviewLabel": "Synchro avec Vue globale",
   "settings.str.hoverMetricsLabel": "Métriques temps réel",
   "settings.str.hoverMetricsInactiveHint": "« Métriques temps réel » est masqué dans le survol ; ajoutez-le ci-dessous pour l’afficher",
@@ -11897,7 +11946,7 @@ function findScrollableAncestor(el) {
 }
 
 const INTERACTIVE_DRAG_TAGS = new Set(['BUTTON', 'INPUT', 'SELECT', 'TEXTAREA', 'A', 'LABEL']);
-const INTERACTIVE_DRAG_ROLES = new Set(['button', 'combobox', 'listbox', 'option', 'switch', 'tab']);
+const INTERACTIVE_DRAG_ROLES = new Set(['button', 'combobox', 'listbox', 'option', 'separator', 'switch', 'tab']);
 
 function isInteractiveDragTarget(target, boundaryEl = null) {
   let cur = target;
@@ -14354,9 +14403,11 @@ const PORTABLE_SETTING_DESCRIPTORS = Object.freeze([
   arrayField('hoverModules', normalizeHoverModules),
   boolField('hoverSyncOverviewMetrics', true),
   normField('hoverMetricStyle', normalizeHoverMetricStyle),
+  normField('hoverMetricHybridRatio', normalizeHoverMetricHybridRatio),
   arrayField('hoverMetrics', normalizeHoverMetrics),
   arrayField('overviewModules', normalizeOverviewModules),
   normField('overviewMetricStyle', normalizeOverviewMetricStyle),
+  normField('overviewMetricHybridRatio', normalizeOverviewMetricHybridRatio),
   arrayField('overviewMetrics', normalizeOverviewMetrics),
   normField('quotaDisplayMode', normalizeQuotaDisplayMode),
   boolField('showStepTurnRail', false),
@@ -17086,7 +17137,7 @@ return { fetchHostI18nStatus, refreshHostI18nManifest, selectHostI18nLanguage, u
 })();
 
 // --- src/store/telemetryStore.js ---
-const { extractHostRouteCascadeId, telemetryStore, clearConsumptionRangeCache, clearConversationViewCache, CLIENT_TOPBAR_SLOT_KEYS, DEFAULT_CLIENT_TOPBAR_SLOTS, DEFAULT_CLIENT_CONTEXT_AGENT_MODE, CLIENT_CLI_STATUSLINE_PRESETS, DEFAULT_CLIENT_CLI_STATUSLINE_SLOTS, CLIENT_OVERVIEW_MODULE_KEYS, DEFAULT_CLIENT_OVERVIEW_MODULES, DEFAULT_CLIENT_HOVER_MODULES, DEFAULT_CLIENT_HOVER_SYNC_OVERVIEW_METRICS, DEFAULT_CLIENT_HOVER_METRIC_STYLE, DEFAULT_CLIENT_HOVER_METRICS, DEFAULT_CLIENT_OVERVIEW_METRIC_STYLE, MAX_CLIENT_LARGE_METRIC_SLOTS, CLIENT_OVERVIEW_METRIC_KEYS, DEFAULT_CLIENT_OVERVIEW_METRICS, CLIENT_STEP_COLUMN_KEYS, DEFAULT_CLIENT_STEP_COLUMNS, DEFAULT_CLIENT_STEP_TOKEN_COMBO_FORMAT, MIN_CLIENT_POPOVER_WIDTH, MAX_CLIENT_POPOVER_WIDTH, DEFAULT_CLIENT_POPOVER_WIDTH, DEFAULT_CLIENT_QUOTA_DISPLAY_MODE, parseClientStepTokenComboSegments, normalizeClientStepTokenComboFormat, normalizeClientPopoverWidthMode, normalizeClientPopoverWidth, normalizeClientModelDisplayMode, normalizeClientTopbarSlots, normalizeClientContextAgentMode, normalizeClientQuotaDisplayMode, normalizeClientExperimentalQuotaReservation, normalizeClientAccountQuotaRefreshMinutes, normalizeClientCliStatusLineSlots, getDefaultCtxInspectorAgentId, resolveOverlayCtxInspectorAgentId, resolveEffectiveClientCliStatusLineSlots, normalizeClientHoverModules, normalizeClientHoverSyncOverviewMetrics, normalizeClientHoverMetricStyle, normalizeClientHoverMetrics, normalizeClientOverviewModules, normalizeClientOverviewMetricStyle, normalizeClientOverviewMetrics, resolveEffectiveClientMetricMatrixConfig, normalizeClientStepColumns, normalizeClientUpdateMode, normalizeClientWindowMountMode, normalizeClientDisplayCurrency, isEquivalentTelemetry, resetTelemetryForEndpointSwitch, fetchTelemetry, selectConversation, selectConsumptionTimeRange, selectConsumptionCyclePool, prefetchConsumptionPresets, saveSettingsPatch, saveModelContextWindow, resetAllSettings, rebuildTrajectoryCache, triggerCloudSync, triggerFxSync, normalizeClientAutoConfigureLaunch, normalizeClientEnableRemoteSshTelemetry, triggerBridgeHostRelaunch, triggerCliStatusLineAction, fetchSessionMigrationCatalog, fetchQuotaReservationLog, executeSessionMigration, fetchLocalSessionsList, fetchSessionCleanupPreview, deleteLocalSessionsAction, redactLocalLedgerPrivacy, revealLocalSessionPathAction, triggerPluginUpdate, startAsyncTelemetryLoop, stopAsyncTelemetryLoop, resolveHostRouteMatch, resolveScopedConversation, isMacHostPlatform } = (() => {
+const { extractHostRouteCascadeId, telemetryStore, clearConsumptionRangeCache, clearConversationViewCache, CLIENT_TOPBAR_SLOT_KEYS, DEFAULT_CLIENT_TOPBAR_SLOTS, DEFAULT_CLIENT_CONTEXT_AGENT_MODE, CLIENT_CLI_STATUSLINE_PRESETS, DEFAULT_CLIENT_CLI_STATUSLINE_SLOTS, CLIENT_OVERVIEW_MODULE_KEYS, DEFAULT_CLIENT_OVERVIEW_MODULES, DEFAULT_CLIENT_HOVER_MODULES, DEFAULT_CLIENT_HOVER_SYNC_OVERVIEW_METRICS, DEFAULT_CLIENT_HOVER_METRIC_STYLE, DEFAULT_CLIENT_HOVER_METRIC_HYBRID_RATIO, DEFAULT_CLIENT_HOVER_METRICS, DEFAULT_CLIENT_OVERVIEW_METRIC_STYLE, DEFAULT_CLIENT_OVERVIEW_METRIC_HYBRID_RATIO, MIN_CLIENT_METRIC_HYBRID_RATIO, MAX_CLIENT_METRIC_HYBRID_RATIO, DEFAULT_CLIENT_METRIC_HYBRID_RATIO, MAX_CLIENT_LARGE_METRIC_SLOTS, CLIENT_OVERVIEW_METRIC_KEYS, DEFAULT_CLIENT_OVERVIEW_METRICS, CLIENT_STEP_COLUMN_KEYS, DEFAULT_CLIENT_STEP_COLUMNS, DEFAULT_CLIENT_STEP_TOKEN_COMBO_FORMAT, MIN_CLIENT_POPOVER_WIDTH, MAX_CLIENT_POPOVER_WIDTH, DEFAULT_CLIENT_POPOVER_WIDTH, DEFAULT_CLIENT_QUOTA_DISPLAY_MODE, parseClientStepTokenComboSegments, normalizeClientStepTokenComboFormat, normalizeClientPopoverWidthMode, normalizeClientPopoverWidth, normalizeClientModelDisplayMode, normalizeClientTopbarSlots, normalizeClientContextAgentMode, normalizeClientQuotaDisplayMode, normalizeClientExperimentalQuotaReservation, normalizeClientAccountQuotaRefreshMinutes, normalizeClientCliStatusLineSlots, getDefaultCtxInspectorAgentId, resolveOverlayCtxInspectorAgentId, resolveEffectiveClientCliStatusLineSlots, normalizeClientHoverModules, normalizeClientHoverSyncOverviewMetrics, normalizeClientHoverMetricStyle, normalizeClientHoverMetricHybridRatio, normalizeClientHoverMetrics, normalizeClientOverviewModules, normalizeClientOverviewMetricStyle, normalizeClientOverviewMetricHybridRatio, normalizeClientOverviewMetrics, resolveEffectiveClientMetricMatrixConfig, normalizeClientStepColumns, normalizeClientUpdateMode, normalizeClientWindowMountMode, normalizeClientDisplayCurrency, isEquivalentTelemetry, resetTelemetryForEndpointSwitch, fetchTelemetry, selectConversation, selectConsumptionTimeRange, selectConsumptionCyclePool, prefetchConsumptionPresets, saveSettingsPatch, saveModelContextWindow, resetAllSettings, rebuildTrajectoryCache, triggerCloudSync, triggerFxSync, normalizeClientAutoConfigureLaunch, normalizeClientEnableRemoteSshTelemetry, triggerBridgeHostRelaunch, triggerCliStatusLineAction, fetchSessionMigrationCatalog, fetchQuotaReservationLog, executeSessionMigration, fetchLocalSessionsList, fetchSessionCleanupPreview, deleteLocalSessionsAction, redactLocalLedgerPrivacy, revealLocalSessionPathAction, triggerPluginUpdate, startAsyncTelemetryLoop, stopAsyncTelemetryLoop, resolveHostRouteMatch, resolveScopedConversation, isMacHostPlatform } = (() => {
 const CASCADE_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function extractHostRouteCascadeId() {
@@ -17494,8 +17545,13 @@ const DEFAULT_CLIENT_OVERVIEW_MODULES = DEFAULT_OVERVIEW_MODULES;
 const DEFAULT_CLIENT_HOVER_MODULES = DEFAULT_HOVER_MODULES;
 const DEFAULT_CLIENT_HOVER_SYNC_OVERVIEW_METRICS = DEFAULT_HOVER_SYNC_OVERVIEW_METRICS;
 const DEFAULT_CLIENT_HOVER_METRIC_STYLE = DEFAULT_HOVER_METRIC_STYLE;
+const DEFAULT_CLIENT_HOVER_METRIC_HYBRID_RATIO = DEFAULT_HOVER_METRIC_HYBRID_RATIO;
 const DEFAULT_CLIENT_HOVER_METRICS = DEFAULT_HOVER_METRICS;
 const DEFAULT_CLIENT_OVERVIEW_METRIC_STYLE = DEFAULT_OVERVIEW_METRIC_STYLE;
+const DEFAULT_CLIENT_OVERVIEW_METRIC_HYBRID_RATIO = DEFAULT_OVERVIEW_METRIC_HYBRID_RATIO;
+const MIN_CLIENT_METRIC_HYBRID_RATIO = MIN_METRIC_HYBRID_RATIO;
+const MAX_CLIENT_METRIC_HYBRID_RATIO = MAX_METRIC_HYBRID_RATIO;
+const DEFAULT_CLIENT_METRIC_HYBRID_RATIO = DEFAULT_METRIC_HYBRID_RATIO;
 const MAX_CLIENT_LARGE_METRIC_SLOTS = MAX_LARGE_METRIC_SLOTS;
 const CLIENT_OVERVIEW_METRIC_KEYS = OVERVIEW_METRIC_KEYS;
 const DEFAULT_CLIENT_OVERVIEW_METRICS = DEFAULT_OVERVIEW_METRICS;
@@ -17533,9 +17589,11 @@ const resolveEffectiveClientCliStatusLineSlots = resolveEffectiveCliStatusLineSl
 const normalizeClientHoverModules = normalizeHoverModules;
 const normalizeClientHoverSyncOverviewMetrics = normalizeHoverSyncOverviewMetrics;
 const normalizeClientHoverMetricStyle = normalizeHoverMetricStyle;
+const normalizeClientHoverMetricHybridRatio = normalizeHoverMetricHybridRatio;
 const normalizeClientHoverMetrics = normalizeHoverMetrics;
 const normalizeClientOverviewModules = normalizeOverviewModules;
 const normalizeClientOverviewMetricStyle = normalizeOverviewMetricStyle;
+const normalizeClientOverviewMetricHybridRatio = normalizeOverviewMetricHybridRatio;
 const normalizeClientOverviewMetrics = normalizeOverviewMetrics;
 const resolveEffectiveClientMetricMatrixConfig = resolveEffectiveMetricMatrixConfig;
 const normalizeClientStepColumns = normalizeStepTableColumns;
@@ -17716,11 +17774,23 @@ function isEquivalentTelemetry(prev, next) {
   ) {
     return false;
   }
+  if (
+    normalizeClientHoverMetricHybridRatio(pSet?.hoverMetricHybridRatio) !==
+    normalizeClientHoverMetricHybridRatio(nSet?.hoverMetricHybridRatio)
+  ) {
+    return false;
+  }
   if (!sameArr(pSet?.hoverMetrics, nSet?.hoverMetrics)) return false;
   if (!sameArr(pSet?.overviewModules, nSet?.overviewModules)) return false;
   if (
     normalizeClientOverviewMetricStyle(pSet?.overviewMetricStyle) !==
     normalizeClientOverviewMetricStyle(nSet?.overviewMetricStyle)
+  ) {
+    return false;
+  }
+  if (
+    normalizeClientOverviewMetricHybridRatio(pSet?.overviewMetricHybridRatio) !==
+    normalizeClientOverviewMetricHybridRatio(nSet?.overviewMetricHybridRatio)
   ) {
     return false;
   }
@@ -19052,6 +19122,11 @@ async function saveSettingsPatch(patch) {
   if (Object.prototype.hasOwnProperty.call(safePatch, 'hoverMetricStyle')) {
     safePatch.hoverMetricStyle = normalizeClientHoverMetricStyle(safePatch.hoverMetricStyle);
   }
+  if (Object.prototype.hasOwnProperty.call(safePatch, 'hoverMetricHybridRatio')) {
+    safePatch.hoverMetricHybridRatio = normalizeClientHoverMetricHybridRatio(
+      safePatch.hoverMetricHybridRatio
+    );
+  }
   if (Object.prototype.hasOwnProperty.call(safePatch, 'hoverMetrics')) {
     safePatch.hoverMetrics = normalizeClientHoverMetrics(safePatch.hoverMetrics);
   }
@@ -19061,6 +19136,11 @@ async function saveSettingsPatch(patch) {
   if (Object.prototype.hasOwnProperty.call(safePatch, 'overviewMetricStyle')) {
     safePatch.overviewMetricStyle = normalizeClientOverviewMetricStyle(
       safePatch.overviewMetricStyle
+    );
+  }
+  if (Object.prototype.hasOwnProperty.call(safePatch, 'overviewMetricHybridRatio')) {
+    safePatch.overviewMetricHybridRatio = normalizeClientOverviewMetricHybridRatio(
+      safePatch.overviewMetricHybridRatio
     );
   }
   if (Object.prototype.hasOwnProperty.call(safePatch, 'overviewMetrics')) {
@@ -19753,7 +19833,7 @@ function isMacHostPlatform(telemetry) {
   }
   return false;
 }
-return { extractHostRouteCascadeId, telemetryStore, clearConsumptionRangeCache, clearConversationViewCache, CLIENT_TOPBAR_SLOT_KEYS, DEFAULT_CLIENT_TOPBAR_SLOTS, DEFAULT_CLIENT_CONTEXT_AGENT_MODE, CLIENT_CLI_STATUSLINE_PRESETS, DEFAULT_CLIENT_CLI_STATUSLINE_SLOTS, CLIENT_OVERVIEW_MODULE_KEYS, DEFAULT_CLIENT_OVERVIEW_MODULES, DEFAULT_CLIENT_HOVER_MODULES, DEFAULT_CLIENT_HOVER_SYNC_OVERVIEW_METRICS, DEFAULT_CLIENT_HOVER_METRIC_STYLE, DEFAULT_CLIENT_HOVER_METRICS, DEFAULT_CLIENT_OVERVIEW_METRIC_STYLE, MAX_CLIENT_LARGE_METRIC_SLOTS, CLIENT_OVERVIEW_METRIC_KEYS, DEFAULT_CLIENT_OVERVIEW_METRICS, CLIENT_STEP_COLUMN_KEYS, DEFAULT_CLIENT_STEP_COLUMNS, DEFAULT_CLIENT_STEP_TOKEN_COMBO_FORMAT, MIN_CLIENT_POPOVER_WIDTH, MAX_CLIENT_POPOVER_WIDTH, DEFAULT_CLIENT_POPOVER_WIDTH, DEFAULT_CLIENT_QUOTA_DISPLAY_MODE, parseClientStepTokenComboSegments, normalizeClientStepTokenComboFormat, normalizeClientPopoverWidthMode, normalizeClientPopoverWidth, normalizeClientModelDisplayMode, normalizeClientTopbarSlots, normalizeClientContextAgentMode, normalizeClientQuotaDisplayMode, normalizeClientExperimentalQuotaReservation, normalizeClientAccountQuotaRefreshMinutes, normalizeClientCliStatusLineSlots, getDefaultCtxInspectorAgentId, resolveOverlayCtxInspectorAgentId, resolveEffectiveClientCliStatusLineSlots, normalizeClientHoverModules, normalizeClientHoverSyncOverviewMetrics, normalizeClientHoverMetricStyle, normalizeClientHoverMetrics, normalizeClientOverviewModules, normalizeClientOverviewMetricStyle, normalizeClientOverviewMetrics, resolveEffectiveClientMetricMatrixConfig, normalizeClientStepColumns, normalizeClientUpdateMode, normalizeClientWindowMountMode, normalizeClientDisplayCurrency, isEquivalentTelemetry, resetTelemetryForEndpointSwitch, fetchTelemetry, selectConversation, selectConsumptionTimeRange, selectConsumptionCyclePool, prefetchConsumptionPresets, saveSettingsPatch, saveModelContextWindow, resetAllSettings, rebuildTrajectoryCache, triggerCloudSync, triggerFxSync, normalizeClientAutoConfigureLaunch, normalizeClientEnableRemoteSshTelemetry, triggerBridgeHostRelaunch, triggerCliStatusLineAction, fetchSessionMigrationCatalog, fetchQuotaReservationLog, executeSessionMigration, fetchLocalSessionsList, fetchSessionCleanupPreview, deleteLocalSessionsAction, redactLocalLedgerPrivacy, revealLocalSessionPathAction, triggerPluginUpdate, startAsyncTelemetryLoop, stopAsyncTelemetryLoop, resolveHostRouteMatch, resolveScopedConversation, isMacHostPlatform };
+return { extractHostRouteCascadeId, telemetryStore, clearConsumptionRangeCache, clearConversationViewCache, CLIENT_TOPBAR_SLOT_KEYS, DEFAULT_CLIENT_TOPBAR_SLOTS, DEFAULT_CLIENT_CONTEXT_AGENT_MODE, CLIENT_CLI_STATUSLINE_PRESETS, DEFAULT_CLIENT_CLI_STATUSLINE_SLOTS, CLIENT_OVERVIEW_MODULE_KEYS, DEFAULT_CLIENT_OVERVIEW_MODULES, DEFAULT_CLIENT_HOVER_MODULES, DEFAULT_CLIENT_HOVER_SYNC_OVERVIEW_METRICS, DEFAULT_CLIENT_HOVER_METRIC_STYLE, DEFAULT_CLIENT_HOVER_METRIC_HYBRID_RATIO, DEFAULT_CLIENT_HOVER_METRICS, DEFAULT_CLIENT_OVERVIEW_METRIC_STYLE, DEFAULT_CLIENT_OVERVIEW_METRIC_HYBRID_RATIO, MIN_CLIENT_METRIC_HYBRID_RATIO, MAX_CLIENT_METRIC_HYBRID_RATIO, DEFAULT_CLIENT_METRIC_HYBRID_RATIO, MAX_CLIENT_LARGE_METRIC_SLOTS, CLIENT_OVERVIEW_METRIC_KEYS, DEFAULT_CLIENT_OVERVIEW_METRICS, CLIENT_STEP_COLUMN_KEYS, DEFAULT_CLIENT_STEP_COLUMNS, DEFAULT_CLIENT_STEP_TOKEN_COMBO_FORMAT, MIN_CLIENT_POPOVER_WIDTH, MAX_CLIENT_POPOVER_WIDTH, DEFAULT_CLIENT_POPOVER_WIDTH, DEFAULT_CLIENT_QUOTA_DISPLAY_MODE, parseClientStepTokenComboSegments, normalizeClientStepTokenComboFormat, normalizeClientPopoverWidthMode, normalizeClientPopoverWidth, normalizeClientModelDisplayMode, normalizeClientTopbarSlots, normalizeClientContextAgentMode, normalizeClientQuotaDisplayMode, normalizeClientExperimentalQuotaReservation, normalizeClientAccountQuotaRefreshMinutes, normalizeClientCliStatusLineSlots, getDefaultCtxInspectorAgentId, resolveOverlayCtxInspectorAgentId, resolveEffectiveClientCliStatusLineSlots, normalizeClientHoverModules, normalizeClientHoverSyncOverviewMetrics, normalizeClientHoverMetricStyle, normalizeClientHoverMetricHybridRatio, normalizeClientHoverMetrics, normalizeClientOverviewModules, normalizeClientOverviewMetricStyle, normalizeClientOverviewMetricHybridRatio, normalizeClientOverviewMetrics, resolveEffectiveClientMetricMatrixConfig, normalizeClientStepColumns, normalizeClientUpdateMode, normalizeClientWindowMountMode, normalizeClientDisplayCurrency, isEquivalentTelemetry, resetTelemetryForEndpointSwitch, fetchTelemetry, selectConversation, selectConsumptionTimeRange, selectConsumptionCyclePool, prefetchConsumptionPresets, saveSettingsPatch, saveModelContextWindow, resetAllSettings, rebuildTrajectoryCache, triggerCloudSync, triggerFxSync, normalizeClientAutoConfigureLaunch, normalizeClientEnableRemoteSshTelemetry, triggerBridgeHostRelaunch, triggerCliStatusLineAction, fetchSessionMigrationCatalog, fetchQuotaReservationLog, executeSessionMigration, fetchLocalSessionsList, fetchSessionCleanupPreview, deleteLocalSessionsAction, redactLocalLedgerPrivacy, revealLocalSessionPathAction, triggerPluginUpdate, startAsyncTelemetryLoop, stopAsyncTelemetryLoop, resolveHostRouteMatch, resolveScopedConversation, isMacHostPlatform };
 })();
 
 // --- src/components/ui/TopLongPillNav.js ---
@@ -28642,6 +28722,9 @@ const MetricMatrixWidget = defineComponent({
     const widgetMode = props?.mode === 'hover' ? 'hover' : 'overview';
     const hasMetricReorder =
       typeof props?.onReorderMetrics === 'function' || typeof props?.onPreviewMetrics === 'function';
+    const hasHybridResize =
+      typeof props?.onResizeHybridRatio === 'function' ||
+      typeof props?.onPreviewHybridRatio === 'function';
     const onRequestVerticalDrag =
       typeof props?.onRequestVerticalDrag === 'function' ? props.onRequestVerticalDrag : null;
     const canParentDragModule =
@@ -28657,18 +28740,225 @@ const MetricMatrixWidget = defineComponent({
     });
     patchStyleVar(matrixEl, '--matrix-cols', '4');
 
+    const splitterBarEl = h('span', {
+      className: 'matrix-hybrid-splitter-bar',
+      'aria-hidden': 'true',
+    });
+    const splitterEl = h(
+      'div',
+      {
+        className: 'matrix-hybrid-splitter',
+        role: 'separator',
+        'aria-orientation': 'vertical',
+        'aria-valuemin': String(MIN_CLIENT_METRIC_HYBRID_RATIO),
+        'aria-valuemax': String(MAX_CLIENT_METRIC_HYBRID_RATIO),
+        'aria-valuenow': String(DEFAULT_CLIENT_METRIC_HYBRID_RATIO),
+        'aria-valuetext': `${DEFAULT_CLIENT_METRIC_HYBRID_RATIO}%`,
+        'aria-label': t('settings.str.hybridSplitterAria'),
+        title: t('settings.str.hybridSplitterHint'),
+        tabindex: '0',
+        onPointerdown: (e) => startHybridSplitterResize(e),
+        onDblclick: (e) => {
+          e?.preventDefault?.();
+          e?.stopPropagation?.();
+          commitHybridRatioImmediate(DEFAULT_CLIENT_METRIC_HYBRID_RATIO);
+        },
+        onKeydown: (e) => {
+          if (!hasHybridResize || currentLayoutStyle !== 'hybrid' || currentColCount < 2) return;
+          const step = e?.shiftKey ? 5 : 2;
+          if (e?.key === 'ArrowLeft') {
+            e.preventDefault?.();
+            e.stopPropagation?.();
+            commitHybridRatioImmediate(currentHybridRatio - step);
+          } else if (e?.key === 'ArrowRight') {
+            e.preventDefault?.();
+            e.stopPropagation?.();
+            commitHybridRatioImmediate(currentHybridRatio + step);
+          } else if (e?.key === 'Home') {
+            e.preventDefault?.();
+            e.stopPropagation?.();
+            commitHybridRatioImmediate(MIN_CLIENT_METRIC_HYBRID_RATIO);
+          } else if (e?.key === 'End') {
+            e.preventDefault?.();
+            e.stopPropagation?.();
+            commitHybridRatioImmediate(MAX_CLIENT_METRIC_HYBRID_RATIO);
+          } else if (e?.key === 'Enter') {
+            e.preventDefault?.();
+            e.stopPropagation?.();
+            commitHybridRatioImmediate(DEFAULT_CLIENT_METRIC_HYBRID_RATIO);
+          }
+        },
+      },
+      [splitterBarEl]
+    );
+
     let currentVisibleKeys = [];
     let currentOverflowKeys = [];
+    let currentLayoutStyle = 'medium';
+    let currentColCount = 4;
+    let currentHybridRatio = DEFAULT_CLIENT_METRIC_HYBRID_RATIO;
+    let draggingHybridRatio = null;
     let lastUpdatePayload = null;
     let pendingUpdatePayload = null;
     let activeDrag = null;
+    let activeResize = null;
     let lastColCount = 0;
-    let lastIsLargeTrend = false;
+    let lastLayoutStyle = 'medium';
     let pendingSparkResizeRafId = 0;
     let pendingSparkResizeMicrotask = false;
     const measuredWrapWidthByKey = new Map();
     const observedWrapToKey = new Map();
     const settleAnimator = createDropSettleAnimator('is-settling', ' scale(1.02)');
+
+    function getMetricCellEls() {
+      return Array.from(matrixEl.children || []).filter((child) =>
+        child?.classList?.contains?.('matrix-cell')
+      );
+    }
+
+    function applyHybridRatioVars(ratio, colCount = currentColCount) {
+      const clamped = normalizeClientOverviewMetricHybridRatio(ratio);
+      const rightShare = 100 - clamped;
+      const rightHalfShare = rightShare / 2;
+      patchStyleVar(matrixEl, '--hybrid-left-fr', `${clamped}fr`);
+      patchStyleVar(matrixEl, '--hybrid-right-fr', `${rightShare}fr`);
+      patchStyleVar(matrixEl, '--hybrid-right-half-fr', `${rightHalfShare}fr`);
+      patchStyleVar(matrixEl, '--hybrid-split-pct', `${clamped}%`);
+      patchStyleVar(matrixEl, '--hybrid-split-ratio', String(clamped / 100));
+      patchStyleVar(matrixEl, '--hybrid-col-gaps', colCount === 4 ? '2' : '1');
+      patchAttr(splitterEl, 'aria-valuenow', String(clamped));
+      patchAttr(splitterEl, 'aria-valuetext', `${clamped}%`);
+      return clamped;
+    }
+
+    function readMatrixColumnGapPx() {
+      const getStyle =
+        typeof window !== 'undefined' && typeof window.getComputedStyle === 'function'
+          ? window.getComputedStyle
+          : typeof getComputedStyle === 'function'
+            ? getComputedStyle
+            : null;
+      if (!getStyle) return 0;
+      try {
+        const cs = getStyle(matrixEl);
+        const gap = Number.parseFloat(cs?.columnGap || cs?.gap || '');
+        return Number.isFinite(gap) && gap >= 0 ? gap : 0;
+      } catch {
+        return 0;
+      }
+    }
+
+    function persistOptimisticHybridRatio(nextRatio) {
+      currentHybridRatio = nextRatio;
+      if (lastUpdatePayload?.data) {
+        const prevSettings = lastUpdatePayload.data.settings || {};
+        const syncOverview =
+          widgetMode !== 'hover' || prevSettings.hoverSyncOverviewMetrics !== false;
+        lastUpdatePayload = {
+          data: {
+            ...lastUpdatePayload.data,
+            settings: {
+              ...prevSettings,
+              ...(syncOverview
+                ? { overviewMetricHybridRatio: nextRatio }
+                : { hoverMetricHybridRatio: nextRatio }),
+            },
+          },
+        };
+      }
+    }
+
+    function teardownActiveResize({ revert = false } = {}) {
+      if (!activeResize) return;
+      const { startRatio, colCountAtStart, getWorkingRatio, session } = activeResize;
+      const moved = session.isMoved();
+      activeResize = null;
+      draggingHybridRatio = null;
+      session.cancel(true);
+      patchClasses(matrixEl, { 'is-resizing-hybrid': false });
+      if (revert && moved && getWorkingRatio() !== startRatio) {
+        applyHybridRatioVars(startRatio, colCountAtStart);
+        props?.onPreviewHybridRatio?.(startRatio);
+      }
+    }
+
+    function commitHybridRatioImmediate(rawRatio) {
+      if (!hasHybridResize || currentLayoutStyle !== 'hybrid' || currentColCount < 2) return;
+      const nextRatio = normalizeClientOverviewMetricHybridRatio(rawRatio);
+      applyHybridRatioVars(nextRatio, currentColCount);
+      if (nextRatio === currentHybridRatio) return;
+      persistOptimisticHybridRatio(nextRatio);
+      props?.onPreviewHybridRatio?.(nextRatio);
+      props?.onResizeHybridRatio?.(nextRatio);
+      scheduleAdaptiveSparklineRepaint();
+    }
+
+    function startHybridSplitterResize(e) {
+      if (!hasHybridResize || currentLayoutStyle !== 'hybrid' || currentColCount < 2) return;
+      if (e && e.button != null && e.button !== 0) return;
+      if (activeDrag) return;
+      e?.preventDefault?.();
+      e?.stopPropagation?.();
+      if (activeResize) teardownActiveResize({ revert: false });
+
+      const startRatio = currentHybridRatio;
+      const colCountAtStart = currentColCount;
+      const colGaps = colCountAtStart === 4 ? 2 : 1;
+      const gapPx = readMatrixColumnGapPx();
+      const startRect = matrixEl.getBoundingClientRect?.();
+      const startLeft = Number(startRect?.left ?? 0);
+      const startWidth = Number(startRect?.width ?? 0);
+      let workingRatio = startRatio;
+
+      function resolveRatioAtClientX(clientX) {
+        const liveRect = matrixEl.getBoundingClientRect?.();
+        const width = Number(liveRect?.width || startWidth || 0);
+        const left = Number(liveRect?.width > 0 ? liveRect.left : startLeft);
+        if (!(width > 0)) return workingRatio;
+        const trackWidth = Math.max(1, width - gapPx * colGaps);
+        const rawPct = ((Number(clientX) - left - gapPx * 0.5) / trackWidth) * 100;
+        return normalizeClientOverviewMetricHybridRatio(rawPct);
+      }
+
+      const session = startPointerDragSession(e, {
+        threshold: 2,
+        onStart: () => {
+          draggingHybridRatio = startRatio;
+          patchClasses(matrixEl, { 'is-resizing-hybrid': true });
+        },
+        onMove: ({ clientX }) => {
+          const nextRatio = resolveRatioAtClientX(clientX);
+          if (nextRatio !== workingRatio) {
+            workingRatio = nextRatio;
+            draggingHybridRatio = nextRatio;
+            applyHybridRatioVars(nextRatio, colCountAtStart);
+            props?.onPreviewHybridRatio?.(nextRatio);
+          }
+        },
+        onEnd: ({ moved, cancelled }) => {
+          if (cancelled) {
+            teardownActiveResize({ revert: true });
+            return;
+          }
+          const finalRatio = workingRatio;
+          const changed = moved && finalRatio !== startRatio;
+          teardownActiveResize({ revert: false });
+          if (changed) {
+            applyHybridRatioVars(finalRatio, colCountAtStart);
+            persistOptimisticHybridRatio(finalRatio);
+            props?.onResizeHybridRatio?.(finalRatio);
+            scheduleAdaptiveSparklineRepaint();
+          }
+        },
+      });
+
+      activeResize = {
+        startRatio,
+        colCountAtStart,
+        getWorkingRatio: () => workingRatio,
+        session,
+      };
+    }
 
     function scheduleAdaptiveSparklineRepaint() {
       if (activeDrag || !lastUpdatePayload) return;
@@ -28728,20 +29018,20 @@ const MetricMatrixWidget = defineComponent({
       }
     }
 
-    function readLiveSparklineWidths(colCount, isLargeTrend, metricKeys) {
-      if (!isLargeTrend) {
+    function readLiveSparklineWidths(colCount, layoutStyle, trendKeys) {
+      if (trendKeys.length === 0) {
         measuredWrapWidthByKey.clear();
         return;
       }
-      if (colCount !== lastColCount || !lastIsLargeTrend) {
+      if (colCount !== lastColCount || layoutStyle !== lastLayoutStyle) {
         measuredWrapWidthByKey.clear();
         return;
       }
-      const keySet = new Set(metricKeys);
+      const keySet = new Set(trendKeys);
       for (const key of Array.from(measuredWrapWidthByKey.keys())) {
         if (!keySet.has(key)) measuredWrapWidthByKey.delete(key);
       }
-      for (const cellEl of matrixEl.children || []) {
+      for (const cellEl of getMetricCellEls()) {
         const key = cellEl?.getAttribute?.('data-metric-key');
         if (!key || !keySet.has(key)) continue;
         const wrapEl = cellEl.querySelector?.('.cell-sparkline-wrap');
@@ -28757,7 +29047,7 @@ const MetricMatrixWidget = defineComponent({
 
     function resetDragVisuals() {
       patchClasses(matrixEl, { 'is-dragging-matrix': false });
-      for (const cellEl of matrixEl.children || []) {
+      for (const cellEl of getMetricCellEls()) {
         patchClasses(cellEl, { 'is-cell-dragging': false, 'is-cell-drag-sibling': false });
         if (cellEl?.style) {
           cellEl.style.transition = '';
@@ -28784,7 +29074,7 @@ const MetricMatrixWidget = defineComponent({
     }
 
     function startMetricCellDrag(e, startIdx) {
-      if (!hasMetricReorder || (e && e.button != null && e.button !== 0)) return;
+      if (!hasMetricReorder || activeResize || (e && e.button != null && e.button !== 0)) return;
       if (currentVisibleKeys.length <= 1 || startIdx < 0 || startIdx >= currentVisibleKeys.length) {
         return;
       }
@@ -28796,7 +29086,7 @@ const MetricMatrixWidget = defineComponent({
       const startVisible = [...currentVisibleKeys];
       const overflowTail = [...currentOverflowKeys];
       const count = startVisible.length;
-      const cellEls = Array.from(matrixEl.children || []).slice(0, count);
+      const cellEls = getMetricCellEls().slice(0, count);
       if (cellEls.length !== count) return;
       const origIndices = Array.from({ length: count }, (_, idx) => idx);
       let targetIdx = startIdx;
@@ -28955,8 +29245,9 @@ const MetricMatrixWidget = defineComponent({
             }
             props?.onReorderMetrics?.(finalFull);
           }
-          if (moved && matrixEl.children?.[finalTargetIdx]) {
-            settleAnimator.trigger(matrixEl.children[finalTargetIdx], residualX, residualY);
+          const landedCell = getMetricCellEls()[finalTargetIdx];
+          if (moved && landedCell) {
+            settleAnimator.trigger(landedCell, residualX, residualY);
           }
         },
       });
@@ -28991,7 +29282,7 @@ const MetricMatrixWidget = defineComponent({
           ...(hasMetricReorder
             ? {
                 onPointerdown: (e) => {
-                  const idx = Array.from(matrixEl.children || []).indexOf(el);
+                  const idx = getMetricCellEls().indexOf(el);
                   if (idx >= 0) startMetricCellDrag(e, idx);
                 },
               }
@@ -29025,9 +29316,14 @@ const MetricMatrixWidget = defineComponent({
     function applyUpdatePayload({ data } = {}) {
       lastUpdatePayload = { data };
       patchAttr(matrixEl, 'aria-label', t('module.metrics'));
+      patchAttr(splitterEl, 'aria-label', t('settings.str.hybridSplitterAria'));
+      patchAttr(splitterEl, 'title', t('settings.str.hybridSplitterHint'));
       const settings = data?.settings || {};
       const {
+        style: layoutStyle,
         isLarge: isLargeTrend,
+        isHybrid,
+        hybridRatio: resolvedHybridRatio,
         metrics: metricKeys,
         allMetrics,
       } = resolveEffectiveClientMetricMatrixConfig(widgetMode, settings);
@@ -29041,33 +29337,49 @@ const MetricMatrixWidget = defineComponent({
         : null;
       const maxCols = isLargeTrend ? 3 : 4;
       const colCount = Math.max(1, Math.min(maxCols, metricKeys.length));
-      readLiveSparklineWidths(colCount, isLargeTrend, metricKeys);
+      const needsSparkline = isLargeTrend || isHybrid;
+      const trendKeys = isLargeTrend ? metricKeys : isHybrid ? metricKeys.slice(0, 1) : [];
+      readLiveSparklineWidths(colCount, layoutStyle, trendKeys);
       lastColCount = colCount;
-      lastIsLargeTrend = isLargeTrend;
+      lastLayoutStyle = layoutStyle;
+      currentLayoutStyle = layoutStyle;
+      currentColCount = colCount;
+      currentHybridRatio = resolvedHybridRatio;
+      const effectiveHybridRatio =
+        draggingHybridRatio != null ? draggingHybridRatio : resolvedHybridRatio;
+
+      if (!isHybrid || colCount < 2) {
+        teardownActiveResize({ revert: false });
+      }
 
       patchClasses(matrixEl, {
         'is-large-trend': isLargeTrend,
+        'is-hybrid': isHybrid,
         'is-metrics-reorderable': canDragCells,
       });
       patchAttr(matrixEl, 'data-cols', String(colCount));
       patchStyleVar(matrixEl, '--matrix-cols', String(colCount));
+      if (isHybrid) {
+        applyHybridRatioVars(effectiveHybridRatio, colCount);
+      }
 
       const { hasSubagents, scopedConv, ctxAgent } = resolveScopedConversation(
         data,
         'all',
         getCtxAgentId(),
-        isLargeTrend
+        needsSparkline
       );
       const active = scopedConv || data?.activeConversation || {};
       const ctx = ctxAgent?.context || active.context || {};
       const quotas = data?.quotas || {};
       const locale = getEffectiveLocale();
       const limitTokens = Number(ctx.compactionLimitTokens || ctx.limitTokens || 256000);
-      const seriesSteps = isLargeTrend
+      const seriesSteps = needsSparkline
         ? active.sparklineSteps || active.recentSteps || data?.activeConversation?.recentSteps || []
         : [];
+      const fallbackSparkCols = isHybrid ? (colCount === 1 ? 1 : 2) : colCount;
 
-      const cells = metricKeys.map((key) => {
+      const cells = metricKeys.map((key, idx) => {
         const base = resolveOverviewMetricCell(key, {
           active,
           ctx,
@@ -29075,10 +29387,15 @@ const MetricMatrixWidget = defineComponent({
           settings,
           hasSubagents,
         });
-        if (!isLargeTrend) {
-          return { ...base, isLargeTrend: false, sparkSig: '' };
+        const isCellTrend = isLargeTrend || (isHybrid && idx === 0);
+        const isHybridHero = isHybrid && idx === 0;
+        if (!isCellTrend) {
+          return { ...base, isLargeTrend: false, isHybridHero: false, sparkSig: '' };
         }
-        const spec = resolveAdaptiveSparklineSpec(measuredWrapWidthByKey.get(key), colCount);
+        const spec = resolveAdaptiveSparklineSpec(
+          measuredWrapWidthByKey.get(key),
+          fallbackSparkCols
+        );
         const series = extractOverviewMetricSeries(key, seriesSteps, {
           maxPoints: spec.maxPoints,
           limitTokens,
@@ -29090,6 +29407,7 @@ const MetricMatrixWidget = defineComponent({
         return {
           ...base,
           isLargeTrend: true,
+          isHybridHero,
           tone,
           trendMain: split.main,
           trendUnit: split.unit,
@@ -29105,12 +29423,15 @@ const MetricMatrixWidget = defineComponent({
       patchKeyedList(matrixEl, cells, {
         keyFn: (cell) => cell.key,
         sigFn: (cell) =>
-          `${locale}:${cell.isLargeTrend ? 'L' : 'M'}:${cell.key}:${cell.label}:${cell.icon}:${cell.isPulsing}:${cell.valueClass}:${cell.valueText}:${cell.subClass}:${cell.subText}:${cell.sparkSig}:${dragHint || ''}`,
+          `${locale}:${cell.isLargeTrend ? 'L' : 'M'}:${cell.isHybridHero ? 'H' : ''}:${cell.key}:${cell.label}:${cell.icon}:${cell.isPulsing}:${cell.valueClass}:${cell.valueText}:${cell.subClass}:${cell.subText}:${cell.sparkSig}:${dragHint || ''}`,
         createRow: createMetricCellNode,
         updateRow: (refs, cell) => {
           patchAttr(refs.el, 'data-metric-key', cell.key);
           patchAttr(refs.el, 'title', dragHint);
-          patchClasses(refs.el, { 'is-trend-card': cell.isLargeTrend });
+          patchClasses(refs.el, {
+            'is-trend-card': cell.isLargeTrend,
+            'is-hybrid-hero': Boolean(cell.isHybridHero),
+          });
           patchText(refs.labelSpan, cell.label);
           patchSvgIcon(refs.iconSvg, cell.icon);
           refs.iconSvg.setAttribute('width', String(cell.iconSize));
@@ -29175,7 +29496,17 @@ const MetricMatrixWidget = defineComponent({
           }
         },
       });
-      syncObservedSparklineWraps(isLargeTrend ? metricKeys : []);
+
+      const showSplitter = isHybrid && colCount >= 2 && hasHybridResize;
+      if (showSplitter) {
+        if (splitterEl.parentNode !== matrixEl || matrixEl.lastChild !== splitterEl) {
+          matrixEl.appendChild(splitterEl);
+        }
+      } else if (splitterEl.parentNode === matrixEl) {
+        matrixEl.removeChild(splitterEl);
+      }
+
+      syncObservedSparklineWraps(trendKeys);
     }
 
     function update(payload = {}) {
@@ -29187,6 +29518,7 @@ const MetricMatrixWidget = defineComponent({
     }
 
     onCleanup(() => {
+      teardownActiveResize({ revert: false });
       teardownActiveDrag({ revert: false, flushPending: false });
       settleAnimator.clear();
       if (pendingSparkResizeRafId && typeof cancelAnimationFrame === 'function') {
@@ -32965,6 +33297,8 @@ const OVERVIEW_WIDGET_REGISTRY = Object.freeze({
       getCtxAgentId,
       onPreviewMetrics,
       onReorderMetrics,
+      onPreviewHybridRatio,
+      onResizeHybridRatio,
       onRequestVerticalDrag,
       canDragParentModule,
     }) =>
@@ -32975,6 +33309,8 @@ const OVERVIEW_WIDGET_REGISTRY = Object.freeze({
         getCtxAgentId,
         onPreviewMetrics,
         onReorderMetrics,
+        onPreviewHybridRatio,
+        onResizeHybridRatio,
         onRequestVerticalDrag,
         canDragParentModule,
       }),
@@ -33031,6 +33367,8 @@ function createDynamicWidgetHost({
   onReorderModules = undefined,
   onPreviewMetrics = undefined,
   onReorderMetrics = undefined,
+  onPreviewHybridRatio = undefined,
+  onResizeHybridRatio = undefined,
 }) {
   const instances = new Map();
   const modulePointerCleanups = new Map();
@@ -33219,6 +33557,8 @@ function createDynamicWidgetHost({
           setCtxAgentId,
           onPreviewMetrics,
           onReorderMetrics,
+          onPreviewHybridRatio,
+          onResizeHybridRatio,
           onRequestVerticalDrag: hasModuleReorder
             ? (downEv, cx, cy) =>
                 startModuleDrag(downEv, 'metrics', {
@@ -42658,6 +42998,7 @@ function getContextAgentModeOptions() {
 function getHoverMetricStyleOptions() {
   return [
     { value: 'medium', label: t('settings.str.hoverMetricStyleMedium') },
+    { value: 'hybrid', label: t('settings.str.hoverMetricStyleHybrid') },
     { value: 'large', label: t('settings.str.hoverMetricStyleLarge') },
   ];
 }
@@ -42812,9 +43153,11 @@ const SettingsStructureTab = defineComponent({
     let draftHoverModules = [...DEFAULT_CLIENT_HOVER_MODULES];
     let draftHoverSyncOverview = DEFAULT_CLIENT_HOVER_SYNC_OVERVIEW_METRICS;
     let draftHoverMetricStyle = DEFAULT_CLIENT_HOVER_METRIC_STYLE;
+    let draftHoverMetricHybridRatio = DEFAULT_CLIENT_HOVER_METRIC_HYBRID_RATIO;
     let draftHoverMetrics = [...DEFAULT_CLIENT_HOVER_METRICS];
     let draftOverviewModules = [...DEFAULT_CLIENT_OVERVIEW_MODULES];
     let draftOverviewMetricStyle = DEFAULT_CLIENT_OVERVIEW_METRIC_STYLE;
+    let draftOverviewMetricHybridRatio = DEFAULT_CLIENT_OVERVIEW_METRIC_HYBRID_RATIO;
     let draftOverviewMetrics = [...DEFAULT_CLIENT_OVERVIEW_METRICS];
     let draftQuotaDisplayMode = DEFAULT_CLIENT_QUOTA_DISPLAY_MODE;
     let draftShowStepTurnRail = false;
@@ -42862,9 +43205,11 @@ const SettingsStructureTab = defineComponent({
           hoverModules: draftHoverModules,
           hoverSyncOverviewMetrics: draftHoverSyncOverview,
           hoverMetricStyle: draftHoverMetricStyle,
+          hoverMetricHybridRatio: draftHoverMetricHybridRatio,
           hoverMetrics: draftHoverMetrics,
           overviewModules: draftOverviewModules,
           overviewMetricStyle: draftOverviewMetricStyle,
+          overviewMetricHybridRatio: draftOverviewMetricHybridRatio,
           overviewMetrics: draftOverviewMetrics,
           quotaDisplayMode: draftQuotaDisplayMode,
           showStepTurnRail: draftShowStepTurnRail,
@@ -43509,6 +43854,31 @@ const SettingsStructureTab = defineComponent({
       props.onLayoutChange?.();
       void persistStructurePatch(overviewSection, { overviewMetrics: draftOverviewMetrics });
     };
+    const commitHoverHybridRatio = (nextRatio) => {
+      const normalized = normalizeClientHoverMetricHybridRatio(nextRatio);
+      if (draftHoverSyncOverview) {
+        draftOverviewMetricHybridRatio = normalized;
+        syncOverviewSectionMeta();
+        syncHoverSectionMeta();
+        void persistStructurePatch(hoverSection, {
+          overviewMetricHybridRatio: draftOverviewMetricHybridRatio,
+        });
+      } else {
+        draftHoverMetricHybridRatio = normalized;
+        syncHoverSectionMeta();
+        void persistStructurePatch(hoverSection, {
+          hoverMetricHybridRatio: draftHoverMetricHybridRatio,
+        });
+      }
+    };
+    const commitOverviewHybridRatio = (nextRatio) => {
+      draftOverviewMetricHybridRatio = normalizeClientOverviewMetricHybridRatio(nextRatio);
+      syncOverviewSectionMeta();
+      if (draftHoverSyncOverview) syncHoverSectionMeta();
+      void persistStructurePatch(overviewSection, {
+        overviewMetricHybridRatio: draftOverviewMetricHybridRatio,
+      });
+    };
 
     const hoverPreviewHost = createDynamicWidgetHost({
       containerEl: hoverWidgetsContainerEl,
@@ -43544,6 +43914,16 @@ const SettingsStructureTab = defineComponent({
         syncHoverMetricListProps();
       },
       onReorderMetrics: commitHoverMetricsOrder,
+      onPreviewHybridRatio: (previewRatio) => {
+        const normalized = normalizeClientHoverMetricHybridRatio(previewRatio);
+        if (draftHoverSyncOverview) {
+          draftOverviewMetricHybridRatio = normalized;
+          refreshOverviewPreview();
+        } else {
+          draftHoverMetricHybridRatio = normalized;
+        }
+      },
+      onResizeHybridRatio: commitHoverHybridRatio,
     });
     const hoverPreviewCanvas = h('div', { className: 'structure-preview-canvas' }, [
       hoverPreviewTipEl,
@@ -43616,6 +43996,7 @@ const SettingsStructureTab = defineComponent({
         if (!nextSync) {
 
           draftHoverMetricStyle = draftOverviewMetricStyle;
+          draftHoverMetricHybridRatio = draftOverviewMetricHybridRatio;
           draftHoverMetrics = [...draftOverviewMetrics];
           draftHoverSyncOverview = false;
           syncHoverSectionMeta();
@@ -43623,6 +44004,7 @@ const SettingsStructureTab = defineComponent({
           void persistStructurePatch(hoverSection, {
             hoverSyncOverviewMetrics: false,
             hoverMetricStyle: draftHoverMetricStyle,
+            hoverMetricHybridRatio: draftHoverMetricHybridRatio,
             hoverMetrics: draftHoverMetrics,
           });
         } else {
@@ -43689,6 +44071,7 @@ const SettingsStructureTab = defineComponent({
         draftHoverModules = [...DEFAULT_CLIENT_HOVER_MODULES];
         draftHoverSyncOverview = DEFAULT_CLIENT_HOVER_SYNC_OVERVIEW_METRICS;
         draftHoverMetricStyle = DEFAULT_CLIENT_HOVER_METRIC_STYLE;
+        draftHoverMetricHybridRatio = DEFAULT_CLIENT_HOVER_METRIC_HYBRID_RATIO;
         draftHoverMetrics = [...DEFAULT_CLIENT_HOVER_METRICS];
         syncHoverSectionMeta();
         props.onLayoutChange?.();
@@ -43698,6 +44081,7 @@ const SettingsStructureTab = defineComponent({
             hoverModules: [...DEFAULT_CLIENT_HOVER_MODULES],
             hoverSyncOverviewMetrics: DEFAULT_CLIENT_HOVER_SYNC_OVERVIEW_METRICS,
             hoverMetricStyle: DEFAULT_CLIENT_HOVER_METRIC_STYLE,
+            hoverMetricHybridRatio: DEFAULT_CLIENT_HOVER_METRIC_HYBRID_RATIO,
             hoverMetrics: [...DEFAULT_CLIENT_HOVER_METRICS],
           },
           'settings.resetDone'
@@ -43707,7 +44091,7 @@ const SettingsStructureTab = defineComponent({
         hoverPreviewCanvas,
         h('div', { className: 'settings-divider' }),
         h('div', { className: 'form-row' }, [
-          h('div', { className: 'settings-inline-row' }, [
+          h('div', { className: 'settings-inline-row is-wrap-narrow' }, [
             hoverMetricStyleLabelEl,
             hoverMetricStyleSwitch.el,
           ]),
@@ -43766,6 +44150,7 @@ const SettingsStructureTab = defineComponent({
         isSameList(draftHoverModules, DEFAULT_CLIENT_HOVER_MODULES) &&
         draftHoverSyncOverview === DEFAULT_CLIENT_HOVER_SYNC_OVERVIEW_METRICS &&
         draftHoverMetricStyle === DEFAULT_CLIENT_HOVER_METRIC_STYLE &&
+        draftHoverMetricHybridRatio === DEFAULT_CLIENT_HOVER_METRIC_HYBRID_RATIO &&
         isSameList(draftHoverMetrics, DEFAULT_CLIENT_HOVER_METRICS);
       hoverSection.refs.setResetDisabled(isDefault);
       refreshHoverPreview();
@@ -43798,6 +44183,13 @@ const SettingsStructureTab = defineComponent({
         }
       },
       onReorderMetrics: commitOverviewMetricsOrder,
+      onPreviewHybridRatio: (previewRatio) => {
+        draftOverviewMetricHybridRatio = normalizeClientOverviewMetricHybridRatio(previewRatio);
+        if (draftHoverSyncOverview) {
+          refreshHoverPreview();
+        }
+      },
+      onResizeHybridRatio: commitOverviewHybridRatio,
     });
     const overviewPreviewCanvas = h('div', { className: 'structure-preview-canvas' }, [
       overviewPreviewContainerEl,
@@ -43912,6 +44304,7 @@ const SettingsStructureTab = defineComponent({
       onReset: () => {
         draftOverviewModules = [...DEFAULT_CLIENT_OVERVIEW_MODULES];
         draftOverviewMetricStyle = DEFAULT_CLIENT_OVERVIEW_METRIC_STYLE;
+        draftOverviewMetricHybridRatio = DEFAULT_CLIENT_OVERVIEW_METRIC_HYBRID_RATIO;
         draftOverviewMetrics = [...DEFAULT_CLIENT_OVERVIEW_METRICS];
         draftQuotaDisplayMode = DEFAULT_CLIENT_QUOTA_DISPLAY_MODE;
         syncOverviewSectionMeta();
@@ -43926,6 +44319,7 @@ const SettingsStructureTab = defineComponent({
           {
             overviewModules: [...DEFAULT_CLIENT_OVERVIEW_MODULES],
             overviewMetricStyle: DEFAULT_CLIENT_OVERVIEW_METRIC_STYLE,
+            overviewMetricHybridRatio: DEFAULT_CLIENT_OVERVIEW_METRIC_HYBRID_RATIO,
             overviewMetrics: [...DEFAULT_CLIENT_OVERVIEW_METRICS],
             quotaDisplayMode: DEFAULT_CLIENT_QUOTA_DISPLAY_MODE,
           },
@@ -43936,7 +44330,7 @@ const SettingsStructureTab = defineComponent({
         overviewPreviewCanvas,
         h('div', { className: 'settings-divider' }),
         h('div', { className: 'form-row' }, [
-          h('div', { className: 'settings-inline-row' }, [
+          h('div', { className: 'settings-inline-row is-wrap-narrow' }, [
             overviewMetricStyleLabelEl,
             overviewMetricStyleSwitch.el,
           ]),
@@ -43993,6 +44387,7 @@ const SettingsStructureTab = defineComponent({
       const isDefault =
         isSameList(draftOverviewModules, DEFAULT_CLIENT_OVERVIEW_MODULES) &&
         draftOverviewMetricStyle === DEFAULT_CLIENT_OVERVIEW_METRIC_STYLE &&
+        draftOverviewMetricHybridRatio === DEFAULT_CLIENT_OVERVIEW_METRIC_HYBRID_RATIO &&
         isSameList(draftOverviewMetrics, DEFAULT_CLIENT_OVERVIEW_METRICS) &&
         draftQuotaDisplayMode === DEFAULT_CLIENT_QUOTA_DISPLAY_MODE;
       overviewSection.refs.setResetDisabled(isDefault);
@@ -44382,9 +44777,15 @@ const SettingsStructureTab = defineComponent({
         settings.hoverSyncOverviewMetrics
       );
       draftHoverMetricStyle = normalizeClientHoverMetricStyle(settings.hoverMetricStyle);
+      draftHoverMetricHybridRatio = normalizeClientHoverMetricHybridRatio(
+        settings.hoverMetricHybridRatio
+      );
       draftHoverMetrics = normalizeClientHoverMetrics(settings.hoverMetrics);
       draftOverviewModules = normalizeClientOverviewModules(settings.overviewModules);
       draftOverviewMetricStyle = normalizeClientOverviewMetricStyle(settings.overviewMetricStyle);
+      draftOverviewMetricHybridRatio = normalizeClientOverviewMetricHybridRatio(
+        settings.overviewMetricHybridRatio
+      );
       draftOverviewMetrics = normalizeClientOverviewMetrics(settings.overviewMetrics);
       draftQuotaDisplayMode = normalizeClientQuotaDisplayMode(settings.quotaDisplayMode);
       draftShowStepTurnRail = settings.showStepTurnRail === true;
@@ -48210,6 +48611,9 @@ const LiveOverviewView = defineComponent({
       mode: 'overview',
       isVisibleFn: () => getVisibleMonitorView() === 'overview',
       initialModuleKeys: DEFAULT_CLIENT_OVERVIEW_MODULES,
+      onResizeHybridRatio: (nextRatio) => {
+        void saveSettingsPatch({ overviewMetricHybridRatio: nextRatio }).catch(() => {});
+      },
     });
 
     const viewScrollbar = CustomScrollbar({

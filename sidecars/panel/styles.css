@@ -1468,6 +1468,11 @@ html[data-standalone="true"] .app-shell {
   min-height: 26px;
 }
 
+.settings-inline-row.is-wrap-narrow {
+  flex-wrap: wrap;
+  row-gap: 6px;
+}
+
 .btn-ghost-sm {
   display: inline-flex;
   align-items: center;
@@ -2124,13 +2129,15 @@ html[data-standalone="true"] .app-shell {
 }
 
 .telemetry-matrix {
+  --matrix-gap: 1px;
+  position: relative;
   display: grid;
   grid-template-columns: repeat(var(--matrix-cols, 4), minmax(0, 1fr));
   flex-shrink: 0;
   border: 1px solid var(--border-hairline);
   border-radius: var(--radius-xs);
   background: var(--border-hairline);
-  gap: 1px;
+  gap: var(--matrix-gap);
   overflow: hidden;
 }
 
@@ -2316,6 +2323,207 @@ html[data-standalone="true"] .app-shell {
   width: 100%;
   height: 100%;
   overflow: visible;
+}
+
+.telemetry-matrix.is-hybrid {
+  --hybrid-left-fr: 50fr;
+  --hybrid-right-fr: 50fr;
+  --hybrid-right-half-fr: 25fr;
+  --hybrid-split-pct: 50%;
+  --hybrid-split-ratio: 0.5;
+  --hybrid-col-gaps: 1;
+}
+
+.telemetry-matrix.is-hybrid[data-cols="1"] {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.telemetry-matrix.is-hybrid[data-cols="2"] {
+  grid-template-columns: minmax(0, var(--hybrid-left-fr)) minmax(0, var(--hybrid-right-fr));
+}
+
+.telemetry-matrix.is-hybrid[data-cols="3"] {
+  grid-template-columns: minmax(0, var(--hybrid-left-fr)) minmax(0, var(--hybrid-right-fr));
+  grid-template-rows: repeat(2, minmax(0, auto));
+}
+
+.telemetry-matrix.is-hybrid[data-cols="4"] {
+  --hybrid-col-gaps: 2;
+  grid-template-columns:
+    minmax(0, var(--hybrid-left-fr))
+    minmax(0, var(--hybrid-right-half-fr))
+    minmax(0, var(--hybrid-right-half-fr));
+  grid-template-rows: repeat(2, minmax(0, auto));
+}
+
+.telemetry-matrix.is-hybrid[data-cols="3"] > .matrix-cell:nth-child(1),
+.telemetry-matrix.is-hybrid[data-cols="4"] > .matrix-cell:nth-child(1) {
+  grid-column: 1;
+  grid-row: 1 / 3;
+}
+
+.telemetry-matrix.is-hybrid[data-cols="3"] > .matrix-cell:nth-child(2) {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.telemetry-matrix.is-hybrid[data-cols="3"] > .matrix-cell:nth-child(3) {
+  grid-column: 2;
+  grid-row: 2;
+}
+
+.telemetry-matrix.is-hybrid[data-cols="4"] > .matrix-cell:nth-child(2) {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.telemetry-matrix.is-hybrid[data-cols="4"] > .matrix-cell:nth-child(3) {
+  grid-column: 3;
+  grid-row: 1;
+}
+
+.telemetry-matrix.is-hybrid[data-cols="4"] > .matrix-cell:nth-child(4) {
+  grid-column: 2 / 4;
+  grid-row: 2;
+}
+
+.telemetry-matrix.is-hybrid[data-cols="1"] .cell-trend-left {
+  max-width: 48%;
+}
+
+.telemetry-matrix.is-hybrid[data-cols="1"] .cell-sparkline-wrap {
+  flex: 1 1 0%;
+  min-width: 112px;
+}
+
+.telemetry-matrix.is-hybrid[data-cols="2"] .matrix-cell.is-hybrid-hero {
+  padding: 7px 10px 8px;
+}
+
+.telemetry-matrix.is-hybrid[data-cols="2"] .cell-trend-row {
+  gap: 6px;
+}
+
+.telemetry-matrix.is-hybrid[data-cols="2"] .cell-trend-left {
+  max-width: 60%;
+}
+
+.telemetry-matrix.is-hybrid[data-cols="2"] .cell-sparkline-wrap {
+  flex: 1 1 0%;
+  min-width: 28px;
+}
+
+.telemetry-matrix.is-hybrid[data-cols="3"] .matrix-cell.is-hybrid-hero,
+.telemetry-matrix.is-hybrid[data-cols="4"] .matrix-cell.is-hybrid-hero {
+  justify-content: space-between;
+  gap: 6px;
+  padding: 9px 11px 10px;
+}
+
+.telemetry-matrix.is-hybrid[data-cols="3"] .matrix-cell.is-hybrid-hero .cell-trend-row,
+.telemetry-matrix.is-hybrid[data-cols="4"] .matrix-cell.is-hybrid-hero .cell-trend-row {
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: space-between;
+  flex: 1 1 auto;
+  gap: 8px;
+}
+
+.telemetry-matrix.is-hybrid[data-cols="3"] .matrix-cell.is-hybrid-hero .cell-trend-left,
+.telemetry-matrix.is-hybrid[data-cols="4"] .matrix-cell.is-hybrid-hero .cell-trend-left {
+  max-width: none;
+  width: 100%;
+}
+
+.telemetry-matrix.is-hybrid[data-cols="3"] .matrix-cell.is-hybrid-hero .cell-sparkline-wrap,
+.telemetry-matrix.is-hybrid[data-cols="4"] .matrix-cell.is-hybrid-hero .cell-sparkline-wrap {
+  flex: 0 0 auto;
+  width: 100%;
+  min-width: 0;
+  height: 36px;
+}
+
+.telemetry-matrix.is-hybrid[data-cols="4"] > .matrix-cell:not(.is-hybrid-hero) {
+  padding: 7px 8px;
+}
+
+.matrix-hybrid-splitter {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(
+    (100% - var(--matrix-gap, 1px) * var(--hybrid-col-gaps, 1)) * var(--hybrid-split-ratio, 0.5)
+    + var(--matrix-gap, 1px) * 0.5
+  );
+  width: 12px;
+  transform: translateX(-50%);
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: col-resize;
+  touch-action: none;
+  user-select: none;
+  outline: none;
+  background: transparent;
+}
+
+.matrix-hybrid-splitter::before {
+  content: '';
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  left: 50%;
+  width: 2px;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: var(--accent-primary);
+  opacity: 0;
+  transition: opacity var(--dur-instant) var(--ease-fast);
+  pointer-events: none;
+}
+
+.matrix-hybrid-splitter-bar {
+  position: relative;
+  width: 3px;
+  height: 22px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text-muted) 42%, transparent);
+  opacity: 0;
+  transition:
+    opacity var(--dur-instant) var(--ease-fast),
+    height var(--dur-instant) var(--ease-fast),
+    background-color var(--dur-instant) var(--ease-fast);
+  pointer-events: none;
+}
+
+.telemetry-matrix.is-hybrid:hover .matrix-hybrid-splitter-bar {
+  opacity: 0.55;
+}
+
+.matrix-hybrid-splitter:hover::before,
+.matrix-hybrid-splitter:focus-visible::before,
+.telemetry-matrix.is-resizing-hybrid .matrix-hybrid-splitter::before {
+  opacity: 0.35;
+}
+
+.matrix-hybrid-splitter:hover .matrix-hybrid-splitter-bar,
+.matrix-hybrid-splitter:focus-visible .matrix-hybrid-splitter-bar,
+.telemetry-matrix.is-resizing-hybrid .matrix-hybrid-splitter-bar {
+  opacity: 1;
+  height: 32px;
+  background: var(--accent-primary);
+}
+
+.telemetry-matrix.is-resizing-hybrid,
+.telemetry-matrix.is-resizing-hybrid * {
+  cursor: col-resize !important;
+  user-select: none !important;
+}
+
+.telemetry-matrix.is-dragging-matrix .matrix-hybrid-splitter {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .progress-track {
@@ -2977,8 +3185,15 @@ html[data-standalone="true"] .app-shell {
 }
 
 @media (max-width: 390px) {
-  .telemetry-matrix:not([data-cols="1"]):not([data-cols="2"]) {
+  .telemetry-matrix:not(.is-hybrid):not([data-cols="1"]):not([data-cols="2"]) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .telemetry-matrix.is-hybrid[data-cols="3"] .matrix-cell.is-hybrid-hero,
+  .telemetry-matrix.is-hybrid[data-cols="4"] .matrix-cell.is-hybrid-hero {
+    padding: 8px 8px 9px;
+  }
+  .telemetry-matrix.is-hybrid[data-cols="4"] > .matrix-cell:not(.is-hybrid-hero) {
+    padding: 6px 7px;
   }
   .dual-grid {
     grid-template-columns: 1fr;
@@ -6312,7 +6527,7 @@ html[data-standalone="true"] .app-shell {
   overflow: visible;
 }
 
-.telemetry-matrix.is-metrics-reorderable:not(.is-dragging-matrix) .matrix-cell:hover {
+.telemetry-matrix.is-metrics-reorderable:not(.is-dragging-matrix):not(.is-resizing-hybrid) .matrix-cell:hover {
   box-shadow: inset 0 0 0 1px var(--accent-primary-border);
   background: color-mix(in srgb, var(--accent-primary) 7%, var(--surface-panel));
 }
@@ -9719,9 +9934,10 @@ html[data-standalone="true"][data-modern-ui="true"] .app-shell {
 }
 
 [data-modern-ui="true"] .telemetry-matrix {
+  --matrix-gap: 6px;
   border: none;
   background: transparent;
-  gap: 6px;
+  gap: var(--matrix-gap);
   overflow: visible;
 }
 
@@ -9739,6 +9955,15 @@ html[data-standalone="true"][data-modern-ui="true"] .app-shell {
 
 [data-modern-ui="true"] .telemetry-matrix.is-large-trend[data-cols="3"] .matrix-cell.is-trend-card {
   padding: 9px 9px 10px;
+}
+
+[data-modern-ui="true"] .telemetry-matrix.is-hybrid[data-cols="3"] .matrix-cell.is-hybrid-hero,
+[data-modern-ui="true"] .telemetry-matrix.is-hybrid[data-cols="4"] .matrix-cell.is-hybrid-hero {
+  padding: 10px 12px 11px;
+}
+
+[data-modern-ui="true"] .telemetry-matrix.is-hybrid[data-cols="4"] > .matrix-cell:not(.is-hybrid-hero) {
+  padding: 8px 9px;
 }
 
 [data-modern-ui="true"] .dual-grid > .matrix-cell {
@@ -10064,7 +10289,7 @@ html[data-standalone="true"][data-modern-ui="true"] .app-shell {
   box-shadow: 0 0 0 1px var(--accent-primary-border);
 }
 
-[data-modern-ui="true"] .structure-preview-canvas .telemetry-matrix.is-metrics-reorderable:not(.is-dragging-matrix) .matrix-cell:hover {
+[data-modern-ui="true"] .structure-preview-canvas .telemetry-matrix.is-metrics-reorderable:not(.is-dragging-matrix):not(.is-resizing-hybrid) .matrix-cell:hover {
   background: color-mix(in srgb, var(--accent-primary) 10%, var(--modern-surface-subtle));
   box-shadow: inset 0 0 0 1px var(--accent-primary-border);
 }

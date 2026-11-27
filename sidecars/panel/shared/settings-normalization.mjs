@@ -131,12 +131,17 @@ export const DEFAULT_OVERVIEW_MODULES = Object.freeze([
 
 export const DEFAULT_HOVER_MODULES = Object.freeze(['metrics', 'context', 'quotas']);
 
-export const METRIC_CARD_STYLES = Object.freeze(['medium', 'large']);
+export const METRIC_CARD_STYLES = Object.freeze(['medium', 'hybrid', 'large']);
 export const HOVER_METRIC_STYLES = METRIC_CARD_STYLES;
 export const DEFAULT_OVERVIEW_METRIC_STYLE = 'medium';
 export const DEFAULT_HOVER_METRIC_STYLE = 'medium';
 export const DEFAULT_HOVER_SYNC_OVERVIEW_METRICS = true;
 export const MAX_LARGE_METRIC_SLOTS = 3;
+export const MIN_METRIC_HYBRID_RATIO = 28;
+export const MAX_METRIC_HYBRID_RATIO = 72;
+export const DEFAULT_METRIC_HYBRID_RATIO = 50;
+export const DEFAULT_OVERVIEW_METRIC_HYBRID_RATIO = DEFAULT_METRIC_HYBRID_RATIO;
+export const DEFAULT_HOVER_METRIC_HYBRID_RATIO = DEFAULT_METRIC_HYBRID_RATIO;
 
 export const OVERVIEW_METRIC_KEYS = Object.freeze([
   'tps',
@@ -568,27 +573,44 @@ export function normalizeHoverModules(raw) {
 }
 
 /**
- * 归一化鼠标悬浮窗实时指标卡片尺寸（`'medium'` 标准 1~4 项 | `'large'` 趋势折线 1~2 项，默认 `'medium'`）。
+ * 归一化实时指标卡片展示尺寸（`'medium'` 紧凑数值 1~4 项、`'hybrid'` 左大右小混合 1~4 项、`'large'` 大号趋势折线 1~3 项）。
  *
  * @param {unknown} raw
- * @returns {'medium'|'large'}
- */
-/**
- * 归一化实时指标卡片展示尺寸（`'medium'` 紧凑数值 1~4 项，`'large'` 大号数值+趋势折线 1~3 项）。
- *
- * @param {unknown} raw
- * @returns {'medium'|'large'}
+ * @returns {'medium'|'hybrid'|'large'}
  */
 export function normalizeMetricCardStyle(raw) {
   const val = String(raw ?? '').trim().toLowerCase();
-  return val === 'large' || val === 'sparkline' || val === 'trend' ? 'large' : 'medium';
+  if (val === 'large' || val === 'sparkline' || val === 'trend') return 'large';
+  if (val === 'hybrid' || val === 'mixed' || val === 'mix') return 'hybrid';
+  return 'medium';
 }
 
 export const normalizeOverviewMetricStyle = normalizeMetricCardStyle;
 export const normalizeHoverMetricStyle = normalizeMetricCardStyle;
 
 /**
- * 归一化鼠标悬浮窗是否同步「实时监控」的实时指标尺寸与列表（默认开启）。
+ * 归一化实时指标混合模式下左侧大卡片宽度占比（整数百分比 `28..72`，默认 `50`）。
+ *
+ * @param {unknown} raw
+ * @returns {number}
+ */
+export function normalizeMetricHybridRatio(raw) {
+  if (raw === undefined || raw === null || raw === '' || typeof raw === 'boolean') {
+    return DEFAULT_METRIC_HYBRID_RATIO;
+  }
+  const num = Number(raw);
+  if (!Number.isFinite(num)) return DEFAULT_METRIC_HYBRID_RATIO;
+  return Math.max(
+    MIN_METRIC_HYBRID_RATIO,
+    Math.min(MAX_METRIC_HYBRID_RATIO, Math.round(num))
+  );
+}
+
+export const normalizeOverviewMetricHybridRatio = normalizeMetricHybridRatio;
+export const normalizeHoverMetricHybridRatio = normalizeMetricHybridRatio;
+
+/**
+ * 归一化鼠标悬浮窗是否同步「实时监控」的实时指标尺寸、混合宽度比例与列表（默认开启）。
  *
  * @param {unknown} raw
  * @returns {boolean}
@@ -608,9 +630,10 @@ export function normalizeHoverMetrics(raw) {
 }
 
 /**
- * 解析实时监控 (`overview`) 或鼠标悬浮窗 (`hover`) 当前生效的实时指标尺寸与展示项：
- * - `hover` 且开启 `hoverSyncOverviewMetrics` 时直接复用 `overviewMetricStyle` + `overviewMetrics`；
- * - 切至 `'large'` 时保留完整 1~4 项配置，仅截取前 `MAX_LARGE_METRIC_SLOTS`（3）项渲染，第 4 项在设置页自动置灰。
+ * 解析实时监控 (`overview`) 或鼠标悬浮窗 (`hover`) 当前生效的实时指标尺寸、混合比例与展示项：
+ * - `hover` 且开启 `hoverSyncOverviewMetrics` 时直接复用 `overviewMetricStyle` + `overviewMetricHybridRatio` + `overviewMetrics`；
+ * - 切至 `'large'` 时保留完整 1~4 项配置，仅截取前 `MAX_LARGE_METRIC_SLOTS`（3）项渲染，第 4 项在设置页自动置灰；
+ * - 切至 `'hybrid'` 时完整保留 1~4 项（第 1 项为左侧大趋势卡，其余 1~3 项为右侧紧凑卡）。
  *
  * @param {'overview'|'hover'|string} mode
  * @param {Record<string, any>|null|undefined} [settings]
@@ -622,15 +645,21 @@ export function resolveEffectiveMetricMatrixConfig(mode, settings = {}) {
   const style = syncOverview
     ? normalizeOverviewMetricStyle(s.overviewMetricStyle)
     : normalizeHoverMetricStyle(s.hoverMetricStyle);
+  const hybridRatio = syncOverview
+    ? normalizeOverviewMetricHybridRatio(s.overviewMetricHybridRatio)
+    : normalizeHoverMetricHybridRatio(s.hoverMetricHybridRatio);
   const allMetrics = syncOverview
     ? normalizeOverviewMetrics(s.overviewMetrics)
     : normalizeHoverMetrics(s.hoverMetrics);
   const isLarge = style === 'large';
+  const isHybrid = style === 'hybrid';
   const metrics = isLarge ? allMetrics.slice(0, MAX_LARGE_METRIC_SLOTS) : allMetrics;
   return {
     syncOverview,
     style,
     isLarge,
+    isHybrid,
+    hybridRatio,
     allMetrics,
     metrics,
   };

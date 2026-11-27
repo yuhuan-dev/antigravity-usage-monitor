@@ -31,10 +31,13 @@ import {
   DEFAULT_CLI_STATUSLINE_SLOTS,
   DEFAULT_CONTEXT_AGENT_MODE,
   DEFAULT_HOVER_METRICS,
+  DEFAULT_HOVER_METRIC_HYBRID_RATIO,
   DEFAULT_HOVER_METRIC_STYLE,
   DEFAULT_HOVER_MODULES,
   DEFAULT_HOVER_SYNC_OVERVIEW_METRICS,
+  DEFAULT_METRIC_HYBRID_RATIO,
   DEFAULT_OVERVIEW_METRICS,
+  DEFAULT_OVERVIEW_METRIC_HYBRID_RATIO,
   DEFAULT_OVERVIEW_METRIC_STYLE,
   DEFAULT_OVERVIEW_MODULES,
   DEFAULT_POPOVER_WIDTH,
@@ -43,7 +46,9 @@ import {
   DEFAULT_STEP_TOKEN_COMBO_FORMAT,
   DEFAULT_TOPBAR_SLOTS,
   MAX_LARGE_METRIC_SLOTS,
+  MAX_METRIC_HYBRID_RATIO,
   MAX_POPOVER_WIDTH,
+  MIN_METRIC_HYBRID_RATIO,
   MIN_POPOVER_WIDTH,
   OVERVIEW_METRIC_KEYS,
   OVERVIEW_MODULE_KEYS,
@@ -57,11 +62,13 @@ import {
   normalizeDeveloperModeEnabled,
   normalizeEnableRemoteSshTelemetry,
   normalizeExperimentalQuotaReservation,
+  normalizeHoverMetricHybridRatio,
   normalizeHoverMetricStyle,
   normalizeHoverMetrics,
   normalizeHoverModules,
   normalizeHoverSyncOverviewMetrics,
   normalizeModelDisplayMode,
+  normalizeOverviewMetricHybridRatio,
   normalizeOverviewMetricStyle,
   normalizeOverviewMetrics,
   normalizeOverviewModules,
@@ -502,8 +509,13 @@ export const DEFAULT_CLIENT_OVERVIEW_MODULES = DEFAULT_OVERVIEW_MODULES;
 export const DEFAULT_CLIENT_HOVER_MODULES = DEFAULT_HOVER_MODULES;
 export const DEFAULT_CLIENT_HOVER_SYNC_OVERVIEW_METRICS = DEFAULT_HOVER_SYNC_OVERVIEW_METRICS;
 export const DEFAULT_CLIENT_HOVER_METRIC_STYLE = DEFAULT_HOVER_METRIC_STYLE;
+export const DEFAULT_CLIENT_HOVER_METRIC_HYBRID_RATIO = DEFAULT_HOVER_METRIC_HYBRID_RATIO;
 export const DEFAULT_CLIENT_HOVER_METRICS = DEFAULT_HOVER_METRICS;
 export const DEFAULT_CLIENT_OVERVIEW_METRIC_STYLE = DEFAULT_OVERVIEW_METRIC_STYLE;
+export const DEFAULT_CLIENT_OVERVIEW_METRIC_HYBRID_RATIO = DEFAULT_OVERVIEW_METRIC_HYBRID_RATIO;
+export const MIN_CLIENT_METRIC_HYBRID_RATIO = MIN_METRIC_HYBRID_RATIO;
+export const MAX_CLIENT_METRIC_HYBRID_RATIO = MAX_METRIC_HYBRID_RATIO;
+export const DEFAULT_CLIENT_METRIC_HYBRID_RATIO = DEFAULT_METRIC_HYBRID_RATIO;
 export const MAX_CLIENT_LARGE_METRIC_SLOTS = MAX_LARGE_METRIC_SLOTS;
 export const CLIENT_OVERVIEW_METRIC_KEYS = OVERVIEW_METRIC_KEYS;
 export const DEFAULT_CLIENT_OVERVIEW_METRICS = DEFAULT_OVERVIEW_METRICS;
@@ -556,9 +568,11 @@ export const resolveEffectiveClientCliStatusLineSlots = resolveEffectiveCliStatu
 export const normalizeClientHoverModules = normalizeHoverModules;
 export const normalizeClientHoverSyncOverviewMetrics = normalizeHoverSyncOverviewMetrics;
 export const normalizeClientHoverMetricStyle = normalizeHoverMetricStyle;
+export const normalizeClientHoverMetricHybridRatio = normalizeHoverMetricHybridRatio;
 export const normalizeClientHoverMetrics = normalizeHoverMetrics;
 export const normalizeClientOverviewModules = normalizeOverviewModules;
 export const normalizeClientOverviewMetricStyle = normalizeOverviewMetricStyle;
+export const normalizeClientOverviewMetricHybridRatio = normalizeOverviewMetricHybridRatio;
 export const normalizeClientOverviewMetrics = normalizeOverviewMetrics;
 export const resolveEffectiveClientMetricMatrixConfig = resolveEffectiveMetricMatrixConfig;
 export const normalizeClientStepColumns = normalizeStepTableColumns;
@@ -739,11 +753,23 @@ export function isEquivalentTelemetry(prev, next) {
   ) {
     return false;
   }
+  if (
+    normalizeClientHoverMetricHybridRatio(pSet?.hoverMetricHybridRatio) !==
+    normalizeClientHoverMetricHybridRatio(nSet?.hoverMetricHybridRatio)
+  ) {
+    return false;
+  }
   if (!sameArr(pSet?.hoverMetrics, nSet?.hoverMetrics)) return false;
   if (!sameArr(pSet?.overviewModules, nSet?.overviewModules)) return false;
   if (
     normalizeClientOverviewMetricStyle(pSet?.overviewMetricStyle) !==
     normalizeClientOverviewMetricStyle(nSet?.overviewMetricStyle)
+  ) {
+    return false;
+  }
+  if (
+    normalizeClientOverviewMetricHybridRatio(pSet?.overviewMetricHybridRatio) !==
+    normalizeClientOverviewMetricHybridRatio(nSet?.overviewMetricHybridRatio)
   ) {
     return false;
   }
@@ -2101,6 +2127,11 @@ export async function saveSettingsPatch(patch) {
   if (Object.prototype.hasOwnProperty.call(safePatch, 'hoverMetricStyle')) {
     safePatch.hoverMetricStyle = normalizeClientHoverMetricStyle(safePatch.hoverMetricStyle);
   }
+  if (Object.prototype.hasOwnProperty.call(safePatch, 'hoverMetricHybridRatio')) {
+    safePatch.hoverMetricHybridRatio = normalizeClientHoverMetricHybridRatio(
+      safePatch.hoverMetricHybridRatio
+    );
+  }
   if (Object.prototype.hasOwnProperty.call(safePatch, 'hoverMetrics')) {
     safePatch.hoverMetrics = normalizeClientHoverMetrics(safePatch.hoverMetrics);
   }
@@ -2110,6 +2141,11 @@ export async function saveSettingsPatch(patch) {
   if (Object.prototype.hasOwnProperty.call(safePatch, 'overviewMetricStyle')) {
     safePatch.overviewMetricStyle = normalizeClientOverviewMetricStyle(
       safePatch.overviewMetricStyle
+    );
+  }
+  if (Object.prototype.hasOwnProperty.call(safePatch, 'overviewMetricHybridRatio')) {
+    safePatch.overviewMetricHybridRatio = normalizeClientOverviewMetricHybridRatio(
+      safePatch.overviewMetricHybridRatio
     );
   }
   if (Object.prototype.hasOwnProperty.call(safePatch, 'overviewMetrics')) {

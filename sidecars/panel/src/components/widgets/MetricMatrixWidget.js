@@ -1,7 +1,9 @@
 /**
  * @fileoverview Standalone decoupled Metric Matrix Widget (`MetricMatrixWidget.js`).
  * Renders 1..4 user-selected telemetry cells dynamically via `metricRegistry.js`,
- * plus optional Large Sparkline Trend cards (1..2 items) for Hover Popover mode.
+ * supporting Compact (`medium`), Large Sparkline Trend (`large`, 1..3 items),
+ * and Hybrid (`hybrid`, left hero sparkline card + right 1..3 compact cards with
+ * draggable border ratio resize).
  */
 
 import { defineComponent } from '../../core/component.js';
@@ -30,6 +32,10 @@ import {
   splitMetricValueAndUnit,
 } from '../../registries/metricRegistry.js';
 import {
+  DEFAULT_CLIENT_METRIC_HYBRID_RATIO,
+  MAX_CLIENT_METRIC_HYBRID_RATIO,
+  MIN_CLIENT_METRIC_HYBRID_RATIO,
+  normalizeClientOverviewMetricHybridRatio,
   resolveEffectiveClientMetricMatrixConfig,
   resolveScopedConversation,
 } from '../../store/telemetryStore.js';
@@ -99,6 +105,9 @@ export const MetricMatrixWidget = defineComponent({
     const widgetMode = props?.mode === 'hover' ? 'hover' : 'overview';
     const hasMetricReorder =
       typeof props?.onReorderMetrics === 'function' || typeof props?.onPreviewMetrics === 'function';
+    const hasHybridResize =
+      typeof props?.onResizeHybridRatio === 'function' ||
+      typeof props?.onPreviewHybridRatio === 'function';
     const onRequestVerticalDrag =
       typeof props?.onRequestVerticalDrag === 'function' ? props.onRequestVerticalDrag : null;
     const canParentDragModule =
@@ -114,18 +123,225 @@ export const MetricMatrixWidget = defineComponent({
     });
     patchStyleVar(matrixEl, '--matrix-cols', '4');
 
+    const splitterBarEl = h('span', {
+      className: 'matrix-hybrid-splitter-bar',
+      'aria-hidden': 'true',
+    });
+    const splitterEl = h(
+      'div',
+      {
+        className: 'matrix-hybrid-splitter',
+        role: 'separator',
+        'aria-orientation': 'vertical',
+        'aria-valuemin': String(MIN_CLIENT_METRIC_HYBRID_RATIO),
+        'aria-valuemax': String(MAX_CLIENT_METRIC_HYBRID_RATIO),
+        'aria-valuenow': String(DEFAULT_CLIENT_METRIC_HYBRID_RATIO),
+        'aria-valuetext': `${DEFAULT_CLIENT_METRIC_HYBRID_RATIO}%`,
+        'aria-label': t('settings.str.hybridSplitterAria'),
+        title: t('settings.str.hybridSplitterHint'),
+        tabindex: '0',
+        onPointerdown: (e) => startHybridSplitterResize(e),
+        onDblclick: (e) => {
+          e?.preventDefault?.();
+          e?.stopPropagation?.();
+          commitHybridRatioImmediate(DEFAULT_CLIENT_METRIC_HYBRID_RATIO);
+        },
+        onKeydown: (e) => {
+          if (!hasHybridResize || currentLayoutStyle !== 'hybrid' || currentColCount < 2) return;
+          const step = e?.shiftKey ? 5 : 2;
+          if (e?.key === 'ArrowLeft') {
+            e.preventDefault?.();
+            e.stopPropagation?.();
+            commitHybridRatioImmediate(currentHybridRatio - step);
+          } else if (e?.key === 'ArrowRight') {
+            e.preventDefault?.();
+            e.stopPropagation?.();
+            commitHybridRatioImmediate(currentHybridRatio + step);
+          } else if (e?.key === 'Home') {
+            e.preventDefault?.();
+            e.stopPropagation?.();
+            commitHybridRatioImmediate(MIN_CLIENT_METRIC_HYBRID_RATIO);
+          } else if (e?.key === 'End') {
+            e.preventDefault?.();
+            e.stopPropagation?.();
+            commitHybridRatioImmediate(MAX_CLIENT_METRIC_HYBRID_RATIO);
+          } else if (e?.key === 'Enter') {
+            e.preventDefault?.();
+            e.stopPropagation?.();
+            commitHybridRatioImmediate(DEFAULT_CLIENT_METRIC_HYBRID_RATIO);
+          }
+        },
+      },
+      [splitterBarEl]
+    );
+
     let currentVisibleKeys = [];
     let currentOverflowKeys = [];
+    let currentLayoutStyle = 'medium';
+    let currentColCount = 4;
+    let currentHybridRatio = DEFAULT_CLIENT_METRIC_HYBRID_RATIO;
+    let draggingHybridRatio = null;
     let lastUpdatePayload = null;
     let pendingUpdatePayload = null;
     let activeDrag = null;
+    let activeResize = null;
     let lastColCount = 0;
-    let lastIsLargeTrend = false;
+    let lastLayoutStyle = 'medium';
     let pendingSparkResizeRafId = 0;
     let pendingSparkResizeMicrotask = false;
     const measuredWrapWidthByKey = new Map();
     const observedWrapToKey = new Map();
     const settleAnimator = createDropSettleAnimator('is-settling', ' scale(1.02)');
+
+    function getMetricCellEls() {
+      return Array.from(matrixEl.children || []).filter((child) =>
+        child?.classList?.contains?.('matrix-cell')
+      );
+    }
+
+    function applyHybridRatioVars(ratio, colCount = currentColCount) {
+      const clamped = normalizeClientOverviewMetricHybridRatio(ratio);
+      const rightShare = 100 - clamped;
+      const rightHalfShare = rightShare / 2;
+      patchStyleVar(matrixEl, '--hybrid-left-fr', `${clamped}fr`);
+      patchStyleVar(matrixEl, '--hybrid-right-fr', `${rightShare}fr`);
+      patchStyleVar(matrixEl, '--hybrid-right-half-fr', `${rightHalfShare}fr`);
+      patchStyleVar(matrixEl, '--hybrid-split-pct', `${clamped}%`);
+      patchStyleVar(matrixEl, '--hybrid-split-ratio', String(clamped / 100));
+      patchStyleVar(matrixEl, '--hybrid-col-gaps', colCount === 4 ? '2' : '1');
+      patchAttr(splitterEl, 'aria-valuenow', String(clamped));
+      patchAttr(splitterEl, 'aria-valuetext', `${clamped}%`);
+      return clamped;
+    }
+
+    function readMatrixColumnGapPx() {
+      const getStyle =
+        typeof window !== 'undefined' && typeof window.getComputedStyle === 'function'
+          ? window.getComputedStyle
+          : typeof getComputedStyle === 'function'
+            ? getComputedStyle
+            : null;
+      if (!getStyle) return 0;
+      try {
+        const cs = getStyle(matrixEl);
+        const gap = Number.parseFloat(cs?.columnGap || cs?.gap || '');
+        return Number.isFinite(gap) && gap >= 0 ? gap : 0;
+      } catch {
+        return 0;
+      }
+    }
+
+    function persistOptimisticHybridRatio(nextRatio) {
+      currentHybridRatio = nextRatio;
+      if (lastUpdatePayload?.data) {
+        const prevSettings = lastUpdatePayload.data.settings || {};
+        const syncOverview =
+          widgetMode !== 'hover' || prevSettings.hoverSyncOverviewMetrics !== false;
+        lastUpdatePayload = {
+          data: {
+            ...lastUpdatePayload.data,
+            settings: {
+              ...prevSettings,
+              ...(syncOverview
+                ? { overviewMetricHybridRatio: nextRatio }
+                : { hoverMetricHybridRatio: nextRatio }),
+            },
+          },
+        };
+      }
+    }
+
+    function teardownActiveResize({ revert = false } = {}) {
+      if (!activeResize) return;
+      const { startRatio, colCountAtStart, getWorkingRatio, session } = activeResize;
+      const moved = session.isMoved();
+      activeResize = null;
+      draggingHybridRatio = null;
+      session.cancel(true);
+      patchClasses(matrixEl, { 'is-resizing-hybrid': false });
+      if (revert && moved && getWorkingRatio() !== startRatio) {
+        applyHybridRatioVars(startRatio, colCountAtStart);
+        props?.onPreviewHybridRatio?.(startRatio);
+      }
+    }
+
+    function commitHybridRatioImmediate(rawRatio) {
+      if (!hasHybridResize || currentLayoutStyle !== 'hybrid' || currentColCount < 2) return;
+      const nextRatio = normalizeClientOverviewMetricHybridRatio(rawRatio);
+      applyHybridRatioVars(nextRatio, currentColCount);
+      if (nextRatio === currentHybridRatio) return;
+      persistOptimisticHybridRatio(nextRatio);
+      props?.onPreviewHybridRatio?.(nextRatio);
+      props?.onResizeHybridRatio?.(nextRatio);
+      scheduleAdaptiveSparklineRepaint();
+    }
+
+    function startHybridSplitterResize(e) {
+      if (!hasHybridResize || currentLayoutStyle !== 'hybrid' || currentColCount < 2) return;
+      if (e && e.button != null && e.button !== 0) return;
+      if (activeDrag) return;
+      e?.preventDefault?.();
+      e?.stopPropagation?.();
+      if (activeResize) teardownActiveResize({ revert: false });
+
+      const startRatio = currentHybridRatio;
+      const colCountAtStart = currentColCount;
+      const colGaps = colCountAtStart === 4 ? 2 : 1;
+      const gapPx = readMatrixColumnGapPx();
+      const startRect = matrixEl.getBoundingClientRect?.();
+      const startLeft = Number(startRect?.left ?? 0);
+      const startWidth = Number(startRect?.width ?? 0);
+      let workingRatio = startRatio;
+
+      function resolveRatioAtClientX(clientX) {
+        const liveRect = matrixEl.getBoundingClientRect?.();
+        const width = Number(liveRect?.width || startWidth || 0);
+        const left = Number(liveRect?.width > 0 ? liveRect.left : startLeft);
+        if (!(width > 0)) return workingRatio;
+        const trackWidth = Math.max(1, width - gapPx * colGaps);
+        const rawPct = ((Number(clientX) - left - gapPx * 0.5) / trackWidth) * 100;
+        return normalizeClientOverviewMetricHybridRatio(rawPct);
+      }
+
+      const session = startPointerDragSession(e, {
+        threshold: 2,
+        onStart: () => {
+          draggingHybridRatio = startRatio;
+          patchClasses(matrixEl, { 'is-resizing-hybrid': true });
+        },
+        onMove: ({ clientX }) => {
+          const nextRatio = resolveRatioAtClientX(clientX);
+          if (nextRatio !== workingRatio) {
+            workingRatio = nextRatio;
+            draggingHybridRatio = nextRatio;
+            applyHybridRatioVars(nextRatio, colCountAtStart);
+            props?.onPreviewHybridRatio?.(nextRatio);
+          }
+        },
+        onEnd: ({ moved, cancelled }) => {
+          if (cancelled) {
+            teardownActiveResize({ revert: true });
+            return;
+          }
+          const finalRatio = workingRatio;
+          const changed = moved && finalRatio !== startRatio;
+          teardownActiveResize({ revert: false });
+          if (changed) {
+            applyHybridRatioVars(finalRatio, colCountAtStart);
+            persistOptimisticHybridRatio(finalRatio);
+            props?.onResizeHybridRatio?.(finalRatio);
+            scheduleAdaptiveSparklineRepaint();
+          }
+        },
+      });
+
+      activeResize = {
+        startRatio,
+        colCountAtStart,
+        getWorkingRatio: () => workingRatio,
+        session,
+      };
+    }
 
     function scheduleAdaptiveSparklineRepaint() {
       if (activeDrag || !lastUpdatePayload) return;
@@ -185,20 +401,20 @@ export const MetricMatrixWidget = defineComponent({
       }
     }
 
-    function readLiveSparklineWidths(colCount, isLargeTrend, metricKeys) {
-      if (!isLargeTrend) {
+    function readLiveSparklineWidths(colCount, layoutStyle, trendKeys) {
+      if (trendKeys.length === 0) {
         measuredWrapWidthByKey.clear();
         return;
       }
-      if (colCount !== lastColCount || !lastIsLargeTrend) {
+      if (colCount !== lastColCount || layoutStyle !== lastLayoutStyle) {
         measuredWrapWidthByKey.clear();
         return;
       }
-      const keySet = new Set(metricKeys);
+      const keySet = new Set(trendKeys);
       for (const key of Array.from(measuredWrapWidthByKey.keys())) {
         if (!keySet.has(key)) measuredWrapWidthByKey.delete(key);
       }
-      for (const cellEl of matrixEl.children || []) {
+      for (const cellEl of getMetricCellEls()) {
         const key = cellEl?.getAttribute?.('data-metric-key');
         if (!key || !keySet.has(key)) continue;
         const wrapEl = cellEl.querySelector?.('.cell-sparkline-wrap');
@@ -214,7 +430,7 @@ export const MetricMatrixWidget = defineComponent({
 
     function resetDragVisuals() {
       patchClasses(matrixEl, { 'is-dragging-matrix': false });
-      for (const cellEl of matrixEl.children || []) {
+      for (const cellEl of getMetricCellEls()) {
         patchClasses(cellEl, { 'is-cell-dragging': false, 'is-cell-drag-sibling': false });
         if (cellEl?.style) {
           cellEl.style.transition = '';
@@ -241,7 +457,7 @@ export const MetricMatrixWidget = defineComponent({
     }
 
     function startMetricCellDrag(e, startIdx) {
-      if (!hasMetricReorder || (e && e.button != null && e.button !== 0)) return;
+      if (!hasMetricReorder || activeResize || (e && e.button != null && e.button !== 0)) return;
       if (currentVisibleKeys.length <= 1 || startIdx < 0 || startIdx >= currentVisibleKeys.length) {
         return;
       }
@@ -253,7 +469,7 @@ export const MetricMatrixWidget = defineComponent({
       const startVisible = [...currentVisibleKeys];
       const overflowTail = [...currentOverflowKeys];
       const count = startVisible.length;
-      const cellEls = Array.from(matrixEl.children || []).slice(0, count);
+      const cellEls = getMetricCellEls().slice(0, count);
       if (cellEls.length !== count) return;
       const origIndices = Array.from({ length: count }, (_, idx) => idx);
       let targetIdx = startIdx;
@@ -412,8 +628,9 @@ export const MetricMatrixWidget = defineComponent({
             }
             props?.onReorderMetrics?.(finalFull);
           }
-          if (moved && matrixEl.children?.[finalTargetIdx]) {
-            settleAnimator.trigger(matrixEl.children[finalTargetIdx], residualX, residualY);
+          const landedCell = getMetricCellEls()[finalTargetIdx];
+          if (moved && landedCell) {
+            settleAnimator.trigger(landedCell, residualX, residualY);
           }
         },
       });
@@ -448,7 +665,7 @@ export const MetricMatrixWidget = defineComponent({
           ...(hasMetricReorder
             ? {
                 onPointerdown: (e) => {
-                  const idx = Array.from(matrixEl.children || []).indexOf(el);
+                  const idx = getMetricCellEls().indexOf(el);
                   if (idx >= 0) startMetricCellDrag(e, idx);
                 },
               }
@@ -482,9 +699,14 @@ export const MetricMatrixWidget = defineComponent({
     function applyUpdatePayload({ data } = {}) {
       lastUpdatePayload = { data };
       patchAttr(matrixEl, 'aria-label', t('module.metrics'));
+      patchAttr(splitterEl, 'aria-label', t('settings.str.hybridSplitterAria'));
+      patchAttr(splitterEl, 'title', t('settings.str.hybridSplitterHint'));
       const settings = data?.settings || {};
       const {
+        style: layoutStyle,
         isLarge: isLargeTrend,
+        isHybrid,
+        hybridRatio: resolvedHybridRatio,
         metrics: metricKeys,
         allMetrics,
       } = resolveEffectiveClientMetricMatrixConfig(widgetMode, settings);
@@ -498,33 +720,49 @@ export const MetricMatrixWidget = defineComponent({
         : null;
       const maxCols = isLargeTrend ? 3 : 4;
       const colCount = Math.max(1, Math.min(maxCols, metricKeys.length));
-      readLiveSparklineWidths(colCount, isLargeTrend, metricKeys);
+      const needsSparkline = isLargeTrend || isHybrid;
+      const trendKeys = isLargeTrend ? metricKeys : isHybrid ? metricKeys.slice(0, 1) : [];
+      readLiveSparklineWidths(colCount, layoutStyle, trendKeys);
       lastColCount = colCount;
-      lastIsLargeTrend = isLargeTrend;
+      lastLayoutStyle = layoutStyle;
+      currentLayoutStyle = layoutStyle;
+      currentColCount = colCount;
+      currentHybridRatio = resolvedHybridRatio;
+      const effectiveHybridRatio =
+        draggingHybridRatio != null ? draggingHybridRatio : resolvedHybridRatio;
+
+      if (!isHybrid || colCount < 2) {
+        teardownActiveResize({ revert: false });
+      }
 
       patchClasses(matrixEl, {
         'is-large-trend': isLargeTrend,
+        'is-hybrid': isHybrid,
         'is-metrics-reorderable': canDragCells,
       });
       patchAttr(matrixEl, 'data-cols', String(colCount));
       patchStyleVar(matrixEl, '--matrix-cols', String(colCount));
+      if (isHybrid) {
+        applyHybridRatioVars(effectiveHybridRatio, colCount);
+      }
 
       const { hasSubagents, scopedConv, ctxAgent } = resolveScopedConversation(
         data,
         'all',
         getCtxAgentId(),
-        isLargeTrend
+        needsSparkline
       );
       const active = scopedConv || data?.activeConversation || {};
       const ctx = ctxAgent?.context || active.context || {};
       const quotas = data?.quotas || {};
       const locale = getEffectiveLocale();
       const limitTokens = Number(ctx.compactionLimitTokens || ctx.limitTokens || 256000);
-      const seriesSteps = isLargeTrend
+      const seriesSteps = needsSparkline
         ? active.sparklineSteps || active.recentSteps || data?.activeConversation?.recentSteps || []
         : [];
+      const fallbackSparkCols = isHybrid ? (colCount === 1 ? 1 : 2) : colCount;
 
-      const cells = metricKeys.map((key) => {
+      const cells = metricKeys.map((key, idx) => {
         const base = resolveOverviewMetricCell(key, {
           active,
           ctx,
@@ -532,10 +770,15 @@ export const MetricMatrixWidget = defineComponent({
           settings,
           hasSubagents,
         });
-        if (!isLargeTrend) {
-          return { ...base, isLargeTrend: false, sparkSig: '' };
+        const isCellTrend = isLargeTrend || (isHybrid && idx === 0);
+        const isHybridHero = isHybrid && idx === 0;
+        if (!isCellTrend) {
+          return { ...base, isLargeTrend: false, isHybridHero: false, sparkSig: '' };
         }
-        const spec = resolveAdaptiveSparklineSpec(measuredWrapWidthByKey.get(key), colCount);
+        const spec = resolveAdaptiveSparklineSpec(
+          measuredWrapWidthByKey.get(key),
+          fallbackSparkCols
+        );
         const series = extractOverviewMetricSeries(key, seriesSteps, {
           maxPoints: spec.maxPoints,
           limitTokens,
@@ -547,6 +790,7 @@ export const MetricMatrixWidget = defineComponent({
         return {
           ...base,
           isLargeTrend: true,
+          isHybridHero,
           tone,
           trendMain: split.main,
           trendUnit: split.unit,
@@ -562,12 +806,15 @@ export const MetricMatrixWidget = defineComponent({
       patchKeyedList(matrixEl, cells, {
         keyFn: (cell) => cell.key,
         sigFn: (cell) =>
-          `${locale}:${cell.isLargeTrend ? 'L' : 'M'}:${cell.key}:${cell.label}:${cell.icon}:${cell.isPulsing}:${cell.valueClass}:${cell.valueText}:${cell.subClass}:${cell.subText}:${cell.sparkSig}:${dragHint || ''}`,
+          `${locale}:${cell.isLargeTrend ? 'L' : 'M'}:${cell.isHybridHero ? 'H' : ''}:${cell.key}:${cell.label}:${cell.icon}:${cell.isPulsing}:${cell.valueClass}:${cell.valueText}:${cell.subClass}:${cell.subText}:${cell.sparkSig}:${dragHint || ''}`,
         createRow: createMetricCellNode,
         updateRow: (refs, cell) => {
           patchAttr(refs.el, 'data-metric-key', cell.key);
           patchAttr(refs.el, 'title', dragHint);
-          patchClasses(refs.el, { 'is-trend-card': cell.isLargeTrend });
+          patchClasses(refs.el, {
+            'is-trend-card': cell.isLargeTrend,
+            'is-hybrid-hero': Boolean(cell.isHybridHero),
+          });
           patchText(refs.labelSpan, cell.label);
           patchSvgIcon(refs.iconSvg, cell.icon);
           refs.iconSvg.setAttribute('width', String(cell.iconSize));
@@ -632,7 +879,17 @@ export const MetricMatrixWidget = defineComponent({
           }
         },
       });
-      syncObservedSparklineWraps(isLargeTrend ? metricKeys : []);
+
+      const showSplitter = isHybrid && colCount >= 2 && hasHybridResize;
+      if (showSplitter) {
+        if (splitterEl.parentNode !== matrixEl || matrixEl.lastChild !== splitterEl) {
+          matrixEl.appendChild(splitterEl);
+        }
+      } else if (splitterEl.parentNode === matrixEl) {
+        matrixEl.removeChild(splitterEl);
+      }
+
+      syncObservedSparklineWraps(trendKeys);
     }
 
     function update(payload = {}) {
@@ -644,6 +901,7 @@ export const MetricMatrixWidget = defineComponent({
     }
 
     onCleanup(() => {
+      teardownActiveResize({ revert: false });
       teardownActiveDrag({ revert: false, flushPending: false });
       settleAnimator.clear();
       if (pendingSparkResizeRafId && typeof cancelAnimationFrame === 'function') {
