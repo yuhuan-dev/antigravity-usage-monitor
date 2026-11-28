@@ -74,6 +74,7 @@ import {
   normalizeContextAgentMode,
   normalizeDeveloperModeEnabled,
   normalizeEnableRemoteSshTelemetry,
+  normalizeEnableSafetyMonitor,
   normalizeExperimentalQuotaReservation,
   normalizeHoverMetricRows,
   normalizeHoverMetricSizes,
@@ -252,6 +253,7 @@ const TELEMETRY_RECOMPUTE_SETTING_KEYS = new Set([
   'enableWindowOverlay',
   'autoConfigureLaunch',
   'enableRemoteSshTelemetry',
+  'enableSafetyMonitor',
 ]);
 
 function makeConsumptionRangeCacheKey(
@@ -832,6 +834,12 @@ export function isEquivalentTelemetry(prev, next) {
   ) {
     return false;
   }
+  if (
+    normalizeEnableSafetyMonitor(pSet?.enableSafetyMonitor) !==
+    normalizeEnableSafetyMonitor(nSet?.enableSafetyMonitor)
+  ) {
+    return false;
+  }
   if (!sameArr(pSet?.topbarCapsuleSlots, nSet?.topbarCapsuleSlots)) return false;
   if (!sameArr(pSet?.hoverModules, nSet?.hoverModules)) return false;
   if (
@@ -922,6 +930,36 @@ export function isEquivalentTelemetry(prev, next) {
     String(pCli?.managedFlags || '') !== String(nCli?.managedFlags || '')
   ) {
     return false;
+  }
+  const pSm = prev.safetyMonitor;
+  const nSm = next.safetyMonitor;
+  if (Boolean(pSm) !== Boolean(nSm)) {
+    return false;
+  }
+  if (pSm && nSm) {
+    const p5 = pSm.window5h;
+    const n5 = nSm.window5h;
+    const p24 = pSm.window24h;
+    const n24 = nSm.window24h;
+    if (
+      Number(pSm.sourceCount || 0) !== Number(nSm.sourceCount || 0) ||
+      Number(p5?.totalStreamGen || 0) !== Number(n5?.totalStreamGen || 0) ||
+      Number(p5?.hiddenStreamGen || 0) !== Number(n5?.hiddenStreamGen || 0) ||
+      Number(p5?.flashLiteCalls || 0) !== Number(n5?.flashLiteCalls || 0) ||
+      Number(p5?.heavyCalls || 0) !== Number(n5?.heavyCalls || 0) ||
+      Number(p5?.heavyTrajChars || 0) !== Number(n5?.heavyTrajChars || 0) ||
+      Number(p5?.blockedMs || 0) !== Number(n5?.blockedMs || 0) ||
+      Number(p5?.rateLimit429Count || 0) !== Number(n5?.rateLimit429Count || 0) ||
+      Number(p5?.fallbackCount || 0) !== Number(n5?.fallbackCount || 0) ||
+      Number(p24?.flashLiteCalls || 0) !== Number(n24?.flashLiteCalls || 0) ||
+      Number(p24?.heavyCalls || 0) !== Number(n24?.heavyCalls || 0) ||
+      Number(p24?.heavyTrajChars || 0) !== Number(n24?.heavyTrajChars || 0) ||
+      Boolean(pSm.alerts?.has429Fallback) !== Boolean(nSm.alerts?.has429Fallback) ||
+      Boolean(pSm.alerts?.hasHeavyBurst) !== Boolean(nSm.alerts?.hasHeavyBurst) ||
+      Boolean(pSm.alerts?.nearFlashLiteLimit) !== Boolean(nSm.alerts?.nearFlashLiteLimit)
+    ) {
+      return false;
+    }
   }
   const pCloud = prev.cloudStatus;
   const nCloud = next.cloudStatus;
@@ -2413,6 +2451,9 @@ export async function saveSettingsPatch(patch) {
       safePatch.enableRemoteSshTelemetry
     );
   }
+  if (Object.prototype.hasOwnProperty.call(safePatch, 'enableSafetyMonitor')) {
+    safePatch.enableSafetyMonitor = normalizeEnableSafetyMonitor(safePatch.enableSafetyMonitor);
+  }
   if (Object.prototype.hasOwnProperty.call(safePatch, 'windowMountMode')) {
     const normMount = normalizeClientWindowMountMode(
       safePatch.windowMountMode,
@@ -2630,6 +2671,7 @@ export async function triggerFxSync() {
 
 export const normalizeClientAutoConfigureLaunch = normalizeAutoConfigureLaunch;
 export const normalizeClientEnableRemoteSshTelemetry = normalizeEnableRemoteSshTelemetry;
+export const normalizeClientEnableSafetyMonitor = normalizeEnableSafetyMonitor;
 
 export async function triggerBridgeHostRelaunch(options = {}) {
   const payload =

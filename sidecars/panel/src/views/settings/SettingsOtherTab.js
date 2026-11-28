@@ -21,6 +21,7 @@ import {
   fetchQuotaReservationLog,
   normalizeClientAutoConfigureLaunch,
   normalizeClientEnableRemoteSshTelemetry,
+  normalizeClientEnableSafetyMonitor,
   normalizeClientExperimentalQuotaReservation,
   normalizeClientModelDisplayMode,
   rebuildTrajectoryCache,
@@ -63,6 +64,7 @@ export const SettingsOtherTab = defineComponent({
     let draftModelDisplayMode = 'short';
     let draftAutoConfigureLaunch = true;
     let draftEnableRemoteSshTelemetry = true;
+    let draftEnableSafetyMonitor = true;
     let draftExperimentalQuotaReservation = true;
     let draftDeveloperModeEnabled = false;
     let draftRiskyFeaturesEnabled = false;
@@ -285,6 +287,33 @@ export const SettingsOtherTab = defineComponent({
       },
     });
 
+    const safetyMonitorLabelEl = h('span', {
+      className: 'settings-action-title',
+      text: t('settings.oth.safetyMonitorLabel'),
+    });
+    const safetyMonitorDescEl = h('span', {
+      className: 'settings-action-desc',
+      text: t('settings.oth.safetyMonitorDesc'),
+    });
+    const safetyMonitorToggle = ToggleSwitch({
+      modelValue: 'on',
+      ariaLabelKey: 'settings.oth.safetyMonitorLabel',
+      preset: 'enable',
+      onUpdateModelValue: async (val) => {
+        const nextEnabled = val === 'on';
+        draftEnableSafetyMonitor = nextEnabled;
+        safetyMonitorToggle.setProps({ modelValue: nextEnabled ? 'on' : 'off' });
+        showHostFeedback(t('settings.saving'), 0);
+        try {
+          await saveSettingsPatch({ enableSafetyMonitor: nextEnabled });
+          showHostFeedback(t('settings.saved'), 1500);
+        } catch {
+          if (latestSettings) renderSettings(latestSettings);
+          showHostFeedback(t('settings.saveFailed'), 2500);
+        }
+      },
+    });
+
     const macWrapperLabelEl = h('span', {
       className: 'settings-action-title',
       text: t('settings.oth.macWrapperLabel'),
@@ -363,6 +392,10 @@ export const SettingsOtherTab = defineComponent({
       h('div', { className: 'settings-action-block' }, [
         h('div', { className: 'settings-action-info' }, [remoteSshLabelEl, remoteSshDescEl]),
         remoteSshToggle.el,
+      ]),
+      h('div', { className: 'settings-action-block' }, [
+        h('div', { className: 'settings-action-info' }, [safetyMonitorLabelEl, safetyMonitorDescEl]),
+        safetyMonitorToggle.el,
       ]),
       macWrapperCleanRow,
     ]);
@@ -1243,6 +1276,7 @@ export const SettingsOtherTab = defineComponent({
       draftEnableRemoteSshTelemetry = normalizeClientEnableRemoteSshTelemetry(
         settings.enableRemoteSshTelemetry
       );
+      draftEnableSafetyMonitor = normalizeClientEnableSafetyMonitor(settings.enableSafetyMonitor);
       draftExperimentalQuotaReservation = normalizeClientExperimentalQuotaReservation(
         settings.experimentalQuotaReservation
       );
@@ -1275,6 +1309,9 @@ export const SettingsOtherTab = defineComponent({
       remoteSshToggle.setProps({
         modelValue: draftEnableRemoteSshTelemetry ? 'on' : 'off',
       });
+      safetyMonitorToggle.setProps({
+        modelValue: draftEnableSafetyMonitor ? 'on' : 'off',
+      });
       syncHostIntegrationRows();
       quotaReserveToggle.setProps({
         modelValue: draftExperimentalQuotaReservation ? 'on' : 'off',
@@ -1290,6 +1327,8 @@ export const SettingsOtherTab = defineComponent({
       patchText(autoLaunchDescEl, t('settings.oth.autoLaunchDesc'));
       patchText(remoteSshLabelEl, t('settings.oth.remoteSshLabel'));
       patchText(remoteSshDescEl, t('settings.oth.remoteSshDesc'));
+      patchText(safetyMonitorLabelEl, t('settings.oth.safetyMonitorLabel'));
+      patchText(safetyMonitorDescEl, t('settings.oth.safetyMonitorDesc'));
       patchText(macWrapperLabelEl, t('settings.oth.macWrapperLabel'));
       patchText(macWrapperDescEl, t('settings.oth.macWrapperDesc'));
       patchText(macWrapperRemoveBtnText, t('settings.oth.macRemoveWrapperBtn'));
@@ -1298,6 +1337,9 @@ export const SettingsOtherTab = defineComponent({
       });
       remoteSshToggle.setProps({
         modelValue: draftEnableRemoteSshTelemetry ? 'on' : 'off',
+      });
+      safetyMonitorToggle.setProps({
+        modelValue: draftEnableSafetyMonitor ? 'on' : 'off',
       });
       syncHostIntegrationRows();
       patchText(expTitleEl, t('settings.oth.expTitle'));
@@ -1352,6 +1394,7 @@ export const SettingsOtherTab = defineComponent({
       stepModelSelect.destroy();
       autoLaunchToggle.destroy();
       remoteSshToggle.destroy();
+      safetyMonitorToggle.destroy();
       quotaReserveToggle.destroy();
       developerModeToggle.destroy();
       riskyFeaturesToggle.destroy();
@@ -1368,6 +1411,7 @@ export const SettingsOtherTab = defineComponent({
         stepModelSelect,
         autoLaunchToggle,
         remoteSshToggle,
+        safetyMonitorToggle,
         macWrapperRemoveBtn,
         quotaReserveToggle,
         exportReserveLogBtn,

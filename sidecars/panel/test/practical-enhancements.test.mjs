@@ -2896,7 +2896,7 @@ test('P2 regressions: bundler regex-after-paren lexer, shared URI/prompt/atomic 
   assert.equal(latestQuery, '');
   assert.equal(sBox.clearBtnEl.hasAttribute('hidden'), true);
 
-  // 4. Declarative settingsBackup round-trips all 46 portable keys + coupled legacy flags
+  // 4. Declarative settingsBackup round-trips all 47 portable keys + coupled legacy flags
   const exported = buildExportableSettingsJson({
     language: 'en-US',
     displayCurrency: 'MYR',
@@ -2905,6 +2905,7 @@ test('P2 regressions: bundler regex-after-paren lexer, shared URI/prompt/atomic 
     pluginUpdateMode: 'auto',
     windowMountMode: 'composer',
     vsCodeMountMode: 'dual',
+    enableSafetyMonitor: false,
     topbarMultiSessionMode: 'running_only',
     hoverSyncOverviewMetrics: false,
     hoverMetricRows: 2,
@@ -2920,7 +2921,8 @@ test('P2 regressions: bundler regex-after-paren lexer, shared URI/prompt/atomic 
     accountQuotaRefreshMinutes: 180,
   });
   const parsedExport = JSON.parse(exported);
-  assert.equal(Object.keys(parsedExport.settings).length, 46);
+  assert.equal(Object.keys(parsedExport.settings).length, 47);
+  assert.equal(parsedExport.settings.enableSafetyMonitor, false);
   assert.equal(parsedExport.settings.displayCurrency, 'MYR');
   assert.equal(parsedExport.settings.quotaDisplayMode, 'remaining');
   assert.equal(parsedExport.settings.vsCodeMountMode, 'dual');
@@ -2995,6 +2997,7 @@ test('P2 regressions: bundler regex-after-paren lexer, shared URI/prompt/atomic 
   assert.equal(reimported.patch.enableWindowOverlay, true);
   assert.equal(reimported.patch.showStepFilterToolbar, true);
   assert.equal(reimported.patch.experimentalQuotaReservation, true);
+  assert.equal(reimported.patch.enableSafetyMonitor, false);
   assert.equal(reimported.patch.accountQuotaRefreshMinutes, 180);
 });
 
@@ -3231,5 +3234,243 @@ test('Issue #62: accountQuotaRefreshMinutes supports 0 (Off) after 24h, preserve
     assert.equal(manualQuotaCalls[0].body.email, 'backup@example.com');
   } finally {
     tab.destroy();
+  }
+});
+
+test('Issue #60: enableSafetyMonitor toggle, SafetyMonitorBar collapse/expand/alerts/compactHover, and SettingsOtherTab persistence', async (t) => {
+  const [
+    { DEFAULT_ENABLE_SAFETY_MONITOR, normalizeEnableSafetyMonitor },
+    { DEFAULT_SETTINGS_SCHEMA, normalizeFullSettings },
+    { QuotaPoolsWidget },
+    { resolveSafetyMonitorAlert },
+  ] = await Promise.all([
+    import('../shared/settings-normalization.mjs'),
+    import('../backend/settings-schema.mjs'),
+    import('../src/components/widgets/QuotaPoolsWidget.js'),
+    import('../src/components/widgets/SafetyMonitorBar.js'),
+  ]);
+
+  assert.equal(DEFAULT_ENABLE_SAFETY_MONITOR, true);
+  assert.equal(DEFAULT_SETTINGS_SCHEMA.enableSafetyMonitor, true);
+  assert.equal(normalizeEnableSafetyMonitor(undefined), true);
+  assert.equal(normalizeEnableSafetyMonitor(null), true);
+  assert.equal(normalizeEnableSafetyMonitor(''), true);
+  assert.equal(normalizeEnableSafetyMonitor(false), false);
+  assert.equal(normalizeEnableSafetyMonitor('false'), false);
+  assert.equal(normalizeEnableSafetyMonitor('0'), false);
+  assert.equal(normalizeEnableSafetyMonitor('off'), false);
+  assert.equal(normalizeEnableSafetyMonitor('on'), true);
+  assert.equal(normalizeFullSettings({ enableSafetyMonitor: false }).enableSafetyMonitor, false);
+  assert.equal(normalizeFullSettings({}).enableSafetyMonitor, true);
+
+  assert.equal(resolveSafetyMonitorAlert({ has429Fallback: true, hasHeavyBurst: true }), 'fallback429');
+  assert.equal(resolveSafetyMonitorAlert({ hasHeavyBurst: true, nearFlashLiteLimit: true }), 'heavyBurst');
+  assert.equal(resolveSafetyMonitorAlert({ nearFlashLiteLimit: true }), 'nearLimit');
+  assert.equal(resolveSafetyMonitorAlert({}), '');
+
+  const prevDoc = globalThis.document;
+  const prevWin = globalThis.window;
+  const prevFetch = globalThis.fetch;
+  const prevLocale = i18nStore.getState().locale;
+  const { document } = createMockDom();
+  const savedPatches = [];
+  globalThis.document = document;
+  globalThis.window = {
+    innerWidth: 1024,
+    innerHeight: 768,
+    location: { pathname: '/', href: 'http://127.0.0.1:41234/' },
+    addEventListener() {},
+    removeEventListener() {},
+    requestAnimationFrame: (cb) => setTimeout(cb, 0),
+    cancelAnimationFrame: (id) => clearTimeout(id),
+  };
+  globalThis.fetch = async (url, opts = {}) => {
+    const urlStr = String(url);
+    const body = opts?.body ? JSON.parse(opts.body) : {};
+    if (urlStr.includes('/api/settings') && opts?.method === 'POST') {
+      savedPatches.push(body);
+      const merged = normalizeFullSettings({ enableSafetyMonitor: body.enableSafetyMonitor });
+      return {
+        ok: true,
+        status: 200,
+        headers: { get: () => 'application/json' },
+        json: async () => merged,
+        text: async () => JSON.stringify(merged),
+      };
+    }
+    return {
+      ok: true,
+      status: 200,
+      headers: { get: () => 'application/json' },
+      json: async () => ({ ok: true }),
+      text: async () => JSON.stringify({ ok: true }),
+    };
+  };
+  t.after(() => {
+    setI18nLanguage(prevLocale);
+    globalThis.document = prevDoc;
+    globalThis.window = prevWin;
+    globalThis.fetch = prevFetch;
+  });
+
+  setI18nLanguage('zh-CN');
+
+  const sampleSafetyMonitor = {
+    scannedAtMs: Date.now(),
+    sourceCount: 1,
+    window5h: {
+      totalStreamGen: 282,
+      hiddenStreamGen: 130,
+      hiddenRatio: 0.461,
+      flashLiteCalls: 123,
+      flashLiteTriggered: 7,
+      heavyCalls: 7,
+      heavyTriggered: 0,
+      heavyFalseAlarmRate: 1,
+      heavyTrajChars: 2_890_000,
+      flashLiteTrajChars: 120_000,
+      blockedMs: 173_000,
+      rateLimit429Count: 0,
+      fallbackCount: 0,
+      estInputTokensLower: 722_500,
+      estInputTokensUpper: 963_333,
+    },
+    window24h: {
+      totalStreamGen: 400,
+      hiddenStreamGen: 180,
+      hiddenRatio: 0.45,
+      flashLiteCalls: 170,
+      flashLiteTriggered: 10,
+      heavyCalls: 10,
+      heavyTriggered: 1,
+      heavyFalseAlarmRate: 0.9,
+      heavyTrajChars: 3_600_000,
+      flashLiteTrajChars: 200_000,
+      blockedMs: 210_000,
+      rateLimit429Count: 0,
+      fallbackCount: 0,
+      estInputTokensLower: 900_000,
+      estInputTokensUpper: 1_200_000,
+    },
+    alerts: {
+      has429Fallback: false,
+      hasHeavyBurst: false,
+      nearFlashLiteLimit: false,
+    },
+  };
+
+  const sampleQuotas = {
+    pools: [
+      {
+        poolKey: 'Gemini',
+        poolLabel: 'Gemini',
+        family: 'Gemini',
+        usedPct: 24,
+        remainingPct: 76,
+        safetyReviewUsedPct: 1.5,
+        resetTime: new Date(Date.now() + 3600_000).toISOString(),
+      },
+    ],
+    weekly: { isOfficial: true },
+  };
+
+  const widget = QuotaPoolsWidget({ compactHover: false });
+  const hoverWidget = QuotaPoolsWidget({ compactHover: true });
+  const otherTab = SettingsOtherTab({});
+  try {
+    // 1. Disabled via enableSafetyMonitor: false -> bar hidden & tooltip omits safety suffix
+    widget.refs.update({
+      data: {
+        settings: { enableSafetyMonitor: false, experimentalQuotaReservation: true },
+        quotas: sampleQuotas,
+        safetyMonitor: sampleSafetyMonitor,
+        account: { tierName: 'Pro' },
+      },
+    });
+    const barEl = widget.refs.safetyMonitorBar.el;
+    assert.equal(barEl.hidden, true, 'SafetyMonitorBar hides when enableSafetyMonitor is false');
+    const firstTrack = widget.el.querySelector('.progress-track');
+    assert.equal(firstTrack.getAttribute('title'), null);
+
+    // 2. Enabled with 0 calls & 0 alerts -> still hidden cleanly
+    widget.refs.update({
+      data: {
+        settings: { enableSafetyMonitor: true, experimentalQuotaReservation: true },
+        quotas: sampleQuotas,
+        safetyMonitor: {
+          ...sampleSafetyMonitor,
+          window5h: { ...sampleSafetyMonitor.window5h, flashLiteCalls: 0, heavyCalls: 0 },
+          window24h: { ...sampleSafetyMonitor.window24h, flashLiteCalls: 0, heavyCalls: 0 },
+        },
+        account: { tierName: 'Pro' },
+      },
+    });
+    assert.equal(barEl.hidden, true, 'SafetyMonitorBar hides when no calls or alerts exist');
+
+    // 3. Enabled with normal observed calls -> quiet 1-line collapsed bar, expandable details, tooltip suffix
+    widget.refs.update({
+      data: {
+        settings: { enableSafetyMonitor: true, experimentalQuotaReservation: true },
+        quotas: sampleQuotas,
+        safetyMonitor: sampleSafetyMonitor,
+        account: { tierName: 'Pro' },
+      },
+    });
+    assert.equal(barEl.hidden, false, 'SafetyMonitorBar shows when calls exist');
+    assert.equal(widget.refs.safetyMonitorBar.refs.detailsEl.hidden, true, 'Collapsed by default');
+    assert.match(barEl.textContent, /123/);
+    assert.match(barEl.textContent, /46\.1%/);
+    assert.match(firstTrack.getAttribute('title') || '', /1\.5%/);
+
+    // Expand details and switch 5h -> 24h
+    widget.refs.safetyMonitorBar.refs.headBtn.dispatchEvent({ type: 'click', stopPropagation() {} });
+    assert.equal(widget.refs.safetyMonitorBar.refs.detailsEl.hidden, false);
+    assert.match(widget.refs.safetyMonitorBar.refs.detailsEl.textContent, /100%/);
+    assert.match(widget.refs.safetyMonitorBar.refs.detailsEl.textContent, /4,400|4400/);
+    widget.refs.safetyMonitorBar.refs.win24hBtn.dispatchEvent({ type: 'click', stopPropagation() {} });
+    assert.match(widget.refs.safetyMonitorBar.refs.detailsEl.textContent, /170/);
+
+    // 4. Compact hover hides in normal state, surfaces concise warning on 429 fallback alert
+    hoverWidget.refs.update({
+      data: {
+        settings: { enableSafetyMonitor: true },
+        quotas: sampleQuotas,
+        safetyMonitor: sampleSafetyMonitor,
+        account: { tierName: 'Pro' },
+      },
+    });
+    assert.equal(hoverWidget.refs.safetyMonitorBar.el.hidden, true, 'compactHover stays clean without alerts');
+
+    const alertSafety = {
+      ...sampleSafetyMonitor,
+      window5h: { ...sampleSafetyMonitor.window5h, rateLimit429Count: 2, fallbackCount: 2 },
+      alerts: { has429Fallback: true, hasHeavyBurst: false, nearFlashLiteLimit: false },
+    };
+    hoverWidget.refs.update({
+      data: {
+        settings: { enableSafetyMonitor: true },
+        quotas: sampleQuotas,
+        safetyMonitor: alertSafety,
+        account: { tierName: 'Pro' },
+      },
+    });
+    assert.equal(hoverWidget.refs.safetyMonitorBar.el.hidden, false, 'compactHover surfaces active 429 fallback alert');
+    assert.equal(hoverWidget.refs.safetyMonitorBar.el.classList.contains('tone-danger'), true);
+    assert.equal(hoverWidget.refs.safetyMonitorBar.refs.adviceEl.hidden, false);
+
+    // 5. SettingsOtherTab exposes safetyMonitorToggle and persists patch
+    otherTab.refs.renderSettings({ enableSafetyMonitor: true });
+    const offBtn = otherTab.refs.safetyMonitorToggle.el.querySelector('button[data-seg-value="off"]');
+    assert.ok(offBtn, 'SettingsOtherTab mounts safetyMonitorToggle with off button');
+    offBtn.dispatchEvent({ type: 'click', stopPropagation() {} });
+    await new Promise((r) => setTimeout(r, 30));
+    assert.ok(
+      savedPatches.some((p) => p.enableSafetyMonitor === false),
+      'Clicking safetyMonitorToggle persists enableSafetyMonitor=false'
+    );
+  } finally {
+    widget.destroy();
+    hoverWidget.destroy();
+    otherTab.destroy();
   }
 });

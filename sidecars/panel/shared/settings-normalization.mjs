@@ -1363,6 +1363,25 @@ export function normalizeEnableRemoteSshTelemetry(val) {
   return Boolean(val);
 }
 
+export const DEFAULT_ENABLE_SAFETY_MONITOR = true;
+
+/**
+ * 归一化后台安全审查日志监测开关（默认 `true`，只读增量扫描本机 Desktop / CLI 日志并辅助配额归因）。
+ *
+ * @param {unknown} val
+ * @returns {boolean}
+ */
+export function normalizeEnableSafetyMonitor(val) {
+  if (val === undefined || val === null || val === '') return DEFAULT_ENABLE_SAFETY_MONITOR;
+  if (typeof val === 'string') {
+    const lower = val.trim().toLowerCase();
+    if (lower === 'false' || lower === '0' || lower === 'off') return false;
+    if (lower === 'true' || lower === '1' || lower === 'on') return true;
+    return DEFAULT_ENABLE_SAFETY_MONITOR;
+  }
+  return Boolean(val);
+}
+
 /**
  * 归一化开发者模式开关（默认 `false`，严格仅接受显式 `true`）。
  *

@@ -22,6 +22,7 @@ import {
 } from '../../core/formatters.js';
 import { createSvgIcon } from '../../icons/SvgIcon.js';
 import { getEffectiveLocale, t } from '../../i18n/index.js';
+import { SafetyMonitorBar } from './SafetyMonitorBar.js';
 
 /**
  * 归一化动态配额池列表；在官方配额尚未返回时回退预占 Gemini 与 Claude & GPT 两个标准池槽位。
@@ -34,7 +35,12 @@ import { getEffectiveLocale, t } from '../../i18n/index.js';
 export function buildQuotaPoolItems(
   quotas,
   minuteTick = 0,
-  { isPending = false, showReserved = false, quotaDisplayMode = 'used' } = {}
+  {
+    isPending = false,
+    showReserved = false,
+    showSafetyMonitor = true,
+    quotaDisplayMode = 'used',
+  } = {}
 ) {
   const safeQuotas = quotas || {};
   const activePool = safeQuotas.activePool || {};
@@ -64,6 +70,7 @@ export function buildQuotaPoolItems(
       minuteTick,
       isPending,
       showReserved: Boolean(showReserved),
+      showSafetyMonitor: showSafetyMonitor !== false,
       quotaDisplayMode: effDisplayMode,
     };
   });
@@ -178,6 +185,8 @@ function syncQuotaWindowMeter({
   leaseCount,
   showExternal = false,
   rawExternalPct = 0,
+  showSafetyReview = false,
+  rawSafetyReviewPct = 0,
   metaEl,
   trackEl,
   fillEl,
@@ -196,7 +205,14 @@ function syncQuotaWindowMeter({
     Number.isFinite(numExternal) && numExternal >= 0.05
       ? Math.min(Math.max(0, usedVal - rsvVal), numExternal)
       : 0;
+  const numSafety = showSafetyReview && hasData ? Number(rawSafetyReviewPct || 0) : 0;
+  const safetyVal =
+    Number.isFinite(numSafety) && numSafety >= 0.05
+      ? Math.min(Math.max(0, usedVal - rsvVal - extVal), numSafety)
+      : 0;
   const selfUsedVal = Math.max(0, usedVal - rsvVal - extVal);
+  const safetySuffix =
+    safetyVal > 0 ? t('quota.safetyReviewTipSuffix', { pct: formatPctNumber(safetyVal) }) : '';
   const resetStr = hasData ? formatCountdown(resetTime) : '';
 
   patchClasses(trackEl, { 'is-remaining-mode': isRemaining });
@@ -240,8 +256,9 @@ function syncQuotaWindowMeter({
           ? t('quota.reservedTipMulti', { rsv: rsvStr, leases, actual: selfStr })
           : t('quota.reservedTip', { rsv: rsvStr, actual: selfStr });
     }
-    patchAttr(metaEl, 'title', tipText);
-    patchAttr(trackEl, 'title', tipText);
+    const fullTip = safetySuffix ? `${tipText} · ${safetySuffix}` : tipText;
+    patchAttr(metaEl, 'title', fullTip);
+    patchAttr(trackEl, 'title', fullTip);
 
     if (isRemaining) {
       const primaryWidth = +Math.min(100, remVal).toFixed(2);
@@ -290,8 +307,8 @@ function syncQuotaWindowMeter({
       });
     }
   } else {
-    patchAttr(metaEl, 'title', null);
-    patchAttr(trackEl, 'title', null);
+    patchAttr(metaEl, 'title', safetySuffix || null);
+    patchAttr(trackEl, 'title', safetySuffix || null);
     const barWidth = isRemaining
       ? hasData
         ? Math.min(100, remVal)
@@ -323,6 +340,7 @@ export function syncPoolQuotaRow(refs, item, idx, rowEl) {
     isActivePool,
     isPending,
     showReserved,
+    showSafetyMonitor = true,
     quotaDisplayMode = 'used',
   } = item;
   patchClasses(rowEl, { 'quota-pool-row': true, 'has-divider': idx > 0 });
@@ -393,6 +411,8 @@ export function syncPoolQuotaRow(refs, item, idx, rowEl) {
     leaseCount: poolData?.reservedLeaseCount,
     showExternal: !isPending,
     rawExternalPct: poolData?.externalUsedPct,
+    showSafetyReview: !isPending && showSafetyMonitor !== false,
+    rawSafetyReviewPct: poolData?.safetyReviewUsedPct,
     metaEl: refs.meta5h,
     trackEl: refs.track5h,
     fillEl: refs.fill5h,
@@ -447,6 +467,8 @@ export function syncPoolQuotaRow(refs, item, idx, rowEl) {
     leaseCount: poolData?.weeklyReservedLeaseCount,
     showExternal: !isPending && !useCustomWeekly,
     rawExternalPct: poolData?.weeklyExternalUsedPct,
+    showSafetyReview: !isPending && !useCustomWeekly && showSafetyMonitor !== false,
+    rawSafetyReviewPct: poolData?.weeklySafetyReviewUsedPct,
     metaEl: refs.metaWk,
     trackEl: refs.trackWk,
     fillEl: refs.fillWk,
@@ -460,7 +482,7 @@ export function quotaPoolRowSig(item, idx) {
   const cWk = item.poolData?.cycleWeekly;
   const est = item.poolData?.rateEstimate;
   const fw = item.fallbackWeekly;
-  return `${getEffectiveLocale()}:${idx}:${item.poolLabel}:${item.isActivePool}:${Boolean(item.isPending)}:${Boolean(item.showReserved)}:${item.quotaDisplayMode || 'used'}:${item.minuteTick}:${item.poolData?.usedPct}:${item.poolData?.remainingPct}:${item.poolData?.reservedPct}:${item.poolData?.reservedLeaseCount}:${item.poolData?.externalUsedPct}:${item.poolData?.resetTime}:${item.poolData?.weeklyUsedPct}:${item.poolData?.weeklyRemainingPct}:${item.poolData?.weeklyReservedPct}:${item.poolData?.weeklyReservedLeaseCount}:${item.poolData?.weeklyExternalUsedPct}:${item.poolData?.weeklyResetTime}:${c5h?.tokens}:${c5h?.costUsd}:${c5h?.calls}:${cWk?.tokens}:${cWk?.costUsd}:${cWk?.calls}:${est?.eqFull5hUsd}:${est?.eqFull5hTokens}:${est?.eqFullWeeklyUsd}:${est?.eqFullWeeklyTokens}:${fw?.isOfficial}:${fw?.usedPct}:${fw?.remainingPct}:${fw?.resetTime}:${fw?.title}:${fw?.tokens}:${fw?.costUsd}:${fw?.calls}`;
+  return `${getEffectiveLocale()}:${idx}:${item.poolLabel}:${item.isActivePool}:${Boolean(item.isPending)}:${Boolean(item.showReserved)}:${item.showSafetyMonitor !== false}:${item.quotaDisplayMode || 'used'}:${item.minuteTick}:${item.poolData?.usedPct}:${item.poolData?.remainingPct}:${item.poolData?.reservedPct}:${item.poolData?.reservedLeaseCount}:${item.poolData?.externalUsedPct}:${item.poolData?.safetyReviewUsedPct}:${item.poolData?.resetTime}:${item.poolData?.weeklyUsedPct}:${item.poolData?.weeklyRemainingPct}:${item.poolData?.weeklyReservedPct}:${item.poolData?.weeklyReservedLeaseCount}:${item.poolData?.weeklyExternalUsedPct}:${item.poolData?.weeklySafetyReviewUsedPct}:${item.poolData?.weeklyResetTime}:${c5h?.tokens}:${c5h?.costUsd}:${c5h?.calls}:${cWk?.tokens}:${cWk?.costUsd}:${cWk?.calls}:${est?.eqFull5hUsd}:${est?.eqFull5hTokens}:${est?.eqFullWeeklyUsd}:${est?.eqFullWeeklyTokens}:${fw?.isOfficial}:${fw?.usedPct}:${fw?.remainingPct}:${fw?.resetTime}:${fw?.title}:${fw?.tokens}:${fw?.costUsd}:${fw?.calls}`;
 }
 
 /**
@@ -769,10 +791,13 @@ export const QuotaPoolsWidget = defineComponent({
       [createSvgIcon('help-circle', { size: 13 })]
     );
 
+    const safetyMonitorBar = SafetyMonitorBar({ compactHover });
+
     ratePopoverEl.addEventListener?.('mouseenter', openRatePop);
     ratePopoverEl.addEventListener?.('mouseleave', scheduleRatePopClose);
     onCleanup?.(() => {
       cancelRatePopClose();
+      safetyMonitorBar.destroy();
     });
 
     function syncRatePopoverContent(data) {
@@ -977,6 +1002,7 @@ export const QuotaPoolsWidget = defineComponent({
       ]),
       poolsListEl,
       reserveLegendEl,
+      safetyMonitorBar.el,
       ratePopoverEl,
     ]);
 
@@ -997,6 +1023,7 @@ export const QuotaPoolsWidget = defineComponent({
         patchAttr(reserveLegendEl, 'hidden', true);
         legendExternalItemEl.hidden = true;
         patchAttr(legendExternalItemEl, 'hidden', true);
+        safetyMonitorBar.refs.update({ enabled: false, safetyMonitor: null });
         if (compactHover) {
           patchKeyedList(poolsListEl, buildQuotaPoolItems(null, 0, { isPending: true }), {
             keyFn: (item) => item.key,
@@ -1010,8 +1037,13 @@ export const QuotaPoolsWidget = defineComponent({
 
       const quotas = data.quotas || {};
       const showReserved = data.settings?.experimentalQuotaReservation !== false;
+      const showSafetyMonitor = data.settings?.enableSafetyMonitor !== false;
       const effTick = Number.isFinite(minuteTick) ? minuteTick : Math.floor(Date.now() / 30000);
-      const poolItems = buildQuotaPoolItems(quotas, effTick, { showReserved, quotaDisplayMode });
+      const poolItems = buildQuotaPoolItems(quotas, effTick, {
+        showReserved,
+        showSafetyMonitor,
+        quotaDisplayMode,
+      });
       const hasExternal = poolItems.some((item) => {
         if (item.isPending) return false;
         const pd = item.poolData;
@@ -1041,11 +1073,15 @@ export const QuotaPoolsWidget = defineComponent({
           updateRow: syncPoolQuotaRow,
         }
       );
+      safetyMonitorBar.refs.update({
+        enabled: showSafetyMonitor,
+        safetyMonitor: data.safetyMonitor || null,
+      });
     }
 
     return {
       el: quotaPanel,
-      refs: { update, poolsListEl, rateHelpBtn, ratePopoverEl },
+      refs: { update, poolsListEl, rateHelpBtn, ratePopoverEl, safetyMonitorBar },
     };
   },
 });
