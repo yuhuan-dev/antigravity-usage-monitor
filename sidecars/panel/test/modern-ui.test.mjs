@@ -262,12 +262,21 @@ test('applyAppearanceToRoot and SettingsGeneralTab toggle data-modern-ui + data-
   assert.equal(savedPatches.length, 1);
   assert.equal(savedPatches[0].modernUi, true);
 
-  // 3. Built styles.css contains modern-ui borderless, sliding glider, and crisp pure-white light-mode rules
+  // 3. Built styles.css contains modern-ui borderless, sliding glider, and host-derived light-mode rules
   const builtStyles = fs.readFileSync(new URL('../styles.css', import.meta.url), 'utf8');
   assert.match(builtStyles, /\[data-modern-ui="true"\]\s+\.panel/);
   assert.match(builtStyles, /\[data-modern-ui="true"\]\[data-color-scheme="light"\]/);
-  assert.match(builtStyles, /--modern-surface-card:\s*#ffffff;/);
-  assert.match(builtStyles, /--modern-glider-bg:\s*#ffffff;/);
+  assert.match(builtStyles, /--modern-surface-card:\s*var\(--card,\s*var\(--surface-panel\)\);/);
+  assert.match(builtStyles, /--modern-glider-bg:\s*var\(--card,\s*var\(--modern-surface-card\)\);/);
+  const modernUiSection = builtStyles.slice(builtStyles.indexOf('/* --- src/styles/modern-ui.css --- */'));
+  assert.doesNotMatch(modernUiSection, /hsl\(216\s+/);
+  assert.doesNotMatch(modernUiSection, /hsl\(220\s+14%/);
+  assert.doesNotMatch(modernUiSection, /rgb\(15 23 42/);
+  assert.match(builtStyles, /:host\(\.wm-capsule-host\)\s*\{[^}]*font-family:\s*var\(--host-font-sans,/s);
+  assert.match(
+    builtStyles,
+    /:host\(\.wm-capsule-host\[data-modern-ui="true"\]\)\s+\.wm-multi-btn,\s*:host\(\.wm-capsule-host\[data-modern-ui="true"\]\)\s+\.wm-capsule-btn\s*\{[^}]*border-radius:\s*var\(--radius-pill\);/s
+  );
   assert.match(
     builtStyles,
     /--text-secondary:\s*color-mix\(in srgb,\s*var\(--text-primary\)\s*80%,\s*transparent\);/

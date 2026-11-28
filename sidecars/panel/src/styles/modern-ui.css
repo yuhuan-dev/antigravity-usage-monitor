@@ -5,7 +5,7 @@
  * 2. 面板内部子数据块（如版本更新价格表/当前版本、消费矩阵指标格、汇总折线区）保持透明扁平，绝不套叠二层背景卡片；
  * 3. 区分深色与浅色极性 ([data-color-scheme="light" | "dark"])：
  *    - 深色模式采用柔和提亮顶层卡片与轻薄半透雾面滑槽（绝不混入重黑色块）；
- *    - 浅色模式采用微凉白瓷画布 (#f7f9fb) + 纯白悬浮顶层卡片 (#ffffff) + 纯白立体滑块；
+ *    - 浅色模式基于宿主变量 (--surface-bg / --card / --muted / --secondary / --border-hairline) 衍生画布、顶层卡片与立体滑块，贴合各类浅色与暖色宿主主题；
  * 4. 全局分段切换器 (.segmented / .long-pill-nav / .settings-thirdnav-bar) 按内容宽度贴合滑动。
  */
 
@@ -41,25 +41,25 @@
 :root[data-modern-ui="true"][data-color-scheme="light"],
 :host([data-modern-ui="true"][data-color-scheme="light"]),
 [data-modern-ui="true"][data-color-scheme="light"] {
-  --modern-canvas-bg: color-mix(in srgb, var(--surface-bg) 95.5%, hsl(216 34% 48%) 4.5%);
-  --modern-surface-card: #ffffff;
-  --modern-surface-subtle: hsl(216 42% 97.2%);
-  --modern-surface-hover: hsl(216 56% 94.4%);
-  --modern-pill-select-bg: hsl(220 14% 94%);
-  --modern-pill-select-hover: hsl(220 14% 90.5%);
-  --modern-pill-select-open: hsl(220 14% 88.5%);
-  --modern-card-shadow: 0 1px 3px rgb(15 23 42 / 0.045), 0 4px 14px rgb(15 23 42 / 0.028);
-  --modern-nav-track-bg: hsl(216 28% 94.2%);
-  --modern-inline-track-bg: hsl(216 32% 96.2%);
-  --modern-glider-bg: #ffffff;
-  --modern-glider-shadow: 0 1px 2px rgb(15 23 42 / 0.08), 0 1px 1px rgb(15 23 42 / 0.04);
-  --modern-progress-track: hsl(216 28% 93.4%);
-  --modern-stripe-bg: hsl(216 40% 97.8%);
-  --text-secondary: color-mix(in srgb, var(--text-primary) 72%, transparent);
-  --text-muted: color-mix(in srgb, var(--text-primary) 58%, transparent);
+  --modern-canvas-bg: color-mix(in srgb, var(--surface-bg) 97%, var(--text-primary) 3%);
+  --modern-surface-card: var(--card, var(--surface-panel));
+  --modern-surface-subtle: var(--muted, color-mix(in srgb, var(--text-primary) 4.2%, var(--modern-surface-card)));
+  --modern-surface-hover: var(--secondary, color-mix(in srgb, var(--text-primary) 7.2%, var(--modern-surface-card)));
+  --modern-pill-select-bg: var(--muted, color-mix(in srgb, var(--text-primary) 6%, var(--modern-surface-card)));
+  --modern-pill-select-hover: var(--secondary, color-mix(in srgb, var(--text-primary) 9.5%, var(--modern-surface-card)));
+  --modern-pill-select-open: color-mix(in srgb, var(--text-primary) 12.5%, var(--modern-surface-card));
+  --modern-card-shadow: 0 1px 3px rgb(0 0 0 / 0.045), 0 4px 14px rgb(0 0 0 / 0.028);
+  --modern-nav-track-bg: var(--muted, color-mix(in srgb, var(--text-primary) 5.5%, var(--surface-bg)));
+  --modern-inline-track-bg: color-mix(in srgb, var(--text-primary) 4.2%, var(--modern-surface-card));
+  --modern-glider-bg: var(--card, var(--modern-surface-card));
+  --modern-glider-shadow: 0 1px 2px rgb(0 0 0 / 0.08), 0 1px 1px rgb(0 0 0 / 0.04);
+  --modern-progress-track: var(--secondary, color-mix(in srgb, var(--text-primary) 8%, var(--modern-surface-card)));
+  --modern-stripe-bg: color-mix(in srgb, var(--text-primary) 2.6%, var(--modern-surface-card));
+  --text-secondary: var(--muted-foreground, color-mix(in srgb, var(--text-primary) 72%, transparent));
+  --text-muted: color-mix(in srgb, var(--text-secondary) 80%, transparent);
   --modern-active-accent: var(--accent-primary);
-  --shadow-popover: 0 10px 28px rgb(15 23 42 / 0.10), 0 2px 8px rgb(15 23 42 / 0.05);
-  --shadow-overlay: 0 20px 48px rgb(15 23 42 / 0.14), 0 4px 14px rgb(15 23 42 / 0.06);
+  --shadow-popover: 0 10px 28px rgb(0 0 0 / 0.10), 0 2px 8px rgb(0 0 0 / 0.05);
+  --shadow-overlay: 0 20px 48px rgb(0 0 0 / 0.14), 0 4px 14px rgb(0 0 0 / 0.06);
 }
 
 @keyframes anim-modern-view-in {
@@ -803,7 +803,7 @@ html[data-standalone="true"][data-modern-ui="true"] .app-shell {
 }
 
 [data-modern-ui="true"][data-color-scheme="light"] .quota-pool-row.has-divider {
-  border-top-color: hsl(216 24% 92%);
+  border-top-color: color-mix(in srgb, var(--border-hairline) 75%, transparent);
 }
 
 [data-modern-ui="true"] .slot-add-btn,
