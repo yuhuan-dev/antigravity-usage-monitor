@@ -6437,8 +6437,32 @@ test('Issue #26: Antigravity Desktop 2.33.0+ automatic shortcut/launcher provisi
     const writtenPs1 = fs.readFileSync(capturedRelaunchEnv.AGY_RELAUNCH_PS1, 'utf8');
     assert.equal(writtenPs1.startsWith('\uFEFF'), true, 'Writes UTF-8 BOM for Windows PowerShell 5.1');
     assert.match(writtenPs1, /^[\uFEFF]?param\(\[string\]\$HostElevated = '0'\)/);
+    assert.match(writtenPs1, /\$PSCommandPath \+ '\.ack'/, 'Writes startup .ack sentinel so HIPS-blocked WMI dispatch can fall back');
+    assert.match(writtenPs1, /ELECTRON_RUN_AS_NODE/, 'Clears inherited Electron node env vars before host relaunch');
     assert.match(writtenPs1, /--remote-debugging-port=0/);
     assert.ok(writtenPs1.includes(stalePortFile));
+    assert.match(
+      capturedRelaunchArgs[capturedRelaunchArgs.length - 1],
+      /Wait-RelaunchAck/,
+      'Dispatcher verifies inner script startup ack before reporting success'
+    );
+    assert.match(
+      capturedRelaunchArgs[capturedRelaunchArgs.length - 1],
+      /FilterAdministratorToken/,
+      'Built-in Administrator without token filtering prefers Shell.Application over WMI'
+    );
+
+    const blockedRelaunchRes = await triggerDesktopHostRelaunch({
+      env: { ...simEnv, TEMP: simTmp },
+      platform: 'win32',
+      homeDir,
+      stalePortFiles: [stalePortFile],
+      allowInTest: true,
+      execFileFn: async () => '{"ok":false,"error":"relaunch_script_blocked"}',
+    });
+    assert.equal(blockedRelaunchRes.ok, false, 'Propagates dispatcher failure instead of silent success');
+    assert.equal(blockedRelaunchRes.status, 500);
+    assert.equal(fs.existsSync(capturedRelaunchEnv.AGY_RELAUNCH_PS1), false, 'Cleans up orphaned temp .ps1 on dispatch failure');
 
     // Verify dynamic running-process path discovery when installed on custom non-default drive (e.g. D:\Apps\Antigravity)
     const customDriveRes = await triggerDesktopHostRelaunch({
