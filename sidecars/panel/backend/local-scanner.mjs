@@ -29,9 +29,11 @@ import {
   CONVERSATIONS_DIR,
   CONVERSATION_DIRS,
   DEEP_STATS_CACHE_CANDIDATES,
+  DEEP_STATS_COVERAGE_MEMO_FILE,
   externalDeepStatsMemo,
   loadJson,
   localSummaryMemo,
+  saveJson,
 } from './config.mjs';
 import { getEndpointCacheStore, getRegisteredRemoteEndpoint } from './endpoint-registry.mjs';
 import {
@@ -183,13 +185,29 @@ function readConversationMtime(files = []) {
   return mtimeMs;
 }
 
-/**
- * 加载并解析跨端（IDE / Standalone / JetBrains）写入的 `.deep_stats_cache.json` 缓存。
- * 使用文件签名 (`mtimeMs + size`) 进行 Memoize，文件未变化时直接返回内存 Map。
- *
- * @returns {Map<string, {cascadeId: string, appSource: string, accountName: string, title: string, lastModifiedMs: number, steps: object[]}>}
- */
-export function loadExternalDeepStatsCache() {
+function isVirtualDeepStatsMemoPath(filePath) {
+  const norm = String(filePath || '').replace(/\\/g, '/');
+  return !norm || norm.startsWith('/test/') || norm.startsWith('/test-home/');
+}
+
+function isDeepStatsCoveragePairsSatisfied(coveredPairs, coveredByLive) {
+  if (!(coveredByLive instanceof Map) || !Array.isArray(coveredPairs)) return false;
+  for (let i = 0; i < coveredPairs.length; i += 1) {
+    const rec = coveredPairs[i];
+    if (!Array.isArray(rec) || rec.length < 2) return false;
+    const cid = rec[0];
+    const minSteps = Number(rec[1]) || 0;
+    const needsAcc = rec[2] === 1;
+    const needsTitle = rec[3] === 1;
+    const live = coveredByLive.get(cid);
+    if (!live || (live.steps?.length || 0) < minSteps) return false;
+    if (needsAcc && !live.accountName) return false;
+    if (needsTitle && !live.title) return false;
+  }
+  return true;
+}
+
+function computeDeepStatsFilesSig() {
   const sigParts = [];
   const existingFiles = [];
   for (const candidate of DEEP_STATS_CACHE_CANDIDATES) {
@@ -202,15 +220,72 @@ export function loadExternalDeepStatsCache() {
       // 忽略 stat 异常
     }
   }
+  return { sig: sigParts.join('|'), existingFiles };
+}
+
+function findCoveredPairMinSteps(coveredPairs, cidLower) {
+  if (!Array.isArray(coveredPairs) || !cidLower) return -1;
+  for (let i = 0; i < coveredPairs.length; i += 1) {
+    const rec = coveredPairs[i];
+    if (Array.isArray(rec) && rec[0] === cidLower) {
+      return Number(rec[1]) || 0;
+    }
+  }
+  return -1;
+}
+
+/**
+ * 加载并解析跨端（IDE / Standalone / JetBrains）写入的 `.deep_stats_cache.json` 缓存。
+ * 使用文件签名 (`mtimeMs + size`) 进行 Memoize；当传入 `coveredByLive`（常规聚合路径）时，
+ * 自动剪枝已被本地 SQLite 账本完整覆盖的旧会话，并在 100% 覆盖时持久化轻量校验签名以避免下次冷启动整文件读入。
+ * 当传入 `targetCascadeId` 时，仅解析目标单会话且不污染全局 `externalDeepStatsMemo`。
+ *
+ * @param {{ coveredByLive?: Map<string, object> | null, targetCascadeId?: string }} [options={}]
+ * @returns {Map<string, {cascadeId: string, appSource: string, accountName: string, title: string, lastModifiedMs: number, steps: object[]}>}
+ */
+export function loadExternalDeepStatsCache({ coveredByLive = null, targetCascadeId = '' } = {}) {
+  const { sig, existingFiles } = computeDeepStatsFilesSig();
   if (existingFiles.length === 0) {
     return new Map();
   }
-  const sig = sigParts.join('|');
-  if (externalDeepStatsMemo.sig === sig && externalDeepStatsMemo.convos.size > 0) {
-    return externalDeepStatsMemo.convos;
+  const targetCidLower = String(targetCascadeId || '').trim().toLowerCase();
+  const isSingleTargetLookup = Boolean(targetCidLower);
+  const allowPrune = !isSingleTargetLookup && coveredByLive instanceof Map;
+
+  if (!isSingleTargetLookup && externalDeepStatsMemo.sig === sig && externalDeepStatsMemo.loaded) {
+    if (!externalDeepStatsMemo.pruned) {
+      return externalDeepStatsMemo.convos;
+    }
+    if (
+      allowPrune &&
+      isDeepStatsCoveragePairsSatisfied(externalDeepStatsMemo.coveredPairs, coveredByLive)
+    ) {
+      return externalDeepStatsMemo.convos;
+    }
+  }
+
+  // 常规聚合冷启动快路径：若上次已验证 100% 会话都被本地账本覆盖且本次逐条校验仍满足，直接跳过整文件 JSON 读取
+  if (allowPrune && !isVirtualDeepStatsMemoPath(DEEP_STATS_COVERAGE_MEMO_FILE)) {
+    const persisted = loadJson(DEEP_STATS_COVERAGE_MEMO_FILE, null);
+    if (
+      persisted &&
+      persisted.version === 1 &&
+      persisted.sig === sig &&
+      Array.isArray(persisted.coveredPairs) &&
+      isDeepStatsCoveragePairsSatisfied(persisted.coveredPairs, coveredByLive)
+    ) {
+      externalDeepStatsMemo.sig = sig;
+      externalDeepStatsMemo.loaded = true;
+      externalDeepStatsMemo.pruned = true;
+      externalDeepStatsMemo.coveredPairs = persisted.coveredPairs;
+      externalDeepStatsMemo.convos = new Map();
+      return externalDeepStatsMemo.convos;
+    }
   }
 
   const convos = new Map();
+  const coveredPairs = allowPrune ? [] : null;
+  const coveredMap = allowPrune ? new Map() : null;
   const runtimeDisplayMap = new Map();
   const extStringPool = new Map();
   const internExtStr = (val) => {
@@ -267,6 +342,7 @@ export function loadExternalDeepStatsCache() {
         item?.appSource || (colonIdx > 0 ? fullKey.slice(0, colonIdx) : 'ide')
       );
       const cascadeId = (colonIdx > 0 ? fullKey.slice(colonIdx + 1) : fullKey).toLowerCase();
+      if (isSingleTargetLookup && cascadeId !== targetCidLower) continue;
       const mapKey = `${appSource}:${cascadeId}`;
       const existing = convos.get(mapKey);
       if (existing && existing.steps.length >= rawEntries.length) continue;
@@ -274,6 +350,58 @@ export function loadExternalDeepStatsCache() {
       const itemAccountName = internExtStr(
         String(item?.accountName || item?.email || fileAccountName || '').trim()
       );
+      const resolvedTitle = titleMap[fullKey] || titleMap[cascadeId] || cascadeId.slice(0, 8);
+
+      // 若本地账本已持有 >= 该条目全部有效步骤，则跳过构建重型 steps 数组
+      if (allowPrune) {
+        const liveEntry = coveredByLive.get(cascadeId);
+        const liveLen = liveEntry?.steps?.length || 0;
+        if (liveEntry && liveLen > 0) {
+          let validStepCount = 0;
+          for (let idx = 0; idx < rawEntries.length; idx += 1) {
+            const e = rawEntries[idx];
+            const inp = Math.max(0, Math.floor(Number(e?.inp) || 0));
+            const cache = Math.max(0, Math.floor(Number(e?.cache) || 0));
+            const out =
+              Math.max(0, Math.floor(Number(e?.out) || 0)) +
+              Math.max(0, Math.floor(Number(e?.reasoning) || 0));
+            if (inp > 0 || cache > 0 || out > 0) validStepCount += 1;
+          }
+          if (validStepCount === 0) continue;
+          if (liveLen >= validStepCount) {
+            const needsAcc = Boolean(itemAccountName);
+            const needsTitle = Boolean(resolvedTitle && resolvedTitle !== cascadeId.slice(0, 8));
+            if ((!needsAcc || liveEntry.accountName) && (!needsTitle || liveEntry.title)) {
+              const prevRec = coveredMap.get(cascadeId);
+              if (!prevRec) {
+                coveredMap.set(cascadeId, [
+                  cascadeId,
+                  validStepCount,
+                  needsAcc ? 1 : 0,
+                  needsTitle ? 1 : 0,
+                ]);
+              } else {
+                if (validStepCount > prevRec[1]) prevRec[1] = validStepCount;
+                if (needsAcc) prevRec[2] = 1;
+                if (needsTitle) prevRec[3] = 1;
+              }
+              continue;
+            }
+            // 步骤已覆盖但本地缺 accountName / title：仅保留零步骤的轻量元数据存根
+            if (!existing) {
+              convos.set(mapKey, {
+                cascadeId,
+                appSource,
+                accountName: itemAccountName,
+                title: resolvedTitle,
+                lastModifiedMs: 0,
+                steps: [],
+              });
+            }
+            continue;
+          }
+        }
+      }
 
       const steps = [];
       let lastModifiedMs = 0;
@@ -338,7 +466,7 @@ export function loadExternalDeepStatsCache() {
           cascadeId,
           appSource,
           accountName: itemAccountName,
-          title: titleMap[fullKey] || titleMap[cascadeId] || cascadeId.slice(0, 8),
+          title: resolvedTitle,
           lastModifiedMs,
           steps,
         });
@@ -346,8 +474,39 @@ export function loadExternalDeepStatsCache() {
     }
   }
 
+  if (isSingleTargetLookup) {
+    return convos;
+  }
+
+  if (allowPrune) {
+    for (const rec of coveredMap.values()) {
+      coveredPairs.push(rec);
+    }
+  }
+
   externalDeepStatsMemo.sig = sig;
+  externalDeepStatsMemo.loaded = true;
+  externalDeepStatsMemo.pruned = allowPrune;
+  externalDeepStatsMemo.coveredPairs = coveredPairs;
   externalDeepStatsMemo.convos = convos;
+
+  if (
+    allowPrune &&
+    convos.size === 0 &&
+    coveredPairs.length > 0 &&
+    !isVirtualDeepStatsMemoPath(DEEP_STATS_COVERAGE_MEMO_FILE)
+  ) {
+    try {
+      saveJson(DEEP_STATS_COVERAGE_MEMO_FILE, {
+        version: 1,
+        sig,
+        coveredPairs,
+      });
+    } catch {
+      // 忽略覆盖跳过缓存落盘异常
+    }
+  }
+
   return convos;
 }
 
@@ -3686,12 +3845,40 @@ export async function enumerateAndSyncConversations({
             if (!isRemote && (!prev || prev.offlineTranscriptFallback)) {
               if (!lazyExternalByLower) {
                 lazyExternalByLower = new Map();
-                for (const ext of loadExternalDeepStatsCache().values()) {
+                const liveCoverageMap = new Map();
+                for (const [rawId, cachedItem] of cacheStore.listCachedTrajectoryEntries()) {
+                  const lid = String(rawId || '').toLowerCase();
+                  if (!lid || !cachedItem || typeof cachedItem !== 'object') continue;
+                  const prevCov = liveCoverageMap.get(lid);
+                  if (!prevCov || (cachedItem.steps?.length || 0) > (prevCov.steps?.length || 0)) {
+                    liveCoverageMap.set(lid, cachedItem);
+                  }
+                }
+                for (const ext of loadExternalDeepStatsCache({ coveredByLive: liveCoverageMap }).values()) {
                   const extCid = String(ext?.cascadeId || '').toLowerCase();
                   if (!extCid) continue;
                   const existingExt = lazyExternalByLower.get(extCid);
                   if (!existingExt || (ext.steps?.length || 0) > (existingExt.steps?.length || 0)) {
                     lazyExternalByLower.set(extCid, ext);
+                  }
+                }
+              }
+              let coveredMinSteps = -1;
+              if (
+                !lazyExternalByLower.has(cidLower) &&
+                externalDeepStatsMemo.pruned &&
+                Array.isArray(externalDeepStatsMemo.coveredPairs)
+              ) {
+                coveredMinSteps = findCoveredPairMinSteps(
+                  externalDeepStatsMemo.coveredPairs,
+                  cidLower
+                );
+                if (coveredMinSteps > 0 && (!prev || (prev.steps?.length || 0) < coveredMinSteps)) {
+                  for (const ext of loadExternalDeepStatsCache({ targetCascadeId: cidLower }).values()) {
+                    const existingExt = lazyExternalByLower.get(cidLower);
+                    if (!existingExt || (ext.steps?.length || 0) > (existingExt.steps?.length || 0)) {
+                      lazyExternalByLower.set(cidLower, ext);
+                    }
                   }
                 }
               }
@@ -3702,6 +3889,19 @@ export async function enumerateAndSyncConversations({
                 localSummaryByLower.get(cidLower) || null,
                 { skipSqlite: sqliteProbedEmpty || sqliteNotReady }
               );
+              if (
+                offlineFallback &&
+                coveredMinSteps > 0 &&
+                Array.isArray(prev?.steps) &&
+                prev.steps.length >= coveredMinSteps &&
+                offlineFallback.steps.length < prev.steps.length
+              ) {
+                offlineFallback.steps = prev.steps;
+                offlineFallback.lastModifiedMs = Math.max(
+                  Number(offlineFallback.lastModifiedMs || 0),
+                  Number(prev.lastModifiedMs || 0)
+                );
+              }
               if (offlineFallback) {
                 offlineRecovered = true;
                 conv.title = offlineFallback.title;

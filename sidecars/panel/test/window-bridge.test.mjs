@@ -8463,3 +8463,17 @@ test('shouldDeferDaemonToActiveSidecar parks bridge-daemon when Desktop sidecar 
     false
   );
 });
+
+test('buildDaemonSpawnArgs caps V8 semi-space to 4MB by default while respecting explicit NODE_OPTIONS', async () => {
+  const { buildDaemonSpawnArgs } = await import('../mcp-entry.mjs');
+  assert.deepEqual(buildDaemonSpawnArgs('/path/to/bridge-daemon.mjs', {}), [
+    '--max-semi-space-size=4',
+    '/path/to/bridge-daemon.mjs',
+  ]);
+  assert.deepEqual(
+    buildDaemonSpawnArgs('/path/to/bridge-daemon.mjs', {
+      NODE_OPTIONS: '--max-old-space-size=512 --max-semi-space-size=16',
+    }),
+    ['/path/to/bridge-daemon.mjs']
+  );
+});

@@ -375,6 +375,23 @@ export async function shouldSkipDaemonForParentProcess(ppid = process.ppid, opti
   return cmdLines.some((cmd) => isOneShotCliParentCommand(cmd));
 }
 
+/**
+ * 为受管子进程 `bridge-daemon.mjs` 组装 Node 启动参数。
+ * 默认限制 V8 新生代半空间为 4 MB（双半区上限 8 MB），避免冷启动大查询把静息 `new_space` 长期撑在 32 MB；
+ * 若用户已通过 `NODE_OPTIONS` 显式指定 `--max-semi-space-size`，则尊重外部配置不覆盖。
+ *
+ * @param {string} [daemonScriptPath=DAEMON_SCRIPT_PATH]
+ * @param {NodeJS.ProcessEnv} [env=process.env]
+ * @returns {string[]}
+ */
+export function buildDaemonSpawnArgs(daemonScriptPath = DAEMON_SCRIPT_PATH, env = process.env) {
+  const nodeOptions = String(env?.NODE_OPTIONS || '');
+  if (/--max-semi-space-size(?:=|\s|$)/.test(nodeOptions)) {
+    return [daemonScriptPath];
+  }
+  return ['--max-semi-space-size=4', daemonScriptPath];
+}
+
 function startMcpHostSupervisor() {
   const serverVersion = readMcpServerVersion();
   let shuttingDown = false;
@@ -445,7 +462,7 @@ function startMcpHostSupervisor() {
     daemonParkedForSidecar = false;
     consecutiveSidecarLeaderChecks = 0;
     lastSpawnMs = Date.now();
-    const child = spawn(process.execPath, [DAEMON_SCRIPT_PATH], {
+    const child = spawn(process.execPath, buildDaemonSpawnArgs(DAEMON_SCRIPT_PATH, process.env), {
       cwd: PANEL_DIR,
       windowsHide: true,
       stdio: ['pipe', 'ignore', 'pipe'],

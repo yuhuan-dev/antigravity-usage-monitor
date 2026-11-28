@@ -541,7 +541,6 @@ function getStepsTimeBounds(steps) {
 function collectUsageEntriesToAggregate(familySet, endpoint = null) {
   const isRemote = Boolean(endpoint && endpoint.isRemote);
   const cacheStore = getEndpointCacheStore(endpoint);
-  const externalConvos = isRemote ? new Map() : loadExternalDeepStatsCache();
 
   // 构建大小写归一化的内存缓存与跨端深层缓存索引，彻底杜绝 `${appSource}:${cascadeId}` 键不匹配导致的双倍重复计费
   const allLiveByLower = new Map();
@@ -553,6 +552,10 @@ function collectUsageEntriesToAggregate(familySet, endpoint = null) {
       allLiveByLower.set(cidLower, entry);
     }
   }
+
+  const externalConvos = isRemote
+    ? new Map()
+    : loadExternalDeepStatsCache({ coveredByLive: allLiveByLower });
 
   const externalByCid = new Map();
   for (const ext of externalConvos.values()) {

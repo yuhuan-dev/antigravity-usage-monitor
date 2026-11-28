@@ -8,7 +8,7 @@
  * 4. 跨子系统共享的内存态缓存容器（采用对象属性就地更新设计，兼容 ES Module 与 VM 沙箱）。
  */
 
-import { existsSync, mkdirSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -233,6 +233,7 @@ export const CLI_STATUS_SNAPSHOT_FILE = join(DATA_DIR, 'cli-status-snapshot.json
 export const QUOTA_RESERVATION_STATE_FILE = join(DATA_DIR, 'quota_reservation_state.json');
 export const SAFETY_MONITOR_STATE_FILE = join(DATA_DIR, 'safety_monitor_state.json');
 export const ACCOUNT_QUOTA_HISTORY_FILE = join(DATA_DIR, 'account_quota_history.json');
+export const DEEP_STATS_COVERAGE_MEMO_FILE = join(DATA_DIR, 'deep_stats_coverage_memo.json');
 
 /**
  * 本地对话记录目录、脑图日志目录、守护发现目录与跨端深层统计缓存路径候选列表（联合覆盖 Desktop / CLI / IDE）。
@@ -557,6 +558,9 @@ export function persistTrajectoryCacheIfNeeded(options = {}) {
 
 export const externalDeepStatsMemo = {
   sig: '',
+  loaded: false,
+  pruned: false,
+  coveredPairs: null,
   convos: new Map(),
 };
 
@@ -619,7 +623,23 @@ export const pluginUpdateState = {
 export function clearRuntimeCaches(options = {}) {
   if (!localTrajectoryCacheStore.clearCache(options)) return false;
   externalDeepStatsMemo.sig = '';
+  externalDeepStatsMemo.loaded = false;
+  externalDeepStatsMemo.pruned = false;
+  externalDeepStatsMemo.coveredPairs = null;
   externalDeepStatsMemo.convos.clear();
+  try {
+    const normMemo = String(DEEP_STATS_COVERAGE_MEMO_FILE || '').replace(/\\/g, '/');
+    if (
+      normMemo &&
+      !normMemo.startsWith('/test/') &&
+      !normMemo.startsWith('/test-home/') &&
+      existsSync(DEEP_STATS_COVERAGE_MEMO_FILE)
+    ) {
+      rmSync(DEEP_STATS_COVERAGE_MEMO_FILE, { force: true });
+    }
+  } catch {
+    // 忽略清理覆盖跳过缓存异常
+  }
   if (!options?.preserveFreshSummaryMemo) {
     localSummaryMemo.sig = '';
     localSummaryMemo.byId.clear();

@@ -1547,3 +1547,142 @@ test('SQLite ledger compacts step signatures to 64-bit hashes, releases signatur
   assert.equal(reloaded.steps[1].turnPrompt, 'Updated detail prompt after cold reload');
   assert.equal(reloaded.steps[1].inputTokens, 1550);
 });
+
+test('loadExternalDeepStatsCache prunes ledger-covered entries, persists zero-unique skip memo, and restores data on cache loss or rebuild', async (t) => {
+  const rootDir = mkdtempSync(join(tmpdir(), 'ag-um-deep-stats-skip-'));
+  t.after(() => {
+    rmSync(rootDir, { recursive: true, force: true });
+  });
+
+  const geminiDir = join(rootDir, '.gemini');
+  const brainDir = join(geminiDir, 'antigravity-ide', 'brain');
+  const dataDir = join(rootDir, 'data');
+  mkdirSync(brainDir, { recursive: true });
+  mkdirSync(dataDir, { recursive: true });
+
+  const cid1 = '11111111-1111-4111-8111-111111111111';
+  const cid2 = '22222222-2222-4222-8222-222222222222';
+  const deepPath = join(brainDir, '.deep_stats_cache.json');
+  const deepPayload = {
+    accountName: 'user@example.com',
+    titleMap: {
+      [`ide:${cid1}`]: 'Covered Session 1',
+      [`ide:${cid2}`]: 'Covered Session 2',
+    },
+    perConvo: {
+      [`ide:${cid1}`]: {
+        appSource: 'ide',
+        entries: [
+          { ts: '2026-11-20T10:00:00Z', model: 'gemini-2.5-pro', inp: 1000, cache: 0, out: 200, reasoning: 0 },
+          { ts: '2026-11-20T10:01:00Z', model: 'gemini-2.5-pro', inp: 1500, cache: 0, out: 300, reasoning: 0 },
+        ],
+      },
+      [`ide:${cid2}`]: {
+        appSource: 'ide',
+        entries: [
+          { ts: '2026-11-20T11:00:00Z', model: 'gemini-2.5-pro', inp: 800, cache: 0, out: 100, reasoning: 0 },
+        ],
+      },
+    },
+  };
+  writeFileSync(deepPath, JSON.stringify(deepPayload), 'utf8');
+
+  const scannerUrl = new URL('../backend/local-scanner.mjs', import.meta.url).href;
+  const configUrl = new URL('../backend/config.mjs', import.meta.url).href;
+  const runChild = async (scriptBody) => {
+    const { stdout } = await execFileAsync(
+      process.execPath,
+      ['--input-type=module', '-e', scriptBody],
+      {
+        env: {
+          ...process.env,
+          ANTIGRAVITY_GEMINI_DIR: geminiDir,
+          ANTIGRAVITY_EXECUTABLE_DATA_DIR: dataDir,
+          ANTIGRAVITY_LS_ADDRESS: 'test.invalid',
+        },
+      }
+    );
+    return JSON.parse(stdout.trim().split('\n').pop());
+  };
+
+  // Pass 1: 100% covered -> pruned to empty Map + skip memo persisted; missing accountName -> lightweight metadata stub only (0 steps)
+  const p1 = await runChild(`
+    import { existsSync } from 'node:fs';
+    import { loadExternalDeepStatsCache } from ${JSON.stringify(scannerUrl)};
+    import { DEEP_STATS_COVERAGE_MEMO_FILE, clearRuntimeCaches } from ${JSON.stringify(configUrl)};
+    const cid1 = ${JSON.stringify(cid1)};
+    const cid2 = ${JSON.stringify(cid2)};
+    const partialLive = new Map([
+      [cid1, { title: 'Covered Session 1', accountName: '', steps: [{}, {}] }],
+      [cid2, { title: 'Covered Session 2', accountName: 'user@example.com', steps: [{}] }],
+    ]);
+    const partialExt = loadExternalDeepStatsCache({ coveredByLive: partialLive });
+    const partialSize = partialExt.size;
+    const stub = partialExt.get('ide:' + cid1);
+    const stubStepsLen = stub ? stub.steps.length : -1;
+    const stubAcc = stub ? stub.accountName : '';
+
+    clearRuntimeCaches();
+    const fullLive = new Map([
+      [cid1, { title: 'Covered Session 1', accountName: 'user@example.com', steps: [{}, {}] }],
+      [cid2, { title: 'Covered Session 2', accountName: 'user@example.com', steps: [{}] }],
+    ]);
+    const fullExt = loadExternalDeepStatsCache({ coveredByLive: fullLive });
+    const fullSize = fullExt.size;
+    const memoWritten = existsSync(DEEP_STATS_COVERAGE_MEMO_FILE);
+
+    // Uncovered entry (cid2 missing from live) MUST bypass pruned memo and recover cid2 steps
+    const missingLive = new Map([
+      [cid1, { title: 'Covered Session 1', accountName: 'user@example.com', steps: [{}, {}] }],
+    ]);
+    const recoveredExt = loadExternalDeepStatsCache({ coveredByLive: missingLive });
+    console.log(JSON.stringify({
+      partialSize,
+      stubStepsLen,
+      stubAcc,
+      fullSize,
+      memoWritten,
+      recoveredSize: recoveredExt.size,
+      recoveredCid2Steps: recoveredExt.get('ide:' + cid2)?.steps?.length || 0,
+    }));
+  `);
+  assert.equal(p1.partialSize, 1);
+  assert.equal(p1.stubStepsLen, 0, 'covered session missing only accountName keeps 0-step metadata stub');
+  assert.equal(p1.stubAcc, 'user@example.com');
+  assert.equal(p1.fullSize, 0, '100% covered sessions are pruned completely');
+  assert.equal(p1.memoWritten, true, 'zero-unique skip memo persisted to disk');
+  assert.equal(p1.recoveredSize, 1);
+  assert.equal(p1.recoveredCid2Steps, 1, 'removing a covered session forces immediate recovery from deep stats');
+
+  // Pass 2: fresh process cold boot hits persisted skip memo without parsing .deep_stats_cache.json, and clearRuntimeCaches() removes memo
+  const p2 = await runChild(`
+    import { existsSync, statSync, utimesSync, writeFileSync } from 'node:fs';
+    import { loadExternalDeepStatsCache } from ${JSON.stringify(scannerUrl)};
+    import { DEEP_STATS_COVERAGE_MEMO_FILE, clearRuntimeCaches } from ${JSON.stringify(configUrl)};
+    const cid1 = ${JSON.stringify(cid1)};
+    const cid2 = ${JSON.stringify(cid2)};
+    const deepPath = ${JSON.stringify(deepPath)};
+    const origStat = statSync(deepPath);
+    // Replace contents with invalid JSON of identical byte length & mtime: if cold boot tried to JSON.parse it, we'd fail or miss recovery
+    const corruptSameSize = 'X'.repeat(origStat.size);
+    writeFileSync(deepPath, corruptSameSize, 'utf8');
+    utimesSync(deepPath, origStat.atime, origStat.mtime);
+
+    const fullLive = new Map([
+      [cid1, { title: 'Covered Session 1', accountName: 'user@example.com', steps: [{}, {}] }],
+      [cid2, { title: 'Covered Session 2', accountName: 'user@example.com', steps: [{}] }],
+    ]);
+    const skipped = loadExternalDeepStatsCache({ coveredByLive: fullLive });
+    const memoBeforeClear = existsSync(DEEP_STATS_COVERAGE_MEMO_FILE);
+    clearRuntimeCaches();
+    const memoAfterClear = existsSync(DEEP_STATS_COVERAGE_MEMO_FILE);
+    console.log(JSON.stringify({
+      skippedSize: skipped.size,
+      memoBeforeClear,
+      memoAfterClear,
+    }));
+  `);
+  assert.equal(p2.skippedSize, 0);
+  assert.equal(p2.memoBeforeClear, true);
+  assert.equal(p2.memoAfterClear, false, 'clearRuntimeCaches deletes persisted coverage skip memo');
+});

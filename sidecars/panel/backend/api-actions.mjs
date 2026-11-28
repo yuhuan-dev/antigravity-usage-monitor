@@ -164,8 +164,8 @@ function projectDisplayStep(st) {
   };
 }
 
-const MAX_DISPLAY_STEP_CACHE_ENTRIES = 16;
-const MAX_DISPLAY_STEP_CACHE_TOTAL_STEPS = 12000;
+const MAX_DISPLAY_STEP_CACHE_ENTRIES = 8;
+const MAX_DISPLAY_STEP_CACHE_TOTAL_STEPS = 6000;
 const displayStepsCache = new Map();
 
 function countProjectedDisplaySteps(stepLists) {

@@ -70,8 +70,8 @@ import {
 } from './usage-aggregator.mjs';
 
 const MAX_RECENT_QUICK_STATS = 30;
-const MAX_CONVERSATION_ASSEMBLY_CACHE = 6;
-const MAX_CONVERSATION_ASSEMBLY_TOTAL_STEPS = 8000;
+const MAX_CONVERSATION_ASSEMBLY_CACHE = 4;
+const MAX_CONVERSATION_ASSEMBLY_TOTAL_STEPS = 4000;
 const MAX_TELEMETRY_SNAPSHOT_ENDPOINTS = 8;
 const POOL_PRIORITY_ORDER = ['Gemini', 'Argon', 'Carbon', 'Claude & GPT'];
 const inFlightTelemetrySources = new Map();
@@ -2629,7 +2629,14 @@ export async function buildTelemetryPayloadInternal(
       weeklyCostBudget: settings.weeklyCostBudget,
       catalogRevision: modelInputs.catalogRevision,
       phaseEpoch: modelInputs.phaseEpoch,
-      basePayload: finalPayload,
+      basePayload: {
+        endpoint: finalPayload.endpoint,
+        uiBundleVersion: finalPayload.uiBundleVersion,
+        account: finalPayload.account,
+        quotas: {
+          weeklyCapacityEstimate: finalPayload.quotas?.weeklyCapacityEstimate || null,
+        },
+      },
       deferredCascadeIds: deferredCascadeIds instanceof Set ? deferredCascadeIds : null,
       sessions: {
         conversations,
