@@ -2044,7 +2044,7 @@ export async function buildTelemetryPayloadInternal(
       }
     };
 
-    if (isMainRunning) recordRunningPool(rootConv.cascadeId);
+    if (isMainRunning && !rootConv?.isBackgroundTaskOnly) recordRunningPool(rootConv.cascadeId);
     for (const sub of runningSubs) {
       recordRunningPool(sub.cascadeId);
     }

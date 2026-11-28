@@ -13,6 +13,8 @@ import { join } from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 import { extractShortPromptTitle } from '../shared/prompt-clean.mjs';
 import {
+  extractActiveBackgroundTasks,
+  extractLatestTaskSteps,
   extractLiveActivity,
   extractModelSteps,
   extractSwarmMetaFromSteps,
@@ -42,6 +44,7 @@ import {
   isSqliteDbReadyForRead,
   readAnnotationTitleForCascade,
   readLocalImageDimensionsFromUri,
+  readLocalSqliteActiveTasks,
   readLocalSqliteTrajectory,
   readLocalSqliteTrajectoryIncremental,
   readLocalSummaryIndex,
@@ -857,6 +860,8 @@ const stepTitleProbeMemo = new Map();
 const MAX_STEP_TITLE_PROBE_MEMO = 2048;
 const sqliteIncrementalCursorMap = new Map();
 const MAX_SQLITE_INCREMENTAL_CURSORS = 32;
+const activeTasksMemo = new Map();
+const MAX_ACTIVE_TASKS_MEMO = 32;
 const swarmManifestMemo = new Map();
 let lastKnownLocalLiveCascadeIds = null;
 
@@ -1103,6 +1108,7 @@ export function clearScannerRuntimeMemos(endpointId = null, { totalHint = 0, arm
   transcriptBackfillMemo.clear();
   stepTitleProbeMemo.clear();
   sqliteIncrementalCursorMap.clear();
+  activeTasksMemo.clear();
   swarmManifestMemo.clear();
   brainDirListingMemo.clear();
   knownExistingTranscriptPaths.clear();
@@ -1119,6 +1125,68 @@ function setSqliteIncrementalCursor(cidLower, cursor) {
     if (oldestKey !== undefined) sqliteIncrementalCursorMap.delete(oldestKey);
   }
   sqliteIncrementalCursorMap.set(cidLower, cursor);
+}
+
+function readCachedActiveBackgroundTasks(cidLower, dbPath, diskFileSig) {
+  if (!cidLower || !dbPath) return [];
+  const sig = String(diskFileSig || '');
+  const cached = activeTasksMemo.get(cidLower);
+  if (cached && cached.dbPath === dbPath && sig && cached.diskFileSig === sig) {
+    return cached.tasks;
+  }
+  const tasks = readLocalSqliteActiveTasks(dbPath);
+  if (activeTasksMemo.size >= MAX_ACTIVE_TASKS_MEMO && !activeTasksMemo.has(cidLower)) {
+    const oldestKey = activeTasksMemo.keys().next().value;
+    if (oldestKey !== undefined) activeTasksMemo.delete(oldestKey);
+  }
+  activeTasksMemo.set(cidLower, { dbPath, diskFileSig: sig, tasks });
+  return tasks;
+}
+
+function isUserInputRawStep(step) {
+  if (!step || typeof step !== 'object') return false;
+  const t = String(step.type || '').toUpperCase();
+  return t.includes('USER_INPUT') || Boolean(step.userInput && typeof step.userInput === 'object');
+}
+
+function resolveTurnTaskStepsFromRaw(rawSteps, prevTaskSteps = null) {
+  if (!Array.isArray(rawSteps) || rawSteps.length === 0) {
+    return prevTaskSteps || null;
+  }
+  let lastUserPos = -1;
+  for (let i = rawSteps.length - 1; i >= 0; i -= 1) {
+    if (isUserInputRawStep(rawSteps[i])) {
+      lastUserPos = i;
+      break;
+    }
+  }
+  if (lastUserPos >= 0) {
+    return extractLatestTaskSteps(rawSteps, lastUserPos + 1);
+  }
+  return extractLatestTaskSteps(rawSteps, 0) || prevTaskSteps || null;
+}
+
+function mergeLiveStepsWithActiveBackgroundTasks(rawSteps, activeBackgroundTasks) {
+  const base = Array.isArray(rawSteps) ? rawSteps : [];
+  if (!Array.isArray(activeBackgroundTasks) || activeBackgroundTasks.length === 0) {
+    return base;
+  }
+  if (base.length === 0) {
+    return activeBackgroundTasks;
+  }
+  const existingIdx = new Set();
+  for (const st of base) {
+    const idx = Number(st?.idx ?? st?.metadata?.sourceTrajectoryStepInfo?.stepIndex);
+    if (Number.isFinite(idx)) existingIdx.add(idx);
+  }
+  const missing = [];
+  for (const bg of activeBackgroundTasks) {
+    const idx = Number(bg?.idx ?? bg?.metadata?.sourceTrajectoryStepInfo?.stepIndex);
+    if (!Number.isFinite(idx) || !existingIdx.has(idx)) {
+      missing.push(bg);
+    }
+  }
+  return missing.length > 0 ? [...missing, ...base] : base;
 }
 
 function collectOrchestratorExecModelsFromRaw(rawSteps = [], generatorMeta = []) {
@@ -1258,10 +1326,12 @@ function buildSqliteIncrementalCursor({
       }
     }
     if (addedPrefixRows === 0) {
-      // 切点尚未前移，直接沿用原切点仅刷新 stepsRef 与 maxGenIdx
+      // 切点尚未前移，直接沿用原切点仅刷新 stepsRef 与最新任务步骤清单
+      const nextTaskSteps = resolveTurnTaskStepsFromRaw(rawSteps, prevCursor.lastTaskSteps || null);
       return {
         ...prevCursor,
         stepsRef: mergedSteps,
+        ...(nextTaskSteps ? { lastTaskSteps: nextTaskSteps } : { lastTaskSteps: null }),
       };
     }
     stableRawRowCount = prevCursor.stableRawRowCount + addedPrefixRows;
@@ -1316,6 +1386,10 @@ function buildSqliteIncrementalCursor({
 
   // 保留最近 4 条 gen_metadata 留给下次增量查询重读，确保边界步总能命中对应 gen_metadata
   const stableMaxGenIdx = Math.max(-1, Number(trajRes.maxGenIdx ?? -1) - 4);
+  const lastTaskSteps = resolveTurnTaskStepsFromRaw(
+    rawSteps,
+    prevCursor?.lastTaskSteps || null
+  );
 
   return {
     stepsRef: mergedSteps,
@@ -1330,6 +1404,7 @@ function buildSqliteIncrementalCursor({
     lastKnownGmStepIdx: stableRawIdx,
     orchestratorExecModels: Array.from(orchSet),
     lastExplicitDonorStep: findLastExplicitDonorStep(extractedSteps, stableModelStepsCount),
+    lastTaskSteps,
     prefixSubagentRefs,
     isChildTrajectory: Boolean(trajRes.isChildTrajectory),
     isSideQuestion: Boolean(trajRes.isSideQuestion),
@@ -2579,7 +2654,8 @@ function scoreLiveActivitySpecificity(act) {
   if (
     sig.startsWith('planner-tool:') ||
     sig.startsWith('step-run:') ||
-    sig.startsWith('pending-tool:')
+    sig.startsWith('pending-tool:') ||
+    sig.startsWith('bg-task:')
   ) {
     return 4;
   }
@@ -2605,7 +2681,7 @@ function resolveBestLiveActivity(
   rpcRawSteps,
   isRunning,
   fallbackMs,
-  { isRemote = false, liveActivityMemoMap = liveActivityMemo } = {}
+  { isRemote = false, liveActivityMemoMap = liveActivityMemo, fallbackTaskSteps = null } = {}
 ) {
   if (!isRunning) return null;
   const hasRpcSteps = Array.isArray(rpcRawSteps) && rpcRawSteps.length > 0;
@@ -2614,38 +2690,58 @@ function resolveBestLiveActivity(
   const transcriptAct =
     transcriptSteps.length > 0 ? extractLiveActivity(transcriptSteps, true, fallbackMs) : null;
 
-  if (rpcAct && transcriptAct) {
-    const mergeTaskSteps = (winner, loser, canInheritTaskSteps) => {
-      if (!winner || winner.taskSteps || !loser?.taskSteps || !canInheritTaskSteps) {
-        return winner;
-      }
-      return { ...winner, taskSteps: loser.taskSteps };
-    };
-    // 1. 先按真实 Cortex 步骤序号对齐比较：尚未刷入 transcript.jsonl 的新步骤（如正在进行的 CHECKPOINT 压缩或流式回复）优先采用 RPC
-    const rpcStepIdx = getMaxMeaningfulStepIndex(rpcRawSteps);
-    const transStepIdx = getMaxMeaningfulStepIndex(transcriptSteps);
-    if (rpcStepIdx >= 0 && transStepIdx >= 0 && rpcStepIdx !== transStepIdx) {
-      if (rpcStepIdx > transStepIdx) {
-        return mergeTaskSteps(rpcAct, transcriptAct, false);
-      }
-      const transcriptHasNewUserTurn = transcriptSteps.some((st) => {
-        const idx = Number(st?.step_index ?? st?.stepIndex);
-        return (
-          String(st?.type || '').toUpperCase().includes('USER_INPUT') &&
-          Number.isFinite(idx) &&
-          idx > rpcStepIdx
-        );
-      });
-      return mergeTaskSteps(transcriptAct, rpcAct, !transcriptHasNewUserTurn);
-    }
+  const hasUserTurnAfter = (steps, afterIdx) =>
+    Array.isArray(steps) &&
+    steps.some((st) => {
+      const idx = Number(
+        st?.step_index ?? st?.stepIndex ?? st?.idx ?? st?.metadata?.sourceTrajectoryStepInfo?.stepIndex
+      );
+      return isUserInputRawStep(st) && Number.isFinite(idx) && idx > afterIdx;
+    });
 
-    // 2. 同一步骤序号下优先采用语义更明确的状态（上下文压缩 > 工具执行 > 流式生成 > 工具后置思考）
+  const attachTaskSteps = (winner, ...candidates) => {
+    if (!winner || winner.taskSteps) return winner;
+    for (const cand of candidates) {
+      if (cand && Number(cand.total) > 0) {
+        return { ...winner, taskSteps: cand };
+      }
+    }
+    return winner;
+  };
+
+  if (rpcAct && transcriptAct) {
+    const rpcIsBgTask = String(rpcAct.signature || '').startsWith('bg-task:');
     const rpcScore = scoreLiveActivitySpecificity(rpcAct);
     const transScore = scoreLiveActivitySpecificity(transcriptAct);
+    const rpcStepIdx = getMaxMeaningfulStepIndex(rpcRawSteps);
+    const transStepIdx = getMaxMeaningfulStepIndex(transcriptSteps);
+    const transcriptHasNewUserTurn =
+      rpcStepIdx >= 0 && hasUserTurnAfter(transcriptSteps, rpcStepIdx);
+    const rpcHasNewUserTurn =
+      transStepIdx >= 0 && hasUserTurnAfter(rpcRawSteps, transStepIdx);
+
+    // 0. SQLite/RPC 确认后台任务运行中时，不因 transcript 尾部已写入本轮结束回复（responding-done）而覆盖后台任务状态
+    if (rpcIsBgTask && transScore < 4 && !transcriptHasNewUserTurn) {
+      return attachTaskSteps(rpcAct, transcriptAct.taskSteps, fallbackTaskSteps);
+    }
+
+    // 1. 先按真实 Cortex 步骤序号对齐比较：尚未刷入 transcript.jsonl 的新步骤（如正在进行的 CHECKPOINT 压缩或流式回复）优先采用 RPC
+    if (rpcStepIdx >= 0 && transStepIdx >= 0 && rpcStepIdx !== transStepIdx) {
+      if (rpcStepIdx > transStepIdx) {
+        return rpcHasNewUserTurn
+          ? rpcAct
+          : attachTaskSteps(rpcAct, transcriptAct.taskSteps, fallbackTaskSteps);
+      }
+      return transcriptHasNewUserTurn
+        ? transcriptAct
+        : attachTaskSteps(transcriptAct, rpcAct.taskSteps, fallbackTaskSteps);
+    }
+
+    // 2. 同一步骤序号下优先采用语义更明确的状态（上下文压缩 > 工具/后台任务执行 > 流式生成 > 工具后置思考）
     if (rpcScore !== transScore) {
       return rpcScore > transScore
-        ? mergeTaskSteps(rpcAct, transcriptAct, true)
-        : mergeTaskSteps(transcriptAct, rpcAct, true);
+        ? attachTaskSteps(rpcAct, transcriptAct.taskSteps, fallbackTaskSteps)
+        : attachTaskSteps(transcriptAct, rpcAct.taskSteps, fallbackTaskSteps);
     }
 
     // 3. 同一步骤且均为压缩态时，优先采用携带精确完成时刻的 RPC 状态；常规步骤则优先采用含完整参数的 transcript.jsonl
@@ -2653,17 +2749,17 @@ function resolveBestLiveActivity(
     const transMs = Number(transcriptAct.startedAtMs || 0);
     if (rpcAct.phase === 'compacting' && rpcMs !== transMs) {
       return rpcMs >= transMs
-        ? mergeTaskSteps(rpcAct, transcriptAct, true)
-        : mergeTaskSteps(transcriptAct, rpcAct, true);
+        ? attachTaskSteps(rpcAct, transcriptAct.taskSteps, fallbackTaskSteps)
+        : attachTaskSteps(transcriptAct, rpcAct.taskSteps, fallbackTaskSteps);
     }
-    return mergeTaskSteps(transcriptAct, rpcAct, true);
+    return attachTaskSteps(transcriptAct, rpcAct.taskSteps, fallbackTaskSteps);
   }
-  return (
+  const chosen =
     transcriptAct ||
     rpcAct ||
     liveActivityMemoMap.get(String(cascadeId || '').toLowerCase()) ||
-    extractLiveActivity([], true, fallbackMs)
-  );
+    extractLiveActivity([], true, fallbackMs);
+  return attachTaskSteps(chosen, fallbackTaskSteps);
 }
 
 /**
@@ -3141,6 +3237,24 @@ export async function enumerateAndSyncConversations({
       nowSweepMs - latestLocalTouchMs <= STALE_LOCAL_RUNNING_MAX_AGE_MS
         ? 'CASCADE_RUN_STATUS_RUNNING'
         : 'IDLE';
+    const baseConvStatus = item ? (isKilled ? 'IDLE' : item?.status || '') : localStatus;
+    let activeBackgroundTasks = [];
+    let isBackgroundTaskOnly = false;
+    if (
+      !isRemote &&
+      !isKilled &&
+      dbPath &&
+      sqliteAvailable &&
+      baseConvStatus !== 'CASCADE_RUN_STATUS_RUNNING' &&
+      Boolean(localSum?.notFullyIdle)
+    ) {
+      activeBackgroundTasks = readCachedActiveBackgroundTasks(cidLower, dbPath, diskFileSig);
+      if (activeBackgroundTasks.length > 0) {
+        isBackgroundTaskOnly = true;
+      }
+    }
+    const resolvedConvStatus =
+      activeBackgroundTasks.length > 0 ? 'CASCADE_RUN_STATUS_RUNNING' : baseConvStatus;
 
     const rawWsList = Array.isArray(item?.workspaces) ? item.workspaces : [];
     const rpcWorkspaceUri = String(
@@ -3214,7 +3328,9 @@ export async function enumerateAndSyncConversations({
           ]) || (isSideQuestion ? '旁路提问' : cascadeId.slice(0, 8)),
         stepCount: modelStepCount,
         rawStepCount: rawSummaryStepCount,
-        status: isKilled ? 'IDLE' : item?.status || '',
+        status: resolvedConvStatus,
+        ...(isBackgroundTaskOnly ? { isBackgroundTaskOnly: true } : {}),
+        ...(activeBackgroundTasks.length > 0 ? { activeBackgroundTasks } : {}),
         killed: isKilled,
         lastModifiedTime,
         lastModifiedMs,
@@ -3248,7 +3364,9 @@ export async function enumerateAndSyncConversations({
           ]) || (isSideQuestion ? '旁路提问' : cascadeId.slice(0, 8)),
         stepCount: cachedStepCount,
         rawStepCount: localSum?.stepCount || cached.rawStepCount || cachedStepCount,
-        status: localStatus,
+        status: resolvedConvStatus,
+        ...(isBackgroundTaskOnly ? { isBackgroundTaskOnly: true } : {}),
+        ...(activeBackgroundTasks.length > 0 ? { activeBackgroundTasks } : {}),
         killed: isKilled,
         lastModifiedTime: localSum?.lastModifiedTime || '',
         lastModifiedMs: Math.max(
@@ -3284,7 +3402,9 @@ export async function enumerateAndSyncConversations({
           ]) || (isSideQuestion ? '旁路提问' : cascadeId.slice(0, 8)),
         stepCount: 0,
         rawStepCount: localSum?.stepCount || 0,
-        status: localStatus,
+        status: resolvedConvStatus,
+        ...(isBackgroundTaskOnly ? { isBackgroundTaskOnly: true } : {}),
+        ...(activeBackgroundTasks.length > 0 ? { activeBackgroundTasks } : {}),
         killed: isKilled,
         lastModifiedTime: localSum?.lastModifiedTime || '',
         lastModifiedMs: Math.max(diskMtimeMs || 0, localSum?.lastModifiedMs || 0),
@@ -3715,18 +3835,41 @@ export async function enumerateAndSyncConversations({
             conv.stepCount = steps.length;
             const finalSig = buildConvSig(conv);
 
-            const isParkedSwarm = isParkedOnSwarmWait(rawSteps);
-            const effectiveIsRunning = isRunning && !isParkedSwarm;
+            const liveStepsForActivity = mergeLiveStepsWithActiveBackgroundTasks(
+              rawSteps,
+              conv.activeBackgroundTasks
+            );
+            let detectedBgTasks = extractActiveBackgroundTasks(liveStepsForActivity);
+            if (!isRunning && !conv.killed && detectedBgTasks.length > 0) {
+              conv.status = 'CASCADE_RUN_STATUS_RUNNING';
+              conv.isBackgroundTaskOnly = true;
+              conv.activeBackgroundTasks = detectedBgTasks.map((t) => t.step);
+            }
+            const isRunningAfterBg = conv.status === 'CASCADE_RUN_STATUS_RUNNING';
+            const hasActiveBgTasks =
+              detectedBgTasks.length > 0 ||
+              (Array.isArray(conv.activeBackgroundTasks) && conv.activeBackgroundTasks.length > 0);
+            const isParkedSwarm = !hasActiveBgTasks && isParkedOnSwarmWait(rawSteps);
+            const effectiveIsRunning = isRunningAfterBg && !isParkedSwarm;
             if (!effectiveIsRunning && conv.status === 'CASCADE_RUN_STATUS_RUNNING') {
               conv.status = 'IDLE';
             }
 
+            const prevStoredTaskSteps =
+              prevCursorForInc?.lastTaskSteps ||
+              activeLiveActivityMemo.get(cidLower)?.taskSteps ||
+              null;
+            const fallbackTaskSteps = resolveTurnTaskStepsFromRaw(rawSteps, prevStoredTaskSteps);
             const liveAct = resolveBestLiveActivity(
               conv.cascadeId,
-              rawSteps,
+              liveStepsForActivity,
               effectiveIsRunning,
               resolvedLastModMs || conv.createdTimeMs || 0,
-              { isRemote, liveActivityMemoMap: activeLiveActivityMemo }
+              {
+                isRemote,
+                liveActivityMemoMap: activeLiveActivityMemo,
+                fallbackTaskSteps,
+              }
             );
             if (liveAct && liveAct.actionKey !== 'swarm_wait') {
               conv.liveActivity = liveAct;
@@ -4225,7 +4368,11 @@ export async function enumerateAndSyncConversations({
     }
     if (!conv.inSummaries) {
       if (conv.dbPath && sqliteAvailable) {
-        if (Boolean(isRunning) !== Boolean(cached.wasRunning) || !sigMatches) {
+        if (
+          Boolean(isRunning) !== Boolean(cached.wasRunning) ||
+          !sigMatches ||
+          (isRunning && !activeLiveActivityMemo.has(lowerCid))
+        ) {
           return true;
         }
         if (isRunning) {
@@ -4268,7 +4415,8 @@ export async function enumerateAndSyncConversations({
           shouldRetryOfflineUpgrade ||
           missingSubagentRefs ||
           !sigMatches ||
-          Boolean(isRunning) !== Boolean(cached.wasRunning)
+          Boolean(isRunning) !== Boolean(cached.wasRunning) ||
+          (isRunning && !activeLiveActivityMemo.has(lowerCid))
         ) {
           return true;
         }
@@ -4893,32 +5041,48 @@ export async function enumerateAndSyncConversations({
   for (const conv of rawConversations) {
     if (conv.status === 'CASCADE_RUN_STATUS_RUNNING') {
       if (!conv.liveActivity) {
-        const cachedConv = getEntry(conv.cascadeId);
-        const parkedByCache =
-          Boolean(cachedConv?.parkedOnSwarmWait) &&
-          cachedConv.signature === buildConvSig(conv);
-        const tailSteps = isRemote ? [] : readTranscriptTailSteps(conv.cascadeId);
-        const isParked = tailSteps.length > 0 ? isParkedOnSwarmWait(tailSteps) : parkedByCache;
-        if (isParked) {
-          conv.status = 'IDLE';
-          conv.liveActivity = null;
-          activeLiveActivityMemo.delete(conv.cascadeId.toLowerCase());
-          continue;
+        const cidLower = conv.cascadeId.toLowerCase();
+        const hasActiveBgTasks =
+          Array.isArray(conv.activeBackgroundTasks) && conv.activeBackgroundTasks.length > 0;
+        if (!hasActiveBgTasks) {
+          const cachedConv = getEntry(conv.cascadeId);
+          const parkedByCache =
+            Boolean(cachedConv?.parkedOnSwarmWait) &&
+            cachedConv.signature === buildConvSig(conv);
+          const tailSteps = isRemote ? [] : readTranscriptTailSteps(conv.cascadeId);
+          const isParked = tailSteps.length > 0 ? isParkedOnSwarmWait(tailSteps) : parkedByCache;
+          if (isParked) {
+            conv.status = 'IDLE';
+            conv.liveActivity = null;
+            activeLiveActivityMemo.delete(cidLower);
+            continue;
+          }
         }
         const fallbackMs = conv.lastModifiedMs || conv.createdTimeMs || 0;
-        const resolved = resolveBestLiveActivity(conv.cascadeId, [], true, fallbackMs, {
-          isRemote,
-          liveActivityMemoMap: activeLiveActivityMemo,
-        });
-        if (resolved?.actionKey === 'swarm_wait') {
+        const memoTaskSteps =
+          activeLiveActivityMemo.get(cidLower)?.taskSteps ||
+          sqliteIncrementalCursorMap.get(cidLower)?.lastTaskSteps ||
+          null;
+        const resolved = resolveBestLiveActivity(
+          conv.cascadeId,
+          hasActiveBgTasks ? conv.activeBackgroundTasks : [],
+          true,
+          fallbackMs,
+          {
+            isRemote,
+            liveActivityMemoMap: activeLiveActivityMemo,
+            fallbackTaskSteps: memoTaskSteps,
+          }
+        );
+        if (resolved?.actionKey === 'swarm_wait' && !hasActiveBgTasks) {
           conv.status = 'IDLE';
           conv.liveActivity = null;
-          activeLiveActivityMemo.delete(conv.cascadeId.toLowerCase());
+          activeLiveActivityMemo.delete(cidLower);
           continue;
         }
         conv.liveActivity = resolved;
         if (resolved) {
-          activeLiveActivityMemo.set(conv.cascadeId.toLowerCase(), resolved);
+          activeLiveActivityMemo.set(cidLower, resolved);
         }
       } else if (conv.liveActivity.actionKey === 'swarm_wait') {
         conv.status = 'IDLE';

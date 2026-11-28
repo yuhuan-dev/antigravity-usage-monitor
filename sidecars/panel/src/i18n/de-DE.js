@@ -1064,6 +1064,7 @@ export const I18N_MESSAGES_DE_DE = Object.freeze({
   "live.act.read_board": "Board lesen",
   "live.act.swarm_wait": "Auf Board geparkt",
   "live.act.manage_task": "Aufgabe verwalten",
+  "live.act.background_task": "Hintergrundaufgabe",
   "live.act.schedule": "Aufgabe planen",
   "live.act.update_steps": "Schritte aktualisieren",
   "live.act.update_focus": "Fokus aktualisieren",

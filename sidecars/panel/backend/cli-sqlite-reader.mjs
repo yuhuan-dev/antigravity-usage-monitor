@@ -172,6 +172,9 @@ const PROTO_STEP_STATUSES = Object.freeze({
   12: 'CORTEX_STEP_STATUS_INTERRUPTED',
 });
 
+const ACTIVE_TASK_STEP_STATUS_NUMS = new Set([1, 2, 8, 9, 11]);
+const ACTIVE_TASK_STATUS_SQL = '1, 2, 8, 9, 11';
+
 const PROTO_RUN_STATUSES = Object.freeze({
   1: 'CASCADE_RUN_STATUS_IDLE',
   2: 'CASCADE_RUN_STATUS_RUNNING',
@@ -633,6 +636,8 @@ export function readLocalSummarySnapshot(productRoots = PRODUCT_DATA_ROOTS, { fo
             lastModifiedMs,
             createdTime,
             appDataDir,
+            notFullyIdle,
+            killed,
             isNativeRootRow,
             trajectoryType,
             isSideQuestion,
@@ -1388,6 +1393,92 @@ function decodeProtoStepMeta(rawBlob, fallbackIdx) {
     },
     ...(modelUsage ? { modelUsage } : {}),
   };
+}
+
+/**
+ * 轻量解码 SQLite `steps.task_details` Protobuf 载荷，仅提取任务 ID、展示标题、描述与转后台时间戳，
+ * 跳过大体积日志路径（`#2`）与实时输出片段（`#3`）以避免热路径内存分配。
+ *
+ * @param {Uint8Array|Buffer|null|undefined} rawBlob
+ * @returns {{ id?: string, title?: string, description?: string, movedToBackgroundAt?: string } | null}
+ */
+export function decodeProtoTaskDetails(rawBlob) {
+  const buf = toUint8Array(rawBlob);
+  if (!buf || buf.length === 0) return null;
+  const state = { off: 0 };
+  const end = buf.length;
+
+  let id = '';
+  let description = '';
+  let title = '';
+  let movedToBackgroundAt = '';
+
+  while (state.off < end) {
+    const tag = Number(BigInt.asUintN(32, readProtoVarint(buf, state, end)));
+    const fn = tag >>> 3;
+    const wt = tag & 7;
+    if (fn === 1 && wt === 2) {
+      id = readProtoString(buf, state, end).trim();
+    } else if (fn === 4 && wt === 2) {
+      const rawDesc = readProtoString(buf, state, end).trim();
+      description = rawDesc.length > 240 ? rawDesc.slice(0, 240) : rawDesc;
+    } else if (fn === 7 && wt === 2) {
+      const rawTitle = readProtoString(buf, state, end).trim();
+      title = rawTitle.length > 120 ? rawTitle.slice(0, 120) : rawTitle;
+    } else if (fn === 8 && wt === 2) {
+      movedToBackgroundAt = decodeProtoTimestampSlice(buf, state, readSubEnd(buf, state, end));
+    } else {
+      skipProtoField(buf, state, wt, end);
+    }
+  }
+
+  if (!id && !title && !description && !movedToBackgroundAt) return null;
+  return {
+    ...(id ? { id } : {}),
+    ...(title ? { title } : {}),
+    ...(description ? { description } : {}),
+    ...(movedToBackgroundAt ? { movedToBackgroundAt } : {}),
+  };
+}
+
+function isDaemonBackgroundTaskCall(toolCall) {
+  const rawArgs = String(toolCall?.argumentsJson || '').trim();
+  if (!rawArgs || !/isdaemon/i.test(rawArgs)) return false;
+  try {
+    const parsed = JSON.parse(rawArgs);
+    return parsed?.IsDaemon === true || parsed?.isDaemon === true;
+  } catch {
+    return /["']?isDaemon["']?\s*:\s*true\b/i.test(rawArgs);
+  }
+}
+
+function fetchRunningTaskDetailsMap(db, runningIndices) {
+  const out = new Map();
+  if (!db || !Array.isArray(runningIndices) || runningIndices.length === 0) {
+    return out;
+  }
+  try {
+    for (let off = 0; off < runningIndices.length; off += SQLITE_IN_CHUNK_SIZE) {
+      const batch = runningIndices.slice(off, off + SQLITE_IN_CHUNK_SIZE);
+      const placeholders = batch.map(() => '?').join(',');
+      for (const row of db
+        .prepare(
+          `SELECT idx, task_details FROM steps WHERE idx IN (${placeholders}) AND task_details IS NOT NULL AND length(task_details) > 0`
+        )
+        .iterate(...batch)) {
+        if (!row?.task_details || row.task_details.byteLength <= 0) continue;
+        try {
+          const decoded = decodeProtoTaskDetails(row.task_details);
+          if (decoded) out.set(Number(row.idx), decoded);
+        } catch {
+          // 忽略单步 task_details 解码异常
+        }
+      }
+    }
+  } catch {
+    // 兼容不含 task_details 列的旧版 SQLite 表结构
+  }
+  return out;
 }
 
 function hasNonWhitespaceUtf8(buf, start, end) {
@@ -2224,6 +2315,14 @@ export function readLocalSqliteTrajectory(dbFilePath, options = {}) {
       }
       payloadSpecsByIdx.clear();
 
+      const runningTaskIndices = isRunning
+        ? ownStepRecords
+            .filter((rec) => ACTIVE_TASK_STEP_STATUS_NUMS.has(rec.statusNum))
+            .map((rec) => rec.idx)
+        : [];
+      const taskDetailsByIdx =
+        runningTaskIndices.length > 0 ? fetchRunningTaskDetailsMap(db, runningTaskIndices) : null;
+
       let firstOwnUserPrompt = '';
       const steps = [];
       for (let i = 0; i < ownStepRecords.length; i++) {
@@ -2241,7 +2340,10 @@ export function readLocalSqliteTrajectory(dbFilePath, options = {}) {
           type = 'CORTEX_STEP_TYPE_INVOKE_SUBAGENT';
         } else if (isGenImg) {
           type = 'CORTEX_STEP_TYPE_GENERATE_IMAGE';
-        } else if (rec.stepTypeNum === 132 && inRunningTail) {
+        } else if (
+          rec.stepTypeNum === 132 &&
+          (inRunningTail || ACTIVE_TASK_STEP_STATUS_NUMS.has(rec.statusNum))
+        ) {
           type = mapRunningGenericToolStepType(rec.metadata?.toolCall?.name);
         } else {
           type = decodeProtoStepTypeEnum(rec.stepTypeNum);
@@ -2255,6 +2357,10 @@ export function readLocalSqliteTrajectory(dbFilePath, options = {}) {
         }
 
         const stepObj = { idx: rec.idx, type, status, metadata };
+        const taskDetails = taskDetailsByIdx?.get(rec.idx);
+        if (taskDetails) {
+          stepObj.taskDetails = taskDetails;
+        }
         const decodedPayload = decodedPayloadByIdx.get(rec.idx);
         if (decodedPayload) {
           if (decodedPayload.userInput) {
@@ -2627,6 +2733,14 @@ export function readLocalSqliteTrajectoryIncremental(dbFilePath, cursor, options
       }
       payloadSpecsByIdx.clear();
 
+      const runningTaskIndices = isRunning
+        ? tailStepRecords
+            .filter((rec) => ACTIVE_TASK_STEP_STATUS_NUMS.has(rec.statusNum))
+            .map((rec) => rec.idx)
+        : [];
+      const taskDetailsByIdx =
+        runningTaskIndices.length > 0 ? fetchRunningTaskDetailsMap(db, runningTaskIndices) : null;
+
       let tailFirstOwnUserPrompt = '';
       const steps = [];
       for (let i = 0; i < tailStepRecords.length; i++) {
@@ -2644,7 +2758,10 @@ export function readLocalSqliteTrajectoryIncremental(dbFilePath, cursor, options
           type = 'CORTEX_STEP_TYPE_INVOKE_SUBAGENT';
         } else if (isGenImg) {
           type = 'CORTEX_STEP_TYPE_GENERATE_IMAGE';
-        } else if (rec.stepTypeNum === 132 && inRunningTail) {
+        } else if (
+          rec.stepTypeNum === 132 &&
+          (inRunningTail || ACTIVE_TASK_STEP_STATUS_NUMS.has(rec.statusNum))
+        ) {
           type = mapRunningGenericToolStepType(rec.metadata?.toolCall?.name);
         } else {
           type = decodeProtoStepTypeEnum(rec.stepTypeNum);
@@ -2658,6 +2775,10 @@ export function readLocalSqliteTrajectoryIncremental(dbFilePath, cursor, options
         }
 
         const stepObj = { idx: rec.idx, type, status, metadata };
+        const taskDetails = taskDetailsByIdx?.get(rec.idx);
+        if (taskDetails) {
+          stepObj.taskDetails = taskDetails;
+        }
         const decodedPayload = decodedPayloadByIdx.get(rec.idx);
         if (decodedPayload) {
           if (decodedPayload.userInput) {
@@ -2867,6 +2988,12 @@ export function readLocalSqliteLiveTail(dbFilePath, tailLimit = 16) {
         }
       }
 
+      const runningTaskIndices = ownStepRecords
+        .filter((rec) => ACTIVE_TASK_STEP_STATUS_NUMS.has(rec.statusNum))
+        .map((rec) => rec.idx);
+      const taskDetailsByIdx =
+        runningTaskIndices.length > 0 ? fetchRunningTaskDetailsMap(db, runningTaskIndices) : null;
+
       const steps = [];
       for (const rec of ownStepRecords) {
         const isInvSub =
@@ -2882,6 +3009,10 @@ export function readLocalSqliteLiveTail(dbFilePath, tailLimit = 16) {
         }
         const status = decodeProtoStepStatusEnum(rec.statusNum);
         const stepObj = { idx: rec.idx, type, status, metadata: rec.metadata };
+        const taskDetails = taskDetailsByIdx?.get(rec.idx);
+        if (taskDetails) {
+          stepObj.taskDetails = taskDetails;
+        }
         const rawPayload = payloadByIdx.get(rec.idx);
         if (rawPayload) {
           try {
@@ -2906,5 +3037,107 @@ export function readLocalSqliteLiveTail(dbFilePath, tailLimit = 16) {
     });
   } catch {
     return null;
+  }
+}
+
+/**
+ * 轻量查询本地 SQLite 会话库中所有仍处于活跃态（`PENDING`/`RUNNING`/`GENERATING`/`WAITING`/`QUEUED`）
+ * 且携带 `task_details` 的非守护后台任务步骤（跳过 `IsDaemon: true` 常驻进程与克隆自父会话的步骤）。
+ *
+ * 仅在摘要标记 `not_fully_idle = 1` 时按需调用，用于捕获「模型回合已结束但后台仍有命令/定时任务运行」的会话状态。
+ *
+ * @param {string} dbFilePath
+ * @returns {object[]}
+ */
+export function readLocalSqliteActiveTasks(dbFilePath) {
+  if (!dbFilePath || !existsSync(dbFilePath)) return [];
+  const DatabaseSync = getNodeSqliteDatabaseSync();
+  if (!DatabaseSync) return [];
+
+  let normCid = '';
+  const stem = basename(dbFilePath).replace(/\.db$/i, '').trim().toLowerCase();
+  if (UUID_FILE_RE.test(stem)) {
+    normCid = stem;
+  }
+
+  try {
+    const res = withReadOnlySqliteDb(dbFilePath, (db) => {
+      if (!normCid) {
+        try {
+          const metaRow = db.prepare('SELECT cascade_id FROM trajectory_meta LIMIT 1').get();
+          if (metaRow?.cascade_id) {
+            normCid = String(metaRow.cascade_id).trim().toLowerCase();
+          }
+        } catch {
+          // 忽略无 trajectory_meta 的库
+        }
+      }
+
+      let rows = [];
+      try {
+        rows = db
+          .prepare(
+            `SELECT idx, step_type, status, metadata, task_details
+             FROM steps
+             WHERE status IN (${ACTIVE_TASK_STATUS_SQL})
+               AND task_details IS NOT NULL
+               AND length(task_details) > 0
+             ORDER BY idx ASC`
+          )
+          .all();
+      } catch {
+        // 兼容不含 task_details 列的旧版 SQLite 表结构
+        return [];
+      }
+      if (!Array.isArray(rows) || rows.length === 0) return [];
+
+      const activeTasks = [];
+      for (const row of rows) {
+        const idx = Number(row?.idx);
+        if (!Number.isFinite(idx)) continue;
+        const stepTypeNum = Number(row?.step_type || 0);
+        const statusNum = Number(row?.status || 0);
+        if (!ACTIVE_TASK_STEP_STATUS_NUMS.has(statusNum)) continue;
+
+        let metadata = { sourceTrajectoryStepInfo: { stepIndex: idx } };
+        if (row?.metadata && row.metadata.byteLength > 0) {
+          try {
+            metadata = decodeProtoStepMeta(row.metadata, idx);
+          } catch {
+            // 忽略单步元数据解码异常
+          }
+        }
+        const originCid = String(metadata.sourceTrajectoryStepInfo?.cascadeId || '')
+          .trim()
+          .toLowerCase();
+        if (originCid && normCid && originCid !== normCid) continue;
+        if (isDaemonBackgroundTaskCall(metadata?.toolCall)) continue;
+
+        let taskDetails = null;
+        if (row?.task_details && row.task_details.byteLength > 0) {
+          try {
+            taskDetails = decodeProtoTaskDetails(row.task_details);
+          } catch {
+            taskDetails = null;
+          }
+        }
+        if (!taskDetails) continue;
+
+        const isInvSub =
+          stepTypeNum === 127 ||
+          (stepTypeNum === 132 && isInvokeSubagentToolName(metadata?.toolCall?.name));
+        const type = isInvSub
+          ? 'CORTEX_STEP_TYPE_INVOKE_SUBAGENT'
+          : stepTypeNum === 132
+            ? mapRunningGenericToolStepType(metadata?.toolCall?.name)
+            : decodeProtoStepTypeEnum(stepTypeNum);
+        const status = decodeProtoStepStatusEnum(statusNum);
+        activeTasks.push({ idx, type, status, metadata, taskDetails });
+      }
+      return activeTasks;
+    });
+    return Array.isArray(res) ? res : [];
+  } catch {
+    return [];
   }
 }

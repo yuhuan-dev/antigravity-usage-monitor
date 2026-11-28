@@ -1064,6 +1064,7 @@ export const I18N_MESSAGES_JA_JP = Object.freeze({
   "live.act.read_board": "ボード読取",
   "live.act.swarm_wait": "ボード待機",
   "live.act.manage_task": "タスク管理",
+  "live.act.background_task": "バックグラウンドタスク",
   "live.act.schedule": "スケジュール設定",
   "live.act.update_steps": "手順を更新",
   "live.act.update_focus": "フォーカス更新",

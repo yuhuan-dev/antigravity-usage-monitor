@@ -2586,3 +2586,335 @@ test('Running sessions 3-way mode, update_steps forwarding/UI, bracketless progr
     globalThis.window = prevWin;
   }
 });
+
+test('Background task tracking: SQLite not_fully_idle + RUNNING task_details preserves runningConversations, taskSteps across fast-path polls, and clears on completion', async () => {
+  const { DatabaseSync } = await import('node:sqlite');
+  const { execFileSync } = await import('node:child_process');
+  const { mkdirSync, mkdtempSync, rmSync, writeFileSync } = await import('node:fs');
+  const { join } = await import('node:path');
+  const { tmpdir } = await import('node:os');
+  const { decodeProtoTaskDetails, readLocalSqliteActiveTasks } = await import(
+    '../backend/cli-sqlite-reader.mjs'
+  );
+  const { formatLiveActivityLabel } = await import('../src/core/formatters.js');
+  const { setI18nLanguage } = await import('../src/i18n/index.js');
+
+  const encodeVarint = (val) => {
+    let v = BigInt(val);
+    const out = [];
+    do {
+      let b = Number(v & 0x7fn);
+      v >>= 7n;
+      if (v > 0n) b |= 0x80;
+      out.push(b);
+    } while (v > 0n);
+    return Buffer.from(out);
+  };
+  const encodeLen = (fieldNum, bytes) => {
+    const buf = Buffer.isBuffer(bytes) ? bytes : Buffer.from(String(bytes), 'utf8');
+    return Buffer.concat([encodeVarint((fieldNum << 3) | 2), encodeVarint(buf.length), buf]);
+  };
+  const encodeTs = (sec) =>
+    Buffer.concat([encodeVarint((1 << 3) | 0), encodeVarint(sec)]);
+  const encodeToolCall = (name, argsObj) =>
+    Buffer.concat([
+      encodeLen(2, name),
+      encodeLen(3, JSON.stringify(argsObj)),
+    ]);
+  const encodeStepMeta = ({ createdSec, toolCall, stepIndex }) =>
+    Buffer.concat([
+      ...(createdSec ? [encodeLen(1, encodeTs(createdSec))] : []),
+      ...(toolCall ? [encodeLen(4, toolCall)] : []),
+      encodeLen(20, Buffer.concat([encodeVarint((2 << 3) | 0), encodeVarint(stepIndex)])),
+    ]);
+  const encodeTaskDetails = ({ id, logUri, progress, description, title, movedSec }) =>
+    Buffer.concat([
+      ...(id ? [encodeLen(1, id)] : []),
+      ...(logUri ? [encodeLen(2, logUri)] : []),
+      ...(progress ? [encodeLen(3, progress)] : []),
+      ...(description ? [encodeLen(4, description)] : []),
+      ...(title ? [encodeLen(7, title)] : []),
+      ...(movedSec ? [encodeLen(8, encodeTs(movedSec))] : []),
+    ]);
+  const encodePlannerPayload = (responseText) =>
+    encodeLen(1, responseText);
+
+  const cid = 'a1b2c3d4-1111-4222-8333-444455556666';
+  const baseSec = Math.floor(Date.now() / 1000) - 20;
+
+  // 1. decodeProtoTaskDetails skips progress/logUri and decodes id/title/description/movedToBackgroundAt
+  const rawTd = encodeTaskDetails({
+    id: `${cid}/task-2`,
+    logUri: 'file:///tmp/huge.log',
+    progress: 'x'.repeat(2048),
+    description: 'node --test sidecars/panel/test/*.test.mjs',
+    title: 'Rebuild bundle and run all regression tests',
+    movedSec: baseSec + 5,
+  });
+  const decodedTd = decodeProtoTaskDetails(rawTd);
+  assert.equal(decodedTd.id, `${cid}/task-2`);
+  assert.equal(decodedTd.title, 'Rebuild bundle and run all regression tests');
+  assert.equal(decodedTd.description, 'node --test sidecars/panel/test/*.test.mjs');
+  assert.equal(Date.parse(decodedTd.movedToBackgroundAt), (baseSec + 5) * 1000);
+  assert.equal('progress' in decodedTd, false, 'Must skip large progress buffer');
+  assert.equal('logUri' in decodedTd, false);
+
+  const root = mkdtempSync(join(tmpdir(), 'ag-bg-task-track-'));
+  const geminiDir = join(root, '.gemini');
+  const agyDir = join(geminiDir, 'antigravity');
+  const convDir = join(agyDir, 'conversations');
+  const logsDir = join(agyDir, 'brain', cid, '.system_generated', 'logs');
+  mkdirSync(convDir, { recursive: true });
+  mkdirSync(logsDir, { recursive: true });
+
+  try {
+    const sumDbPath = join(agyDir, 'conversation_summaries.db');
+    const sumDb = new DatabaseSync(sumDbPath);
+    sumDb.exec(`
+      CREATE TABLE conversation_summaries (
+        conversation_id TEXT PRIMARY KEY,
+        title TEXT, preview TEXT, status TEXT, source TEXT,
+        parent_conversation_id TEXT, nesting_depth INTEGER, agent_name TEXT,
+        not_fully_idle INTEGER, killed INTEGER, step_count INTEGER,
+        last_modified_time TEXT, app_data_dir TEXT, raw_summary BLOB
+      );
+      CREATE TABLE conversation_parents (conversation_id TEXT, parent_id TEXT);
+    `);
+    sumDb
+      .prepare(
+        `INSERT INTO conversation_summaries
+         (conversation_id, title, preview, status, source, parent_conversation_id, nesting_depth, agent_name, not_fully_idle, killed, step_count, last_modified_time, app_data_dir)
+         VALUES (?, ?, '', 'CASCADE_RUN_STATUS_IDLE', 'CORTEX_TRAJECTORY_SOURCE_INTERACTIVE_CASCADE', '', 0, '', 1, 0, 5, ?, 'antigravity')`
+      )
+      .run(cid, 'Bento Grid Verification', new Date((baseSec + 10) * 1000).toISOString());
+    sumDb.close();
+
+    const convDbPath = join(convDir, `${cid}.db`);
+    const convDb = new DatabaseSync(convDbPath);
+    convDb.exec(`
+      CREATE TABLE trajectory_meta (trajectory_id TEXT PRIMARY KEY, cascade_id TEXT, trajectory_type INTEGER, source INTEGER);
+      CREATE TABLE steps (
+        idx INTEGER PRIMARY KEY, step_type INTEGER, status INTEGER,
+        metadata BLOB, task_details BLOB, step_payload BLOB
+      );
+      CREATE TABLE gen_metadata (idx INTEGER PRIMARY KEY, data BLOB);
+    `);
+    convDb.prepare('INSERT INTO trajectory_meta VALUES (?, ?, 4, 12)').run(cid, cid);
+    const insStep = convDb.prepare(
+      'INSERT INTO steps (idx, step_type, status, metadata, task_details, step_payload) VALUES (?, ?, ?, ?, ?, ?)'
+    );
+    // idx 0: USER_INPUT
+    insStep.run(
+      0,
+      14,
+      3,
+      encodeStepMeta({ createdSec: baseSec, stepIndex: 0 }),
+      null,
+      encodeLen(1, 'Rebuild bundle and verify all tests')
+    );
+    // idx 1: update_steps (1/4 steps)
+    insStep.run(
+      1,
+      132,
+      3,
+      encodeStepMeta({
+        createdSec: baseSec + 1,
+        stepIndex: 1,
+        toolCall: encodeToolCall('update_steps', {
+          steps: [
+            { title: 'Bundle frontend assets', status: 'done' },
+            { title: 'Run regression suites', status: 'in_progress' },
+            { title: 'Sync installed plugin', status: 'pending' },
+            { title: 'Summarize status', status: 'pending' },
+          ],
+        }),
+      }),
+      null,
+      null
+    );
+    // idx 2: RUNNING non-daemon background run_command
+    insStep.run(
+      2,
+      132,
+      2,
+      encodeStepMeta({
+        createdSec: baseSec + 3,
+        stepIndex: 2,
+        toolCall: encodeToolCall('run_command', {
+          CommandLine: 'node --test',
+          toolSummary: 'Rebuild bundle and run all regression tests',
+        }),
+      }),
+      rawTd,
+      null
+    );
+    // idx 3: RUNNING daemon task (must be excluded)
+    insStep.run(
+      3,
+      132,
+      2,
+      encodeStepMeta({
+        createdSec: baseSec + 4,
+        stepIndex: 3,
+        toolCall: encodeToolCall('run_command', {
+          CommandLine: 'npm run dev',
+          IsDaemon: true,
+          toolSummary: 'Persistent dev server',
+        }),
+      }),
+      encodeTaskDetails({
+        id: `${cid}/task-3`,
+        title: 'Persistent dev server',
+        movedSec: baseSec + 4,
+      }),
+      null
+    );
+    // idx 4: Final PLANNER_RESPONSE DONE (turn ended while task-2 is still running)
+    insStep.run(
+      4,
+      15,
+      3,
+      encodeStepMeta({ createdSec: baseSec + 8, stepIndex: 4 }),
+      null,
+      encodePlannerPayload('回归套件正在后台跑完剩余用例，稍等片刻拿到全绿结果后再同步。')
+    );
+    convDb.close();
+
+    // Also write append-only transcript.jsonl ending with PLANNER_RESPONSE DONE at idx 4
+    writeFileSync(
+      join(logsDir, 'transcript.jsonl'),
+      [
+        JSON.stringify({
+          step_index: 2,
+          source: 'MODEL',
+          type: 'GENERIC',
+          status: 'RUNNING',
+          created_at: new Date((baseSec + 3) * 1000).toISOString(),
+          content: 'Tool is running as a background task',
+        }),
+        JSON.stringify({
+          step_index: 4,
+          source: 'MODEL',
+          type: 'PLANNER_RESPONSE',
+          status: 'DONE',
+          created_at: new Date((baseSec + 8) * 1000).toISOString(),
+          content: '回归套件正在后台跑完剩余用例，稍等片刻拿到全绿结果后再同步。',
+        }),
+      ].join('\n') + '\n',
+      'utf8'
+    );
+
+    const activeTasks = readLocalSqliteActiveTasks(convDbPath);
+    assert.equal(activeTasks.length, 1, 'Only non-daemon active background task is returned');
+    assert.equal(activeTasks[0].idx, 2);
+    assert.equal(activeTasks[0].taskDetails.title, 'Rebuild bundle and run all regression tests');
+
+    // 2. Full isolated ESM runtime: LS RPC returns CASCADE_RUN_STATUS_IDLE (without notFullyIdle),
+    //    yet SQLite not_fully_idle=1 + active task_details keeps runningConversations + taskSteps alive
+    const dataDir = join(root, 'um-data');
+    mkdirSync(dataDir, { recursive: true });
+    const telUrl = new URL('../backend/telemetry-builder.mjs', import.meta.url).href;
+    const cfgUrl = new URL('../backend/config.mjs', import.meta.url).href;
+    const childScript = `
+      import http from 'node:http';
+      import { buildTelemetryPayloadInternal } from ${JSON.stringify(telUrl)};
+      import { setLsRuntimeEndpoint } from ${JSON.stringify(cfgUrl)};
+      const { DatabaseSync } = process.getBuiltinModule('node:sqlite');
+
+      const cid = ${JSON.stringify(cid)};
+      const baseSec = ${baseSec};
+      const srv = http.createServer((req, res) => {
+        req.resume();
+        if (String(req.url || '').includes('GetAllCascadeTrajectories')) {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({
+            trajectorySummaries: {
+              [cid]: {
+                summary: 'Bento Grid Verification',
+                stepCount: 5,
+                status: 'CASCADE_RUN_STATUS_IDLE',
+                lastModifiedTime: new Date((baseSec + 10) * 1000).toISOString(),
+                createdTime: new Date(baseSec * 1000).toISOString(),
+              },
+            },
+          }));
+          return;
+        }
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end('{}');
+      });
+      await new Promise((r) => srv.listen(0, '127.0.0.1', r));
+      setLsRuntimeEndpoint('http://127.0.0.1:' + srv.address().port, 'test-csrf', { isDynamic: false });
+
+      try {
+        const t1 = await buildTelemetryPayloadInternal(cid, { range: 'all', forceRefresh: true });
+        const t2 = await buildTelemetryPayloadInternal(cid, { range: 'all', forceRefresh: false });
+
+        const updConvDb = new DatabaseSync(${JSON.stringify(convDbPath)});
+        updConvDb.prepare('UPDATE steps SET status = 3 WHERE idx = 2').run();
+        updConvDb.close();
+        const updSumDb = new DatabaseSync(${JSON.stringify(sumDbPath)});
+        updSumDb
+          .prepare('UPDATE conversation_summaries SET not_fully_idle = 0, last_modified_time = ? WHERE conversation_id = ?')
+          .run(new Date((baseSec + 25) * 1000).toISOString(), cid);
+        updSumDb.close();
+
+        const t3 = await buildTelemetryPayloadInternal(cid, { range: 'all', forceRefresh: false });
+        console.log(JSON.stringify({
+          rc1: t1.runningConversations,
+          rc2: t2.runningConversations,
+          rc3: t3.runningConversations,
+        }));
+      } finally {
+        srv.closeAllConnections?.();
+        srv.close();
+      }
+      process.exit(0);
+    `;
+    const childOut = execFileSync(process.execPath, ['--input-type=module', '-e', childScript], {
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        ANTIGRAVITY_GEMINI_DIR: geminiDir,
+        ANTIGRAVITY_APP_DATA_DIR: '',
+        USAGE_MONITOR_APP_DATA_DIR: '',
+        ANTIGRAVITY_EXECUTABLE_DATA_DIR: dataDir,
+        ANTIGRAVITY_LS_ADDRESS: 'test.invalid',
+      },
+      timeout: 20_000,
+    });
+    const parsed = JSON.parse(childOut.trim().split('\n').pop());
+    assert.equal(parsed.rc1.length, 1, 'Background task session stays in runningConversations');
+    const rc1 = parsed.rc1[0];
+    assert.equal(rc1.cascadeId, cid);
+    assert.equal(rc1.mainActivity?.actionKey, 'background_task');
+    assert.equal(rc1.mainActivity?.detail, 'Rebuild bundle and run all regression tests');
+    assert.equal(rc1.mainActivity?.startedAtMs, (baseSec + 3) * 1000);
+    assert.ok(rc1.mainActivity?.taskSteps, 'update_steps checklist preserved alongside background task');
+    assert.equal(rc1.mainActivity.taskSteps.done, 1);
+    assert.equal(rc1.mainActivity.taskSteps.total, 4);
+
+    // Second poll with unchanged SQLite file (fast-skip path) must retain both bg-task & 1/4 taskSteps
+    assert.equal(parsed.rc2.length, 1);
+    assert.equal(parsed.rc2[0].mainActivity?.actionKey, 'background_task');
+    assert.equal(
+      parsed.rc2[0].mainActivity?.signature,
+      rc1.mainActivity.signature,
+      'Fast-path poll keeps identical signature so elapsed timer never resets'
+    );
+    assert.equal(parsed.rc2[0].mainActivity?.taskSteps?.done, 1);
+    assert.equal(parsed.rc2[0].mainActivity?.taskSteps?.total, 4);
+
+    // Once task-2 finishes (status -> 3 DONE, not_fully_idle -> 0), session immediately exits runningConversations
+    assert.equal(parsed.rc3.length, 0, 'Completed background task clears runningConversations');
+
+    // 4. Verify localized label for background_task
+    setI18nLanguage('zh-CN');
+    assert.equal(formatLiveActivityLabel({ actionKey: 'background_task' }), '后台任务');
+    setI18nLanguage('en-US');
+    assert.equal(formatLiveActivityLabel({ actionKey: 'background_task' }), 'Background Task');
+    setI18nLanguage('zh-CN');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});

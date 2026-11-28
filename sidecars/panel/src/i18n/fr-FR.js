@@ -1064,6 +1064,7 @@ export const I18N_MESSAGES_FR_FR = Object.freeze({
   "live.act.read_board": "Lire tableau",
   "live.act.swarm_wait": "En veille tableau",
   "live.act.manage_task": "Gérer tâche",
+  "live.act.background_task": "Tâche en arrière-plan",
   "live.act.schedule": "Planifier tâche",
   "live.act.update_steps": "Maj étapes",
   "live.act.update_focus": "Maj focus",

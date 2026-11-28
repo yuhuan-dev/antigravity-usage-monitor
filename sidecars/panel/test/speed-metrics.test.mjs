@@ -1,6 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {extractContextBreakdown, extractLiveActivity, extractModelSteps, normalizeCachedStep, speedMetric, summarizeSpeed, summarizeTtft} from '../trajectory-metrics.mjs';
+import {
+  extractActiveBackgroundTasks,
+  extractContextBreakdown,
+  extractLiveActivity,
+  extractModelSteps,
+  isDaemonBackgroundTaskStep,
+  normalizeCachedStep,
+  speedMetric,
+  summarizeSpeed,
+  summarizeTtft,
+} from '../trajectory-metrics.mjs';
 
 function sample({total=12,ttft='2s',stream='10s',output=1100,thinking=100,response=1000,
   thinkingDuration='4s',tools=false,text=true,status='CORTEX_STEP_STATUS_DONE'}={}) {
@@ -529,4 +539,155 @@ test('extractLiveActivity supports update_steps checklist (RPC, transcript, part
   assert.equal(actCarried.taskSteps.skipped, 1);
   assert.equal(actCarried.taskSteps.currentTitle, 'Checklist item 5');
   assert.equal(actCarried.taskSteps.items.length, 12);
+});
+
+test('extractLiveActivity preserves background task tracking and update_steps checklist after turn finishes', () => {
+  const userTurn = {
+    idx: 10,
+    type: 'CORTEX_STEP_TYPE_USER_INPUT',
+    status: 'CORTEX_STEP_STATUS_DONE',
+    userInput: { userResponse: 'Rebuild bundle and verify tests' },
+  };
+  const stepsStep = {
+    idx: 11,
+    type: 'CORTEX_STEP_TYPE_GENERIC',
+    status: 'CORTEX_STEP_STATUS_DONE',
+    metadata: {
+      createdAt: '2026-11-28T07:50:00Z',
+      toolCall: {
+        name: 'update_steps',
+        argumentsJson: JSON.stringify({
+          steps: [
+            { title: 'Edit panel files', status: 'done' },
+            { title: 'Run regression tests', status: 'in_progress' },
+            { title: 'Sync plugin mirror', status: 'pending' },
+            { title: 'Report results', status: 'pending' },
+          ],
+        }),
+      },
+    },
+  };
+  const bgCmdStep = {
+    idx: 12,
+    type: 'CORTEX_STEP_TYPE_RUN_COMMAND',
+    status: 'CORTEX_STEP_STATUS_RUNNING',
+    metadata: {
+      createdAt: '2026-11-28T07:51:00Z',
+      toolCall: {
+        name: 'run_command',
+        argumentsJson: JSON.stringify({
+          CommandLine: 'node --test',
+          toolSummary: 'Rebuild bundle and run all regression tests',
+        }),
+      },
+    },
+    taskDetails: {
+      id: 'conv-bg/task-12',
+      title: 'Rebuild bundle and run all regression tests',
+      movedToBackgroundAt: '2026-11-28T07:51:05Z',
+    },
+  };
+  const daemonStep = {
+    idx: 13,
+    type: 'CORTEX_STEP_TYPE_RUN_COMMAND',
+    status: 'CORTEX_STEP_STATUS_RUNNING',
+    metadata: {
+      createdAt: '2026-11-28T07:51:02Z',
+      toolCall: {
+        name: 'run_command',
+        argumentsJson: JSON.stringify({
+          CommandLine: 'npm run dev',
+          IsDaemon: true,
+          toolSummary: 'Dev server daemon',
+        }),
+      },
+    },
+    taskDetails: {
+      id: 'conv-bg/task-13',
+      title: 'Dev server daemon',
+      movedToBackgroundAt: '2026-11-28T07:51:03Z',
+    },
+  };
+  const turnEndReply = {
+    idx: 14,
+    type: 'CORTEX_STEP_TYPE_PLANNER_RESPONSE',
+    status: 'CORTEX_STEP_STATUS_DONE',
+    metadata: {
+      createdAt: '2026-11-28T07:51:10Z',
+      finishedGeneratingAt: '2026-11-28T07:51:12Z',
+    },
+    plannerResponse: {
+      response: '回归套件正在后台跑完剩余用例，稍等片刻拿到全绿结果后再同步。',
+    },
+  };
+
+  assert.equal(isDaemonBackgroundTaskStep(daemonStep), true);
+  assert.equal(isDaemonBackgroundTaskStep(bgCmdStep), false);
+
+  // 1. After turn ends (PLANNER_RESPONSE DONE), active non-daemon background task keeps live tracking + 1/4 taskSteps
+  const activeList = extractActiveBackgroundTasks([userTurn, stepsStep, bgCmdStep, daemonStep, turnEndReply]);
+  assert.equal(activeList.length, 1);
+  assert.equal(activeList[0].id, 'conv-bg/task-12');
+
+  const actBg = extractLiveActivity([userTurn, stepsStep, bgCmdStep, daemonStep, turnEndReply], true);
+  assert.equal(actBg.phase, 'tool');
+  assert.equal(actBg.actionKey, 'background_task');
+  assert.equal(actBg.detail, 'Rebuild bundle and run all regression tests');
+  assert.equal(actBg.startedAtMs, Date.parse('2026-11-28T07:51:00Z'));
+  assert.equal(actBg.signature, 'bg-task:conv-bg/task-12:Rebuild bundle and run all regression tests');
+  assert.ok(actBg.taskSteps);
+  assert.equal(actBg.taskSteps.done, 1);
+  assert.equal(actBg.taskSteps.total, 4);
+  assert.equal(actBg.taskSteps.currentTitle, 'Run regression tests');
+
+  // 2. Standalone active background step (fast-path poll) produces identical signature & detail (zero timer reset)
+  const actFastPath = extractLiveActivity([bgCmdStep], true);
+  assert.equal(actFastPath.actionKey, 'background_task');
+  assert.equal(actFastPath.signature, actBg.signature);
+  assert.equal(actFastPath.startedAtMs, actBg.startedAtMs);
+
+  // 3. Multiple concurrent background tasks + schedule timer actionKey
+  const bgTimerStep = {
+    idx: 15,
+    type: 'CORTEX_STEP_TYPE_GENERIC',
+    status: 'CORTEX_STEP_STATUS_RUNNING',
+    metadata: {
+      createdAt: '2026-11-28T07:52:00Z',
+      toolCall: {
+        name: 'schedule',
+        argumentsJson: JSON.stringify({ DurationSeconds: 65, Prompt: 'Check CI' }),
+      },
+    },
+    taskDetails: {
+      id: 'conv-bg/task-15',
+      title: '1m 5s timer',
+      movedToBackgroundAt: '2026-11-28T07:52:01Z',
+    },
+  };
+  const actMulti = extractLiveActivity([userTurn, bgCmdStep, bgTimerStep, turnEndReply], true);
+  assert.equal(actMulti.actionKey, 'schedule');
+  assert.equal(actMulti.stepProgress, '2');
+  assert.equal(actMulti.detail, '1m 5s timer (+1)');
+
+  // 4. Active foreground streaming step still takes priority over background tasks
+  const activeStreaming = {
+    idx: 16,
+    type: 'CORTEX_STEP_TYPE_PLANNER_RESPONSE',
+    status: 'CORTEX_STEP_STATUS_GENERATING',
+    metadata: { createdAt: '2026-11-28T07:52:10Z' },
+    plannerResponse: { response: 'Writing final summary now...' },
+  };
+  const actForeground = extractLiveActivity([userTurn, bgCmdStep, activeStreaming], true);
+  assert.equal(actForeground.phase, 'responding');
+  assert.equal(actForeground.actionKey, 'responding');
+
+  // 5. Append-only transcript.jsonl stale RUNNING lines (without taskDetails) never trigger false background task
+  const staleTranscriptRunning = {
+    step_index: 12,
+    type: 'GENERIC',
+    status: 'RUNNING',
+    created_at: '2026-11-28T07:51:00Z',
+    content: 'Tool is running as a background task',
+  };
+  assert.deepEqual(extractActiveBackgroundTasks([staleTranscriptRunning]), []);
 });

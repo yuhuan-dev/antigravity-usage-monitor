@@ -1064,6 +1064,7 @@ export const I18N_MESSAGES_KO_KR = Object.freeze({
   "live.act.read_board": "보드 읽기",
   "live.act.swarm_wait": "보드 대기 중",
   "live.act.manage_task": "작업 관리",
+  "live.act.background_task": "백그라운드 작업",
   "live.act.schedule": "작업 예약",
   "live.act.update_steps": "단계 업데이트",
   "live.act.update_focus": "상태 업데이트",

@@ -2445,7 +2445,7 @@ function extractTaskStepsFromToolCall(rawToolCall, fallbackStep = null) {
   return buildTaskStepsSummary(rawSteps, rawArgsStr);
 }
 
-function extractLatestTaskSteps(rawSteps = [], minIdx = 0) {
+export function extractLatestTaskSteps(rawSteps = [], minIdx = 0) {
   if (!Array.isArray(rawSteps) || rawSteps.length === 0) return null;
   const floor = Math.max(0, minIdx, rawSteps.length - 200);
   for (let i = rawSteps.length - 1; i >= floor; i -= 1) {
@@ -3032,6 +3032,98 @@ export function getMaxMeaningfulStepIndex(rawSteps = []) {
   return Number.isFinite(numId) ? numId : idx;
 }
 
+/**
+ * 判断后台任务步骤是否显式声明为长期常驻守护进程（`IsDaemon: true`），
+ * 避免如 dev server / 独立长期 cron 等守护任务令已完成会话永久卡在「运行中」。
+ *
+ * @param {object|null|undefined} step
+ * @returns {boolean}
+ */
+export function isDaemonBackgroundTaskStep(step) {
+  if (!step || typeof step !== 'object') return false;
+  if (step.runCommand?.isDaemon === true || step.schedule?.isDaemon === true) return true;
+  const rawArgs = String(step?.metadata?.toolCall?.argumentsJson || '').trim();
+  if (!rawArgs || !/isdaemon/i.test(rawArgs)) return false;
+  try {
+    const parsed = JSON.parse(rawArgs);
+    return parsed?.IsDaemon === true || parsed?.isDaemon === true;
+  } catch {
+    return /["']?isDaemon["']?\s*:\s*true\b/i.test(rawArgs);
+  }
+}
+
+/**
+ * 从原始步骤数组（SQLite 或 Connect RPC 轨迹）中提取所有仍在运行的非守护后台任务。
+ *
+ * 仅采信携带结构化 `taskDetails` 且 `status` 尚未进入终态的步骤，天然免疫 append-only
+ * `transcript.jsonl` 中历史后台任务永久停留在 `"status":"RUNNING"` 的误判。
+ *
+ * @param {Array<object>} [rawSteps=[]]
+ * @returns {Array<{ step: object, stepId: string|number, id: string, toolName: string, title: string, startedAtMs: number }>}
+ */
+export function extractActiveBackgroundTasks(rawSteps = []) {
+  if (!Array.isArray(rawSteps) || rawSteps.length === 0) return [];
+  const tasks = [];
+  const seen = new Set();
+  for (let i = 0; i < rawSteps.length; i += 1) {
+    const st = rawSteps[i];
+    if (!st || typeof st !== 'object') continue;
+    const td = st.taskDetails;
+    if (!td || typeof td !== 'object') continue;
+    if (isRawStepComplete(st)) continue;
+    if (isDaemonBackgroundTaskStep(st)) continue;
+
+    const stepId = getStepStableId(st, i);
+    const id = String(td.id || '').trim();
+    const dedupeKey = id || `step:${stepId}`;
+    if (seen.has(dedupeKey)) continue;
+    seen.add(dedupeKey);
+
+    const info = summarizeToolCall(null, st);
+    const tdTitle = cleanTaskStepTitle(td.title, 60);
+    const tdDesc = cleanTaskStepTitle(td.description, 52);
+    const title = tdTitle || info.detail || tdDesc || '';
+    const startedAtMs =
+      getRawStepStartMs(st) || parseIsoMs(td.movedToBackgroundAt) || 0;
+    tasks.push({
+      step: st,
+      stepId,
+      id,
+      toolName: info.toolName || 'run_command',
+      title,
+      startedAtMs,
+    });
+  }
+  return tasks;
+}
+
+function buildBackgroundTasksActivity(activeBgTasks, fallbackStartMs = 0) {
+  const primary = activeBgTasks[activeBgTasks.length - 1];
+  const isTimer = primary.toolName === 'schedule';
+  const actionKey = isTimer ? 'schedule' : 'background_task';
+  const label = isTimer ? '定时任务' : '后台任务';
+  const detail =
+    activeBgTasks.length > 1
+      ? primary.title
+        ? `${primary.title} (+${activeBgTasks.length - 1})`
+        : `+${activeBgTasks.length}`
+      : primary.title || '';
+  const startedAtMs = primary.startedAtMs || Math.floor(fallbackStartMs || 0);
+  const idSig = activeBgTasks.map((t) => t.id || t.stepId).join(',');
+  return {
+    phase: 'tool',
+    toolName: primary.toolName || 'run_command',
+    actionKey,
+    waitingApproval: false,
+    detailKey: '',
+    label,
+    detail,
+    stepProgress: activeBgTasks.length > 1 ? String(activeBgTasks.length) : '',
+    startedAtMs,
+    signature: `bg-task:${idSig}:${detail}`,
+  };
+}
+
 export function extractLiveActivity(rawSteps = [], isRunning = false, fallbackStartMs = 0) {
   if (!isRunning) return null;
   if (!Array.isArray(rawSteps) || rawSteps.length === 0) {
@@ -3078,10 +3170,19 @@ export function extractLiveActivity(rawSteps = [], isRunning = false, fallbackSt
   const lastStepId = getStepStableId(lastStep, lastIdx);
   const lastComplete = isRawStepComplete(lastStep);
   const taskSteps = extractLatestTaskSteps(rawSteps, lastUserIdx >= 0 ? lastUserIdx + 1 : 0);
+  const activeBgTasks = extractActiveBackgroundTasks(rawSteps);
 
   const resolveActivity = () => {
   // 情况 A：最后一个有效步骤本身尚未完成（正在流式生成、正在上下文压缩或正在执行工具）
   if (!lastComplete) {
+    if (
+      lastStep?.taskDetails &&
+      typeof lastStep.taskDetails === 'object' &&
+      !isDaemonBackgroundTaskStep(lastStep) &&
+      activeBgTasks.length > 0
+    ) {
+      return buildBackgroundTasksActivity(activeBgTasks, fallbackStartMs);
+    }
     const prevStepEndMs =
       lastIdx > 0
         ? getRawStepFinishMs(rawSteps[lastIdx - 1]) || getRawStepEndMs(rawSteps[lastIdx - 1])
@@ -3304,6 +3405,11 @@ export function extractLiveActivity(rawSteps = [], isRunning = false, fallbackSt
       };
     }
 
+    // B1.5：若存在尚未完成的后台任务（如模型已结束本轮回复等待 run_command / schedule 完成），优先展示后台任务状态
+    if (activeBgTasks.length > 0) {
+      return buildBackgroundTasksActivity(activeBgTasks, fallbackStartMs);
+    }
+
     // B2：上一轮发出的工具已全部执行完毕，按各自对应的工具完成步骤提取目标文件/命令
     if (pTools.length > 0 && completedAfterPlanner >= pTools.length) {
       const infos = pTools.map((t, idx) =>
@@ -3429,7 +3535,10 @@ export function extractLiveActivity(rawSteps = [], isRunning = false, fallbackSt
     }
   }
 
-  // B4：末尾是 USER_INPUT 或普通完成步骤
+  // B4：末尾是 USER_INPUT 或普通完成步骤（若仍有未完成后台任务，优先保留后台任务跟踪）
+  if (activeBgTasks.length > 0) {
+    return buildBackgroundTasksActivity(activeBgTasks, fallbackStartMs);
+  }
   const startMs = getRawStepFinishMs(lastStep) || getRawStepStartMs(lastStep) || 0;
   return {
     phase: 'thinking',

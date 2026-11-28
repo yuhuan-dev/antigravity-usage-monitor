@@ -1107,6 +1107,7 @@ export const I18N_MESSAGES_ZH_CN = Object.freeze({
   'live.act.read_board': '读取看板',
   'live.act.swarm_wait': '看板待命',
   'live.act.manage_task': '后台任务',
+  'live.act.background_task': '后台任务',
   'live.act.schedule': '定时任务',
   'live.act.update_steps': '更新进度',
   'live.act.update_focus': '更新状态',
