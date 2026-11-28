@@ -48,6 +48,7 @@ import {
 import {
   handleMcpJsonRpcMessage,
   isOneShotCliParentCommand,
+  shouldDeferDaemonToActiveSidecar,
   shouldSkipDaemonForParentProcess,
 } from '../mcp-entry.mjs';
 import { computeCapsuleLayoutMode } from '../src/components/layout/WindowOverlayShell.js';
@@ -8352,4 +8353,113 @@ test('WindowOverlayShell enforces running_only visibility, right-sidebar multi-p
   telemetryStore.setState({ telemetry: mkPayload({ mode: 'running_only', running: runningFixture }) }, { sync: true });
   assert.equal(multiBtn.hasAttribute('hidden'), false);
   assert.equal(capsuleHost.getAttribute('data-multi'), 'on');
+});
+
+test('shouldDeferDaemonToActiveSidecar parks bridge-daemon when Desktop sidecar holds fresh lease and standalonePort is 0', () => {
+  const nowMs = 1_795_836_900_000;
+  const makeFs = ({ settings = {}, lease = null } = {}) => {
+    const files = new Map();
+    if (settings !== null) {
+      files.set('/mock-data/settings.json', JSON.stringify(settings));
+    }
+    if (lease !== null) {
+      files.set('/mock-data/window-bridge-lease.json', JSON.stringify(lease));
+    }
+    const norm = (p) => String(p || '').replace(/\\/g, '/');
+    return {
+      existsSyncFn: (p) => files.has(norm(p)),
+      readFileSyncFn: (p) => files.get(norm(p)) || '',
+    };
+  };
+
+  // 1. Active sidecar leader + standalonePort=0 -> defer daemon spawn
+  assert.equal(
+    shouldDeferDaemonToActiveSidecar({
+      env: {},
+      dataDir: '/mock-data',
+      nowMs,
+      ...makeFs({
+        settings: { standalonePort: 0 },
+        lease: {
+          pid: 42001,
+          updatedAtMs: nowMs - 2000,
+          peers: { '42001': { role: 'sidecar', updatedAtMs: nowMs - 2000 } },
+        },
+      }),
+      isPidAliveFn: (pid) => pid === 42001,
+    }),
+    true
+  );
+
+  // 2. standalonePort configured in settings -> MUST spawn daemon to host Web UI
+  assert.equal(
+    shouldDeferDaemonToActiveSidecar({
+      env: {},
+      dataDir: '/mock-data',
+      nowMs,
+      ...makeFs({
+        settings: { standalonePort: 8787 },
+        lease: {
+          pid: 42001,
+          updatedAtMs: nowMs - 2000,
+          peers: { '42001': { role: 'sidecar', updatedAtMs: nowMs - 2000 } },
+        },
+      }),
+      isPidAliveFn: (pid) => pid === 42001,
+    }),
+    false
+  );
+
+  // 3. Leader is another daemon (IDE mode) or dead PID or stale lease -> do NOT defer
+  assert.equal(
+    shouldDeferDaemonToActiveSidecar({
+      env: {},
+      dataDir: '/mock-data',
+      nowMs,
+      ...makeFs({
+        settings: { standalonePort: 0 },
+        lease: {
+          pid: 42002,
+          updatedAtMs: nowMs - 2000,
+          peers: { '42002': { role: 'daemon', updatedAtMs: nowMs - 2000 } },
+        },
+      }),
+      isPidAliveFn: (pid) => pid === 42002,
+    }),
+    false
+  );
+  assert.equal(
+    shouldDeferDaemonToActiveSidecar({
+      env: {},
+      dataDir: '/mock-data',
+      nowMs,
+      ...makeFs({
+        settings: { standalonePort: 0 },
+        lease: {
+          pid: 42001,
+          updatedAtMs: nowMs - 2000,
+          peers: { '42001': { role: 'sidecar', updatedAtMs: nowMs - 2000 } },
+        },
+      }),
+      isPidAliveFn: () => false,
+    }),
+    false
+  );
+  assert.equal(
+    shouldDeferDaemonToActiveSidecar({
+      env: {},
+      dataDir: '/mock-data',
+      nowMs,
+      ...makeFs({
+        settings: { standalonePort: 0 },
+        lease: {
+          pid: 42001,
+          updatedAtMs: nowMs - 20_000,
+          peers: { '42001': { role: 'sidecar', updatedAtMs: nowMs - 20_000 } },
+        },
+      }),
+      isPidAliveFn: (pid) => pid === 42001,
+    }),
+    false
+  );
 });

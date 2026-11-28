@@ -2016,12 +2016,18 @@ export function readLocalSqliteTrajectory(dbFilePath, options = {}) {
         // 兼容未包含 parent_references 表的库
       }
 
-      const genRows = db.prepare('SELECT idx, data FROM gen_metadata ORDER BY idx ASC').all();
+      const GEN_TAIL_RAW_WINDOW = 16;
       const ownGenRecords = [];
+      const tailRawBuffers = new Map();
+      let maxGenIdx = -1;
       let rootConversationId = trajectoryMetadata.rootConversationId || '';
       let parentConversationId = trajectoryMetadata.parentConversationId || '';
 
-      for (const row of genRows || []) {
+      for (const row of db.prepare('SELECT idx, data FROM gen_metadata ORDER BY idx ASC').iterate()) {
+        const gIdx = Number(row?.idx);
+        if (Number.isFinite(gIdx) && gIdx > maxGenIdx) {
+          maxGenIdx = gIdx;
+        }
         if (!row?.data) continue;
         try {
           const decoded = decodeProtoGeneratorMeta(row.data, false);
@@ -2039,7 +2045,16 @@ export function readLocalSqliteTrajectory(dbFilePath, options = {}) {
           if (!parentConversationId && decoded.extraMeta?.parent_cascade_id) {
             parentConversationId = String(decoded.extraMeta.parent_cascade_id).trim().toLowerCase();
           }
-          ownGenRecords.push({ rawData: row.data, gm: decoded });
+          const recIdx = ownGenRecords.length;
+          ownGenRecords.push({
+            dbIdx: Number.isFinite(gIdx) ? gIdx : recIdx,
+            byteLength: Number(row.data?.byteLength || 0),
+            gm: decoded,
+          });
+          tailRawBuffers.set(recIdx, row.data);
+          if (tailRawBuffers.size > GEN_TAIL_RAW_WINDOW) {
+            tailRawBuffers.delete(tailRawBuffers.keys().next().value);
+          }
         } catch {
           // 忽略单条损坏的 generatorMetadata
         }
@@ -2050,13 +2065,22 @@ export function readLocalSqliteTrajectory(dbFilePath, options = {}) {
         // 避免末尾紧跟 CHECKPOINT 压缩步或多条纯 plannerConfig 记录时漏解压缩前的静态上下文构成；
         // 若末尾完整记录因回退/中断成为 `stepIndices: []`，继续跳过被宿主裁剪的轻量记录并尝试补解更早的完整带索引记录。
         let foundUnindexedBreakdown = false;
+        let selSingleGenStmt = null;
         for (let i = ownGenRecords.length - 1; i >= 0; i--) {
           const rec = ownGenRecords[i];
-          if (foundUnindexedBreakdown && Number(rec?.rawData?.byteLength || 0) <= 2048) {
+          if (foundUnindexedBreakdown && rec.byteLength <= 2048) {
             continue;
           }
+          let rawBuf = tailRawBuffers.get(i);
+          if (!rawBuf) {
+            if (!selSingleGenStmt) {
+              selSingleGenStmt = db.prepare('SELECT data FROM gen_metadata WHERE idx = ? LIMIT 1');
+            }
+            rawBuf = selSingleGenStmt.get(rec.dbIdx)?.data || null;
+          }
+          if (!rawBuf) continue;
           try {
-            const fullDecoded = decodeProtoGeneratorMeta(rec.rawData, true);
+            const fullDecoded = decodeProtoGeneratorMeta(rawBuf, true);
             if (fullDecoded) {
               rec.gm = fullDecoded;
               if (hasContextBreakdownPayload(fullDecoded.chatModel)) {
@@ -2070,6 +2094,7 @@ export function readLocalSqliteTrajectory(dbFilePath, options = {}) {
             // 保留轻量版本
           }
         }
+        tailRawBuffers.clear();
       }
 
       const generatorMetadata = [];
@@ -2086,14 +2111,17 @@ export function readLocalSqliteTrajectory(dbFilePath, options = {}) {
         }
       }
 
-      const stepRows = db
-        .prepare('SELECT idx, step_type, status, metadata FROM steps ORDER BY idx ASC')
-        .all();
       const ownStepRecords = [];
+      let rawTableStepCount = 0;
+      let maxRawStepIdx = -1;
       let foreignOriginStepCount = 0;
       let maxForeignOriginStepIndex = -1;
-      for (const row of stepRows || []) {
+      for (const row of db
+        .prepare('SELECT idx, step_type, status, metadata FROM steps ORDER BY idx ASC')
+        .iterate()) {
+        rawTableStepCount += 1;
         const idx = Number.isFinite(Number(row?.idx)) ? Number(row.idx) : ownStepRecords.length;
+        if (idx > maxRawStepIdx) maxRawStepIdx = idx;
         const stepTypeNum = Number(row?.step_type || 0);
         const statusNum = Number(row?.status || 0);
         let metadata = { sourceTrajectoryStepInfo: { stepIndex: idx } };
@@ -2134,6 +2162,7 @@ export function readLocalSqliteTrajectory(dbFilePath, options = {}) {
         ? Math.max(0, ownStepRecords.length - 16)
         : ownStepRecords.length;
 
+      const payloadSpecsByIdx = new Map();
       const payloadIndices = [];
       try {
         for (let i = 0; i < ownStepRecords.length; i++) {
@@ -2155,24 +2184,37 @@ export function readLocalSqliteTrajectory(dbFilePath, options = {}) {
             (inRunningTail && (rec.stepTypeNum !== 132 || !rec.metadata?.toolCall?.argumentsJson))
           ) {
             payloadIndices.push(rec.idx);
+            payloadSpecsByIdx.set(rec.idx, {
+              stepTypeNum: rec.stepTypeNum,
+              isInvokeSubagent: isInvSub,
+              isGenerateImage: isGenImg,
+              includeSystemMessage: isChildTrajectory && rec.stepTypeNum === 101,
+              keepFullText: inRunningTail,
+            });
           }
         }
       } catch {
         // 忽略索引构建异常
       }
 
-      const payloadByIdx = new Map();
+      const decodedPayloadByIdx = new Map();
       if (payloadIndices.length > 0) {
+        const payloadChunkSize = Math.min(128, SQLITE_IN_CHUNK_SIZE);
         try {
-          for (let off = 0; off < payloadIndices.length; off += SQLITE_IN_CHUNK_SIZE) {
-            const batch = payloadIndices.slice(off, off + SQLITE_IN_CHUNK_SIZE);
+          for (let off = 0; off < payloadIndices.length; off += payloadChunkSize) {
+            const batch = payloadIndices.slice(off, off + payloadChunkSize);
             const placeholders = batch.map(() => '?').join(',');
-            const pRows = db
+            for (const pRow of db
               .prepare(`SELECT idx, step_payload FROM steps WHERE idx IN (${placeholders})`)
-              .all(...batch);
-            for (const pRow of pRows || []) {
-              if (pRow?.step_payload && pRow.step_payload.byteLength > 0) {
-                payloadByIdx.set(Number(pRow.idx), pRow.step_payload);
+              .iterate(...batch)) {
+              if (!pRow?.step_payload || pRow.step_payload.byteLength <= 0) continue;
+              const pIdx = Number(pRow.idx);
+              const spec = payloadSpecsByIdx.get(pIdx);
+              if (!spec) continue;
+              try {
+                decodedPayloadByIdx.set(pIdx, decodeProtoSelectiveStepPayload(pRow.step_payload, spec));
+              } catch {
+                // 忽略单步载荷解析异常
               }
             }
           }
@@ -2180,6 +2222,7 @@ export function readLocalSqliteTrajectory(dbFilePath, options = {}) {
           // 兼容不含 step_payload 列的旧表
         }
       }
+      payloadSpecsByIdx.clear();
 
       let firstOwnUserPrompt = '';
       const steps = [];
@@ -2212,43 +2255,32 @@ export function readLocalSqliteTrajectory(dbFilePath, options = {}) {
         }
 
         const stepObj = { idx: rec.idx, type, status, metadata };
-        const rawPayload = payloadByIdx.get(rec.idx);
-        if (rawPayload) {
-          try {
-            const decodedPayload = decodeProtoSelectiveStepPayload(rawPayload, {
-              stepTypeNum: rec.stepTypeNum,
-              isInvokeSubagent: isInvSub,
-              isGenerateImage: isGenImg,
-              includeSystemMessage: isChildTrajectory && rec.stepTypeNum === 101,
-              keepFullText: inRunningTail,
-            });
-            if (decodedPayload.userInput) {
-              stepObj.userInput = decodedPayload.userInput;
-              if (!firstOwnUserPrompt && decodedPayload.userInput.userResponse) {
-                firstOwnUserPrompt = cleanShortPromptTitle(
-                  decodedPayload.userInput.userResponse,
-                  80
-                );
-              }
+        const decodedPayload = decodedPayloadByIdx.get(rec.idx);
+        if (decodedPayload) {
+          if (decodedPayload.userInput) {
+            stepObj.userInput = decodedPayload.userInput;
+            if (!firstOwnUserPrompt && decodedPayload.userInput.userResponse) {
+              firstOwnUserPrompt = cleanShortPromptTitle(
+                decodedPayload.userInput.userResponse,
+                80
+              );
             }
-            if (decodedPayload.systemMessage) {
-              stepObj.systemMessage = decodedPayload.systemMessage;
-              stepObj.content = decodedPayload.systemMessage.message;
-            }
-            if (decodedPayload.plannerResponse) {
-              stepObj.plannerResponse = decodedPayload.plannerResponse;
-            }
-            if (decodedPayload.errorMessage) {
-              stepObj.errorMessage = decodedPayload.errorMessage;
-            }
-            if (decodedPayload.invokeSubagent) {
-              stepObj.invokeSubagent = decodedPayload.invokeSubagent;
-            }
-            if (decodedPayload.generateImage) {
-              stepObj.generateImage = decodedPayload.generateImage;
-            }
-          } catch {
-            // 忽略单步载荷解析异常
+          }
+          if (decodedPayload.systemMessage) {
+            stepObj.systemMessage = decodedPayload.systemMessage;
+            stepObj.content = decodedPayload.systemMessage.message;
+          }
+          if (decodedPayload.plannerResponse) {
+            stepObj.plannerResponse = decodedPayload.plannerResponse;
+          }
+          if (decodedPayload.errorMessage) {
+            stepObj.errorMessage = decodedPayload.errorMessage;
+          }
+          if (decodedPayload.invokeSubagent) {
+            stepObj.invokeSubagent = decodedPayload.invokeSubagent;
+          }
+          if (decodedPayload.generateImage) {
+            stepObj.generateImage = decodedPayload.generateImage;
           }
         }
         steps.push(stepObj);
@@ -2265,7 +2297,10 @@ export function readLocalSqliteTrajectory(dbFilePath, options = {}) {
           return {
             cascadeId: normCid,
             numTotalSteps: 0,
-            rawTableStepCount: stepRows.length,
+            rawTableStepCount,
+            maxGenIdx,
+            maxRawStepIdx,
+            isChildTrajectory,
             trajectoryType,
             isSideQuestion: false,
             forkParentConversationId,
@@ -2289,7 +2324,10 @@ export function readLocalSqliteTrajectory(dbFilePath, options = {}) {
       return {
         cascadeId: normCid,
         numTotalSteps: steps.length,
-        rawTableStepCount: stepRows.length,
+        rawTableStepCount,
+        maxGenIdx,
+        maxRawStepIdx,
+        isChildTrajectory,
         trajectoryType,
         isSideQuestion,
         forkParentConversationId,
@@ -2301,6 +2339,378 @@ export function readLocalSqliteTrajectory(dbFilePath, options = {}) {
         ...(foreignOriginStepCount > 0
           ? { hasForeignOriginSteps: true, maxForeignOriginStepIndex }
           : {}),
+        trajectory: {
+          metadata: mergedMetadata,
+          steps,
+          generatorMetadata,
+        },
+      };
+    });
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 仅增量读取本地 SQLite 会话库在 `cursor.stableRawIdx` 之后的尾部步骤与新增 `gen_metadata`：
+ * 若前缀行数/最大索引发生回退、截断或出现跨源克隆步骤，则返回 `null` 交由调用方自动回退全表扫描，
+ * 确保增量结果与全量 `readLocalSqliteTrajectory` 逐字段一致。
+ *
+ * @param {string} dbFilePath
+ * @param {{
+ *   stableRawIdx: number,
+ *   stableRawRowCount: number,
+ *   stableMaxGenIdx: number,
+ *   isChildTrajectory?: boolean,
+ *   isSideQuestion?: boolean,
+ *   trajectoryType?: number,
+ *   forkParentConversationId?: string,
+ *   firstOwnUserPrompt?: string,
+ *   rootConversationId?: string,
+ *   parentConversationId?: string,
+ *   trajectoryMetadata?: object,
+ * }} cursor
+ * @param {{ cascadeId?: string, isRunning?: boolean }} [options={}]
+ */
+export function readLocalSqliteTrajectoryIncremental(dbFilePath, cursor, options = {}) {
+  if (
+    !dbFilePath ||
+    !existsSync(dbFilePath) ||
+    !cursor ||
+    !Number.isFinite(Number(cursor.stableRawIdx)) ||
+    !(Number(cursor.stableRawRowCount) > 0)
+  ) {
+    return null;
+  }
+  const DatabaseSync = getNodeSqliteDatabaseSync();
+  if (!DatabaseSync) return null;
+
+  let normCid = String(options?.cascadeId || '').trim().toLowerCase();
+  if (!normCid) {
+    const stem = basename(dbFilePath).replace(/\.db$/i, '').trim().toLowerCase();
+    if (UUID_FILE_RE.test(stem)) normCid = stem;
+  }
+  const isRunning = Boolean(options?.isRunning);
+  const stableRawIdx = Math.floor(Number(cursor.stableRawIdx));
+  const stableRawRowCount = Math.floor(Number(cursor.stableRawRowCount));
+  const stableMaxGenIdx = Number.isFinite(Number(cursor.stableMaxGenIdx))
+    ? Math.floor(Number(cursor.stableMaxGenIdx))
+    : -1;
+  const isChildTrajectory = Boolean(cursor.isChildTrajectory);
+
+  try {
+    return withReadOnlySqliteDb(dbFilePath, (db) => {
+      const stats = db.prepare('SELECT COUNT(*) AS cnt, MAX(idx) AS maxIdx FROM steps').get();
+      const rawTableStepCount = Number(stats?.cnt || 0);
+      const maxRawStepIdx = Number(stats?.maxIdx ?? -1);
+      if (rawTableStepCount < stableRawRowCount || maxRawStepIdx < stableRawIdx) {
+        return null;
+      }
+      const prefixCheck = db
+        .prepare('SELECT COUNT(*) AS cnt, MAX(idx) AS maxIdx FROM steps WHERE idx <= ?')
+        .get(stableRawIdx);
+      if (
+        !prefixCheck ||
+        Number(prefixCheck.cnt || 0) !== stableRawRowCount ||
+        Number(prefixCheck.maxIdx ?? -1) !== stableRawIdx
+      ) {
+        return null;
+      }
+
+      const ownGenRecords = [];
+      const tailRawBuffers = new Map();
+      let maxGenIdx = stableMaxGenIdx;
+      for (const row of db
+        .prepare('SELECT idx, data FROM gen_metadata WHERE idx > ? ORDER BY idx ASC')
+        .iterate(stableMaxGenIdx)) {
+        const gIdx = Number(row?.idx);
+        if (Number.isFinite(gIdx) && gIdx > maxGenIdx) {
+          maxGenIdx = gIdx;
+        }
+        if (!row?.data) continue;
+        try {
+          const decoded = decodeProtoGeneratorMeta(row.data, false);
+          if (!decoded) continue;
+          const gmCid = String(decoded.extraMeta?.cascade_id || '')
+            .trim()
+            .toLowerCase();
+          if (gmCid && normCid && gmCid !== normCid) {
+            return null;
+          }
+          const recIdx = ownGenRecords.length;
+          ownGenRecords.push({
+            dbIdx: Number.isFinite(gIdx) ? gIdx : recIdx,
+            byteLength: Number(row.data?.byteLength || 0),
+            gm: decoded,
+          });
+          tailRawBuffers.set(recIdx, row.data);
+          if (tailRawBuffers.size > 16) {
+            tailRawBuffers.delete(tailRawBuffers.keys().next().value);
+          }
+        } catch {
+          // 忽略单条损坏的 generatorMetadata
+        }
+      }
+
+      let foundIndexedBreakdown = false;
+      let foundUnindexedBreakdown = false;
+      let selSingleGenStmt = null;
+      for (let i = ownGenRecords.length - 1; i >= 0; i--) {
+        const rec = ownGenRecords[i];
+        if (foundUnindexedBreakdown && rec.byteLength <= 2048) {
+          continue;
+        }
+        let rawBuf = tailRawBuffers.get(i);
+        if (!rawBuf) {
+          if (!selSingleGenStmt) {
+            selSingleGenStmt = db.prepare('SELECT data FROM gen_metadata WHERE idx = ? LIMIT 1');
+          }
+          rawBuf = selSingleGenStmt.get(rec.dbIdx)?.data || null;
+        }
+        if (!rawBuf) continue;
+        try {
+          const fullDecoded = decodeProtoGeneratorMeta(rawBuf, true);
+          if (fullDecoded) {
+            rec.gm = fullDecoded;
+            if (hasContextBreakdownPayload(fullDecoded.chatModel)) {
+              if (Array.isArray(fullDecoded.stepIndices) && fullDecoded.stepIndices.length > 0) {
+                foundIndexedBreakdown = true;
+                break;
+              }
+              foundUnindexedBreakdown = true;
+            }
+          }
+        } catch {
+          // 保留轻量版本
+        }
+      }
+      tailRawBuffers.clear();
+
+      // 若尾部增量中未包含完整上下文拆解，从 stableMaxGenIdx 向前按需补读最近一条完整拆解（最多回溯 12 条）
+      let fallbackPrefixBreakdownGm = null;
+      if (!foundIndexedBreakdown && stableMaxGenIdx >= 0) {
+        for (const row of db
+          .prepare('SELECT idx, data FROM gen_metadata WHERE idx <= ? ORDER BY idx DESC LIMIT 12')
+          .iterate(stableMaxGenIdx)) {
+          if (!row?.data) continue;
+          if (foundUnindexedBreakdown && Number(row.data.byteLength || 0) <= 2048) {
+            continue;
+          }
+          try {
+            const fullDecoded = decodeProtoGeneratorMeta(row.data, true);
+            if (!fullDecoded) continue;
+            const gmCid = String(fullDecoded.extraMeta?.cascade_id || '')
+              .trim()
+              .toLowerCase();
+            if (gmCid && normCid && gmCid !== normCid) continue;
+            if (hasContextBreakdownPayload(fullDecoded.chatModel)) {
+              fallbackPrefixBreakdownGm = {
+                stepIndices: fullDecoded.stepIndices,
+                ...(fullDecoded.chatModel ? { chatModel: fullDecoded.chatModel } : {}),
+                ...(fullDecoded.plannerConfig ? { plannerConfig: fullDecoded.plannerConfig } : {}),
+              };
+              if (Array.isArray(fullDecoded.stepIndices) && fullDecoded.stepIndices.length > 0) {
+                break;
+              }
+              foundUnindexedBreakdown = true;
+            }
+          } catch {
+            // 忽略单条解码异常
+          }
+        }
+      }
+
+      const generatorMetadata = [];
+      const genByStep = new Map();
+      if (fallbackPrefixBreakdownGm) {
+        generatorMetadata.push(fallbackPrefixBreakdownGm);
+        for (const sIdx of fallbackPrefixBreakdownGm.stepIndices || []) {
+          genByStep.set(Number(sIdx), fallbackPrefixBreakdownGm);
+        }
+      }
+      for (const { gm } of ownGenRecords) {
+        const gmItem = {
+          stepIndices: gm.stepIndices,
+          ...(gm.chatModel ? { chatModel: gm.chatModel } : {}),
+          ...(gm.plannerConfig ? { plannerConfig: gm.plannerConfig } : {}),
+        };
+        generatorMetadata.push(gmItem);
+        for (const sIdx of gm.stepIndices) {
+          genByStep.set(Number(sIdx), gmItem);
+        }
+      }
+
+      const tailStepRecords = [];
+      for (const row of db
+        .prepare('SELECT idx, step_type, status, metadata FROM steps WHERE idx > ? ORDER BY idx ASC')
+        .iterate(stableRawIdx)) {
+        const idx = Number(row?.idx);
+        if (!Number.isFinite(idx)) return null;
+        const stepTypeNum = Number(row?.step_type || 0);
+        const statusNum = Number(row?.status || 0);
+        let metadata = { sourceTrajectoryStepInfo: { stepIndex: idx } };
+        if (row?.metadata && row.metadata.byteLength > 0) {
+          try {
+            metadata = decodeProtoStepMeta(row.metadata, idx);
+          } catch {
+            // 忽略单步元数据解码异常
+          }
+        }
+        const originCid = String(metadata.sourceTrajectoryStepInfo?.cascadeId || '')
+          .trim()
+          .toLowerCase();
+        if (originCid && normCid && originCid !== normCid) {
+          return null;
+        }
+        tailStepRecords.push({ idx, stepTypeNum, statusNum, metadata });
+      }
+
+      const runningTailStartGlobal = isRunning
+        ? Math.max(0, rawTableStepCount - 16)
+        : rawTableStepCount;
+
+      const payloadSpecsByIdx = new Map();
+      const payloadIndices = [];
+      for (let i = 0; i < tailStepRecords.length; i++) {
+        const rec = tailStepRecords[i];
+        const inRunningTail = isRunning && stableRawRowCount + i >= runningTailStartGlobal;
+        const isInvSub =
+          rec.stepTypeNum === 127 ||
+          (rec.stepTypeNum === 132 && isInvokeSubagentToolName(rec.metadata?.toolCall?.name));
+        const isGenImg =
+          rec.stepTypeNum === 91 ||
+          (rec.stepTypeNum === 132 && isGenerateImageToolName(rec.metadata?.toolCall?.name));
+        if (
+          rec.stepTypeNum === 14 ||
+          rec.stepTypeNum === 15 ||
+          rec.stepTypeNum === 17 ||
+          (isChildTrajectory && rec.stepTypeNum === 101) ||
+          isInvSub ||
+          isGenImg ||
+          (inRunningTail && (rec.stepTypeNum !== 132 || !rec.metadata?.toolCall?.argumentsJson))
+        ) {
+          payloadIndices.push(rec.idx);
+          payloadSpecsByIdx.set(rec.idx, {
+            stepTypeNum: rec.stepTypeNum,
+            isInvokeSubagent: isInvSub,
+            isGenerateImage: isGenImg,
+            includeSystemMessage: isChildTrajectory && rec.stepTypeNum === 101,
+            keepFullText: inRunningTail,
+          });
+        }
+      }
+
+      const decodedPayloadByIdx = new Map();
+      if (payloadIndices.length > 0) {
+        const payloadChunkSize = Math.min(128, SQLITE_IN_CHUNK_SIZE);
+        try {
+          for (let off = 0; off < payloadIndices.length; off += payloadChunkSize) {
+            const batch = payloadIndices.slice(off, off + payloadChunkSize);
+            const placeholders = batch.map(() => '?').join(',');
+            for (const pRow of db
+              .prepare(`SELECT idx, step_payload FROM steps WHERE idx IN (${placeholders})`)
+              .iterate(...batch)) {
+              if (!pRow?.step_payload || pRow.step_payload.byteLength <= 0) continue;
+              const pIdx = Number(pRow.idx);
+              const spec = payloadSpecsByIdx.get(pIdx);
+              if (!spec) continue;
+              try {
+                decodedPayloadByIdx.set(pIdx, decodeProtoSelectiveStepPayload(pRow.step_payload, spec));
+              } catch {
+                // 忽略单步载荷解析异常
+              }
+            }
+          }
+        } catch {
+          // 兼容不含 step_payload 列的旧表
+        }
+      }
+      payloadSpecsByIdx.clear();
+
+      let tailFirstOwnUserPrompt = '';
+      const steps = [];
+      for (let i = 0; i < tailStepRecords.length; i++) {
+        const rec = tailStepRecords[i];
+        const inRunningTail = isRunning && stableRawRowCount + i >= runningTailStartGlobal;
+        const isInvSub =
+          rec.stepTypeNum === 127 ||
+          (rec.stepTypeNum === 132 && isInvokeSubagentToolName(rec.metadata?.toolCall?.name));
+        const isGenImg =
+          rec.stepTypeNum === 91 ||
+          (rec.stepTypeNum === 132 && isGenerateImageToolName(rec.metadata?.toolCall?.name));
+
+        let type = '';
+        if (isInvSub) {
+          type = 'CORTEX_STEP_TYPE_INVOKE_SUBAGENT';
+        } else if (isGenImg) {
+          type = 'CORTEX_STEP_TYPE_GENERATE_IMAGE';
+        } else if (rec.stepTypeNum === 132 && inRunningTail) {
+          type = mapRunningGenericToolStepType(rec.metadata?.toolCall?.name);
+        } else {
+          type = decodeProtoStepTypeEnum(rec.stepTypeNum);
+        }
+        const status = decodeProtoStepStatusEnum(rec.statusNum);
+        const metadata = rec.metadata;
+        const stepIdx = metadata.sourceTrajectoryStepInfo?.stepIndex ?? rec.idx;
+        const gm = genByStep.get(Number(stepIdx));
+        if (metadata.modelUsage && gm?.chatModel?.model && !metadata.modelUsage.model) {
+          metadata.modelUsage.model = gm.chatModel.model;
+        }
+
+        const stepObj = { idx: rec.idx, type, status, metadata };
+        const decodedPayload = decodedPayloadByIdx.get(rec.idx);
+        if (decodedPayload) {
+          if (decodedPayload.userInput) {
+            stepObj.userInput = decodedPayload.userInput;
+            if (!tailFirstOwnUserPrompt && decodedPayload.userInput.userResponse) {
+              tailFirstOwnUserPrompt = cleanShortPromptTitle(
+                decodedPayload.userInput.userResponse,
+                80
+              );
+            }
+          }
+          if (decodedPayload.systemMessage) {
+            stepObj.systemMessage = decodedPayload.systemMessage;
+            stepObj.content = decodedPayload.systemMessage.message;
+          }
+          if (decodedPayload.plannerResponse) {
+            stepObj.plannerResponse = decodedPayload.plannerResponse;
+          }
+          if (decodedPayload.errorMessage) {
+            stepObj.errorMessage = decodedPayload.errorMessage;
+          }
+          if (decodedPayload.invokeSubagent) {
+            stepObj.invokeSubagent = decodedPayload.invokeSubagent;
+          }
+          if (decodedPayload.generateImage) {
+            stepObj.generateImage = decodedPayload.generateImage;
+          }
+        }
+        steps.push(stepObj);
+      }
+
+      const mergedMetadata = cursor.trajectoryMetadata || {
+        parentConversationId: cursor.parentConversationId || '',
+        rootConversationId: cursor.rootConversationId || '',
+      };
+
+      return {
+        incremental: true,
+        cascadeId: normCid,
+        numTotalSteps: rawTableStepCount,
+        rawTableStepCount,
+        maxGenIdx,
+        maxRawStepIdx,
+        isChildTrajectory,
+        trajectoryType: Number(cursor.trajectoryType || 0),
+        isSideQuestion: Boolean(cursor.isSideQuestion),
+        forkParentConversationId: cursor.forkParentConversationId || '',
+        firstOwnUserPrompt: cursor.firstOwnUserPrompt || tailFirstOwnUserPrompt,
+        steps,
+        generatorMetadata,
+        rootConversationId: cursor.rootConversationId || mergedMetadata.rootConversationId || '',
+        parentConversationId:
+          cursor.parentConversationId || mergedMetadata.parentConversationId || '',
         trajectory: {
           metadata: mergedMetadata,
           steps,

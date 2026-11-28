@@ -1491,3 +1491,59 @@ test('Progressive sync & rebuild hardening: silent modified-session drain, mid-r
     'conversationViewCache cleared on rebuild completion so stale 0-subagent slice is never rendered'
   );
 });
+
+test('SQLite ledger compacts step signatures to 64-bit hashes, releases signatures on cold LRU eviction, and detects single-step edits', (t) => {
+  const dir = mkdtempSync(join(tmpdir(), 'ag-um-sqlite-sig-opt-'));
+  t.after(() => {
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  const dbPath = join(dir, 'trajectory_store.sqlite');
+  const store = createTrajectoryCacheStore({
+    sqliteFilePath: dbPath,
+    enableSqlite: true,
+    hotSessionLimit: 2,
+  });
+
+  const ids = [
+    'aaaa1111-1111-4111-8111-111111111111',
+    'bbbb2222-2222-4222-8222-222222222222',
+    'cccc3333-3333-4333-8333-333333333333',
+  ];
+  for (const id of ids) {
+    store.setCachedTrajectory(id, {
+      signature: 'v4:init',
+      title: `Session ${id.slice(0, 4)}`,
+      steps: [
+        makeRichStep(1, { turnPrompt: `Prompt A for ${id}` }),
+        makeRichStep(2, { turnPrompt: `Prompt B for ${id}`, inputTokens: 1200 }),
+      ],
+    });
+  }
+  assert.equal(store.flushTrajectoryCacheNow(), true);
+  // With hotSessionLimit = 2, the oldest session is dehydrated to cold immediately after flush
+  assert.equal(store.getHotSessionCount(), 2);
+  assert.equal(store.isConversationCold(ids[0]), true);
+
+  // Re-hydrate the evicted session, mutate a detail field on step 2, and flush again
+  const hydrated = store.getHydratedTrajectory(ids[0]);
+  assert.equal(store.isConversationCold(ids[0]), false);
+  assert.equal(hydrated.steps[0].turnPrompt, `Prompt A for ${ids[0]}`);
+  const updatedSteps = hydrated.steps.map((s, i) =>
+    i === 1 ? { ...s, turnPrompt: 'Updated detail prompt after cold reload', inputTokens: 1550 } : s
+  );
+  store.setCachedTrajectory(ids[0], { ...hydrated, signature: 'v4:mut', steps: updatedSteps });
+  assert.equal(store.flushTrajectoryCacheNow(), true);
+
+  // Fresh reader from disk sees exact updated step 2 and intact step 1 via .iterate() cold hydrate + detail load
+  const reader = createTrajectoryCacheStore({
+    sqliteFilePath: dbPath,
+    enableSqlite: true,
+    hotSessionLimit: 4,
+  });
+  const reloaded = reader.getHydratedTrajectory(ids[0]);
+  assert.equal(reloaded.steps.length, 2);
+  assert.equal(reloaded.steps[0].turnPrompt, `Prompt A for ${ids[0]}`);
+  assert.equal(reloaded.steps[1].turnPrompt, 'Updated detail prompt after cold reload');
+  assert.equal(reloaded.steps[1].inputTokens, 1550);
+});

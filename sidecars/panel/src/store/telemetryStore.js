@@ -221,6 +221,7 @@ let lastPrefetchedUsageRevision = 0;
 let consumptionCacheScopeSig = '';
 const MAX_CONSUMPTION_RANGE_CACHE = 24;
 const MAX_CONVERSATION_VIEW_CACHE = 12;
+const MAX_CONVERSATION_VIEW_CACHE_STEPS = 10000;
 const CONSUMPTION_PRESET_KEYS = ['cycle', 'today', '24h', '7d', '14d', '30d', 'all'];
 const consumptionRangeCache = new Map();
 const conversationViewCache = new Map();
@@ -308,6 +309,12 @@ function recordConversationViewToCache(payload) {
   const active = payload?.activeConversation;
   const cidLower = String(active?.cascadeId || '').trim().toLowerCase();
   if (!cidLower || !Array.isArray(active?.recentSteps)) return;
+  let stepCount = Array.isArray(active?.recentSteps) ? active.recentSteps.length : 0;
+  if (Array.isArray(active?.agents)) {
+    for (const ag of active.agents) {
+      if (Array.isArray(ag?.recentSteps)) stepCount += ag.recentSteps.length;
+    }
+  }
   const entry = {
     cascadeId: active.cascadeId,
     activeConversation: active,
@@ -322,12 +329,24 @@ function recordConversationViewToCache(payload) {
           )
         : null),
     stepRevision: String(payload.stepRevision || ''),
+    stepCount,
     cachedAtMs: Date.now(),
   };
   conversationViewCache.delete(cidLower);
   conversationViewCache.set(cidLower, entry);
-  while (conversationViewCache.size > MAX_CONVERSATION_VIEW_CACHE) {
-    conversationViewCache.delete(conversationViewCache.keys().next().value);
+  let totalCachedSteps = 0;
+  for (const rec of conversationViewCache.values()) {
+    totalCachedSteps += Number(rec?.stepCount || 0);
+  }
+  while (
+    conversationViewCache.size > MAX_CONVERSATION_VIEW_CACHE ||
+    (conversationViewCache.size > 2 && totalCachedSteps > MAX_CONVERSATION_VIEW_CACHE_STEPS)
+  ) {
+    const oldestKey = conversationViewCache.keys().next().value;
+    if (oldestKey === undefined) break;
+    const evicted = conversationViewCache.get(oldestKey);
+    conversationViewCache.delete(oldestKey);
+    totalCachedSteps -= Number(evicted?.stepCount || 0);
   }
 }
 

@@ -170,6 +170,37 @@ function tslCreateInternPool() {
 }
 
 /**
+ * 为单步 `accounting_json` 与可选 `detail_json` 计算紧凑的双路 FNV-1a 64-bit 摘要签名，
+ * 避免在 `persistedByLower` 中常驻保存每步数百至上千字节的原始 JSON 字符串。
+ *
+ * @param {string} accJson
+ * @param {string | null | undefined} detJson
+ * @returns {string}
+ */
+function tslHashStepStorageSig(accJson, detJson) {
+  const a = typeof accJson === 'string' ? accJson : '';
+  const hasDet = typeof detJson === 'string';
+  const d = hasDet ? detJson : '';
+  let h1 = 0x811c9dc5;
+  let h2 = 0x9e3779b9;
+  for (let i = 0; i < a.length; i += 1) {
+    const c = a.charCodeAt(i);
+    h1 = Math.imul(h1 ^ c, 0x01000193);
+    h2 = Math.imul(h2 ^ (c + i), 0x85ebca6b);
+  }
+  if (hasDet) {
+    h1 = Math.imul(h1 ^ 0x0a, 0x01000193);
+    h2 = Math.imul(h2 ^ 0x55, 0x85ebca6b);
+    for (let i = 0; i < d.length; i += 1) {
+      const c = d.charCodeAt(i);
+      h1 = Math.imul(h1 ^ c, 0x01000193);
+      h2 = Math.imul(h2 ^ (c + i), 0x85ebca6b);
+    }
+  }
+  return `${a.length}:${hasDet ? d.length : -1}:${(h1 >>> 0).toString(36)}:${(h2 >>> 0).toString(36)}`;
+}
+
+/**
  * Computes conversation-level `O(1)` step completeness and model-limit metadata
  * so scanner `toFetch` checks and `buildKnownUpstreamModelMap` never need to hydrate cold `detail_json`.
  *
@@ -657,7 +688,7 @@ export function createTrajectorySqliteLedger({
                   const accJson = JSON.stringify(accountingTuple);
                   const detJson = detailObj ? JSON.stringify(detailObj) : null;
                   insStep.run(cascadeId, pos, accJson, detJson);
-                  stepSigs[pos] = detJson ? `${accJson}\n${detJson}` : accJson;
+                  stepSigs[pos] = tslHashStepStorageSig(accJson, detJson);
                 }
                 persistedByLower.set(lowerId, {
                   cascadeId,
@@ -731,9 +762,6 @@ export function createTrajectorySqliteLedger({
           'SELECT cascade_id, lower_id, is_archived, step_count, meta_json FROM conversations'
         )
         .all();
-      const stepRows = db
-        .prepare('SELECT cascade_id, pos, accounting_json FROM steps ORDER BY cascade_id, pos ASC')
-        .all();
 
       for (const row of convRows) {
         let meta = {};
@@ -762,16 +790,37 @@ export function createTrajectorySqliteLedger({
         }
       }
 
-      for (const sRow of stepRows) {
-        const target = cacheObj[sRow.cascade_id];
-        if (!target) continue;
-        let parsedAcc = null;
-        try {
-          parsedAcc = JSON.parse(sRow.accounting_json);
-        } catch {
-          continue;
+      const HYDRATE_STEP_CHUNK_SIZE = 4096;
+      const firstChunkStmt = db.prepare(
+        `SELECT cascade_id, pos, accounting_json
+         FROM steps
+         ORDER BY cascade_id ASC, pos ASC
+         LIMIT ?`
+      );
+      const nextChunkStmt = db.prepare(
+        `SELECT cascade_id, pos, accounting_json
+         FROM steps
+         WHERE cascade_id > ? OR (cascade_id = ? AND pos > ?)
+         ORDER BY cascade_id ASC, pos ASC
+         LIMIT ?`
+      );
+      let chunk = firstChunkStmt.all(HYDRATE_STEP_CHUNK_SIZE);
+      while (chunk.length > 0) {
+        for (let i = 0; i < chunk.length; i += 1) {
+          const sRow = chunk[i];
+          const target = cacheObj[sRow.cascade_id];
+          if (!target) continue;
+          let parsedAcc = null;
+          try {
+            parsedAcc = JSON.parse(sRow.accounting_json);
+          } catch {
+            continue;
+          }
+          target.steps.push(buildSlimStepFromAccounting(parsedAcc, internString));
         }
-        target.steps.push(buildSlimStepFromAccounting(parsedAcc, internString));
+        if (chunk.length < HYDRATE_STEP_CHUNK_SIZE) break;
+        const lastRow = chunk[chunk.length - 1];
+        chunk = nextChunkStmt.all(lastRow.cascade_id, lastRow.cascade_id, lastRow.pos, HYDRATE_STEP_CHUNK_SIZE);
       }
     });
     lastSeenWalSig = computeSqliteWalSig(sqliteFilePath).sig;
@@ -826,9 +875,7 @@ export function createTrajectorySqliteLedger({
             det = null;
           }
         }
-        hydratedStepSigs[i] = r.detail_json
-          ? `${r.accounting_json}\n${r.detail_json}`
-          : String(r.accounting_json || '');
+        hydratedStepSigs[i] = tslHashStepStorageSig(r.accounting_json, r.detail_json);
         hydrated[i] = mergeStepFromStorage(acc, det, internString);
       }
       if (posAligned) {
@@ -1032,7 +1079,7 @@ export function createTrajectorySqliteLedger({
               const accJson = JSON.stringify(accountingTuple);
               const detJson = detailObj ? JSON.stringify(detailObj) : null;
               const isUnexpandedSlim = Boolean(rawStep?._isSlimStep === true && detJson === null);
-              const sig = detJson ? `${accJson}\n${detJson}` : accJson;
+              const sig = tslHashStepStorageSig(accJson, detJson);
               nextStepSigs[pos] = sig;
               if (!prevStepSigs || prevStepSigs[pos] !== sig) {
                 if (isUnexpandedSlim) {
@@ -1461,6 +1508,15 @@ export function createTrajectorySqliteLedger({
     return { rekeyedCount: pairs.length, pairs };
   }
 
+  function releasePersistedStepSigs(lowerId) {
+    const key = String(lowerId || '').trim().toLowerCase();
+    if (!key) return;
+    const prev = persistedByLower.get(key);
+    if (prev && prev.stepSigs) {
+      prev.stepSigs = null;
+    }
+  }
+
   return {
     sqliteFilePath,
     internString,
@@ -1470,6 +1526,7 @@ export function createTrajectorySqliteLedger({
     syncExternalChangesIfNeeded,
     redactConversations,
     rekeyConversations,
+    releasePersistedStepSigs,
     dehydrateStep: (step) => dehydrateStepForColdMemory(step, internString),
   };
 }

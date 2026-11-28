@@ -165,7 +165,33 @@ function projectDisplayStep(st) {
 }
 
 const MAX_DISPLAY_STEP_CACHE_ENTRIES = 16;
+const MAX_DISPLAY_STEP_CACHE_TOTAL_STEPS = 12000;
 const displayStepsCache = new Map();
+
+function countProjectedDisplaySteps(stepLists) {
+  let total = 0;
+  for (const list of stepLists || []) {
+    if (Array.isArray(list)) total += list.length;
+  }
+  return total;
+}
+
+function pruneDisplayStepsCache() {
+  let totalSteps = 0;
+  for (const rec of displayStepsCache.values()) {
+    totalSteps += Number(rec?.stepCount || 0);
+  }
+  while (
+    displayStepsCache.size > MAX_DISPLAY_STEP_CACHE_ENTRIES ||
+    (displayStepsCache.size > 2 && totalSteps > MAX_DISPLAY_STEP_CACHE_TOTAL_STEPS)
+  ) {
+    const oldestKey = displayStepsCache.keys().next().value;
+    if (oldestKey === undefined) break;
+    const evicted = displayStepsCache.get(oldestKey);
+    displayStepsCache.delete(oldestKey);
+    totalSteps -= Number(evicted?.stepCount || 0);
+  }
+}
 const displayStepFields = Object.keys(
   projectDisplayStep({ anomaly: true, anomalySig: '', isReverted: true })
 ).filter((k) => k !== 'anomaly');
@@ -240,16 +266,15 @@ function projectDisplayTelemetry(payload, requestedRevision) {
     } else {
       revision = randomUUID();
       projected = sourceSteps.map((steps) => steps?.map(projectDisplayStep));
-      if (!displayStepsCache.has(cacheKey) && displayStepsCache.size >= MAX_DISPLAY_STEP_CACHE_ENTRIES) {
-        displayStepsCache.delete(displayStepsCache.keys().next().value);
-      }
       displayStepsCache.delete(cacheKey);
       displayStepsCache.set(cacheKey, {
         scope,
         steps: projected,
+        stepCount: countProjectedDisplaySteps(projected),
         revision,
         sources: sourceSteps.map((steps) => steps ? new WeakRef(steps) : undefined),
       });
+      pruneDisplayStepsCache();
     }
   }
   projected ||= sourceSteps.map((steps) => steps?.map(projectDisplayStep));

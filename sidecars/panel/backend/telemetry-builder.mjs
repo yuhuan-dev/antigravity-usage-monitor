@@ -69,7 +69,8 @@ import {
 } from './usage-aggregator.mjs';
 
 const MAX_RECENT_QUICK_STATS = 30;
-const MAX_CONVERSATION_ASSEMBLY_CACHE = 8;
+const MAX_CONVERSATION_ASSEMBLY_CACHE = 6;
+const MAX_CONVERSATION_ASSEMBLY_TOTAL_STEPS = 8000;
 const MAX_TELEMETRY_SNAPSHOT_ENDPOINTS = 8;
 const POOL_PRIORITY_ORDER = ['Gemini', 'Argon', 'Carbon', 'Claude & GPT'];
 const inFlightTelemetrySources = new Map();
@@ -1630,11 +1631,9 @@ function buildActiveConversationAssembly({
     latestFamilyStep,
   };
 
-  if (
-    !conversationAssemblyCache.has(cacheKey) &&
-    conversationAssemblyCache.size >= MAX_CONVERSATION_ASSEMBLY_CACHE
-  ) {
-    conversationAssemblyCache.delete(conversationAssemblyCache.keys().next().value);
+  let assemblyStepBudget = Array.isArray(activeSteps) ? activeSteps.length : 0;
+  for (const subSteps of subRawStepsList) {
+    if (Array.isArray(subSteps)) assemblyStepBudget += subSteps.length;
   }
   conversationAssemblyCache.delete(cacheKey);
   conversationAssemblyCache.set(cacheKey, {
@@ -1645,8 +1644,24 @@ function buildActiveConversationAssembly({
     phaseEpoch: modelInputs.phaseEpoch,
     dynamicModelMap: modelInputs.dynamicModelMap,
     fallbackUpstreams: snapshotFallbackUpstreams(combinedFallbackKeys, knownUpstreamByModelKey),
+    stepBudget: assemblyStepBudget,
     result,
   });
+  let totalAssemblySteps = 0;
+  for (const rec of conversationAssemblyCache.values()) {
+    totalAssemblySteps += Number(rec?.stepBudget || 0);
+  }
+  while (
+    conversationAssemblyCache.size > MAX_CONVERSATION_ASSEMBLY_CACHE ||
+    (conversationAssemblyCache.size > 1 &&
+      totalAssemblySteps > MAX_CONVERSATION_ASSEMBLY_TOTAL_STEPS)
+  ) {
+    const oldestKey = conversationAssemblyCache.keys().next().value;
+    if (oldestKey === undefined) break;
+    const evicted = conversationAssemblyCache.get(oldestKey);
+    conversationAssemblyCache.delete(oldestKey);
+    totalAssemblySteps -= Number(evicted?.stepBudget || 0);
+  }
 
   return result;
 }
@@ -2102,14 +2117,14 @@ export async function buildTelemetryPayloadInternal(
       (rawPlanName && !/^pro$/i.test(rawPlanName) ? rawPlanName : 'Ultra')
     : rawPlanName || inferredPlanFallback;
 
-  // 预计算近期会话与运行中会话的轻量缓存速览指标（零额外 RPC 开销）
+  // 预计算近期会话与运行中会话的轻量缓存速览指标（零额外 RPC 与零 SQLite 冷会话水合开销）
   const quickStatsMemo = new Map();
   const getConversationQuickStats = (rootConv) => {
     const cidKey = String(rootConv?.cascadeId || '').toLowerCase();
     if (cidKey && quickStatsMemo.has(cidKey)) {
       return quickStatsMemo.get(cidKey);
     }
-    const rootEntry = findTrajectoryCacheEntry(rootConv?.cascadeId, cacheStore, { hydrate: true });
+    const rootEntry = findTrajectoryCacheEntry(rootConv?.cascadeId, cacheStore, { hydrate: false });
     const rootSteps = rootEntry?.steps || [];
     const rawSubs = Array.isArray(rootConv?.subagents) ? rootConv.subagents : [];
 
@@ -2149,9 +2164,30 @@ export async function buildTelemetryPayloadInternal(
 
     let contextUsedPct = null;
     if (lastRootStep) {
+      let quickLastStep = lastRootStep;
+      if (rootEntry?._coldSteps && !lastRootStep.maxContextBudgetTokens) {
+        let coldLimit = 0;
+        const limitsList = Array.isArray(rootEntry._stepFlags?.modelLimits)
+          ? rootEntry._stepFlags.modelLimits
+          : [];
+        for (let i = 0; i < limitsList.length; i += 1) {
+          const item = limitsList[i];
+          if (item && item[0] === lastRootStep.modelKey && Number(item[1]) > 0) {
+            coldLimit = Number(item[1]);
+            break;
+          }
+        }
+        if (coldLimit > 0) {
+          quickLastStep = {
+            ...lastRootStep,
+            maxContextBudgetTokens: coldLimit,
+            reportedContextLimitTokens: coldLimit,
+          };
+        }
+      }
       contextUsedPct = extractActiveContextTelemetry(
         rootSteps,
-        lastRootStep,
+        quickLastStep,
         0,
         0,
         rootEntry?.lastKnownStaticContext || null

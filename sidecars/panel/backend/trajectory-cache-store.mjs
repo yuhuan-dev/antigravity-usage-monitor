@@ -157,6 +157,13 @@ export function createTrajectoryCacheStore({
   let pendingEpochBump = false;
   let loadedOnce = false;
   let lastWalSyncCheckMs = 0;
+  let accountingRevSeq = 0;
+
+  function assignNextAccountingRev(entry) {
+    if (!entry || typeof entry !== 'object') return;
+    accountingRevSeq += 1;
+    tcsDefineHiddenProp(entry, '_accountingRev', accountingRevSeq);
+  }
 
   const state = {
     needsSave: false,
@@ -220,6 +227,7 @@ export function createTrajectoryCacheStore({
     entry.steps = slimSteps;
     tcsDefineHiddenProp(entry, '_coldSteps', true);
     tcsDefineHiddenProp(entry, '_stepFlags', flags);
+    sqliteLedger.releasePersistedStepSigs?.(lower);
     hotLru.delete(lower);
     return true;
   }
@@ -239,6 +247,7 @@ export function createTrajectoryCacheStore({
     for (const key of Object.keys(cacheObj)) {
       const lower = key.toLowerCase();
       byLower.set(lower, key);
+      assignNextAccountingRev(cacheObj[key]);
       if (markCold) {
         finalizeColdEntryInPlace(cacheObj[key]);
       }
@@ -311,6 +320,7 @@ export function createTrajectoryCacheStore({
         if (prevCanon && prevCanon !== cascadeId) {
           delete cacheObj[prevCanon];
         }
+        assignNextAccountingRev(entry);
         finalizeColdEntryInPlace(entry);
         cacheObj[cascadeId] = entry;
         byLower.set(lowerId, cascadeId);
@@ -601,6 +611,7 @@ export function createTrajectoryCacheStore({
       ensureLoaded();
       const lower = String(cascadeId || '').toLowerCase();
       const prevCanon = lower ? byLower.get(lower) : undefined;
+      const prevEntry = prevCanon ? cacheObj[prevCanon] : cacheObj[cascadeId];
       if (
         prevCanon &&
         prevCanon !== cascadeId &&
@@ -612,6 +623,11 @@ export function createTrajectoryCacheStore({
         const isStillCold = Boolean(entry.steps?._isColdSlimSteps === true);
         tcsDefineHiddenProp(entry, '_coldSteps', isStillCold);
         tcsAttachEntryStepFlags(entry, entry._stepFlags || null);
+        if (prevEntry && prevEntry.steps === entry.steps && prevEntry._accountingRev > 0) {
+          tcsDefineHiddenProp(entry, '_accountingRev', prevEntry._accountingRev);
+        } else {
+          assignNextAccountingRev(entry);
+        }
         if (useSqlite && lower) {
           dirtyRemovals.delete(lower);
           dirtyUpserts.add(lower);

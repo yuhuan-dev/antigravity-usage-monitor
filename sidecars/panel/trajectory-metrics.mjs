@@ -988,9 +988,11 @@ export function estimateImageGenStepUsage(step, hasGeneratedResult = true) {
   };
 }
 
-export function extractModelSteps(rawSteps = [], generatorMetadata = []) {
+export function extractModelSteps(rawSteps = [], generatorMetadata = [], initialState = null) {
   const genByStep = new Map();
-  const orchestratorExecModels = new Set();
+  const orchestratorExecModels = new Set(
+    Array.isArray(initialState?.orchestratorExecModels) ? initialState.orchestratorExecModels : []
+  );
   const collectOrchestratorExecModel = (pc) => {
     const execModel = pc?.planExecuteConfig?.executionModel;
     if (typeof execModel !== 'string' || !execModel.trim()) {
@@ -1010,7 +1012,9 @@ export function extractModelSteps(rawSteps = [], generatorMetadata = []) {
   let latestBreakdownChat = null;
   let latestBreakdownStepIdx = -1;
   let latestBreakdownUnindexed = false;
-  let lastKnownGmStepIdx = -1;
+  let lastKnownGmStepIdx = Number.isFinite(Number(initialState?.lastKnownGmStepIdx))
+    ? Number(initialState.lastKnownGmStepIdx)
+    : -1;
 
   for (const gm of generatorMetadata || []) {
     collectOrchestratorExecModel(gm?.plannerConfig);
@@ -1036,9 +1040,16 @@ export function extractModelSteps(rawSteps = [], generatorMetadata = []) {
   }
 
   const result = [];
-  let lastCompactionStepIdx = -1;
-  let turnCounter = 0;
-  let activeTurnIndex = null;
+  let lastCompactionStepIdx = Number.isFinite(Number(initialState?.lastCompactionStepIdx))
+    ? Number(initialState.lastCompactionStepIdx)
+    : -1;
+  let turnCounter = Number.isFinite(Number(initialState?.turnCounter))
+    ? Number(initialState.turnCounter)
+    : 0;
+  let activeTurnIndex =
+    initialState && initialState.activeTurnIndex !== undefined
+      ? initialState.activeTurnIndex
+      : null;
   let pendingTurnPrompts = [];
   let pendingTurnHasMedia = false;
   let hasUnconsumedTurn = false;
@@ -1052,7 +1063,8 @@ export function extractModelSteps(rawSteps = [], generatorMetadata = []) {
     return Boolean(step.userInput && typeof step.userInput === 'object');
   };
 
-  const hasHumanUserTurn = rawSteps.some(isUserTurnBoundary);
+  const hasHumanUserTurn =
+    Boolean(initialState?.hasHumanUserTurn) || rawSteps.some(isUserTurnBoundary);
 
   const isSystemWakeupBoundary = (step) => {
     if (hasHumanUserTurn || !step || typeof step !== 'object') return false;
@@ -1659,6 +1671,9 @@ export function extractModelSteps(rawSteps = [], generatorMetadata = []) {
     }
   }
 
+  if (initialState?.lastExplicitDonorStep && result.length > 0) {
+    return inferCompactionStepModels([initialState.lastExplicitDonorStep, ...result]).slice(1);
+  }
   return inferCompactionStepModels(result);
 }
 

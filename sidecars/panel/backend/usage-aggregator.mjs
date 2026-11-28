@@ -588,6 +588,7 @@ function collectUsageEntriesToAggregate(familySet, endpoint = null) {
       accountName: entry?.accountName || extMatch?.accountName || '',
       workspaceUri: entryWorkspaceUri,
       steps: entry?.steps || [],
+      accountingRev: Number(entry?._accountingRev || 0),
       isCurrentConv: familySet.has(cidLower),
     });
   }
@@ -1252,7 +1253,14 @@ function planUsageTrend(window, nowMs, earliest, latest) {
 function sameUsageEntries(previous, current) {
   return previous.length === current.length && current.every((entry, index) => {
     const before = previous[index];
-    return entry.steps === before.steps && entry.cascadeId === before.cascadeId &&
+    const sameSteps =
+      entry.steps === before.steps ||
+      (entry.accountingRev > 0 &&
+        entry.accountingRev === before.accountingRev &&
+        Array.isArray(entry.steps) &&
+        Array.isArray(before.steps) &&
+        entry.steps.length === before.steps.length);
+    return sameSteps && entry.cascadeId === before.cascadeId &&
       entry.appSource === before.appSource && entry.accountName === before.accountName &&
       entry.workspaceUri === before.workspaceUri;
   });

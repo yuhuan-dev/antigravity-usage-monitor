@@ -152,7 +152,10 @@ function dedupeDirCandidates(list) {
   for (const item of list) {
     const clean = String(item || '').trim();
     if (!clean) continue;
-    const key = process.platform === 'win32' ? clean.toLowerCase() : clean;
+    const key =
+      process.platform === 'win32'
+        ? clean.replace(/\//g, '\\').replace(/\\+$/, '').toLowerCase()
+        : clean.replace(/\/+$/, '') || '/';
     if (seen.has(key)) continue;
     seen.add(key);
     out.push(clean);
