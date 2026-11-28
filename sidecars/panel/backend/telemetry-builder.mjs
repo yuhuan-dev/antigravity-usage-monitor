@@ -27,6 +27,7 @@ import {
   loadSettings,
   localSummaryMemo,
   lsRuntimeEndpoint,
+  normalizeEnableSafetyMonitor,
   roundMetric,
   saveJson,
 } from './config.mjs';
@@ -2106,7 +2107,9 @@ export async function buildTelemetryPayloadInternal(
               .slice(0, 32);
 
   const nowMs = Date.now();
-  const safetyMonitorSnapshot = !isRemote ? refreshSafetyMonitorTelemetry({ nowMs }) : null;
+  const safetyMonitorEnabled = normalizeEnableSafetyMonitor(settings?.enableSafetyMonitor);
+  const safetyMonitorSnapshot =
+    !isRemote && safetyMonitorEnabled ? refreshSafetyMonitorTelemetry({ nowMs }) : null;
 
   updatePoolQuotaReservationEstimates({
     endpointId,
@@ -2493,6 +2496,16 @@ export async function buildTelemetryPayloadInternal(
     hasOfficialData: Boolean(officialQuotaInfo?.data),
   });
 
+  const hasSafetyMonitorData = Boolean(
+    safetyMonitorEnabled &&
+      safetyMonitorSnapshot &&
+      (safetyMonitorSnapshot.hasActiveSources ||
+        (safetyMonitorSnapshot.window5h?.flashLiteCalls || 0) > 0 ||
+        (safetyMonitorSnapshot.window5h?.heavyCalls || 0) > 0 ||
+        (safetyMonitorSnapshot.window24h?.flashLiteCalls || 0) > 0 ||
+        (safetyMonitorSnapshot.window24h?.heavyCalls || 0) > 0)
+  );
+
   const finalPayload = {
     timestamp: new Date().toISOString(),
     hostPlatform: process.platform || 'unknown',
@@ -2506,7 +2519,7 @@ export async function buildTelemetryPayloadInternal(
     hostTheme: getEffectiveHostTheme(),
     cloudCodeProxy: getDefaultCloudCodeProxyStatus(),
     cliStatusLine: getCliStatusLineRuntimeStatus(),
-    ...(safetyMonitorSnapshot?.hasActiveSources
+    ...(hasSafetyMonitorData
       ? {
           safetyMonitor: {
             scannedAtMs: safetyMonitorSnapshot.scannedAtMs,

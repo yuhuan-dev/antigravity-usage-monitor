@@ -518,6 +518,7 @@ export function executeSettingsAction(data) {
     updated.enableWindowOverlay !== (current.enableWindowOverlay !== false) ||
     updated.windowMountMode !== prevMountMode ||
     updated.vsCodeMountMode !== prevVsCodeMountMode ||
+    (updated.enableSafetyMonitor === true) !== (current.enableSafetyMonitor === true) ||
     bridgeAuxChanged ||
     riskyGateChanged ||
     contextWindowScopeChanged;

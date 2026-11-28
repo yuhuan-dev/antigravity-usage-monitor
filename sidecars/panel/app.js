@@ -2,7 +2,7 @@
 'use strict';
 
 // --- shared/settings-normalization.mjs ---
-const { SUPPORTED_LOCALE_ENTRIES, SUPPORTED_LOCALES, SUPPORTED_LANGUAGES, THEME_ACCENT_KEYS, FONT_SCALE_KEYS, TOPBAR_SLOT_KEYS, DEFAULT_TOPBAR_SLOTS, MIN_TOPBAR_SLOTS, MAX_TOPBAR_SLOTS, DEFAULT_CLI_STATUSLINE_SLOTS, MIN_CLI_STATUSLINE_SLOTS, MAX_CLI_STATUSLINE_SLOTS, CLI_STATUSLINE_PRESETS, OVERVIEW_MODULE_KEYS, DEFAULT_OVERVIEW_MODULES, DEFAULT_HOVER_MODULES, METRIC_CARD_STYLES, HOVER_METRIC_STYLES, DEFAULT_OVERVIEW_METRIC_STYLE, DEFAULT_HOVER_METRIC_STYLE, DEFAULT_HOVER_SYNC_OVERVIEW_METRICS, MAX_LARGE_METRIC_SLOTS, METRIC_GRID_COLS, METRIC_GRID_ROWS, DEFAULT_METRIC_ROWS, DEFAULT_OVERVIEW_METRIC_ROWS, DEFAULT_HOVER_METRIC_ROWS, METRIC_CARD_SIZES, DEFAULT_OVERVIEW_METRIC_SIZES, DEFAULT_HOVER_METRIC_SIZES, METRIC_TEXT_MODES, DEFAULT_METRIC_TEXT_MODE, DEFAULT_OVERVIEW_METRIC_TEXT_MODE, DEFAULT_HOVER_METRIC_TEXT_MODE, MAX_OVERVIEW_METRICS, OVERVIEW_METRIC_KEYS, DEFAULT_OVERVIEW_METRICS, DEFAULT_HOVER_METRICS, STEP_TABLE_COLUMN_KEYS, DEFAULT_STEP_TABLE_COLUMNS, DEFAULT_STEP_TOKEN_COMBO_FORMAT, STEP_TOKEN_SEGMENT_ALIASES, POPOVER_WIDTH_MODES, MIN_POPOVER_WIDTH, MAX_POPOVER_WIDTH, DEFAULT_POPOVER_WIDTH, resolveLocaleFromLanguageTag, normalizeLanguageSetting, normalizeThemeAccent, normalizeFontScale, normalizeModelDisplayMode, normalizePopoverWidthMode, normalizePopoverWidth, parseStepTokenComboSegments, normalizeStepTokenComboFormat, normalizePluginUpdateMode, normalizeWindowMountMode, VSCODE_MOUNT_MODES, DEFAULT_VSCODE_MOUNT_MODE, normalizeVsCodeMountMode, normalizeWeeklyLimitMode, normalizeTopbarCapsuleSlots, normalizeCliStatusLineSlots, resolveEffectiveCliStatusLineSlots, normalizeOverviewMetrics, normalizeOverviewModules, normalizeHoverModules, normalizeMetricCardStyle, normalizeOverviewMetricStyle, normalizeHoverMetricStyle, normalizeMetricGridRows, normalizeOverviewMetricRows, normalizeHoverMetricRows, normalizeMetricCardSize, normalizeMetricCardSizes, normalizeOverviewMetricSizes, normalizeHoverMetricSizes, normalizeMetricTextMode, normalizeOverviewMetricTextMode, normalizeHoverMetricTextMode, deriveMetricCardStyleFromLayout, packMetricBentoLayout, normalizeHoverSyncOverviewMetrics, normalizeHoverMetrics, resolveEffectiveMetricMatrixConfig, normalizeStepTableColumns, normalizeStandalonePort, normalizeModernUi, CONTEXT_AGENT_MODES, DEFAULT_CONTEXT_AGENT_MODE, TOPBAR_MULTI_SESSION_MODES, DEFAULT_TOPBAR_MULTI_SESSION_MODE, normalizeTopbarMultiSessionMode, isTopbarMultiSessionVisible, QUOTA_DISPLAY_MODES, DEFAULT_QUOTA_DISPLAY_MODE, normalizeQuotaDisplayMode, ACCOUNT_QUOTA_REFRESH_MINUTES, DEFAULT_ACCOUNT_QUOTA_REFRESH_MINUTES, normalizeAccountQuotaRefreshMinutes, normalizeContextAgentMode, normalizeExperimentalQuotaReservation, normalizeExperimentalModernUi, normalizeAutoConfigureLaunch, normalizeEnableRemoteSshTelemetry, normalizeDeveloperModeEnabled, normalizeRiskyFeaturesEnabled, isRiskyFeaturesGateOpen, isContextWindowFeatureActive, isAccountSwitchFeatureActive } = (() => {
+const { SUPPORTED_LOCALE_ENTRIES, SUPPORTED_LOCALES, SUPPORTED_LANGUAGES, THEME_ACCENT_KEYS, FONT_SCALE_KEYS, TOPBAR_SLOT_KEYS, DEFAULT_TOPBAR_SLOTS, MIN_TOPBAR_SLOTS, MAX_TOPBAR_SLOTS, DEFAULT_CLI_STATUSLINE_SLOTS, MIN_CLI_STATUSLINE_SLOTS, MAX_CLI_STATUSLINE_SLOTS, CLI_STATUSLINE_PRESETS, OVERVIEW_MODULE_KEYS, DEFAULT_OVERVIEW_MODULES, DEFAULT_HOVER_MODULES, METRIC_CARD_STYLES, HOVER_METRIC_STYLES, DEFAULT_OVERVIEW_METRIC_STYLE, DEFAULT_HOVER_METRIC_STYLE, DEFAULT_HOVER_SYNC_OVERVIEW_METRICS, MAX_LARGE_METRIC_SLOTS, METRIC_GRID_COLS, METRIC_GRID_ROWS, DEFAULT_METRIC_ROWS, DEFAULT_OVERVIEW_METRIC_ROWS, DEFAULT_HOVER_METRIC_ROWS, METRIC_CARD_SIZES, DEFAULT_OVERVIEW_METRIC_SIZES, DEFAULT_HOVER_METRIC_SIZES, METRIC_TEXT_MODES, DEFAULT_METRIC_TEXT_MODE, DEFAULT_OVERVIEW_METRIC_TEXT_MODE, DEFAULT_HOVER_METRIC_TEXT_MODE, MAX_OVERVIEW_METRICS, OVERVIEW_METRIC_KEYS, DEFAULT_OVERVIEW_METRICS, DEFAULT_HOVER_METRICS, STEP_TABLE_COLUMN_KEYS, DEFAULT_STEP_TABLE_COLUMNS, DEFAULT_STEP_TOKEN_COMBO_FORMAT, STEP_TOKEN_SEGMENT_ALIASES, POPOVER_WIDTH_MODES, MIN_POPOVER_WIDTH, MAX_POPOVER_WIDTH, DEFAULT_POPOVER_WIDTH, resolveLocaleFromLanguageTag, normalizeLanguageSetting, normalizeThemeAccent, normalizeFontScale, normalizeModelDisplayMode, normalizePopoverWidthMode, normalizePopoverWidth, parseStepTokenComboSegments, normalizeStepTokenComboFormat, normalizePluginUpdateMode, normalizeWindowMountMode, VSCODE_MOUNT_MODES, DEFAULT_VSCODE_MOUNT_MODE, normalizeVsCodeMountMode, normalizeWeeklyLimitMode, normalizeTopbarCapsuleSlots, normalizeCliStatusLineSlots, resolveEffectiveCliStatusLineSlots, normalizeOverviewMetrics, normalizeOverviewModules, normalizeHoverModules, normalizeMetricCardStyle, normalizeOverviewMetricStyle, normalizeHoverMetricStyle, normalizeMetricGridRows, normalizeOverviewMetricRows, normalizeHoverMetricRows, normalizeMetricCardSize, normalizeMetricCardSizes, normalizeOverviewMetricSizes, normalizeHoverMetricSizes, normalizeMetricTextMode, normalizeOverviewMetricTextMode, normalizeHoverMetricTextMode, deriveMetricCardStyleFromLayout, packMetricBentoLayout, normalizeHoverSyncOverviewMetrics, normalizeHoverMetrics, resolveEffectiveMetricMatrixConfig, normalizeStepTableColumns, normalizeStandalonePort, normalizeModernUi, CONTEXT_AGENT_MODES, DEFAULT_CONTEXT_AGENT_MODE, TOPBAR_MULTI_SESSION_MODES, DEFAULT_TOPBAR_MULTI_SESSION_MODE, normalizeTopbarMultiSessionMode, isTopbarMultiSessionVisible, QUOTA_DISPLAY_MODES, DEFAULT_QUOTA_DISPLAY_MODE, normalizeQuotaDisplayMode, ACCOUNT_QUOTA_REFRESH_MINUTES, DEFAULT_ACCOUNT_QUOTA_REFRESH_MINUTES, normalizeAccountQuotaRefreshMinutes, normalizeContextAgentMode, normalizeExperimentalQuotaReservation, normalizeExperimentalModernUi, normalizeAutoConfigureLaunch, normalizeEnableRemoteSshTelemetry, DEFAULT_ENABLE_SAFETY_MONITOR, normalizeEnableSafetyMonitor, normalizeDeveloperModeEnabled, normalizeRiskyFeaturesEnabled, isRiskyFeaturesGateOpen, isContextWindowFeatureActive, isAccountSwitchFeatureActive } = (() => {
 const SUPPORTED_LOCALE_ENTRIES = Object.freeze([
   Object.freeze({
     locale: 'zh-CN',
@@ -1082,6 +1082,19 @@ function normalizeEnableRemoteSshTelemetry(val) {
   return Boolean(val);
 }
 
+const DEFAULT_ENABLE_SAFETY_MONITOR = false;
+
+function normalizeEnableSafetyMonitor(val) {
+  if (val === undefined || val === null || val === '') return DEFAULT_ENABLE_SAFETY_MONITOR;
+  if (typeof val === 'string') {
+    const lower = val.trim().toLowerCase();
+    if (lower === 'false' || lower === '0' || lower === 'off') return false;
+    if (lower === 'true' || lower === '1' || lower === 'on') return true;
+    return DEFAULT_ENABLE_SAFETY_MONITOR;
+  }
+  return Boolean(val);
+}
+
 function normalizeDeveloperModeEnabled(val) {
   return val === true;
 }
@@ -1109,7 +1122,7 @@ function isAccountSwitchFeatureActive(settings) {
     isRiskyFeaturesGateOpen(settings) && settings.accountSwitchRiskAccepted === true
   );
 }
-return { SUPPORTED_LOCALE_ENTRIES, SUPPORTED_LOCALES, SUPPORTED_LANGUAGES, THEME_ACCENT_KEYS, FONT_SCALE_KEYS, TOPBAR_SLOT_KEYS, DEFAULT_TOPBAR_SLOTS, MIN_TOPBAR_SLOTS, MAX_TOPBAR_SLOTS, DEFAULT_CLI_STATUSLINE_SLOTS, MIN_CLI_STATUSLINE_SLOTS, MAX_CLI_STATUSLINE_SLOTS, CLI_STATUSLINE_PRESETS, OVERVIEW_MODULE_KEYS, DEFAULT_OVERVIEW_MODULES, DEFAULT_HOVER_MODULES, METRIC_CARD_STYLES, HOVER_METRIC_STYLES, DEFAULT_OVERVIEW_METRIC_STYLE, DEFAULT_HOVER_METRIC_STYLE, DEFAULT_HOVER_SYNC_OVERVIEW_METRICS, MAX_LARGE_METRIC_SLOTS, METRIC_GRID_COLS, METRIC_GRID_ROWS, DEFAULT_METRIC_ROWS, DEFAULT_OVERVIEW_METRIC_ROWS, DEFAULT_HOVER_METRIC_ROWS, METRIC_CARD_SIZES, DEFAULT_OVERVIEW_METRIC_SIZES, DEFAULT_HOVER_METRIC_SIZES, METRIC_TEXT_MODES, DEFAULT_METRIC_TEXT_MODE, DEFAULT_OVERVIEW_METRIC_TEXT_MODE, DEFAULT_HOVER_METRIC_TEXT_MODE, MAX_OVERVIEW_METRICS, OVERVIEW_METRIC_KEYS, DEFAULT_OVERVIEW_METRICS, DEFAULT_HOVER_METRICS, STEP_TABLE_COLUMN_KEYS, DEFAULT_STEP_TABLE_COLUMNS, DEFAULT_STEP_TOKEN_COMBO_FORMAT, STEP_TOKEN_SEGMENT_ALIASES, POPOVER_WIDTH_MODES, MIN_POPOVER_WIDTH, MAX_POPOVER_WIDTH, DEFAULT_POPOVER_WIDTH, resolveLocaleFromLanguageTag, normalizeLanguageSetting, normalizeThemeAccent, normalizeFontScale, normalizeModelDisplayMode, normalizePopoverWidthMode, normalizePopoverWidth, parseStepTokenComboSegments, normalizeStepTokenComboFormat, normalizePluginUpdateMode, normalizeWindowMountMode, VSCODE_MOUNT_MODES, DEFAULT_VSCODE_MOUNT_MODE, normalizeVsCodeMountMode, normalizeWeeklyLimitMode, normalizeTopbarCapsuleSlots, normalizeCliStatusLineSlots, resolveEffectiveCliStatusLineSlots, normalizeOverviewMetrics, normalizeOverviewModules, normalizeHoverModules, normalizeMetricCardStyle, normalizeOverviewMetricStyle, normalizeHoverMetricStyle, normalizeMetricGridRows, normalizeOverviewMetricRows, normalizeHoverMetricRows, normalizeMetricCardSize, normalizeMetricCardSizes, normalizeOverviewMetricSizes, normalizeHoverMetricSizes, normalizeMetricTextMode, normalizeOverviewMetricTextMode, normalizeHoverMetricTextMode, deriveMetricCardStyleFromLayout, packMetricBentoLayout, normalizeHoverSyncOverviewMetrics, normalizeHoverMetrics, resolveEffectiveMetricMatrixConfig, normalizeStepTableColumns, normalizeStandalonePort, normalizeModernUi, CONTEXT_AGENT_MODES, DEFAULT_CONTEXT_AGENT_MODE, TOPBAR_MULTI_SESSION_MODES, DEFAULT_TOPBAR_MULTI_SESSION_MODE, normalizeTopbarMultiSessionMode, isTopbarMultiSessionVisible, QUOTA_DISPLAY_MODES, DEFAULT_QUOTA_DISPLAY_MODE, normalizeQuotaDisplayMode, ACCOUNT_QUOTA_REFRESH_MINUTES, DEFAULT_ACCOUNT_QUOTA_REFRESH_MINUTES, normalizeAccountQuotaRefreshMinutes, normalizeContextAgentMode, normalizeExperimentalQuotaReservation, normalizeExperimentalModernUi, normalizeAutoConfigureLaunch, normalizeEnableRemoteSshTelemetry, normalizeDeveloperModeEnabled, normalizeRiskyFeaturesEnabled, isRiskyFeaturesGateOpen, isContextWindowFeatureActive, isAccountSwitchFeatureActive };
+return { SUPPORTED_LOCALE_ENTRIES, SUPPORTED_LOCALES, SUPPORTED_LANGUAGES, THEME_ACCENT_KEYS, FONT_SCALE_KEYS, TOPBAR_SLOT_KEYS, DEFAULT_TOPBAR_SLOTS, MIN_TOPBAR_SLOTS, MAX_TOPBAR_SLOTS, DEFAULT_CLI_STATUSLINE_SLOTS, MIN_CLI_STATUSLINE_SLOTS, MAX_CLI_STATUSLINE_SLOTS, CLI_STATUSLINE_PRESETS, OVERVIEW_MODULE_KEYS, DEFAULT_OVERVIEW_MODULES, DEFAULT_HOVER_MODULES, METRIC_CARD_STYLES, HOVER_METRIC_STYLES, DEFAULT_OVERVIEW_METRIC_STYLE, DEFAULT_HOVER_METRIC_STYLE, DEFAULT_HOVER_SYNC_OVERVIEW_METRICS, MAX_LARGE_METRIC_SLOTS, METRIC_GRID_COLS, METRIC_GRID_ROWS, DEFAULT_METRIC_ROWS, DEFAULT_OVERVIEW_METRIC_ROWS, DEFAULT_HOVER_METRIC_ROWS, METRIC_CARD_SIZES, DEFAULT_OVERVIEW_METRIC_SIZES, DEFAULT_HOVER_METRIC_SIZES, METRIC_TEXT_MODES, DEFAULT_METRIC_TEXT_MODE, DEFAULT_OVERVIEW_METRIC_TEXT_MODE, DEFAULT_HOVER_METRIC_TEXT_MODE, MAX_OVERVIEW_METRICS, OVERVIEW_METRIC_KEYS, DEFAULT_OVERVIEW_METRICS, DEFAULT_HOVER_METRICS, STEP_TABLE_COLUMN_KEYS, DEFAULT_STEP_TABLE_COLUMNS, DEFAULT_STEP_TOKEN_COMBO_FORMAT, STEP_TOKEN_SEGMENT_ALIASES, POPOVER_WIDTH_MODES, MIN_POPOVER_WIDTH, MAX_POPOVER_WIDTH, DEFAULT_POPOVER_WIDTH, resolveLocaleFromLanguageTag, normalizeLanguageSetting, normalizeThemeAccent, normalizeFontScale, normalizeModelDisplayMode, normalizePopoverWidthMode, normalizePopoverWidth, parseStepTokenComboSegments, normalizeStepTokenComboFormat, normalizePluginUpdateMode, normalizeWindowMountMode, VSCODE_MOUNT_MODES, DEFAULT_VSCODE_MOUNT_MODE, normalizeVsCodeMountMode, normalizeWeeklyLimitMode, normalizeTopbarCapsuleSlots, normalizeCliStatusLineSlots, resolveEffectiveCliStatusLineSlots, normalizeOverviewMetrics, normalizeOverviewModules, normalizeHoverModules, normalizeMetricCardStyle, normalizeOverviewMetricStyle, normalizeHoverMetricStyle, normalizeMetricGridRows, normalizeOverviewMetricRows, normalizeHoverMetricRows, normalizeMetricCardSize, normalizeMetricCardSizes, normalizeOverviewMetricSizes, normalizeHoverMetricSizes, normalizeMetricTextMode, normalizeOverviewMetricTextMode, normalizeHoverMetricTextMode, deriveMetricCardStyleFromLayout, packMetricBentoLayout, normalizeHoverSyncOverviewMetrics, normalizeHoverMetrics, resolveEffectiveMetricMatrixConfig, normalizeStepTableColumns, normalizeStandalonePort, normalizeModernUi, CONTEXT_AGENT_MODES, DEFAULT_CONTEXT_AGENT_MODE, TOPBAR_MULTI_SESSION_MODES, DEFAULT_TOPBAR_MULTI_SESSION_MODE, normalizeTopbarMultiSessionMode, isTopbarMultiSessionVisible, QUOTA_DISPLAY_MODES, DEFAULT_QUOTA_DISPLAY_MODE, normalizeQuotaDisplayMode, ACCOUNT_QUOTA_REFRESH_MINUTES, DEFAULT_ACCOUNT_QUOTA_REFRESH_MINUTES, normalizeAccountQuotaRefreshMinutes, normalizeContextAgentMode, normalizeExperimentalQuotaReservation, normalizeExperimentalModernUi, normalizeAutoConfigureLaunch, normalizeEnableRemoteSshTelemetry, DEFAULT_ENABLE_SAFETY_MONITOR, normalizeEnableSafetyMonitor, normalizeDeveloperModeEnabled, normalizeRiskyFeaturesEnabled, isRiskyFeaturesGateOpen, isContextWindowFeatureActive, isAccountSwitchFeatureActive };
 })();
 
 // --- shared/currency-catalog.mjs ---
@@ -2380,6 +2393,26 @@ const I18N_MESSAGES_ZH_CN = Object.freeze({
   'quota.legendRemaining': '剩余',
   'quota.legendExternal': '非自用',
   'quota.legendReserved': '预占',
+  'quota.safetyReviewTipSuffix': '含后台安全审查约 {pct}%',
+  'safety.cardTitle': '后台安全审查',
+  'safety.alert429Badge': '429 降级',
+  'safety.alertBurstBadge': '重型突发',
+  'safety.alertLimitBadge': '逼近水位',
+  'safety.alert429Advice': '检测到预检 429 触发降级重型复审，建议暂缓高频并发工具调用或新开会话缩短轨迹。',
+  'safety.alertBurstAdvice': '近 15 分钟频繁触发大轨迹重型复审，建议新开会话缩短上下文以减少额度损耗。',
+  'safety.alertLimitAdvice': '5 小时内预检次数正逼近 4,400 水位，建议适当降低并发以避免触发 429 降级复审。',
+  'safety.win5h': '5h',
+  'safety.win24h': '24h',
+  'safety.metricHiddenRatio': '隐藏请求占比',
+  'safety.metricCallsSplit': '预检 / 重型复审',
+  'safety.metricFlashLite': '一级预检 (Flash Lite)',
+  'safety.metricHeavy': '二级重型复审 (Sonar)',
+  'safety.metric429Fallback': '429 / 降级复审',
+  'safety.metricEstTokens': '重型输入估算',
+  'safety.falseAlarmSuffix': '误报 {pct}%',
+  'safety.charsUnit': '字符',
+  'safety.disclaimer': '次数、占比、字符量与阻塞时长为本地日志实测（未计入对话账本）；Token 区间按重型轨迹字符/4–字符/3 估算，不含审查系统提示词与缓存折扣。',
+  'safety.emptyWindow': '当前时间窗口内暂未观测到后台安全审查日志记录。',
   'quota.cycle5hTitle': '当前 5h 周期累计 ({pool})：{tok} Tokens · {cost} · {calls} 次调用',
   'quota.cycleWkCustomTitle': '本周自然周累计：{tok} Tokens · {cost} · {calls} 次调用',
   'quota.cycleWkPoolTitle': '当前周限周期累计 ({pool})：{tok} Tokens · {cost} · {calls} 次调用',
@@ -3135,6 +3168,8 @@ const I18N_MESSAGES_ZH_CN = Object.freeze({
   'settings.oth.autoLaunchDesc': '自动为 Antigravity Desktop 与 IDE 维护调试端口参数',
   'settings.oth.remoteSshLabel': 'IDE Remote-SSH 远端遥测',
   'settings.oth.remoteSshDesc': '自动识别 IDE Remote-SSH 窗口',
+  'settings.oth.safetyMonitorLabel': '后台安全审查监测',
+  'settings.oth.safetyMonitorDesc': '只读扫描本机日志中的后台安全审查请求，在用量统计页展示统计与异常提醒',
   'settings.oth.macWrapperLabel': 'macOS 受管启动器 (.app)',
   'settings.oth.macWrapperDesc': '当前已在 ~/Applications 下创建带参启动器，可在此随时一键清理',
   'settings.oth.macRemoveWrapperBtn': '移除 macOS 启动器',
@@ -3670,6 +3705,26 @@ const I18N_MESSAGES_ZH_TW = Object.freeze({
   "quota.legendRemaining": "剩餘",
   "quota.legendExternal": "非自用",
   "quota.legendReserved": "預佔",
+  "quota.safetyReviewTipSuffix": "含背景安全審查約 {pct}%",
+  "safety.cardTitle": "背景安全審查",
+  "safety.alert429Badge": "429 降級",
+  "safety.alertBurstBadge": "重型突發",
+  "safety.alertLimitBadge": "逼近水位",
+  "safety.alert429Advice": "偵測到預檢 429 觸發降級重型複審，建議暫緩高頻並發工具呼叫或另開新對話縮短軌跡。",
+  "safety.alertBurstAdvice": "近 15 分鐘頻繁觸發大軌跡重型複審，建議另開新對話縮短上下文以降低額度耗損。",
+  "safety.alertLimitAdvice": "5 小時內預檢次數逼近 4,400 水位，建議降低並發以避免觸發 429 降級複審。",
+  "safety.win5h": "5h",
+  "safety.win24h": "24h",
+  "safety.metricHiddenRatio": "隱藏請求佔比",
+  "safety.metricCallsSplit": "預檢 / 重型複審",
+  "safety.metricFlashLite": "一級預檢 (Flash Lite)",
+  "safety.metricHeavy": "二級重型複審 (Sonar)",
+  "safety.metric429Fallback": "429 / 降級複審",
+  "safety.metricEstTokens": "重型輸入估算",
+  "safety.falseAlarmSuffix": "誤報 {pct}%",
+  "safety.charsUnit": "字元",
+  "safety.disclaimer": "次數、佔比、字元量與阻塞時長為本機日誌實測（未計入可見對話帳本）；Token 區間依重型軌跡字元/4–字元/3 估算，不含審查系統提示詞與快取折扣。",
+  "safety.emptyWindow": "目前時間區間內尚未觀測到背景安全審查日誌紀錄。",
   "quota.cycle5hTitle": "目前 5h 週期累計 ({pool})：{tok} Tokens · {cost} · {calls} 次呼叫",
   "quota.cycleWkCustomTitle": "本自然週累計：{tok} Tokens · {cost} · {calls} 次呼叫",
   "quota.cycleWkPoolTitle": "目前週限週期累計 ({pool})：{tok} Tokens · {cost} · {calls} 次呼叫",
@@ -4414,6 +4469,8 @@ const I18N_MESSAGES_ZH_TW = Object.freeze({
   "settings.oth.autoLaunchDesc": "自動為 Antigravity Desktop 與 IDE 維護偵錯連接埠參數",
   "settings.oth.remoteSshLabel": "IDE Remote-SSH 遠端遙測",
   "settings.oth.remoteSshDesc": "自動辨識 IDE Remote-SSH 視窗",
+  "settings.oth.safetyMonitorLabel": "背景安全審查監測",
+  "settings.oth.safetyMonitorDesc": "唯讀掃描本機日誌中的背景安全審查請求，於用量統計頁顯示統計與異常提醒",
   "settings.oth.macWrapperLabel": "macOS 受管啟動器 (.app)",
   "settings.oth.macWrapperDesc": "目前已於 ~/Applications 下安裝受管偵錯連接埠啟動器，可隨時在此一鍵移除",
   "settings.oth.macRemoveWrapperBtn": "移除 macOS 啟動器",
@@ -4955,6 +5012,26 @@ const I18N_MESSAGES_EN_US = Object.freeze({
   'quota.legendRemaining': 'Remaining',
   'quota.legendExternal': 'Non-self',
   'quota.legendReserved': 'Reserved',
+  'quota.safetyReviewTipSuffix': 'incl. ~{pct}% safety reviews',
+  'safety.cardTitle': 'Background Safety Reviews',
+  'safety.alert429Badge': '429 Fallback',
+  'safety.alertBurstBadge': 'Heavy Burst',
+  'safety.alertLimitBadge': 'Near 5h Cap',
+  'safety.alert429Advice': 'Flash Lite 429 triggered heavy fallback reviews. Slow down concurrent tool calls or start a fresh conversation.',
+  'safety.alertBurstAdvice': 'Frequent large-trajectory heavy reviews in the last 15m. Start a fresh conversation to shorten context.',
+  'safety.alertLimitAdvice': '5h Flash Lite pre-checks are approaching the ~4,400 ceiling. Lower concurrency to avoid 429 fallback.',
+  'safety.win5h': '5h',
+  'safety.win24h': '24h',
+  'safety.metricHiddenRatio': 'Hidden Call Share',
+  'safety.metricCallsSplit': 'Pre-check / Heavy',
+  'safety.metricFlashLite': 'Pre-check (Flash Lite)',
+  'safety.metricHeavy': 'Heavy Review (Sonar)',
+  'safety.metric429Fallback': '429 / Fallbacks',
+  'safety.metricEstTokens': 'Est. Heavy Input',
+  'safety.falseAlarmSuffix': '{pct}% false',
+  'safety.charsUnit': 'chars',
+  'safety.disclaimer': 'Counts, share, chars, and blocked time are exact local log observations (excluded from visible ledger); token range is estimated as chars/4–chars/3 excluding monitor prompts and cache discounts.',
+  'safety.emptyWindow': 'No background safety review log entries observed in this window.',
   'quota.cycle5hTitle': 'Current 5h cycle ({pool}): {tok} Tokens · {cost} · {calls} calls',
   'quota.cycleWkCustomTitle': 'Current calendar week: {tok} Tokens · {cost} · {calls} calls',
   'quota.cycleWkPoolTitle': 'Current weekly cycle ({pool}): {tok} Tokens · {cost} · {calls} calls',
@@ -5710,6 +5787,8 @@ const I18N_MESSAGES_EN_US = Object.freeze({
   'settings.oth.autoLaunchDesc': 'Automatically maintain debug-port flags for Antigravity Desktop and IDE',
   'settings.oth.remoteSshLabel': 'IDE Remote-SSH Telemetry',
   'settings.oth.remoteSshDesc': 'Automatically detect IDE Remote-SSH windows',
+  'settings.oth.safetyMonitorLabel': 'Background Safety Review Monitor',
+  'settings.oth.safetyMonitorDesc': 'Read-only scan of local logs for hidden safety review calls shown in the Usage tab',
   'settings.oth.macWrapperLabel': 'Managed macOS Launcher (.app)',
   'settings.oth.macWrapperDesc': 'A managed debug-port launcher is currently installed in ~/Applications and can be removed anytime',
   'settings.oth.macRemoveWrapperBtn': 'Remove macOS Launcher',
@@ -6245,6 +6324,26 @@ const I18N_MESSAGES_JA_JP = Object.freeze({
   "quota.legendRemaining": "残り",
   "quota.legendExternal": "他者利用",
   "quota.legendReserved": "予約",
+  "quota.safetyReviewTipSuffix": "安全審査 約{pct}% 含む",
+  "safety.cardTitle": "背景安全審査",
+  "safety.alert429Badge": "429 フォールバック",
+  "safety.alertBurstBadge": "重審査急増",
+  "safety.alertLimitBadge": "5h 上限接近",
+  "safety.alert429Advice": "429 により重審査へフォールバックが発生しました。並列ツール実行を抑えるか新しい会話を開始してください。",
+  "safety.alertBurstAdvice": "直近 15 分で大コンテキストの重審査が多発しています。新しい会話で履歴を短縮してください。",
+  "safety.alertLimitAdvice": "5 時間の事前審査が約 4,400 回の上限に近づいています。429 回避のため並列数を下げてください。",
+  "safety.win5h": "5h",
+  "safety.win24h": "24h",
+  "safety.metricHiddenRatio": "隠しリクエスト比率",
+  "safety.metricCallsSplit": "事前 / 重審査",
+  "safety.metricFlashLite": "事前審査 (Flash Lite)",
+  "safety.metricHeavy": "重審査 (Sonar)",
+  "safety.metric429Fallback": "429 / フォールバック",
+  "safety.metricEstTokens": "重審査入力推定",
+  "safety.falseAlarmSuffix": "誤検知 {pct}%",
+  "safety.charsUnit": "文字",
+  "safety.disclaimer": "回数・比率・文字数・待機時間はローカルログ実測値です（可視会話台帳外）。トークン範囲は文字数/4〜文字数/3 の推定値（システムプロンプト・キャッシュ割引除く）。",
+  "safety.emptyWindow": "この期間内に背景安全審査のログは検出されていません。",
   "quota.cycle5hTitle": "現在の 5h サイクル ({pool})：{tok} トークン · {cost} · {calls} 回",
   "quota.cycleWkCustomTitle": "今週の暦週合計：{tok} トークン · {cost} · {calls} 回",
   "quota.cycleWkPoolTitle": "現在の週間サイクル ({pool})：{tok} トークン · {cost} · {calls} 回",
@@ -6989,6 +7088,8 @@ const I18N_MESSAGES_JA_JP = Object.freeze({
   "settings.oth.autoLaunchDesc": "Antigravity Desktop と IDE のデバッグポート引数を自動管理します",
   "settings.oth.remoteSshLabel": "IDE Remote-SSH リモート計測",
   "settings.oth.remoteSshDesc": "IDE Remote-SSH ウィンドウを自動検出します",
+  "settings.oth.safetyMonitorLabel": "背景安全審査モニター",
+  "settings.oth.safetyMonitorDesc": "ローカルログから背景安全審査リクエストを読み取り専用で監視し、使用量タブに集計と警告を表示します",
   "settings.oth.macWrapperLabel": "管理下の macOS ランチャー (.app)",
   "settings.oth.macWrapperDesc": "~/Applications にデバッグポート付きランチャーが作成済みです。いつでも削除できます",
   "settings.oth.macRemoveWrapperBtn": "macOS ランチャーを削除",
@@ -7520,6 +7621,26 @@ const I18N_MESSAGES_KO_KR = Object.freeze({
   "quota.legendRemaining": "잔여",
   "quota.legendExternal": "외부 사용",
   "quota.legendReserved": "예약",
+  "quota.safetyReviewTipSuffix": "안전 심사 약 {pct}% 포함",
+  "safety.cardTitle": "백그라운드 안전 심사",
+  "safety.alert429Badge": "429 폴백",
+  "safety.alertBurstBadge": "정밀 급증",
+  "safety.alertLimitBadge": "5h 한도 임박",
+  "safety.alert429Advice": "사전 심사 429로 인해 정밀 심사로 폴백되었습니다. 동시 도구 호출을 줄이거나 새 대화를 시작하세요.",
+  "safety.alertBurstAdvice": "최근 15분간 대용량 정밀 심사가 잦습니다. 컨텍스트를 줄이기 위해 새 대화를 권장합니다.",
+  "safety.alertLimitAdvice": "5시간 사전 심사가 약 4,400회 한도에 가까워지고 있습니다. 429 방지를 위해 동시 실행을 낮추세요.",
+  "safety.win5h": "5h",
+  "safety.win24h": "24h",
+  "safety.metricHiddenRatio": "숨겨진 요청 비율",
+  "safety.metricCallsSplit": "사전 / 정밀 심사",
+  "safety.metricFlashLite": "사전 심사 (Flash Lite)",
+  "safety.metricHeavy": "정밀 심사 (Sonar)",
+  "safety.metric429Fallback": "429 / 폴백",
+  "safety.metricEstTokens": "정밀 입력 추정",
+  "safety.falseAlarmSuffix": "오탐 {pct}%",
+  "safety.charsUnit": "자",
+  "safety.disclaimer": "횟수, 비율, 문자 수 및 지연 시간은 로컬 로그 실측값입니다(가시 대화 원장 미포함). 토큰 범위는 문자/4~문자/3 추정치이며 시스템 프롬프트와 캐시 할인은 제외됩니다.",
+  "safety.emptyWindow": "이 기간 내 백그라운드 안전 심사 로그가 감지되지 않았습니다.",
   "quota.cycle5hTitle": "현재 5시간 주기 ({pool}): {tok} 토큰 · {cost} · {calls}회 호출",
   "quota.cycleWkCustomTitle": "이번 주 (달력 기준): {tok} 토큰 · {cost} · {calls}회 호출",
   "quota.cycleWkPoolTitle": "현재 주간 주기 ({pool}): {tok} 토큰 · {cost} · {calls}회 호출",
@@ -8264,6 +8385,8 @@ const I18N_MESSAGES_KO_KR = Object.freeze({
   "settings.oth.autoLaunchDesc": "Antigravity Desktop 및 IDE의 디버그 포트 플래그를 자동 유지",
   "settings.oth.remoteSshLabel": "IDE Remote-SSH 원격 텔레메트리",
   "settings.oth.remoteSshDesc": "IDE Remote-SSH 창을 자동 감지",
+  "settings.oth.safetyMonitorLabel": "백그라운드 안전 심사 모니터",
+  "settings.oth.safetyMonitorDesc": "로컬 로그의 백그라운드 안전 심사 호출을 읽기 전용으로 스캔하여 사용량 탭에 통계와 경고를 표시",
   "settings.oth.macWrapperLabel": "macOS 관리형 런처 (.app)",
   "settings.oth.macWrapperDesc": "현재 ~/Applications에 디버그 포트 관리형 런처가 설치되어 있으며 언제든 제거할 수 있습니다",
   "settings.oth.macRemoveWrapperBtn": "macOS 런처 제거",
@@ -8795,6 +8918,26 @@ const I18N_MESSAGES_DE_DE = Object.freeze({
   "quota.legendRemaining": "Verbleibend",
   "quota.legendExternal": "Fremdnutzung",
   "quota.legendReserved": "Reserviert",
+  "quota.safetyReviewTipSuffix": "inkl. ~{pct}% Sicherheitsprüfungen",
+  "safety.cardTitle": "Hintergrund-Sicherheitsprüfungen",
+  "safety.alert429Badge": "429-Fallback",
+  "safety.alertBurstBadge": "Prüfungsspitze",
+  "safety.alertLimitBadge": "5h-Limit nah",
+  "safety.alert429Advice": "429 löste schwere Fallback-Prüfungen aus. Parallele Tool-Aufrufe reduzieren oder neue Sitzung starten.",
+  "safety.alertBurstAdvice": "Häufige schwere Prüfungen mit großem Kontext in 15 Min. Neue Sitzung zum Kürzen des Kontexts empfohlen.",
+  "safety.alertLimitAdvice": "5h-Vorprüfungen nähern sich ~4.400. Parallelität verringern, um 429-Fallback zu vermeiden.",
+  "safety.win5h": "5h",
+  "safety.win24h": "24h",
+  "safety.metricHiddenRatio": "Anteil versteckter Aufrufe",
+  "safety.metricCallsSplit": "Vor- / Schwerprüfung",
+  "safety.metricFlashLite": "Vorprüfung (Flash Lite)",
+  "safety.metricHeavy": "Schwere Prüfung (Sonar)",
+  "safety.metric429Fallback": "429 / Fallbacks",
+  "safety.metricEstTokens": "Gesch. Eingabe-Token",
+  "safety.falseAlarmSuffix": "{pct}% Fehlalarm",
+  "safety.charsUnit": "Zeichen",
+  "safety.disclaimer": "Anzahl, Anteil, Zeichen und Blockierzeit sind exakte Log-Messwerte (nicht im sichtbaren Verlauf); Token-Spanne geschätzt als Zeichen/4–Zeichen/3 ohne System-Prompts oder Cache-Rabatt.",
+  "safety.emptyWindow": "Keine Sicherheitsprüfungs-Logs in diesem Zeitraum gefunden.",
   "quota.cycle5hTitle": "Aktueller 5h-Zyklus ({pool}): {tok} Tokens · {cost} · {calls} Aufrufe",
   "quota.cycleWkCustomTitle": "Aktuelle Kalenderwoche: {tok} Tokens · {cost} · {calls} Aufrufe",
   "quota.cycleWkPoolTitle": "Aktueller Wochenzyklus ({pool}): {tok} Tokens · {cost} · {calls} Aufrufe",
@@ -9539,6 +9682,8 @@ const I18N_MESSAGES_DE_DE = Object.freeze({
   "settings.oth.autoLaunchDesc": "Debug-Port-Flags für Antigravity Desktop und IDE automatisch pflegen",
   "settings.oth.remoteSshLabel": "IDE-Remote-SSH-Telemetrie",
   "settings.oth.remoteSshDesc": "IDE-Remote-SSH-Fenster automatisch erkennen",
+  "settings.oth.safetyMonitorLabel": "Sicherheitsprüfungs-Monitor",
+  "settings.oth.safetyMonitorDesc": "Lokale Logs schreibgeschützt nach versteckten Sicherheitsprüfungen scannen und im Verbrauchs-Tab anzeigen",
   "settings.oth.macWrapperLabel": "Verwalteter macOS-Launcher (.app)",
   "settings.oth.macWrapperDesc": "Ein verwalteter Debug-Port-Launcher ist derzeit in ~/Applications installiert und kann jederzeit entfernt werden",
   "settings.oth.macRemoveWrapperBtn": "macOS-Launcher entfernen",
@@ -10070,6 +10215,26 @@ const I18N_MESSAGES_FR_FR = Object.freeze({
   "quota.legendRemaining": "Restant",
   "quota.legendExternal": "Usage externe",
   "quota.legendReserved": "Réservé",
+  "quota.safetyReviewTipSuffix": "dont ~{pct}% de contrôles",
+  "safety.cardTitle": "Contrôles de sécurité en arrière-plan",
+  "safety.alert429Badge": "Repli 429",
+  "safety.alertBurstBadge": "Pic lourd",
+  "safety.alertLimitBadge": "Seuil 5h proche",
+  "safety.alert429Advice": "Des erreurs 429 déclenchent des contrôles lourds de repli. Réduisez la concurrence ou ouvrez une nouvelle session.",
+  "safety.alertBurstAdvice": "Nombreux contrôles lourds sur contexte long en 15 min. Ouvrez une nouvelle session pour alléger le contexte.",
+  "safety.alertLimitAdvice": "Les pré-contrôles 5h approchent ~4 400. Réduisez la concurrence pour éviter le repli 429.",
+  "safety.win5h": "5h",
+  "safety.win24h": "24h",
+  "safety.metricHiddenRatio": "Part des appels cachés",
+  "safety.metricCallsSplit": "Pré-contrôle / Lourd",
+  "safety.metricFlashLite": "Pré-contrôle (Flash Lite)",
+  "safety.metricHeavy": "Contrôle lourd (Sonar)",
+  "safety.metric429Fallback": "429 / Replis",
+  "safety.metricEstTokens": "Entrée lourde estimée",
+  "safety.falseAlarmSuffix": "{pct}% faux positif",
+  "safety.charsUnit": "car.",
+  "safety.disclaimer": "Les comptes, parts, caractères et durées sont mesurés dans les journaux locaux (hors registre visible) ; la plage de tokens est estimée (car./4–car./3) hors prompts système et cache.",
+  "safety.emptyWindow": "Aucun journal de contrôle de sécurité observé sur cette fenêtre.",
   "quota.cycle5hTitle": "Cycle 5h actuel ({pool}) : {tok} Tokens · {cost} · {calls} appels",
   "quota.cycleWkCustomTitle": "Semaine civile en cours : {tok} Tokens · {cost} · {calls} appels",
   "quota.cycleWkPoolTitle": "Cycle hebdo actuel ({pool}) : {tok} Tokens · {cost} · {calls} appels",
@@ -10814,6 +10979,8 @@ const I18N_MESSAGES_FR_FR = Object.freeze({
   "settings.oth.autoLaunchDesc": "Maintient automatiquement les options de port de débogage pour Antigravity Desktop et l'IDE",
   "settings.oth.remoteSshLabel": "Télémétrie IDE Remote-SSH",
   "settings.oth.remoteSshDesc": "Détecte automatiquement les fenêtres IDE Remote-SSH",
+  "settings.oth.safetyMonitorLabel": "Suivi des contrôles de sécurité",
+  "settings.oth.safetyMonitorDesc": "Analyse en lecture seule des journaux locaux pour afficher les contrôles cachés dans l'onglet Consommation",
   "settings.oth.macWrapperLabel": "Lanceur macOS géré (.app)",
   "settings.oth.macWrapperDesc": "Un lanceur géré avec port de débogage est installé dans ~/Applications et peut être supprimé à tout moment",
   "settings.oth.macRemoveWrapperBtn": "Supprimer le lanceur macOS",
@@ -11355,6 +11522,26 @@ const I18N_MESSAGES_VI_VN = Object.freeze({
   'quota.legendRemaining': 'Còn lại',
   'quota.legendExternal': 'Ngoài máy',
   'quota.legendReserved': 'Giữ chỗ',
+  'quota.safetyReviewTipSuffix': 'gồm ~{pct}% kiểm tra an toàn',
+  'safety.cardTitle': 'Kiểm tra an toàn nền',
+  'safety.alert429Badge': 'Dự phòng 429',
+  'safety.alertBurstBadge': 'Tăng vọt nặng',
+  'safety.alertLimitBadge': 'Cận ngưỡng 5h',
+  'safety.alert429Advice': 'Lỗi 429 kích hoạt kiểm tra chuyên sâu dự phòng. Hãy giảm gọi công cụ đồng thời hoặc mở phiên mới.',
+  'safety.alertBurstAdvice': 'Kiểm tra chuyên sâu ngữ cảnh lớn xuất hiện dày trong 15 phút qua. Nên mở phiên mới để rút gọn ngữ cảnh.',
+  'safety.alertLimitAdvice': 'Kiểm tra sơ bộ 5h sắp chạm ngưỡng ~4.400. Nên giảm mức chạy song song để tránh dự phòng 429.',
+  'safety.win5h': '5h',
+  'safety.win24h': '24h',
+  'safety.metricHiddenRatio': 'Tỷ lệ yêu cầu ẩn',
+  'safety.metricCallsSplit': 'Sơ bộ / Chuyên sâu',
+  'safety.metricFlashLite': 'Kiểm tra sơ bộ (Flash Lite)',
+  'safety.metricHeavy': 'Kiểm tra chuyên sâu (Sonar)',
+  'safety.metric429Fallback': '429 / Dự phòng',
+  'safety.metricEstTokens': 'Ước tính đầu vào nặng',
+  'safety.falseAlarmSuffix': 'báo nhầm {pct}%',
+  'safety.charsUnit': 'ký tự',
+  'safety.disclaimer': 'Số lượt, tỷ lệ, ký tự và độ trễ là số liệu đo từ nhật ký cục bộ (không ghi vào sổ hội thoại); khoảng token ước tính theo ký tự/4–ký tự/3, chưa gồm prompt hệ thống và giảm trừ bộ nhớ đệm.',
+  'safety.emptyWindow': 'Chưa ghi nhận nhật ký kiểm tra an toàn nền trong khoảng thời gian này.',
   'quota.cycle5hTitle': 'Chu kỳ 5g hiện tại ({pool}): {tok} Token · {cost} · {calls} lượt gọi',
   'quota.cycleWkCustomTitle': 'Tuần dương lịch hiện tại: {tok} Token · {cost} · {calls} lượt gọi',
   'quota.cycleWkPoolTitle': 'Chu kỳ tuần hiện tại ({pool}): {tok} Token · {cost} · {calls} lượt gọi',
@@ -12110,6 +12297,8 @@ const I18N_MESSAGES_VI_VN = Object.freeze({
   'settings.oth.autoLaunchDesc': 'Tự động duy trì cờ debug-port cho Antigravity Desktop và IDE',
   'settings.oth.remoteSshLabel': 'Đo lường IDE Remote-SSH',
   'settings.oth.remoteSshDesc': 'Tự động phát hiện các cửa sổ IDE Remote-SSH',
+  'settings.oth.safetyMonitorLabel': 'Giám sát kiểm tra an toàn nền',
+  'settings.oth.safetyMonitorDesc': 'Quét chỉ đọc nhật ký cục bộ để thống kê và cảnh báo các yêu cầu kiểm tra an toàn nền tại tab Thống kê sử dụng',
   'settings.oth.macWrapperLabel': 'Trình khởi chạy macOS (.app)',
   'settings.oth.macWrapperDesc': 'Trình khởi chạy có cờ debug-port hiện đang cài trong ~/Applications và có thể gỡ bất kỳ lúc nào',
   'settings.oth.macRemoveWrapperBtn': 'Gỡ trình khởi chạy macOS',
@@ -16411,6 +16600,7 @@ const PORTABLE_SETTING_DESCRIPTORS = Object.freeze([
   normField('standalonePort', normalizeStandalonePort),
   normField('autoConfigureLaunch', normalizeAutoConfigureLaunch),
   normField('enableRemoteSshTelemetry', normalizeEnableRemoteSshTelemetry),
+  normField('enableSafetyMonitor', normalizeEnableSafetyMonitor),
   {
     exportTo: (src, out) => {
       const mode = normalizeTopbarMultiSessionMode(
@@ -19284,7 +19474,7 @@ return { fetchHostI18nStatus, refreshHostI18nManifest, selectHostI18nLanguage, u
 })();
 
 // --- src/store/telemetryStore.js ---
-const { extractHostRouteCascadeId, telemetryStore, clearConsumptionRangeCache, clearConversationViewCache, CLIENT_TOPBAR_SLOT_KEYS, DEFAULT_CLIENT_TOPBAR_SLOTS, CLIENT_TOPBAR_MULTI_SESSION_MODES, DEFAULT_CLIENT_TOPBAR_MULTI_SESSION_MODE, DEFAULT_CLIENT_CONTEXT_AGENT_MODE, CLIENT_CLI_STATUSLINE_PRESETS, DEFAULT_CLIENT_CLI_STATUSLINE_SLOTS, CLIENT_OVERVIEW_MODULE_KEYS, DEFAULT_CLIENT_OVERVIEW_MODULES, DEFAULT_CLIENT_HOVER_MODULES, DEFAULT_CLIENT_HOVER_SYNC_OVERVIEW_METRICS, DEFAULT_CLIENT_HOVER_METRIC_STYLE, DEFAULT_CLIENT_HOVER_METRIC_ROWS, DEFAULT_CLIENT_HOVER_METRIC_SIZES, DEFAULT_CLIENT_HOVER_METRIC_TEXT_MODE, DEFAULT_CLIENT_HOVER_METRICS, DEFAULT_CLIENT_OVERVIEW_METRIC_STYLE, DEFAULT_CLIENT_OVERVIEW_METRIC_ROWS, DEFAULT_CLIENT_OVERVIEW_METRIC_SIZES, DEFAULT_CLIENT_OVERVIEW_METRIC_TEXT_MODE, DEFAULT_CLIENT_METRIC_ROWS, DEFAULT_CLIENT_METRIC_TEXT_MODE, CLIENT_METRIC_GRID_COLS, CLIENT_METRIC_GRID_ROWS, CLIENT_METRIC_CARD_SIZES, CLIENT_METRIC_TEXT_MODES, MAX_CLIENT_OVERVIEW_METRICS, MAX_CLIENT_LARGE_METRIC_SLOTS, CLIENT_OVERVIEW_METRIC_KEYS, DEFAULT_CLIENT_OVERVIEW_METRICS, CLIENT_STEP_COLUMN_KEYS, DEFAULT_CLIENT_STEP_COLUMNS, DEFAULT_CLIENT_STEP_TOKEN_COMBO_FORMAT, MIN_CLIENT_POPOVER_WIDTH, MAX_CLIENT_POPOVER_WIDTH, DEFAULT_CLIENT_POPOVER_WIDTH, DEFAULT_CLIENT_QUOTA_DISPLAY_MODE, parseClientStepTokenComboSegments, normalizeClientStepTokenComboFormat, normalizeClientPopoverWidthMode, normalizeClientPopoverWidth, normalizeClientModelDisplayMode, normalizeClientTopbarSlots, normalizeClientTopbarMultiSessionMode, isClientTopbarMultiSessionVisible, normalizeClientContextAgentMode, normalizeClientQuotaDisplayMode, normalizeClientExperimentalQuotaReservation, normalizeClientAccountQuotaRefreshMinutes, normalizeClientCliStatusLineSlots, getDefaultCtxInspectorAgentId, resolveOverlayCtxInspectorAgentId, resolveEffectiveClientCliStatusLineSlots, normalizeClientHoverModules, normalizeClientHoverSyncOverviewMetrics, normalizeClientHoverMetricStyle, normalizeClientHoverMetricRows, normalizeClientHoverMetricSizes, normalizeClientHoverMetricTextMode, normalizeClientHoverMetrics, normalizeClientOverviewModules, normalizeClientOverviewMetricStyle, normalizeClientOverviewMetricRows, normalizeClientOverviewMetricSizes, normalizeClientOverviewMetricTextMode, normalizeClientOverviewMetrics, normalizeClientMetricCardSize, normalizeClientMetricCardSizes, normalizeClientMetricGridRows, normalizeClientMetricTextMode, deriveClientMetricCardStyle, packClientMetricBentoLayout, resolveEffectiveClientMetricMatrixConfig, normalizeClientStepColumns, normalizeClientUpdateMode, normalizeClientWindowMountMode, normalizeClientVsCodeMountMode, normalizeClientDisplayCurrency, isEquivalentTelemetry, resetTelemetryForEndpointSwitch, fetchTelemetry, selectConversation, selectConsumptionTimeRange, selectConsumptionCyclePool, prefetchConsumptionPresets, saveSettingsPatch, saveModelContextWindow, resetAllSettings, rebuildTrajectoryCache, triggerCloudSync, triggerFxSync, normalizeClientAutoConfigureLaunch, normalizeClientEnableRemoteSshTelemetry, triggerBridgeHostRelaunch, triggerCliStatusLineAction, fetchSessionMigrationCatalog, fetchQuotaReservationLog, executeSessionMigration, fetchLocalSessionsList, fetchSessionCleanupPreview, deleteLocalSessionsAction, redactLocalLedgerPrivacy, revealLocalSessionPathAction, triggerPluginUpdate, startAsyncTelemetryLoop, stopAsyncTelemetryLoop, resolveHostRouteMatch, resolveScopedConversation, isMacHostPlatform } = (() => {
+const { extractHostRouteCascadeId, telemetryStore, clearConsumptionRangeCache, clearConversationViewCache, CLIENT_TOPBAR_SLOT_KEYS, DEFAULT_CLIENT_TOPBAR_SLOTS, CLIENT_TOPBAR_MULTI_SESSION_MODES, DEFAULT_CLIENT_TOPBAR_MULTI_SESSION_MODE, DEFAULT_CLIENT_CONTEXT_AGENT_MODE, CLIENT_CLI_STATUSLINE_PRESETS, DEFAULT_CLIENT_CLI_STATUSLINE_SLOTS, CLIENT_OVERVIEW_MODULE_KEYS, DEFAULT_CLIENT_OVERVIEW_MODULES, DEFAULT_CLIENT_HOVER_MODULES, DEFAULT_CLIENT_HOVER_SYNC_OVERVIEW_METRICS, DEFAULT_CLIENT_HOVER_METRIC_STYLE, DEFAULT_CLIENT_HOVER_METRIC_ROWS, DEFAULT_CLIENT_HOVER_METRIC_SIZES, DEFAULT_CLIENT_HOVER_METRIC_TEXT_MODE, DEFAULT_CLIENT_HOVER_METRICS, DEFAULT_CLIENT_OVERVIEW_METRIC_STYLE, DEFAULT_CLIENT_OVERVIEW_METRIC_ROWS, DEFAULT_CLIENT_OVERVIEW_METRIC_SIZES, DEFAULT_CLIENT_OVERVIEW_METRIC_TEXT_MODE, DEFAULT_CLIENT_METRIC_ROWS, DEFAULT_CLIENT_METRIC_TEXT_MODE, CLIENT_METRIC_GRID_COLS, CLIENT_METRIC_GRID_ROWS, CLIENT_METRIC_CARD_SIZES, CLIENT_METRIC_TEXT_MODES, MAX_CLIENT_OVERVIEW_METRICS, MAX_CLIENT_LARGE_METRIC_SLOTS, CLIENT_OVERVIEW_METRIC_KEYS, DEFAULT_CLIENT_OVERVIEW_METRICS, CLIENT_STEP_COLUMN_KEYS, DEFAULT_CLIENT_STEP_COLUMNS, DEFAULT_CLIENT_STEP_TOKEN_COMBO_FORMAT, MIN_CLIENT_POPOVER_WIDTH, MAX_CLIENT_POPOVER_WIDTH, DEFAULT_CLIENT_POPOVER_WIDTH, DEFAULT_CLIENT_QUOTA_DISPLAY_MODE, parseClientStepTokenComboSegments, normalizeClientStepTokenComboFormat, normalizeClientPopoverWidthMode, normalizeClientPopoverWidth, normalizeClientModelDisplayMode, normalizeClientTopbarSlots, normalizeClientTopbarMultiSessionMode, isClientTopbarMultiSessionVisible, normalizeClientContextAgentMode, normalizeClientQuotaDisplayMode, normalizeClientExperimentalQuotaReservation, normalizeClientAccountQuotaRefreshMinutes, normalizeClientCliStatusLineSlots, getDefaultCtxInspectorAgentId, resolveOverlayCtxInspectorAgentId, resolveEffectiveClientCliStatusLineSlots, normalizeClientHoverModules, normalizeClientHoverSyncOverviewMetrics, normalizeClientHoverMetricStyle, normalizeClientHoverMetricRows, normalizeClientHoverMetricSizes, normalizeClientHoverMetricTextMode, normalizeClientHoverMetrics, normalizeClientOverviewModules, normalizeClientOverviewMetricStyle, normalizeClientOverviewMetricRows, normalizeClientOverviewMetricSizes, normalizeClientOverviewMetricTextMode, normalizeClientOverviewMetrics, normalizeClientMetricCardSize, normalizeClientMetricCardSizes, normalizeClientMetricGridRows, normalizeClientMetricTextMode, deriveClientMetricCardStyle, packClientMetricBentoLayout, resolveEffectiveClientMetricMatrixConfig, normalizeClientStepColumns, normalizeClientUpdateMode, normalizeClientWindowMountMode, normalizeClientVsCodeMountMode, normalizeClientDisplayCurrency, isEquivalentTelemetry, resetTelemetryForEndpointSwitch, fetchTelemetry, selectConversation, selectConsumptionTimeRange, selectConsumptionCyclePool, prefetchConsumptionPresets, saveSettingsPatch, saveModelContextWindow, resetAllSettings, rebuildTrajectoryCache, triggerCloudSync, triggerFxSync, normalizeClientAutoConfigureLaunch, normalizeClientEnableRemoteSshTelemetry, normalizeClientEnableSafetyMonitor, triggerBridgeHostRelaunch, triggerCliStatusLineAction, fetchSessionMigrationCatalog, fetchQuotaReservationLog, executeSessionMigration, fetchLocalSessionsList, fetchSessionCleanupPreview, deleteLocalSessionsAction, redactLocalLedgerPrivacy, revealLocalSessionPathAction, triggerPluginUpdate, startAsyncTelemetryLoop, stopAsyncTelemetryLoop, resolveHostRouteMatch, resolveScopedConversation, isMacHostPlatform } = (() => {
 const CASCADE_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function extractHostRouteCascadeId() {
@@ -19411,6 +19601,7 @@ const TELEMETRY_RECOMPUTE_SETTING_KEYS = new Set([
   'enableWindowOverlay',
   'autoConfigureLaunch',
   'enableRemoteSshTelemetry',
+  'enableSafetyMonitor',
 ]);
 
 function makeConsumptionRangeCacheKey(
@@ -19976,6 +20167,12 @@ function isEquivalentTelemetry(prev, next) {
   ) {
     return false;
   }
+  if (
+    normalizeEnableSafetyMonitor(pSet?.enableSafetyMonitor) !==
+    normalizeEnableSafetyMonitor(nSet?.enableSafetyMonitor)
+  ) {
+    return false;
+  }
   if (!sameArr(pSet?.topbarCapsuleSlots, nSet?.topbarCapsuleSlots)) return false;
   if (!sameArr(pSet?.hoverModules, nSet?.hoverModules)) return false;
   if (
@@ -20065,6 +20262,36 @@ function isEquivalentTelemetry(prev, next) {
     String(pCli?.managedFlags || '') !== String(nCli?.managedFlags || '')
   ) {
     return false;
+  }
+  const pSm = prev.safetyMonitor;
+  const nSm = next.safetyMonitor;
+  if (Boolean(pSm) !== Boolean(nSm)) {
+    return false;
+  }
+  if (pSm && nSm) {
+    const p5 = pSm.window5h;
+    const n5 = nSm.window5h;
+    const p24 = pSm.window24h;
+    const n24 = nSm.window24h;
+    if (
+      Number(pSm.sourceCount || 0) !== Number(nSm.sourceCount || 0) ||
+      Number(p5?.totalStreamGen || 0) !== Number(n5?.totalStreamGen || 0) ||
+      Number(p5?.hiddenStreamGen || 0) !== Number(n5?.hiddenStreamGen || 0) ||
+      Number(p5?.flashLiteCalls || 0) !== Number(n5?.flashLiteCalls || 0) ||
+      Number(p5?.heavyCalls || 0) !== Number(n5?.heavyCalls || 0) ||
+      Number(p5?.heavyTrajChars || 0) !== Number(n5?.heavyTrajChars || 0) ||
+      Number(p5?.blockedMs || 0) !== Number(n5?.blockedMs || 0) ||
+      Number(p5?.rateLimit429Count || 0) !== Number(n5?.rateLimit429Count || 0) ||
+      Number(p5?.fallbackCount || 0) !== Number(n5?.fallbackCount || 0) ||
+      Number(p24?.flashLiteCalls || 0) !== Number(n24?.flashLiteCalls || 0) ||
+      Number(p24?.heavyCalls || 0) !== Number(n24?.heavyCalls || 0) ||
+      Number(p24?.heavyTrajChars || 0) !== Number(n24?.heavyTrajChars || 0) ||
+      Boolean(pSm.alerts?.has429Fallback) !== Boolean(nSm.alerts?.has429Fallback) ||
+      Boolean(pSm.alerts?.hasHeavyBurst) !== Boolean(nSm.alerts?.hasHeavyBurst) ||
+      Boolean(pSm.alerts?.nearFlashLiteLimit) !== Boolean(nSm.alerts?.nearFlashLiteLimit)
+    ) {
+      return false;
+    }
   }
   const pCloud = prev.cloudStatus;
   const nCloud = next.cloudStatus;
@@ -21531,6 +21758,9 @@ async function saveSettingsPatch(patch) {
       safePatch.enableRemoteSshTelemetry
     );
   }
+  if (Object.prototype.hasOwnProperty.call(safePatch, 'enableSafetyMonitor')) {
+    safePatch.enableSafetyMonitor = normalizeEnableSafetyMonitor(safePatch.enableSafetyMonitor);
+  }
   if (Object.prototype.hasOwnProperty.call(safePatch, 'windowMountMode')) {
     const normMount = normalizeClientWindowMountMode(
       safePatch.windowMountMode,
@@ -21748,6 +21978,7 @@ async function triggerFxSync() {
 
 const normalizeClientAutoConfigureLaunch = normalizeAutoConfigureLaunch;
 const normalizeClientEnableRemoteSshTelemetry = normalizeEnableRemoteSshTelemetry;
+const normalizeClientEnableSafetyMonitor = normalizeEnableSafetyMonitor;
 
 async function triggerBridgeHostRelaunch(options = {}) {
   const payload =
@@ -22183,7 +22414,7 @@ function isMacHostPlatform(telemetry) {
   }
   return false;
 }
-return { extractHostRouteCascadeId, telemetryStore, clearConsumptionRangeCache, clearConversationViewCache, CLIENT_TOPBAR_SLOT_KEYS, DEFAULT_CLIENT_TOPBAR_SLOTS, CLIENT_TOPBAR_MULTI_SESSION_MODES, DEFAULT_CLIENT_TOPBAR_MULTI_SESSION_MODE, DEFAULT_CLIENT_CONTEXT_AGENT_MODE, CLIENT_CLI_STATUSLINE_PRESETS, DEFAULT_CLIENT_CLI_STATUSLINE_SLOTS, CLIENT_OVERVIEW_MODULE_KEYS, DEFAULT_CLIENT_OVERVIEW_MODULES, DEFAULT_CLIENT_HOVER_MODULES, DEFAULT_CLIENT_HOVER_SYNC_OVERVIEW_METRICS, DEFAULT_CLIENT_HOVER_METRIC_STYLE, DEFAULT_CLIENT_HOVER_METRIC_ROWS, DEFAULT_CLIENT_HOVER_METRIC_SIZES, DEFAULT_CLIENT_HOVER_METRIC_TEXT_MODE, DEFAULT_CLIENT_HOVER_METRICS, DEFAULT_CLIENT_OVERVIEW_METRIC_STYLE, DEFAULT_CLIENT_OVERVIEW_METRIC_ROWS, DEFAULT_CLIENT_OVERVIEW_METRIC_SIZES, DEFAULT_CLIENT_OVERVIEW_METRIC_TEXT_MODE, DEFAULT_CLIENT_METRIC_ROWS, DEFAULT_CLIENT_METRIC_TEXT_MODE, CLIENT_METRIC_GRID_COLS, CLIENT_METRIC_GRID_ROWS, CLIENT_METRIC_CARD_SIZES, CLIENT_METRIC_TEXT_MODES, MAX_CLIENT_OVERVIEW_METRICS, MAX_CLIENT_LARGE_METRIC_SLOTS, CLIENT_OVERVIEW_METRIC_KEYS, DEFAULT_CLIENT_OVERVIEW_METRICS, CLIENT_STEP_COLUMN_KEYS, DEFAULT_CLIENT_STEP_COLUMNS, DEFAULT_CLIENT_STEP_TOKEN_COMBO_FORMAT, MIN_CLIENT_POPOVER_WIDTH, MAX_CLIENT_POPOVER_WIDTH, DEFAULT_CLIENT_POPOVER_WIDTH, DEFAULT_CLIENT_QUOTA_DISPLAY_MODE, parseClientStepTokenComboSegments, normalizeClientStepTokenComboFormat, normalizeClientPopoverWidthMode, normalizeClientPopoverWidth, normalizeClientModelDisplayMode, normalizeClientTopbarSlots, normalizeClientTopbarMultiSessionMode, isClientTopbarMultiSessionVisible, normalizeClientContextAgentMode, normalizeClientQuotaDisplayMode, normalizeClientExperimentalQuotaReservation, normalizeClientAccountQuotaRefreshMinutes, normalizeClientCliStatusLineSlots, getDefaultCtxInspectorAgentId, resolveOverlayCtxInspectorAgentId, resolveEffectiveClientCliStatusLineSlots, normalizeClientHoverModules, normalizeClientHoverSyncOverviewMetrics, normalizeClientHoverMetricStyle, normalizeClientHoverMetricRows, normalizeClientHoverMetricSizes, normalizeClientHoverMetricTextMode, normalizeClientHoverMetrics, normalizeClientOverviewModules, normalizeClientOverviewMetricStyle, normalizeClientOverviewMetricRows, normalizeClientOverviewMetricSizes, normalizeClientOverviewMetricTextMode, normalizeClientOverviewMetrics, normalizeClientMetricCardSize, normalizeClientMetricCardSizes, normalizeClientMetricGridRows, normalizeClientMetricTextMode, deriveClientMetricCardStyle, packClientMetricBentoLayout, resolveEffectiveClientMetricMatrixConfig, normalizeClientStepColumns, normalizeClientUpdateMode, normalizeClientWindowMountMode, normalizeClientVsCodeMountMode, normalizeClientDisplayCurrency, isEquivalentTelemetry, resetTelemetryForEndpointSwitch, fetchTelemetry, selectConversation, selectConsumptionTimeRange, selectConsumptionCyclePool, prefetchConsumptionPresets, saveSettingsPatch, saveModelContextWindow, resetAllSettings, rebuildTrajectoryCache, triggerCloudSync, triggerFxSync, normalizeClientAutoConfigureLaunch, normalizeClientEnableRemoteSshTelemetry, triggerBridgeHostRelaunch, triggerCliStatusLineAction, fetchSessionMigrationCatalog, fetchQuotaReservationLog, executeSessionMigration, fetchLocalSessionsList, fetchSessionCleanupPreview, deleteLocalSessionsAction, redactLocalLedgerPrivacy, revealLocalSessionPathAction, triggerPluginUpdate, startAsyncTelemetryLoop, stopAsyncTelemetryLoop, resolveHostRouteMatch, resolveScopedConversation, isMacHostPlatform };
+return { extractHostRouteCascadeId, telemetryStore, clearConsumptionRangeCache, clearConversationViewCache, CLIENT_TOPBAR_SLOT_KEYS, DEFAULT_CLIENT_TOPBAR_SLOTS, CLIENT_TOPBAR_MULTI_SESSION_MODES, DEFAULT_CLIENT_TOPBAR_MULTI_SESSION_MODE, DEFAULT_CLIENT_CONTEXT_AGENT_MODE, CLIENT_CLI_STATUSLINE_PRESETS, DEFAULT_CLIENT_CLI_STATUSLINE_SLOTS, CLIENT_OVERVIEW_MODULE_KEYS, DEFAULT_CLIENT_OVERVIEW_MODULES, DEFAULT_CLIENT_HOVER_MODULES, DEFAULT_CLIENT_HOVER_SYNC_OVERVIEW_METRICS, DEFAULT_CLIENT_HOVER_METRIC_STYLE, DEFAULT_CLIENT_HOVER_METRIC_ROWS, DEFAULT_CLIENT_HOVER_METRIC_SIZES, DEFAULT_CLIENT_HOVER_METRIC_TEXT_MODE, DEFAULT_CLIENT_HOVER_METRICS, DEFAULT_CLIENT_OVERVIEW_METRIC_STYLE, DEFAULT_CLIENT_OVERVIEW_METRIC_ROWS, DEFAULT_CLIENT_OVERVIEW_METRIC_SIZES, DEFAULT_CLIENT_OVERVIEW_METRIC_TEXT_MODE, DEFAULT_CLIENT_METRIC_ROWS, DEFAULT_CLIENT_METRIC_TEXT_MODE, CLIENT_METRIC_GRID_COLS, CLIENT_METRIC_GRID_ROWS, CLIENT_METRIC_CARD_SIZES, CLIENT_METRIC_TEXT_MODES, MAX_CLIENT_OVERVIEW_METRICS, MAX_CLIENT_LARGE_METRIC_SLOTS, CLIENT_OVERVIEW_METRIC_KEYS, DEFAULT_CLIENT_OVERVIEW_METRICS, CLIENT_STEP_COLUMN_KEYS, DEFAULT_CLIENT_STEP_COLUMNS, DEFAULT_CLIENT_STEP_TOKEN_COMBO_FORMAT, MIN_CLIENT_POPOVER_WIDTH, MAX_CLIENT_POPOVER_WIDTH, DEFAULT_CLIENT_POPOVER_WIDTH, DEFAULT_CLIENT_QUOTA_DISPLAY_MODE, parseClientStepTokenComboSegments, normalizeClientStepTokenComboFormat, normalizeClientPopoverWidthMode, normalizeClientPopoverWidth, normalizeClientModelDisplayMode, normalizeClientTopbarSlots, normalizeClientTopbarMultiSessionMode, isClientTopbarMultiSessionVisible, normalizeClientContextAgentMode, normalizeClientQuotaDisplayMode, normalizeClientExperimentalQuotaReservation, normalizeClientAccountQuotaRefreshMinutes, normalizeClientCliStatusLineSlots, getDefaultCtxInspectorAgentId, resolveOverlayCtxInspectorAgentId, resolveEffectiveClientCliStatusLineSlots, normalizeClientHoverModules, normalizeClientHoverSyncOverviewMetrics, normalizeClientHoverMetricStyle, normalizeClientHoverMetricRows, normalizeClientHoverMetricSizes, normalizeClientHoverMetricTextMode, normalizeClientHoverMetrics, normalizeClientOverviewModules, normalizeClientOverviewMetricStyle, normalizeClientOverviewMetricRows, normalizeClientOverviewMetricSizes, normalizeClientOverviewMetricTextMode, normalizeClientOverviewMetrics, normalizeClientMetricCardSize, normalizeClientMetricCardSizes, normalizeClientMetricGridRows, normalizeClientMetricTextMode, deriveClientMetricCardStyle, packClientMetricBentoLayout, resolveEffectiveClientMetricMatrixConfig, normalizeClientStepColumns, normalizeClientUpdateMode, normalizeClientWindowMountMode, normalizeClientVsCodeMountMode, normalizeClientDisplayCurrency, isEquivalentTelemetry, resetTelemetryForEndpointSwitch, fetchTelemetry, selectConversation, selectConsumptionTimeRange, selectConsumptionCyclePool, prefetchConsumptionPresets, saveSettingsPatch, saveModelContextWindow, resetAllSettings, rebuildTrajectoryCache, triggerCloudSync, triggerFxSync, normalizeClientAutoConfigureLaunch, normalizeClientEnableRemoteSshTelemetry, normalizeClientEnableSafetyMonitor, triggerBridgeHostRelaunch, triggerCliStatusLineAction, fetchSessionMigrationCatalog, fetchQuotaReservationLog, executeSessionMigration, fetchLocalSessionsList, fetchSessionCleanupPreview, deleteLocalSessionsAction, redactLocalLedgerPrivacy, revealLocalSessionPathAction, triggerPluginUpdate, startAsyncTelemetryLoop, stopAsyncTelemetryLoop, resolveHostRouteMatch, resolveScopedConversation, isMacHostPlatform };
 })();
 
 // --- src/components/ui/TopLongPillNav.js ---
@@ -33216,7 +33447,12 @@ const { buildQuotaPoolItems, createPoolQuotaRow, formatQuotaSummaryFooter, syncP
 function buildQuotaPoolItems(
   quotas,
   minuteTick = 0,
-  { isPending = false, showReserved = false, quotaDisplayMode = 'used' } = {}
+  {
+    isPending = false,
+    showReserved = false,
+    showSafetyMonitor = false,
+    quotaDisplayMode = 'used',
+  } = {}
 ) {
   const safeQuotas = quotas || {};
   const activePool = safeQuotas.activePool || {};
@@ -33246,6 +33482,7 @@ function buildQuotaPoolItems(
       minuteTick,
       isPending,
       showReserved: Boolean(showReserved),
+      showSafetyMonitor: Boolean(showSafetyMonitor),
       quotaDisplayMode: effDisplayMode,
     };
   });
@@ -33354,6 +33591,8 @@ function syncQuotaWindowMeter({
   leaseCount,
   showExternal = false,
   rawExternalPct = 0,
+  showSafetyReview = false,
+  rawSafetyReviewPct = 0,
   metaEl,
   trackEl,
   fillEl,
@@ -33372,7 +33611,14 @@ function syncQuotaWindowMeter({
     Number.isFinite(numExternal) && numExternal >= 0.05
       ? Math.min(Math.max(0, usedVal - rsvVal), numExternal)
       : 0;
+  const numSafety = showSafetyReview && hasData ? Number(rawSafetyReviewPct || 0) : 0;
+  const safetyVal =
+    Number.isFinite(numSafety) && numSafety >= 0.05
+      ? Math.min(Math.max(0, usedVal - rsvVal - extVal), numSafety)
+      : 0;
   const selfUsedVal = Math.max(0, usedVal - rsvVal - extVal);
+  const safetySuffix =
+    safetyVal > 0 ? t('quota.safetyReviewTipSuffix', { pct: formatPctNumber(safetyVal) }) : '';
   const resetStr = hasData ? formatCountdown(resetTime) : '';
 
   patchClasses(trackEl, { 'is-remaining-mode': isRemaining });
@@ -33416,8 +33662,9 @@ function syncQuotaWindowMeter({
           ? t('quota.reservedTipMulti', { rsv: rsvStr, leases, actual: selfStr })
           : t('quota.reservedTip', { rsv: rsvStr, actual: selfStr });
     }
-    patchAttr(metaEl, 'title', tipText);
-    patchAttr(trackEl, 'title', tipText);
+    const fullTip = safetySuffix ? `${tipText} · ${safetySuffix}` : tipText;
+    patchAttr(metaEl, 'title', fullTip);
+    patchAttr(trackEl, 'title', fullTip);
 
     if (isRemaining) {
       const primaryWidth = +Math.min(100, remVal).toFixed(2);
@@ -33466,8 +33713,8 @@ function syncQuotaWindowMeter({
       });
     }
   } else {
-    patchAttr(metaEl, 'title', null);
-    patchAttr(trackEl, 'title', null);
+    patchAttr(metaEl, 'title', safetySuffix || null);
+    patchAttr(trackEl, 'title', safetySuffix || null);
     const barWidth = isRemaining
       ? hasData
         ? Math.min(100, remVal)
@@ -33496,6 +33743,7 @@ function syncPoolQuotaRow(refs, item, idx, rowEl) {
     isActivePool,
     isPending,
     showReserved,
+    showSafetyMonitor = false,
     quotaDisplayMode = 'used',
   } = item;
   patchClasses(rowEl, { 'quota-pool-row': true, 'has-divider': idx > 0 });
@@ -33566,6 +33814,8 @@ function syncPoolQuotaRow(refs, item, idx, rowEl) {
     leaseCount: poolData?.reservedLeaseCount,
     showExternal: !isPending,
     rawExternalPct: poolData?.externalUsedPct,
+    showSafetyReview: !isPending && Boolean(showSafetyMonitor),
+    rawSafetyReviewPct: poolData?.safetyReviewUsedPct,
     metaEl: refs.meta5h,
     trackEl: refs.track5h,
     fillEl: refs.fill5h,
@@ -33620,6 +33870,8 @@ function syncPoolQuotaRow(refs, item, idx, rowEl) {
     leaseCount: poolData?.weeklyReservedLeaseCount,
     showExternal: !isPending && !useCustomWeekly,
     rawExternalPct: poolData?.weeklyExternalUsedPct,
+    showSafetyReview: !isPending && !useCustomWeekly && Boolean(showSafetyMonitor),
+    rawSafetyReviewPct: poolData?.weeklySafetyReviewUsedPct,
     metaEl: refs.metaWk,
     trackEl: refs.trackWk,
     fillEl: refs.fillWk,
@@ -33633,7 +33885,7 @@ function quotaPoolRowSig(item, idx) {
   const cWk = item.poolData?.cycleWeekly;
   const est = item.poolData?.rateEstimate;
   const fw = item.fallbackWeekly;
-  return `${getEffectiveLocale()}:${idx}:${item.poolLabel}:${item.isActivePool}:${Boolean(item.isPending)}:${Boolean(item.showReserved)}:${item.quotaDisplayMode || 'used'}:${item.minuteTick}:${item.poolData?.usedPct}:${item.poolData?.remainingPct}:${item.poolData?.reservedPct}:${item.poolData?.reservedLeaseCount}:${item.poolData?.externalUsedPct}:${item.poolData?.resetTime}:${item.poolData?.weeklyUsedPct}:${item.poolData?.weeklyRemainingPct}:${item.poolData?.weeklyReservedPct}:${item.poolData?.weeklyReservedLeaseCount}:${item.poolData?.weeklyExternalUsedPct}:${item.poolData?.weeklyResetTime}:${c5h?.tokens}:${c5h?.costUsd}:${c5h?.calls}:${cWk?.tokens}:${cWk?.costUsd}:${cWk?.calls}:${est?.eqFull5hUsd}:${est?.eqFull5hTokens}:${est?.eqFullWeeklyUsd}:${est?.eqFullWeeklyTokens}:${fw?.isOfficial}:${fw?.usedPct}:${fw?.remainingPct}:${fw?.resetTime}:${fw?.title}:${fw?.tokens}:${fw?.costUsd}:${fw?.calls}`;
+  return `${getEffectiveLocale()}:${idx}:${item.poolLabel}:${item.isActivePool}:${Boolean(item.isPending)}:${Boolean(item.showReserved)}:${Boolean(item.showSafetyMonitor)}:${item.quotaDisplayMode || 'used'}:${item.minuteTick}:${item.poolData?.usedPct}:${item.poolData?.remainingPct}:${item.poolData?.reservedPct}:${item.poolData?.reservedLeaseCount}:${item.poolData?.externalUsedPct}:${item.poolData?.safetyReviewUsedPct}:${item.poolData?.resetTime}:${item.poolData?.weeklyUsedPct}:${item.poolData?.weeklyRemainingPct}:${item.poolData?.weeklyReservedPct}:${item.poolData?.weeklyReservedLeaseCount}:${item.poolData?.weeklyExternalUsedPct}:${item.poolData?.weeklySafetyReviewUsedPct}:${item.poolData?.weeklyResetTime}:${c5h?.tokens}:${c5h?.costUsd}:${c5h?.calls}:${cWk?.tokens}:${cWk?.costUsd}:${cWk?.calls}:${est?.eqFull5hUsd}:${est?.eqFull5hTokens}:${est?.eqFullWeeklyUsd}:${est?.eqFullWeeklyTokens}:${fw?.isOfficial}:${fw?.usedPct}:${fw?.remainingPct}:${fw?.resetTime}:${fw?.title}:${fw?.tokens}:${fw?.costUsd}:${fw?.calls}`;
 }
 
 function formatAccountTierBadge(account) {
@@ -34170,8 +34422,13 @@ const QuotaPoolsWidget = defineComponent({
 
       const quotas = data.quotas || {};
       const showReserved = data.settings?.experimentalQuotaReservation !== false;
+      const showSafetyMonitor = data.settings?.enableSafetyMonitor === true;
       const effTick = Number.isFinite(minuteTick) ? minuteTick : Math.floor(Date.now() / 30000);
-      const poolItems = buildQuotaPoolItems(quotas, effTick, { showReserved, quotaDisplayMode });
+      const poolItems = buildQuotaPoolItems(quotas, effTick, {
+        showReserved,
+        showSafetyMonitor,
+        quotaDisplayMode,
+      });
       const hasExternal = poolItems.some((item) => {
         if (item.isPending) return false;
         const pd = item.poolData;
@@ -41052,6 +41309,378 @@ function createConsumptionBreakdownRowBuilders({
   };
 }
 return { partitionModelSegments, createBreakdownItemRow, updateBreakdownItemRow, createConsumptionBreakdownRowBuilders };
+})();
+
+// --- src/components/widgets/SafetyMonitorCard.js ---
+const { resolveSafetyMonitorAlert, SafetyMonitorCard } = (() => {
+const FLASH_LITE_5H_CAP_REF = 4400;
+
+function resolveSafetyMonitorAlert(alerts) {
+  if (!alerts || typeof alerts !== 'object') return '';
+  if (alerts.has429Fallback) return 'fallback429';
+  if (alerts.hasHeavyBurst) return 'heavyBurst';
+  if (alerts.nearFlashLiteLimit) return 'nearLimit';
+  return '';
+}
+
+function formatSafetyBlockedDuration(rawMs) {
+  const ms = Math.max(0, Number(rawMs) || 0);
+  if (ms === 0) return '0s';
+  if (ms < 1000) return `${Math.round(ms)}ms`;
+  const totalSec = ms / 1000;
+  if (totalSec < 60) return `${Number(totalSec.toFixed(1))}s`;
+  const mins = Math.floor(totalSec / 60);
+  const remSec = Math.round(totalSec % 60);
+  return remSec > 0 ? `${mins}m ${remSec}s` : `${mins}m`;
+}
+
+function getSafetyWindowCalls(win) {
+  if (!win || typeof win !== 'object') return 0;
+  return Math.max(0, Number(win.flashLiteCalls) || 0) + Math.max(0, Number(win.heavyCalls) || 0);
+}
+
+function getSafetyWindowOptions() {
+  return [
+    { value: '5h', label: t('safety.win5h') },
+    { value: '24h', label: t('safety.win24h') },
+  ];
+}
+
+function buildSafetyCardSignature({ enabled, winKey, safetyMonitor }) {
+  const locale = getEffectiveLocale();
+  if (!enabled) return `${locale}|off`;
+  if (!safetyMonitor || typeof safetyMonitor !== 'object') return `${locale}|on|empty|${winKey}`;
+  const w5 = safetyMonitor.window5h || {};
+  const w24 = safetyMonitor.window24h || {};
+  const al = safetyMonitor.alerts || {};
+  return [
+    locale,
+    'on',
+    winKey,
+    w5.totalStreamGen || 0,
+    w5.hiddenStreamGen || 0,
+    w5.flashLiteCalls || 0,
+    w5.heavyCalls || 0,
+    w5.heavyTriggered || 0,
+    w5.heavyTrajChars || 0,
+    w5.flashLiteTrajChars || 0,
+    w5.blockedMs || 0,
+    w5.rateLimit429Count || 0,
+    w5.fallbackCount || 0,
+    w5.estInputTokensLower || 0,
+    w5.estInputTokensUpper || 0,
+    w24.totalStreamGen || 0,
+    w24.hiddenStreamGen || 0,
+    w24.flashLiteCalls || 0,
+    w24.heavyCalls || 0,
+    w24.heavyTriggered || 0,
+    w24.heavyTrajChars || 0,
+    w24.flashLiteTrajChars || 0,
+    w24.blockedMs || 0,
+    w24.rateLimit429Count || 0,
+    w24.fallbackCount || 0,
+    w24.estInputTokensLower || 0,
+    w24.estInputTokensUpper || 0,
+    al.has429Fallback ? 1 : 0,
+    al.hasHeavyBurst ? 1 : 0,
+    al.nearFlashLiteLimit ? 1 : 0,
+  ].join('|');
+}
+
+const SafetyMonitorCard = defineComponent({
+  name: 'SafetyMonitorCard',
+  setup({ onCleanup }) {
+    let userPickedWin = '';
+    let latestState = { enabled: false, safetyMonitor: null };
+    let lastSig = '';
+
+    const titleEl = h('span', { text: t('safety.cardTitle') });
+    const alertTagEl = h('span', { className: 'status-tag', hidden: true });
+    alertTagEl.hidden = true;
+
+    const winSwitch = SegmentedControl({
+      ariaLabel: t('safety.cardTitle'),
+      modelValue: '5h',
+      options: getSafetyWindowOptions(),
+      onUpdateModelValue: (nextWin) => {
+        const clean = nextWin === '24h' ? '24h' : '5h';
+        if (userPickedWin === clean) return;
+        userPickedWin = clean;
+        render();
+      },
+    });
+
+    const hiddenLabelEl = h('span', { className: 'text-muted', style: 'font-size: var(--fs-md);' });
+    const hiddenHeroEl = h('strong', { className: 'cons-hero-num text-mono', text: '0%' });
+    const hiddenSubEl = h('span', { className: 'text-muted text-mono', style: 'font-size: var(--fs-md);' });
+
+    const callsLabelEl = h('span', { className: 'text-muted', style: 'font-size: var(--fs-md);' });
+    const callsHeroEl = h('strong', { className: 'cons-hero-cost text-mono', text: '0 / 0' });
+    const callsSubEl = h('span', { className: 'text-muted text-mono', style: 'font-size: var(--fs-md);' });
+
+    const estLabelEl = h('span', { className: 'text-muted', style: 'font-size: var(--fs-md);' });
+    const estHeroEl = h('strong', { className: 'cons-hero-cache text-mono', text: '--' });
+    const estSubEl = h('span', { className: 'text-muted text-mono', style: 'font-size: var(--fs-md);' });
+
+    const flLabelEl = h('span', { className: 'cons-sub-label' });
+    const flValEl = h('span', { className: 'cons-mid-num text-mono', text: '0' });
+    const flMetaEl = h('span', { className: 'text-muted text-mono', style: 'font-size: var(--fs-sm);' });
+
+    const heavyLabelEl = h('span', { className: 'cons-sub-label' });
+    const heavyValEl = h('span', { className: 'cons-mid-num text-mono', text: '0' });
+    const heavyMetaEl = h('span', { className: 'text-muted text-mono', style: 'font-size: var(--fs-sm);' });
+
+    const rate429DotEl = h('span', { className: 'dot-swatch safety-dot-muted' });
+    const rate429LabelEl = h('span', { className: 'cons-sub-label' });
+    const rate429ValEl = h('span', { className: 'cons-mid-num text-mono', text: '0 / 0' });
+    const rate429MetaEl = h('span', { className: 'text-muted text-mono', style: 'font-size: var(--fs-sm);' });
+
+    const segVisibleEl = h('div', { className: 'safety-share-seg is-visible' });
+    const segFlashEl = h('div', { className: 'safety-share-seg is-flash' });
+    const segHeavyEl = h('div', { className: 'safety-share-seg is-heavy' });
+    const shareBarEl = h('div', { className: 'safety-share-bar', hidden: true }, [
+      segVisibleEl,
+      segFlashEl,
+      segHeavyEl,
+    ]);
+    shareBarEl.hidden = true;
+
+    const adviceTextEl = h('span', { className: 'safety-advice-text' });
+    const adviceEl = h('div', { className: 'safety-monitor-advice', hidden: true }, [
+      createSvgIcon('warning', { size: 12, className: 'safety-advice-icon' }),
+      adviceTextEl,
+    ]);
+    adviceEl.hidden = true;
+
+    const noteEl = h('div', { className: 'safety-monitor-note' });
+
+    const matrixEl = h('div', { className: 'cons-box cons-unified-matrix safety-monitor-matrix' }, [
+      h('div', { className: 'cons-split-3' }, [
+        h('div', { className: 'cons-col' }, [
+          hiddenLabelEl,
+          h('div', { className: 'cons-baseline' }, [hiddenHeroEl, hiddenSubEl]),
+        ]),
+        h('div', { className: 'cons-col is-bordered-col' }, [
+          callsLabelEl,
+          h('div', { className: 'cons-baseline' }, [callsHeroEl, callsSubEl]),
+        ]),
+        h('div', { className: 'cons-col is-bordered-col' }, [
+          estLabelEl,
+          h('div', { className: 'cons-baseline' }, [estHeroEl, estSubEl]),
+        ]),
+      ]),
+      h('div', { className: 'cons-split-3 cons-matrix-bottom' }, [
+        h('div', { className: 'cons-col' }, [
+          h('div', { className: 'cons-sub-head' }, [
+            h('span', { className: 'safety-sub-title' }, [
+              h('span', { className: 'dot-swatch seg-cached' }),
+              flLabelEl,
+            ]),
+          ]),
+          h('div', { className: 'cons-baseline' }, [flValEl, flMetaEl]),
+        ]),
+        h('div', { className: 'cons-col is-bordered-col' }, [
+          h('div', { className: 'cons-sub-head' }, [
+            h('span', { className: 'safety-sub-title' }, [
+              h('span', { className: 'dot-swatch seg-input' }),
+              heavyLabelEl,
+            ]),
+          ]),
+          h('div', { className: 'cons-baseline' }, [heavyValEl, heavyMetaEl]),
+        ]),
+        h('div', { className: 'cons-col is-bordered-col' }, [
+          h('div', { className: 'cons-sub-head' }, [
+            h('span', { className: 'safety-sub-title' }, [rate429DotEl, rate429LabelEl]),
+          ]),
+          h('div', { className: 'cons-baseline' }, [rate429ValEl, rate429MetaEl]),
+        ]),
+      ]),
+    ]);
+
+    const rootEl = h('section', { className: 'panel safety-monitor-panel', hidden: true }, [
+      h('div', { className: 'panel-header safety-monitor-head' }, [
+        h('span', { className: 'panel-title' }, [
+          createSvgIcon('shield', { size: 13 }),
+          titleEl,
+          alertTagEl,
+        ]),
+        winSwitch.el,
+      ]),
+      matrixEl,
+      shareBarEl,
+      adviceEl,
+      noteEl,
+    ]);
+    rootEl.hidden = true;
+
+    function resolveActiveWindowKey(sm) {
+      if (userPickedWin === '5h' || userPickedWin === '24h') return userPickedWin;
+      const c5h = getSafetyWindowCalls(sm?.window5h);
+      const c24h = getSafetyWindowCalls(sm?.window24h);
+      if (c5h === 0 && c24h > 0) return '24h';
+      return '5h';
+    }
+
+    function render() {
+      const { enabled, safetyMonitor } = latestState;
+      const winKey = resolveActiveWindowKey(safetyMonitor);
+      const sig = buildSafetyCardSignature({ enabled, winKey, safetyMonitor });
+      if (sig === lastSig) return;
+      lastSig = sig;
+
+      const shouldShow = enabled === true;
+      rootEl.hidden = !shouldShow;
+      patchAttr(rootEl, 'hidden', !shouldShow);
+      if (!shouldShow) return;
+
+      const alertKind = resolveSafetyMonitorAlert(safetyMonitor?.alerts);
+      const activeWin =
+        winKey === '24h' ? safetyMonitor?.window24h || {} : safetyMonitor?.window5h || {};
+
+      patchText(titleEl, t('safety.cardTitle'));
+      winSwitch.setProps({
+        ariaLabel: t('safety.cardTitle'),
+        modelValue: winKey,
+        options: getSafetyWindowOptions(),
+      });
+
+      const badgeText =
+        alertKind === 'fallback429'
+          ? t('safety.alert429Badge')
+          : alertKind === 'heavyBurst'
+            ? t('safety.alertBurstBadge')
+            : alertKind === 'nearLimit'
+              ? t('safety.alertLimitBadge')
+              : '';
+      alertTagEl.hidden = !badgeText;
+      patchAttr(alertTagEl, 'hidden', !badgeText);
+      patchText(alertTagEl, badgeText);
+      patchClasses(alertTagEl, {
+        'state-danger': alertKind === 'fallback429',
+        'state-warn': alertKind === 'heavyBurst' || alertKind === 'nearLimit',
+      });
+
+      const flCalls = Math.max(0, Number(activeWin.flashLiteCalls) || 0);
+      const heavyCalls = Math.max(0, Number(activeWin.heavyCalls) || 0);
+      const totalStream = Math.max(0, Number(activeWin.totalStreamGen) || 0);
+      const hiddenStream = Math.max(0, Number(activeWin.hiddenStreamGen) || 0);
+      const hiddenPctNum = totalStream > 0 ? (hiddenStream / totalStream) * 100 : 0;
+      const hiddenPctStr = totalStream > 0 ? `${formatPctNumber(hiddenPctNum)}%` : '0%';
+      const falseAlarmPct =
+        heavyCalls > 0
+          ? formatPctNumber(
+              ((heavyCalls - Math.max(0, Number(activeWin.heavyTriggered) || 0)) / heavyCalls) * 100
+            )
+          : '';
+      const totalChars =
+        Math.max(0, Number(activeWin.heavyTrajChars) || 0) +
+        Math.max(0, Number(activeWin.flashLiteTrajChars) || 0);
+      const lowTok = Math.max(0, Number(activeWin.estInputTokensLower) || 0);
+      const highTok = Math.max(0, Number(activeWin.estInputTokensUpper) || 0);
+      const r429 = Math.max(0, Number(activeWin.rateLimit429Count) || 0);
+      const fb = Math.max(0, Number(activeWin.fallbackCount) || 0);
+      const blockedStr = formatSafetyBlockedDuration(activeWin.blockedMs);
+
+      patchText(hiddenLabelEl, t('safety.metricHiddenRatio'));
+      patchText(hiddenHeroEl, hiddenPctStr);
+      patchText(
+        hiddenSubEl,
+        totalStream > 0 ? `${hiddenStream} / ${totalStream}` : `${hiddenStream}`
+      );
+
+      patchText(callsLabelEl, t('safety.metricCallsSplit'));
+      patchText(callsHeroEl, `${flCalls} / ${heavyCalls}`);
+      patchText(
+        callsSubEl,
+        heavyCalls > 0 ? t('safety.falseAlarmSuffix', { pct: falseAlarmPct }) : winKey
+      );
+
+      patchText(estLabelEl, t('safety.metricEstTokens'));
+      patchText(estHeroEl, highTok > 0 ? `~${formatTokens(lowTok)}–${formatTokens(highTok)}` : '--');
+      patchText(
+        estSubEl,
+        totalChars > 0 ? `${formatTokens(totalChars)} ${t('safety.charsUnit')}` : ''
+      );
+
+      patchText(flLabelEl, t('safety.metricFlashLite'));
+      patchText(flValEl, String(flCalls));
+      patchText(flMetaEl, winKey === '5h' ? `/ ${FLASH_LITE_5H_CAP_REF}` : '');
+
+      patchText(heavyLabelEl, t('safety.metricHeavy'));
+      patchText(heavyValEl, String(heavyCalls));
+      patchText(heavyMetaEl, blockedStr !== '0s' ? `· ${blockedStr}` : '');
+
+      const hasRateAlert = r429 > 0 || fb > 0;
+      patchClasses(rate429DotEl, {
+        'safety-dot-danger': hasRateAlert,
+        'safety-dot-muted': !hasRateAlert,
+      });
+      patchText(rate429LabelEl, t('safety.metric429Fallback'));
+      patchText(rate429ValEl, `${r429} / ${fb}`);
+      patchClasses(rate429ValEl, { 'is-alert': hasRateAlert });
+      patchText(rate429MetaEl, '');
+
+      const hasBar = totalStream > 0 && (flCalls > 0 || heavyCalls > 0);
+      shareBarEl.hidden = !hasBar;
+      patchAttr(shareBarEl, 'hidden', !hasBar);
+      if (hasBar) {
+        const effTotal = Math.max(totalStream, flCalls + heavyCalls);
+        const visPct = Math.max(0, ((effTotal - flCalls - heavyCalls) / effTotal) * 100);
+        const flPct = Math.max(0, (flCalls / effTotal) * 100);
+        const hvPct = Math.max(0, 100 - visPct - flPct);
+        patchStyleVar(segVisibleEl, '--seg-w', `${+visPct.toFixed(2)}%`);
+        patchStyleVar(segFlashEl, '--seg-w', `${+flPct.toFixed(2)}%`);
+        patchStyleVar(segHeavyEl, '--seg-w', `${+hvPct.toFixed(2)}%`);
+      }
+
+      const adviceText =
+        alertKind === 'fallback429'
+          ? t('safety.alert429Advice')
+          : alertKind === 'heavyBurst'
+            ? t('safety.alertBurstAdvice')
+            : alertKind === 'nearLimit'
+              ? t('safety.alertLimitAdvice')
+              : '';
+      adviceEl.hidden = !adviceText;
+      patchAttr(adviceEl, 'hidden', !adviceText);
+      patchText(adviceTextEl, adviceText);
+      patchClasses(adviceEl, {
+        'tone-danger': alertKind === 'fallback429',
+        'tone-warn': alertKind === 'heavyBurst' || alertKind === 'nearLimit',
+      });
+
+      const hasAnyCalls = flCalls > 0 || heavyCalls > 0;
+      patchText(noteEl, hasAnyCalls ? t('safety.disclaimer') : t('safety.emptyWindow'));
+    }
+
+    function update({ enabled = false, safetyMonitor = null } = {}) {
+      latestState = { enabled: enabled === true, safetyMonitor: safetyMonitor || null };
+      render();
+    }
+
+    function refreshLabels() {
+      lastSig = '';
+      render();
+    }
+
+    onCleanup(() => {
+      winSwitch.destroy();
+    });
+
+    return {
+      el: rootEl,
+      refs: {
+        update,
+        refreshLabels,
+        winSwitch,
+        alertTagEl,
+        adviceEl,
+        shareBarEl,
+      },
+    };
+  },
+});
+return { resolveSafetyMonitorAlert, SafetyMonitorCard };
 })();
 
 // --- src/components/settings/structurePreviewMock.js ---
@@ -50576,6 +51205,7 @@ const SettingsOtherTab = defineComponent({
     let draftModelDisplayMode = 'short';
     let draftAutoConfigureLaunch = true;
     let draftEnableRemoteSshTelemetry = true;
+    let draftEnableSafetyMonitor = false;
     let draftExperimentalQuotaReservation = true;
     let draftDeveloperModeEnabled = false;
     let draftRiskyFeaturesEnabled = false;
@@ -50796,6 +51426,33 @@ const SettingsOtherTab = defineComponent({
       },
     });
 
+    const safetyMonitorLabelEl = h('span', {
+      className: 'settings-action-title',
+      text: t('settings.oth.safetyMonitorLabel'),
+    });
+    const safetyMonitorDescEl = h('span', {
+      className: 'settings-action-desc',
+      text: t('settings.oth.safetyMonitorDesc'),
+    });
+    const safetyMonitorToggle = ToggleSwitch({
+      modelValue: 'off',
+      ariaLabelKey: 'settings.oth.safetyMonitorLabel',
+      preset: 'enable',
+      onUpdateModelValue: async (val) => {
+        const nextEnabled = val === 'on';
+        draftEnableSafetyMonitor = nextEnabled;
+        safetyMonitorToggle.setProps({ modelValue: nextEnabled ? 'on' : 'off' });
+        showHostFeedback(t('settings.saving'), 0);
+        try {
+          await saveSettingsPatch({ enableSafetyMonitor: nextEnabled });
+          showHostFeedback(t('settings.saved'), 1500);
+        } catch {
+          if (latestSettings) renderSettings(latestSettings);
+          showHostFeedback(t('settings.saveFailed'), 2500);
+        }
+      },
+    });
+
     const macWrapperLabelEl = h('span', {
       className: 'settings-action-title',
       text: t('settings.oth.macWrapperLabel'),
@@ -50874,6 +51531,10 @@ const SettingsOtherTab = defineComponent({
       h('div', { className: 'settings-action-block' }, [
         h('div', { className: 'settings-action-info' }, [remoteSshLabelEl, remoteSshDescEl]),
         remoteSshToggle.el,
+      ]),
+      h('div', { className: 'settings-action-block' }, [
+        h('div', { className: 'settings-action-info' }, [safetyMonitorLabelEl, safetyMonitorDescEl]),
+        safetyMonitorToggle.el,
       ]),
       macWrapperCleanRow,
     ]);
@@ -51750,6 +52411,7 @@ const SettingsOtherTab = defineComponent({
       draftEnableRemoteSshTelemetry = normalizeClientEnableRemoteSshTelemetry(
         settings.enableRemoteSshTelemetry
       );
+      draftEnableSafetyMonitor = normalizeClientEnableSafetyMonitor(settings.enableSafetyMonitor);
       draftExperimentalQuotaReservation = normalizeClientExperimentalQuotaReservation(
         settings.experimentalQuotaReservation
       );
@@ -51782,6 +52444,9 @@ const SettingsOtherTab = defineComponent({
       remoteSshToggle.setProps({
         modelValue: draftEnableRemoteSshTelemetry ? 'on' : 'off',
       });
+      safetyMonitorToggle.setProps({
+        modelValue: draftEnableSafetyMonitor ? 'on' : 'off',
+      });
       syncHostIntegrationRows();
       quotaReserveToggle.setProps({
         modelValue: draftExperimentalQuotaReservation ? 'on' : 'off',
@@ -51797,6 +52462,8 @@ const SettingsOtherTab = defineComponent({
       patchText(autoLaunchDescEl, t('settings.oth.autoLaunchDesc'));
       patchText(remoteSshLabelEl, t('settings.oth.remoteSshLabel'));
       patchText(remoteSshDescEl, t('settings.oth.remoteSshDesc'));
+      patchText(safetyMonitorLabelEl, t('settings.oth.safetyMonitorLabel'));
+      patchText(safetyMonitorDescEl, t('settings.oth.safetyMonitorDesc'));
       patchText(macWrapperLabelEl, t('settings.oth.macWrapperLabel'));
       patchText(macWrapperDescEl, t('settings.oth.macWrapperDesc'));
       patchText(macWrapperRemoveBtnText, t('settings.oth.macRemoveWrapperBtn'));
@@ -51805,6 +52472,9 @@ const SettingsOtherTab = defineComponent({
       });
       remoteSshToggle.setProps({
         modelValue: draftEnableRemoteSshTelemetry ? 'on' : 'off',
+      });
+      safetyMonitorToggle.setProps({
+        modelValue: draftEnableSafetyMonitor ? 'on' : 'off',
       });
       syncHostIntegrationRows();
       patchText(expTitleEl, t('settings.oth.expTitle'));
@@ -51859,6 +52529,7 @@ const SettingsOtherTab = defineComponent({
       stepModelSelect.destroy();
       autoLaunchToggle.destroy();
       remoteSshToggle.destroy();
+      safetyMonitorToggle.destroy();
       quotaReserveToggle.destroy();
       developerModeToggle.destroy();
       riskyFeaturesToggle.destroy();
@@ -51875,6 +52546,7 @@ const SettingsOtherTab = defineComponent({
         stepModelSelect,
         autoLaunchToggle,
         remoteSshToggle,
+        safetyMonitorToggle,
         macWrapperRemoveBtn,
         quotaReserveToggle,
         exportReserveLogBtn,
@@ -53350,6 +54022,8 @@ const ConsumptionView = defineComponent({
       monthlyGridEl,
     ]);
 
+    const safetyMonitorCard = SafetyMonitorCard();
+
     const scrollInner = h(
       'div',
       {
@@ -53361,6 +54035,7 @@ const ConsumptionView = defineComponent({
         rankingPanel,
         sourcesPanel,
         monthlyPanel,
+        safetyMonitorCard.el,
       ]
     );
 
@@ -53418,6 +54093,10 @@ const ConsumptionView = defineComponent({
 
     function renderConsumptionData(slice) {
       if (!slice) return;
+      safetyMonitorCard.refs.update({
+        enabled: slice.enableSafetyMonitor === true,
+        safetyMonitor: slice.safetyMonitor || null,
+      });
       const cons = slice.consumption || {};
       const rangeInfo = cons.selectedRange || {};
 
@@ -54055,6 +54734,8 @@ const ConsumptionView = defineComponent({
         showUpstreamModel: Boolean(st.telemetry?.settings?.showUpstreamModel),
         displayCurrency: normalizeDisplayCurrency(st.telemetry?.settings?.displayCurrency),
         fxStatus: st.telemetry?.fxStatus || null,
+        enableSafetyMonitor: st.telemetry?.settings?.enableSafetyMonitor === true,
+        safetyMonitor: st.telemetry?.safetyMonitor || null,
       }),
       (slice) => {
         latestSlice = slice;
@@ -54139,6 +54820,7 @@ const ConsumptionView = defineComponent({
       for (let i = 0; i < 12; i++) {
         patchText(monthlyCols[i].monthLabel, t('cons.monthLabel', { m: i + 1 }));
       }
+      safetyMonitorCard.refs.refreshLabels();
     }
 
     const unsubI18n = i18nStore.subscribe(
@@ -54170,6 +54852,7 @@ const ConsumptionView = defineComponent({
       timeFilterSwitch.destroy();
       startPicker.destroy();
       endPicker.destroy();
+      safetyMonitorCard.destroy();
       viewScrollbar.destroy();
     });
 
@@ -54185,6 +54868,7 @@ const ConsumptionView = defineComponent({
         viewScrollbar,
         breakdownPopoverEl,
         consExportMenu,
+        safetyMonitorCard,
       },
     };
   },

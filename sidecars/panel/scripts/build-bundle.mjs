@@ -649,6 +649,7 @@ export function buildBundle(panelDir = PANEL_DIR) {
     'src/components/widgets/CapsuleBarWidget.js',
     'src/components/widgets/StepTableWidget.js',
     'src/components/widgets/ConsumptionBreakdownRows.js',
+    'src/components/widgets/SafetyMonitorCard.js',
     'src/components/settings/structurePreviewMock.js',
     'src/components/settings/CollapsibleSection.js',
     'src/components/settings/EditableSlotList.js',

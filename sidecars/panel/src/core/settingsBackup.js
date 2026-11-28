@@ -11,6 +11,7 @@ import {
   normalizeCliStatusLineSlots,
   normalizeContextAgentMode,
   normalizeEnableRemoteSshTelemetry,
+  normalizeEnableSafetyMonitor,
   normalizeExperimentalQuotaReservation,
   normalizeFontScale,
   normalizeHoverMetricRows,
@@ -219,6 +220,7 @@ const PORTABLE_SETTING_DESCRIPTORS = Object.freeze([
   normField('standalonePort', normalizeStandalonePort),
   normField('autoConfigureLaunch', normalizeAutoConfigureLaunch),
   normField('enableRemoteSshTelemetry', normalizeEnableRemoteSshTelemetry),
+  normField('enableSafetyMonitor', normalizeEnableSafetyMonitor),
   {
     exportTo: (src, out) => {
       const mode = normalizeTopbarMultiSessionMode(

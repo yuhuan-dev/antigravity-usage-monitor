@@ -2896,7 +2896,7 @@ test('P2 regressions: bundler regex-after-paren lexer, shared URI/prompt/atomic 
   assert.equal(latestQuery, '');
   assert.equal(sBox.clearBtnEl.hasAttribute('hidden'), true);
 
-  // 4. Declarative settingsBackup round-trips all 46 portable keys + coupled legacy flags
+  // 4. Declarative settingsBackup round-trips all 47 portable keys + coupled legacy flags
   const exported = buildExportableSettingsJson({
     language: 'en-US',
     displayCurrency: 'MYR',
@@ -2905,6 +2905,7 @@ test('P2 regressions: bundler regex-after-paren lexer, shared URI/prompt/atomic 
     pluginUpdateMode: 'auto',
     windowMountMode: 'composer',
     vsCodeMountMode: 'dual',
+    enableSafetyMonitor: true,
     topbarMultiSessionMode: 'running_only',
     hoverSyncOverviewMetrics: false,
     hoverMetricRows: 2,
@@ -2920,7 +2921,8 @@ test('P2 regressions: bundler regex-after-paren lexer, shared URI/prompt/atomic 
     accountQuotaRefreshMinutes: 180,
   });
   const parsedExport = JSON.parse(exported);
-  assert.equal(Object.keys(parsedExport.settings).length, 46);
+  assert.equal(Object.keys(parsedExport.settings).length, 47);
+  assert.equal(parsedExport.settings.enableSafetyMonitor, true);
   assert.equal(parsedExport.settings.displayCurrency, 'MYR');
   assert.equal(parsedExport.settings.quotaDisplayMode, 'remaining');
   assert.equal(parsedExport.settings.vsCodeMountMode, 'dual');
@@ -2995,6 +2997,7 @@ test('P2 regressions: bundler regex-after-paren lexer, shared URI/prompt/atomic 
   assert.equal(reimported.patch.enableWindowOverlay, true);
   assert.equal(reimported.patch.showStepFilterToolbar, true);
   assert.equal(reimported.patch.experimentalQuotaReservation, true);
+  assert.equal(reimported.patch.enableSafetyMonitor, true);
   assert.equal(reimported.patch.accountQuotaRefreshMinutes, 180);
 });
 
@@ -3231,5 +3234,232 @@ test('Issue #62: accountQuotaRefreshMinutes supports 0 (Off) after 24h, preserve
     assert.equal(manualQuotaCalls[0].body.email, 'backup@example.com');
   } finally {
     tab.destroy();
+  }
+});
+
+test('Issue #60: enableSafetyMonitor defaults off, mounts native SafetyMonitorCard in ConsumptionView, and persists opt-in toggle', async (t) => {
+  const [
+    { DEFAULT_ENABLE_SAFETY_MONITOR, normalizeEnableSafetyMonitor },
+    { DEFAULT_SETTINGS_SCHEMA, normalizeFullSettings },
+    { QuotaPoolsWidget },
+    { SafetyMonitorCard, resolveSafetyMonitorAlert },
+  ] = await Promise.all([
+    import('../shared/settings-normalization.mjs'),
+    import('../backend/settings-schema.mjs'),
+    import('../src/components/widgets/QuotaPoolsWidget.js'),
+    import('../src/components/widgets/SafetyMonitorCard.js'),
+  ]);
+
+  assert.equal(DEFAULT_ENABLE_SAFETY_MONITOR, false);
+  assert.equal(DEFAULT_SETTINGS_SCHEMA.enableSafetyMonitor, false);
+  assert.equal(normalizeEnableSafetyMonitor(undefined), false);
+  assert.equal(normalizeEnableSafetyMonitor(null), false);
+  assert.equal(normalizeEnableSafetyMonitor(''), false);
+  assert.equal(normalizeEnableSafetyMonitor(false), false);
+  assert.equal(normalizeEnableSafetyMonitor('false'), false);
+  assert.equal(normalizeEnableSafetyMonitor('0'), false);
+  assert.equal(normalizeEnableSafetyMonitor('off'), false);
+  assert.equal(normalizeEnableSafetyMonitor('on'), true);
+  assert.equal(normalizeEnableSafetyMonitor(true), true);
+  assert.equal(normalizeFullSettings({ enableSafetyMonitor: true }).enableSafetyMonitor, true);
+  assert.equal(normalizeFullSettings({}).enableSafetyMonitor, false);
+
+  assert.equal(resolveSafetyMonitorAlert({ has429Fallback: true, hasHeavyBurst: true }), 'fallback429');
+  assert.equal(resolveSafetyMonitorAlert({ hasHeavyBurst: true, nearFlashLiteLimit: true }), 'heavyBurst');
+  assert.equal(resolveSafetyMonitorAlert({ nearFlashLiteLimit: true }), 'nearLimit');
+  assert.equal(resolveSafetyMonitorAlert({}), '');
+
+  const prevDoc = globalThis.document;
+  const prevWin = globalThis.window;
+  const prevFetch = globalThis.fetch;
+  const prevLocale = i18nStore.getState().locale;
+  const { document } = createMockDom();
+  const savedPatches = [];
+  globalThis.document = document;
+  globalThis.window = {
+    innerWidth: 1024,
+    innerHeight: 768,
+    location: { pathname: '/', href: 'http://127.0.0.1:41234/' },
+    addEventListener() {},
+    removeEventListener() {},
+    requestAnimationFrame: (cb) => setTimeout(cb, 0),
+    cancelAnimationFrame: (id) => clearTimeout(id),
+  };
+  globalThis.fetch = async (url, opts = {}) => {
+    const urlStr = String(url);
+    const body = opts?.body ? JSON.parse(opts.body) : {};
+    if (urlStr.includes('/api/settings') && opts?.method === 'POST') {
+      savedPatches.push(body);
+      const merged = normalizeFullSettings({ enableSafetyMonitor: body.enableSafetyMonitor });
+      return {
+        ok: true,
+        status: 200,
+        headers: { get: () => 'application/json' },
+        json: async () => merged,
+        text: async () => JSON.stringify(merged),
+      };
+    }
+    return {
+      ok: true,
+      status: 200,
+      headers: { get: () => 'application/json' },
+      json: async () => ({ ok: true }),
+      text: async () => JSON.stringify({ ok: true }),
+    };
+  };
+  t.after(() => {
+    setI18nLanguage(prevLocale);
+    globalThis.document = prevDoc;
+    globalThis.window = prevWin;
+    globalThis.fetch = prevFetch;
+  });
+
+  setI18nLanguage('zh-CN');
+
+  const sampleSafetyMonitor = {
+    scannedAtMs: Date.now(),
+    sourceCount: 1,
+    window5h: {
+      totalStreamGen: 282,
+      hiddenStreamGen: 130,
+      hiddenRatio: 0.461,
+      flashLiteCalls: 123,
+      flashLiteTriggered: 7,
+      heavyCalls: 7,
+      heavyTriggered: 0,
+      heavyFalseAlarmRate: 1,
+      heavyTrajChars: 2_890_000,
+      flashLiteTrajChars: 120_000,
+      blockedMs: 173_000,
+      rateLimit429Count: 0,
+      fallbackCount: 0,
+      estInputTokensLower: 722_500,
+      estInputTokensUpper: 963_333,
+    },
+    window24h: {
+      totalStreamGen: 400,
+      hiddenStreamGen: 180,
+      hiddenRatio: 0.45,
+      flashLiteCalls: 170,
+      flashLiteTriggered: 10,
+      heavyCalls: 10,
+      heavyTriggered: 1,
+      heavyFalseAlarmRate: 0.9,
+      heavyTrajChars: 3_600_000,
+      flashLiteTrajChars: 200_000,
+      blockedMs: 210_000,
+      rateLimit429Count: 0,
+      fallbackCount: 0,
+      estInputTokensLower: 900_000,
+      estInputTokensUpper: 1_200_000,
+    },
+    alerts: {
+      has429Fallback: false,
+      hasHeavyBurst: false,
+      nearFlashLiteLimit: false,
+    },
+  };
+
+  const sampleQuotas = {
+    pools: [
+      {
+        poolKey: 'Gemini',
+        poolLabel: 'Gemini',
+        family: 'Gemini',
+        usedPct: 24,
+        remainingPct: 76,
+        safetyReviewUsedPct: 1.5,
+        resetTime: new Date(Date.now() + 3600_000).toISOString(),
+      },
+    ],
+    weekly: { isOfficial: true },
+  };
+
+  const quotaWidget = QuotaPoolsWidget({ compactHover: false });
+  const safetyCard = SafetyMonitorCard();
+  const consView = ConsumptionView();
+  const otherTab = SettingsOtherTab({});
+  try {
+    // 1. QuotaPoolsWidget stays clean (no embedded safety bar) while honoring opt-in tooltip suffix
+    quotaWidget.refs.update({
+      data: {
+        settings: { experimentalQuotaReservation: true },
+        quotas: sampleQuotas,
+        safetyMonitor: sampleSafetyMonitor,
+        account: { tierName: 'Pro' },
+      },
+    });
+    assert.equal(quotaWidget.el.querySelector('.safety-monitor-panel'), null);
+    const firstTrack = quotaWidget.el.querySelector('.progress-track');
+    assert.equal(firstTrack.getAttribute('title'), null);
+
+    quotaWidget.refs.update({
+      data: {
+        settings: { enableSafetyMonitor: true, experimentalQuotaReservation: true },
+        quotas: sampleQuotas,
+        safetyMonitor: sampleSafetyMonitor,
+        account: { tierName: 'Pro' },
+      },
+    });
+    assert.match(firstTrack.getAttribute('title') || '', /1\.5%/);
+
+    // 2. SafetyMonitorCard hidden by default when disabled, visible when enabled (including ConsumptionView mount)
+    assert.ok(consView.refs.safetyMonitorCard, 'ConsumptionView mounts SafetyMonitorCard');
+    safetyCard.refs.update({ enabled: false, safetyMonitor: sampleSafetyMonitor });
+    assert.equal(safetyCard.el.hidden, true, 'SafetyMonitorCard hides when enableSafetyMonitor is false');
+
+    safetyCard.refs.update({ enabled: true, safetyMonitor: sampleSafetyMonitor });
+    assert.equal(safetyCard.el.hidden, false, 'SafetyMonitorCard shows when opted in');
+    assert.equal(safetyCard.refs.shareBarEl.hidden, false);
+    assert.equal(safetyCard.refs.adviceEl.hidden, true);
+    assert.match(safetyCard.el.textContent, /46\.1%/);
+    assert.match(safetyCard.el.textContent, /123 \/ 7/);
+    assert.match(safetyCard.el.textContent, /100%/);
+
+    // Switch 5h -> 24h via native SegmentedControl
+    const btn24h = safetyCard.refs.winSwitch.el.querySelector('button[data-seg-value="24h"]');
+    assert.ok(btn24h, 'SafetyMonitorCard exposes 24h SegmentedControl button');
+    btn24h.dispatchEvent({ type: 'click', stopPropagation() {} });
+    assert.match(safetyCard.el.textContent, /170 \/ 10/);
+
+    // 3. Alert state surfaces status-tag + soft borderless advice banner
+    const alertSafety = {
+      ...sampleSafetyMonitor,
+      window5h: { ...sampleSafetyMonitor.window5h, rateLimit429Count: 2, fallbackCount: 1 },
+      alerts: { has429Fallback: true, hasHeavyBurst: false, nearFlashLiteLimit: false },
+    };
+    safetyCard.refs.update({ enabled: true, safetyMonitor: alertSafety });
+    assert.equal(safetyCard.refs.alertTagEl.hidden, false);
+    assert.equal(safetyCard.refs.alertTagEl.classList.contains('state-danger'), true);
+    assert.equal(safetyCard.refs.adviceEl.hidden, false);
+    assert.equal(safetyCard.refs.adviceEl.classList.contains('tone-danger'), true);
+
+    // 4. Empty window when opted in displays clean zero-state message
+    safetyCard.refs.update({ enabled: true, safetyMonitor: null });
+    assert.equal(safetyCard.el.hidden, false);
+    assert.equal(safetyCard.refs.shareBarEl.hidden, true);
+    assert.match(safetyCard.el.textContent, /暂未观测到/);
+
+    // 5. SettingsOtherTab defaults safetyMonitorToggle to off and persists opt-in patch
+    otherTab.refs.renderSettings({});
+    const onBtn = otherTab.refs.safetyMonitorToggle.el.querySelector('button[data-seg-value="on"]');
+    assert.ok(onBtn, 'SettingsOtherTab mounts safetyMonitorToggle with on button');
+    assert.equal(
+      otherTab.refs.safetyMonitorToggle.el
+        .querySelector('button[data-seg-value="off"]')
+        ?.getAttribute('aria-pressed'),
+      'true'
+    );
+    onBtn.dispatchEvent({ type: 'click', stopPropagation() {} });
+    await new Promise((r) => setTimeout(r, 30));
+    assert.ok(
+      savedPatches.some((p) => p.enableSafetyMonitor === true),
+      'Clicking safetyMonitorToggle persists enableSafetyMonitor=true'
+    );
+  } finally {
+    quotaWidget.destroy();
+    safetyCard.destroy();
+    consView.destroy();
+    otherTab.destroy();
   }
 });

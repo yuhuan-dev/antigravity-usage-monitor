@@ -74,6 +74,7 @@ import {
   partitionModelSegments,
   updateBreakdownItemRow,
 } from '../components/widgets/ConsumptionBreakdownRows.js';
+import { SafetyMonitorCard } from '../components/widgets/SafetyMonitorCard.js';
 
 /** 消耗统计顶栏支持的时间范围预设项 */
 function getConsumptionTimeRangeOptions() {
@@ -952,6 +953,8 @@ export const ConsumptionView = defineComponent({
       monthlyGridEl,
     ]);
 
+    const safetyMonitorCard = SafetyMonitorCard();
+
     const scrollInner = h(
       'div',
       {
@@ -963,6 +966,7 @@ export const ConsumptionView = defineComponent({
         rankingPanel,
         sourcesPanel,
         monthlyPanel,
+        safetyMonitorCard.el,
       ]
     );
 
@@ -1023,6 +1027,10 @@ export const ConsumptionView = defineComponent({
      */
     function renderConsumptionData(slice) {
       if (!slice) return;
+      safetyMonitorCard.refs.update({
+        enabled: slice.enableSafetyMonitor === true,
+        safetyMonitor: slice.safetyMonitor || null,
+      });
       const cons = slice.consumption || {};
       const rangeInfo = cons.selectedRange || {};
 
@@ -1667,6 +1675,8 @@ export const ConsumptionView = defineComponent({
         showUpstreamModel: Boolean(st.telemetry?.settings?.showUpstreamModel),
         displayCurrency: normalizeDisplayCurrency(st.telemetry?.settings?.displayCurrency),
         fxStatus: st.telemetry?.fxStatus || null,
+        enableSafetyMonitor: st.telemetry?.settings?.enableSafetyMonitor === true,
+        safetyMonitor: st.telemetry?.safetyMonitor || null,
       }),
       (slice) => {
         latestSlice = slice;
@@ -1751,6 +1761,7 @@ export const ConsumptionView = defineComponent({
       for (let i = 0; i < 12; i++) {
         patchText(monthlyCols[i].monthLabel, t('cons.monthLabel', { m: i + 1 }));
       }
+      safetyMonitorCard.refs.refreshLabels();
     }
 
     const unsubI18n = i18nStore.subscribe(
@@ -1782,6 +1793,7 @@ export const ConsumptionView = defineComponent({
       timeFilterSwitch.destroy();
       startPicker.destroy();
       endPicker.destroy();
+      safetyMonitorCard.destroy();
       viewScrollbar.destroy();
     });
 
@@ -1797,6 +1809,7 @@ export const ConsumptionView = defineComponent({
         viewScrollbar,
         breakdownPopoverEl,
         consExportMenu,
+        safetyMonitorCard,
       },
     };
   },
