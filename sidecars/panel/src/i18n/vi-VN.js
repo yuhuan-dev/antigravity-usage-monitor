@@ -670,6 +670,7 @@ export const I18N_MESSAGES_VI_VN = Object.freeze({
   'settings.account.refresh6h': '6 giờ',
   'settings.account.refresh12h': '12 giờ',
   'settings.account.refresh24h': '24 giờ',
+  'settings.account.refreshOff': 'Tắt',
   'settings.account.emptyCredentialQuota': 'Không có pool quota nào để hiển thị cho tài khoản này.',
   'settings.account.quota': 'Quota còn lại theo pool',
   'settings.account.quota5h': '5 giờ {percent}%',

@@ -3100,3 +3100,136 @@ test('Feature 16: P3 extracted sub-modules (stepChartMath, overlayHostAnchors, C
     assert.match(legacyPlan, /ARCHIVED/);
   }
 });
+
+test('Issue #62: accountQuotaRefreshMinutes supports 0 (Off) after 24h, preserves falsy defaults, round-trips backup, and blocks automatic saved-account quota polling', async (t) => {
+  const {
+    ACCOUNT_QUOTA_REFRESH_MINUTES,
+    DEFAULT_ACCOUNT_QUOTA_REFRESH_MINUTES,
+    normalizeAccountQuotaRefreshMinutes,
+  } = await import('../shared/settings-normalization.mjs');
+  const { setI18nLanguage } = await import('../src/i18n/index.js');
+  const { SettingsAccountTab } = await import('../src/views/settings/SettingsAccountTab.js');
+
+  assert.deepEqual([...ACCOUNT_QUOTA_REFRESH_MINUTES], [10, 30, 60, 180, 360, 720, 1440, 0]);
+  assert.equal(normalizeAccountQuotaRefreshMinutes(0), 0);
+  assert.equal(normalizeAccountQuotaRefreshMinutes('0'), 0);
+  assert.equal(normalizeAccountQuotaRefreshMinutes('off'), 0);
+  assert.equal(normalizeAccountQuotaRefreshMinutes('disabled'), 0);
+  assert.equal(normalizeAccountQuotaRefreshMinutes('none'), 0);
+  for (const bad of [undefined, null, '', '   ', false, true, -1, 999, NaN]) {
+    assert.equal(
+      normalizeAccountQuotaRefreshMinutes(bad),
+      DEFAULT_ACCOUNT_QUOTA_REFRESH_MINUTES,
+      `falsy/invalid ${String(bad)} must not accidentally map to 0 (Off)`
+    );
+  }
+
+  // Portable backup preserves accountQuotaRefreshMinutes = 0
+  const exportedOff = buildExportableSettingsJson({ accountQuotaRefreshMinutes: 0 });
+  const parsedOff = parseImportedSettingsJson(exportedOff);
+  assert.equal(parsedOff.ok, true);
+  assert.equal(parsedOff.patch.accountQuotaRefreshMinutes, 0);
+
+  // Component check: 0 (Off) appears immediately after 24h and suppresses automatic quota fetches while keeping manual click functional
+  const prevDoc = globalThis.document;
+  const prevWin = globalThis.window;
+  const prevFetch = globalThis.fetch;
+  const { document } = createMockDom();
+  const apiCalls = [];
+  globalThis.document = document;
+  globalThis.window = {
+    innerWidth: 1024,
+    innerHeight: 768,
+    location: { pathname: '/', href: 'http://127.0.0.1:41234/' },
+    addEventListener() {},
+    removeEventListener() {},
+    requestAnimationFrame: (cb) => setTimeout(cb, 0),
+    cancelAnimationFrame: (id) => clearTimeout(id),
+  };
+  const makeJsonRes = (payload) => ({
+    ok: true,
+    status: 200,
+    headers: { get: () => 'application/json' },
+    json: async () => payload,
+    text: async () => JSON.stringify(payload),
+  });
+  globalThis.fetch = async (url, opts = {}) => {
+    const urlStr = String(url);
+    const body = opts?.body ? JSON.parse(opts.body) : {};
+    apiCalls.push({ url: urlStr, method: opts?.method || 'GET', body });
+    if (urlStr.includes('/api/accounts') && !urlStr.includes('/api/accounts/update')) {
+      return makeJsonRes({
+        ok: true,
+        supported: true,
+        riskLocked: false,
+        actionNonce: 'nonce-62',
+        accounts: ['active@example.com', 'backup@example.com'],
+        quotas: {
+          'backup@example.com': {
+            pools: [],
+            fetchedAt: 0,
+          },
+        },
+        security: { enabled: false, unlocked: true },
+      });
+    }
+    if (urlStr.includes('/api/accounts/update') && body.action === 'quota') {
+      return makeJsonRes({
+        ok: true,
+        actionNonce: 'nonce-62',
+        pools: [{ poolKey: 'gemini', poolLabel: 'Gemini', remainingPct: 80 }],
+        fetchedAt: Date.now(),
+      });
+    }
+    return makeJsonRes({ ok: true });
+  };
+  t.after(() => {
+    setI18nLanguage('zh-CN');
+    globalThis.document = prevDoc;
+    globalThis.window = prevWin;
+    globalThis.fetch = prevFetch;
+  });
+
+  setI18nLanguage('zh-CN');
+  const tab = SettingsAccountTab({
+    initialSettings: {
+      accountSwitchRiskAccepted: true,
+      accountQuotaRefreshMinutes: 0,
+    },
+  });
+  try {
+    tab.refs.renderAccount(
+      { status: 'signedIn', email: 'active@example.com' },
+      { pools: [] },
+      { accountSwitchRiskAccepted: true, accountQuotaRefreshMinutes: 0 }
+    );
+    const selectTrigger = tab.el.querySelector('.account-refresh-select .select-trigger');
+    assert.ok(selectTrigger, 'Refresh interval CustomSelect exists');
+    assert.equal(selectTrigger.textContent.trim(), '关闭', 'Model value 0 renders localized Off label');
+    selectTrigger.dispatchEvent({ type: 'click', stopPropagation() {} });
+    const opts = tab.el.querySelectorAll('.account-refresh-select .select-option');
+    const optValues = opts.map((el) => el.getAttribute('data-value'));
+    const optLabels = opts.map((el) => el.querySelector('.select-option-text')?.textContent?.trim());
+    assert.deepEqual(optValues, ['10', '30', '60', '180', '360', '720', '1440', '0']);
+    assert.equal(optLabels[optLabels.length - 2], '24 小时');
+    assert.equal(optLabels[optLabels.length - 1], '关闭');
+
+    await tab.refs.load();
+    await new Promise((r) => setTimeout(r, 30));
+    const autoQuotaCalls = apiCalls.filter((c) => c.body?.action === 'quota');
+    assert.equal(autoQuotaCalls.length, 0, 'With refreshMinutes=0, load/list must not trigger automatic quota polling');
+
+    // Explicit manual click on saved account refresh button still works
+    const manualBtn = tab.el
+      .querySelectorAll('.settings-account-load-quota')
+      .find((el) => !el.hasAttribute('hidden'));
+    assert.ok(manualBtn, 'Manual per-account refresh button remains available');
+    manualBtn.dispatchEvent({ type: 'click', stopPropagation() {} });
+    await new Promise((r) => setTimeout(r, 30));
+    const manualQuotaCalls = apiCalls.filter((c) => c.body?.action === 'quota');
+    assert.equal(manualQuotaCalls.length, 1, 'Explicit manual refresh button still queries quota on demand');
+    assert.equal(manualQuotaCalls[0].body.email, 'backup@example.com');
+  } finally {
+    tab.destroy();
+  }
+});

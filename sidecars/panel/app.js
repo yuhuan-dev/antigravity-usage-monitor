@@ -1018,10 +1018,18 @@ function normalizeQuotaDisplayMode(raw) {
   return val === 'remaining' ? 'remaining' : 'used';
 }
 
-const ACCOUNT_QUOTA_REFRESH_MINUTES = Object.freeze([10, 30, 60, 180, 360, 720, 1440]);
+const ACCOUNT_QUOTA_REFRESH_MINUTES = Object.freeze([10, 30, 60, 180, 360, 720, 1440, 0]);
 const DEFAULT_ACCOUNT_QUOTA_REFRESH_MINUTES = 60;
 
 function normalizeAccountQuotaRefreshMinutes(raw) {
+  if (raw === null || raw === undefined || raw === '' || typeof raw === 'boolean') {
+    return DEFAULT_ACCOUNT_QUOTA_REFRESH_MINUTES;
+  }
+  if (typeof raw === 'string') {
+    const clean = raw.trim().toLowerCase();
+    if (!clean) return DEFAULT_ACCOUNT_QUOTA_REFRESH_MINUTES;
+    if (clean === 'off' || clean === 'disabled' || clean === 'none') return 0;
+  }
   const num = Number(raw);
   return ACCOUNT_QUOTA_REFRESH_MINUTES.includes(num)
     ?   (num)
@@ -2810,6 +2818,7 @@ const I18N_MESSAGES_ZH_CN = Object.freeze({
   'settings.account.refresh6h': '6 小时',
   'settings.account.refresh12h': '12 小时',
   'settings.account.refresh24h': '24 小时',
+  'settings.account.refreshOff': '关闭',
   'settings.account.emptyCredentialQuota': '这个账号暂无可显示的额度池。',
   'settings.account.quota': '额度池剩余',
   'settings.account.quota5h': '5 小时 {percent}%',
@@ -4091,6 +4100,7 @@ const I18N_MESSAGES_ZH_TW = Object.freeze({
   "settings.account.refresh6h": "6 小時",
   "settings.account.refresh12h": "12 小時",
   "settings.account.refresh24h": "24 小時",
+  "settings.account.refreshOff": "關閉",
   "settings.account.emptyCredentialQuota": "這個帳號尚無可顯示的額度池。",
   "settings.account.quota": "額度池剩餘",
   "settings.account.quota5h": "5 小時 {percent}%",
@@ -5382,6 +5392,7 @@ const I18N_MESSAGES_EN_US = Object.freeze({
   'settings.account.refresh6h': '6 hr',
   'settings.account.refresh12h': '12 hr',
   'settings.account.refresh24h': '24 hr',
+  'settings.account.refreshOff': 'Off',
   'settings.account.emptyCredentialQuota': 'There are no quota pools to display for this account.',
   'settings.account.quota': 'Quota remaining by pool',
   'settings.account.quota5h': '5 hours {percent}%',
@@ -6664,6 +6675,7 @@ const I18N_MESSAGES_JA_JP = Object.freeze({
   "settings.account.refresh6h": "6 時間",
   "settings.account.refresh12h": "12 時間",
   "settings.account.refresh24h": "24 時間",
+  "settings.account.refreshOff": "オフ",
   "settings.account.emptyCredentialQuota": "このアカウントに表示できるクォータプールはありません。",
   "settings.account.quota": "プール別の残余クォータ",
   "settings.account.quota5h": "5時間 {percent}%",
@@ -7938,6 +7950,7 @@ const I18N_MESSAGES_KO_KR = Object.freeze({
   "settings.account.refresh6h": "6시간",
   "settings.account.refresh12h": "12시간",
   "settings.account.refresh24h": "24시간",
+  "settings.account.refreshOff": "꺼짐",
   "settings.account.emptyCredentialQuota": "이 계정에 표시할 할당량 풀이 없습니다.",
   "settings.account.quota": "풀별 잔여 할당량",
   "settings.account.quota5h": "5시간 {percent}%",
@@ -9212,6 +9225,7 @@ const I18N_MESSAGES_DE_DE = Object.freeze({
   "settings.account.refresh6h": "6 Std.",
   "settings.account.refresh12h": "12 Std.",
   "settings.account.refresh24h": "24 Std.",
+  "settings.account.refreshOff": "Aus",
   "settings.account.emptyCredentialQuota": "Für dieses Konto sind keine Kontingent-Pools verfügbar.",
   "settings.account.quota": "Verbleibendes Kontingent nach Pool",
   "settings.account.quota5h": "5 Stunden {percent}%",
@@ -10486,6 +10500,7 @@ const I18N_MESSAGES_FR_FR = Object.freeze({
   "settings.account.refresh6h": "6 h",
   "settings.account.refresh12h": "12 h",
   "settings.account.refresh24h": "24 h",
+  "settings.account.refreshOff": "Désactivé",
   "settings.account.emptyCredentialQuota": "Aucun pool de quota à afficher pour ce compte.",
   "settings.account.quota": "Quota restant par pool",
   "settings.account.quota5h": "5 heures {percent}%",
@@ -11777,6 +11792,7 @@ const I18N_MESSAGES_VI_VN = Object.freeze({
   'settings.account.refresh6h': '6 giờ',
   'settings.account.refresh12h': '12 giờ',
   'settings.account.refresh24h': '24 giờ',
+  'settings.account.refreshOff': 'Tắt',
   'settings.account.emptyCredentialQuota': 'Không có pool quota nào để hiển thị cho tài khoản này.',
   'settings.account.quota': 'Quota còn lại theo pool',
   'settings.account.quota5h': '5 giờ {percent}%',
@@ -48937,6 +48953,7 @@ function getAccountRefreshOptions() {
     { value: 360, label: t(key('refresh6h')) },
     { value: 720, label: t(key('refresh12h')) },
     { value: 1440, label: t(key('refresh24h')) },
+    { value: 0, label: t(key('refreshOff')) },
   ];
 }
 
@@ -49288,7 +49305,9 @@ const SettingsAccountTab = defineComponent({
         const nextMins = normalizeAccountQuotaRefreshMinutes(nextVal);
         refreshMinutes = nextMins;
         refreshIntervalSelect.setValue(nextMins);
-        void refreshSavedQuotas();
+        if (nextMins > 0) {
+          void refreshSavedQuotas();
+        }
         try {
           await saveSettingsPatch({ accountQuotaRefreshMinutes: nextMins });
         } catch {
@@ -50199,7 +50218,13 @@ const SettingsAccountTab = defineComponent({
         return;
       }
       await request('list');
-      if (!disposed && draftRiskAccepted && !isVaultLocked() && email !== resolveActiveEmail()) {
+      if (
+        !disposed &&
+        refreshMinutes > 0 &&
+        draftRiskAccepted &&
+        !isVaultLocked() &&
+        email !== resolveActiveEmail()
+      ) {
         void refreshQuota(email, false);
       }
     }
@@ -50266,7 +50291,7 @@ const SettingsAccountTab = defineComponent({
     }
 
     async function refreshSavedQuotas() {
-      if (refreshingSavedQuotas || !draftRiskAccepted || isVaultLocked()) return;
+      if (refreshMinutes <= 0 || refreshingSavedQuotas || !draftRiskAccepted || isVaultLocked()) return;
       refreshingSavedQuotas = true;
       try {
         const activeEmail = resolveActiveEmail();
@@ -50279,7 +50304,15 @@ const SettingsAccountTab = defineComponent({
         });
         const BATCH_SIZE = 3;
         for (let i = 0; i < staleTargets.length; i += BATCH_SIZE) {
-          if (disposed || operation === 'switch' || !draftRiskAccepted || isVaultLocked()) break;
+          if (
+            disposed ||
+            refreshMinutes <= 0 ||
+            operation === 'switch' ||
+            !draftRiskAccepted ||
+            isVaultLocked()
+          ) {
+            break;
+          }
           const batch = staleTargets.slice(i, i + BATCH_SIZE);
           await Promise.all(batch.map((addr) => refreshQuota(addr, false)));
         }
@@ -50293,6 +50326,7 @@ const SettingsAccountTab = defineComponent({
       if (
         !addr ||
         addr === activeEmail ||
+        (!manual && refreshMinutes <= 0) ||
         !draftRiskAccepted ||
         isVaultLocked() ||
         quotaInFlight.has(addr) ||
@@ -50445,7 +50479,14 @@ const SettingsAccountTab = defineComponent({
     }
 
     const quotaScheduleTimer = setInterval(() => {
-      if (!disposed && draftRiskAccepted && accounts.length > 0 && !operation && !isVaultLocked()) {
+      if (
+        !disposed &&
+        refreshMinutes > 0 &&
+        draftRiskAccepted &&
+        accounts.length > 0 &&
+        !operation &&
+        !isVaultLocked()
+      ) {
         void refreshSavedQuotas();
       }
     }, 60_000);

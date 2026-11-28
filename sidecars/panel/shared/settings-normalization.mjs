@@ -1263,16 +1263,24 @@ export function normalizeQuotaDisplayMode(raw) {
   return val === 'remaining' ? 'remaining' : 'used';
 }
 
-export const ACCOUNT_QUOTA_REFRESH_MINUTES = Object.freeze([10, 30, 60, 180, 360, 720, 1440]);
+export const ACCOUNT_QUOTA_REFRESH_MINUTES = Object.freeze([10, 30, 60, 180, 360, 720, 1440, 0]);
 export const DEFAULT_ACCOUNT_QUOTA_REFRESH_MINUTES = 60;
 
 /**
- * 归一化非当前账号的后台配额刷新间隔（分钟，默认 `60` 即 1 小时）。
+ * 归一化非当前账号的后台配额刷新间隔（分钟，默认 `60` 即 1 小时；`0` 表示关闭自动刷新）。
  *
  * @param {unknown} raw
- * @returns {10|30|60|180|360|720|1440}
+ * @returns {10|30|60|180|360|720|1440|0}
  */
 export function normalizeAccountQuotaRefreshMinutes(raw) {
+  if (raw === null || raw === undefined || raw === '' || typeof raw === 'boolean') {
+    return DEFAULT_ACCOUNT_QUOTA_REFRESH_MINUTES;
+  }
+  if (typeof raw === 'string') {
+    const clean = raw.trim().toLowerCase();
+    if (!clean) return DEFAULT_ACCOUNT_QUOTA_REFRESH_MINUTES;
+    if (clean === 'off' || clean === 'disabled' || clean === 'none') return 0;
+  }
   const num = Number(raw);
   return ACCOUNT_QUOTA_REFRESH_MINUTES.includes(num)
     ? /** @type {any} */ (num)

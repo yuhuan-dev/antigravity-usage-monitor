@@ -671,6 +671,7 @@ export const I18N_MESSAGES_ZH_CN = Object.freeze({
   'settings.account.refresh6h': '6 小时',
   'settings.account.refresh12h': '12 小时',
   'settings.account.refresh24h': '24 小时',
+  'settings.account.refreshOff': '关闭',
   'settings.account.emptyCredentialQuota': '这个账号暂无可显示的额度池。',
   'settings.account.quota': '额度池剩余',
   'settings.account.quota5h': '5 小时 {percent}%',

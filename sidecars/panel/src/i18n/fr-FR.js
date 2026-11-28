@@ -637,6 +637,7 @@ export const I18N_MESSAGES_FR_FR = Object.freeze({
   "settings.account.refresh6h": "6 h",
   "settings.account.refresh12h": "12 h",
   "settings.account.refresh24h": "24 h",
+  "settings.account.refreshOff": "Désactivé",
   "settings.account.emptyCredentialQuota": "Aucun pool de quota à afficher pour ce compte.",
   "settings.account.quota": "Quota restant par pool",
   "settings.account.quota5h": "5 heures {percent}%",

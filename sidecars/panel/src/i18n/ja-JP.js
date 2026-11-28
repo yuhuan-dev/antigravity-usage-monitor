@@ -637,6 +637,7 @@ export const I18N_MESSAGES_JA_JP = Object.freeze({
   "settings.account.refresh6h": "6 時間",
   "settings.account.refresh12h": "12 時間",
   "settings.account.refresh24h": "24 時間",
+  "settings.account.refreshOff": "オフ",
   "settings.account.emptyCredentialQuota": "このアカウントに表示できるクォータプールはありません。",
   "settings.account.quota": "プール別の残余クォータ",
   "settings.account.quota5h": "5時間 {percent}%",

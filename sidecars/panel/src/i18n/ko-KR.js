@@ -637,6 +637,7 @@ export const I18N_MESSAGES_KO_KR = Object.freeze({
   "settings.account.refresh6h": "6시간",
   "settings.account.refresh12h": "12시간",
   "settings.account.refresh24h": "24시간",
+  "settings.account.refreshOff": "꺼짐",
   "settings.account.emptyCredentialQuota": "이 계정에 표시할 할당량 풀이 없습니다.",
   "settings.account.quota": "풀별 잔여 할당량",
   "settings.account.quota5h": "5시간 {percent}%",
