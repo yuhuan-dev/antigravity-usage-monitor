@@ -14,7 +14,10 @@ import {
   WINDOW_BRIDGE_KEY,
   WINDOW_OVERLAY_KEY,
   WINDOW_OVERLAY_METHODS,
+  isForceTopbarOverlay,
+  isVsCodeExtensionHost,
   readInjectedWindowBridge,
+  resolveClientEffectiveOverlayMountMode,
 } from '../../../shared/window-bridge-protocol.mjs';
 import { App } from '../../App.js';
 import {
@@ -49,12 +52,15 @@ import {
   extractHostRouteCascadeId,
   fetchTelemetry,
   getDefaultCtxInspectorAgentId,
+  isClientTopbarMultiSessionVisible,
   isMacHostPlatform,
   normalizeClientHoverModules,
   normalizeClientPopoverWidth,
   normalizeClientPopoverWidthMode,
+  normalizeClientTopbarMultiSessionMode,
   normalizeClientTopbarSlots,
   normalizeClientUpdateMode,
+  normalizeClientVsCodeMountMode,
   normalizeClientWindowMountMode,
   resetTelemetryForEndpointSwitch,
   resolveHostRouteMatch,
@@ -75,6 +81,7 @@ import {
   computeCapsuleLayoutMode,
   findNativeTopRightAnchor,
   getLeftSidebarRightEdge,
+  getRightSidebarLeftEdge,
   isIdeExtensionChatFrame,
   isImmediatelyBeforeNode,
   resolveActiveDockTarget,
@@ -85,7 +92,8 @@ export { computeCapsuleLayoutMode };
 const FLOATING_CARD_WIDTH = 522;
 const POPOVER_BASE_WIDTH = 540;
 const POPOVER_MAX_AUTO_WIDTH = 960;
-const MULTI_PANEL_WIDTH = 464;
+const MULTI_PANEL_WIDTH = 376;
+const MULTI_PANEL_EMPTY_WIDTH = 256;
 
 
 export function mountWindowOverlay() {
@@ -340,8 +348,18 @@ export function mountWindowOverlay() {
   ];
   let lastSlotCount = 3;
   let lastShowMulti = true;
+  let lastRunningCount = 0;
   let lastShowUpdate = false;
   let isTopbarUpdating = false;
+
+  function resolveEffectiveShowMulti(telemetry, runningCountOverride = null) {
+    const mode = normalizeClientTopbarMultiSessionMode(
+      telemetry?.settings?.topbarMultiSessionMode,
+      telemetry?.settings?.showTopbarMultiSession
+    );
+    const count = runningCountOverride !== null ? runningCountOverride : lastRunningCount;
+    return isClientTopbarMultiSessionVisible(mode, count);
+  }
 
   const updateDot = h('span', { className: 'wm-update-dot', hidden: true });
   const topbarUpdateIcon = createSvgIcon('arrow-down', { size: 10 });
@@ -717,30 +735,37 @@ export function mountWindowOverlay() {
     const hostFontSans =
       readProp(rootCs, '--font-sans') ||
       readProp(bodyCs, '--font-sans') ||
+      readProp(rootCs, '--font-family') ||
+      readProp(bodyCs, '--font-family') ||
       readProp(wbCs, '--vscode-font-family') ||
       readProp(bodyCs, 'font-family', 'fontFamily') ||
       readProp(rootCs, 'font-family', 'fontFamily');
     const hostFontMono =
       readProp(rootCs, '--font-mono') ||
       readProp(bodyCs, '--font-mono') ||
+      readProp(rootCs, '--editor-font-family') ||
+      readProp(bodyCs, '--editor-font-family') ||
       readProp(wbCs, '--vscode-editor-font-family') ||
       readProp(rootCs, '--font-code');
 
-    for (const [cssVar, val] of [
-      ['--font-sans', hostFontSans],
-      ['--font-mono', hostFontMono],
+    for (const [cssVar, hostVar, val] of [
+      ['--font-sans', '--host-font-sans', hostFontSans],
+      ['--font-mono', '--host-font-mono', hostFontMono],
     ]) {
       const prevVal = mirroredTypographyVars.get(cssVar) || '';
       if (val) {
         if (prevVal !== val) {
           portalHost.style.setProperty?.(cssVar, val);
+          portalHost.style.setProperty?.(hostVar, val);
           mirroredTypographyVars.set(cssVar, val);
         }
       } else if (prevVal) {
         if (typeof portalHost.style.removeProperty === 'function') {
           portalHost.style.removeProperty(cssVar);
+          portalHost.style.removeProperty(hostVar);
         } else {
           portalHost.style.setProperty?.(cssVar, '');
+          portalHost.style.setProperty?.(hostVar, '');
         }
         mirroredTypographyVars.delete(cssVar);
       }
@@ -1109,24 +1134,30 @@ export function mountWindowOverlay() {
         Math.round(FLOATING_CARD_WIDTH * panelScale),
         Math.max(280, vw - 24)
       );
-      const defaultMultiW = Math.min(
-        Math.round(MULTI_PANEL_WIDTH * panelScale),
-        Math.max(280, vw - 24)
-      );
       const isDockComposer = capsuleHost.getAttribute('data-dock') === 'composer';
 
       if (multiOpen) {
         const mRect = multiBtn.getBoundingClientRect?.() || bRect;
         const anchorRect = mRect.width > 0 || mRect.height > 0 ? mRect : bRect;
-        const rawW =
+        const rightEdge = getRightSidebarLeftEdge(vw);
+        const hasUsableRightBound = rightEdge > 0 && rightEdge - 10 - minLeft >= 240;
+        const maxRight = hasUsableRightBound ? Math.min(vw - 12, rightEdge - 10) : vw - 12;
+        const availMultiW = Math.max(240, maxRight - minLeft);
+        const isEmptyMulti = Boolean(multiPanelEl.classList?.contains?.('is-empty'));
+        const targetMultiW = Math.min(
+          Math.round((isEmptyMulti ? MULTI_PANEL_EMPTY_WIDTH : MULTI_PANEL_WIDTH) * panelScale),
+          availMultiW
+        );
+        multiPanelEl.style.maxWidth = `${availMultiW}px`;
+        const measuredW =
           Number(multiPanelEl.offsetWidth) ||
           Number(multiPanelEl.getBoundingClientRect?.().width) ||
-          defaultMultiW;
-        const panelW = Math.min(rawW, Math.max(280, vw - minLeft - 12));
+          0;
+        const panelW = measuredW > 0 ? Math.min(measuredW, availMultiW) : targetMultiW;
         const panelH =
           Number(multiPanelEl.offsetHeight) ||
           Number(multiPanelEl.getBoundingClientRect?.().height) ||
-          320;
+          (isEmptyMulti ? 92 : 320);
         const spaceBelowMulti = vh - anchorRect.bottom - 12;
         const spaceAboveMulti = anchorRect.top - 16;
         const openMultiAbove =
@@ -1147,7 +1178,7 @@ export function mountWindowOverlay() {
         }
         patchClasses(multiPanelEl, { 'is-above': openMultiAbove });
         let left = Math.round(anchorRect.left);
-        left = Math.min(left, vw - panelW - 12);
+        left = Math.min(left, maxRight - panelW);
         left = Math.max(minLeft, left);
         multiPanelEl.style.top = `${top}px`;
         multiPanelEl.style.left = `${left}px`;
@@ -1321,7 +1352,7 @@ export function mountWindowOverlay() {
     const dockTarget = dockOverride === undefined ? resolveRuntimeDockTarget() : dockOverride;
     const avail = measureAvailableTitlebarWidth(dockTarget);
     const curTel = telemetryStore.getState().telemetry;
-    const showMulti = curTel?.settings?.showTopbarMultiSession !== false;
+    const showMulti = resolveEffectiveShowMulti(curTel);
     const curUpdateMode = normalizeClientUpdateMode(
       curTel?.settings?.pluginUpdateMode,
       curTel?.settings?.autoUpdatePlugin
@@ -1502,6 +1533,9 @@ export function mountWindowOverlay() {
 
   function setMultiOpen(nextOpen, { pinned = false, instant = false } = {}) {
     const targetOpen = Boolean(nextOpen);
+    if (targetOpen && multiBtn.hasAttribute('hidden')) {
+      return;
+    }
     if (targetOpen && multiLeaveTimer) {
       clearTimeout(multiLeaveTimer);
       multiLeaveTimer = null;
@@ -1558,6 +1592,10 @@ export function mountWindowOverlay() {
     }
     if (tooltipOpen === targetOpen) return;
     tooltipOpen = targetOpen;
+    if (!tooltipOpen && hoverLeaveTimer) {
+      clearTimeout(hoverLeaveTimer);
+      hoverLeaveTimer = null;
+    }
     patchClasses(hoverTipEl, { 'is-instant': Boolean(instant && targetOpen) });
     patchAttr(hoverTipEl, 'hidden', !tooltipOpen);
     if (tooltipOpen) {
@@ -1614,27 +1652,34 @@ export function mountWindowOverlay() {
     hostRouteConversationId,
     runningSwarmCount = 0
   ) {
-    if (!multiOpen || document.hidden) {
-      multiRunningWidget.refs.pauseTicker();
-      return;
-    }
-    const isPureSwarm = runningSubCount > 0 && runningSwarmCount === runningSubCount;
-    patchText(
-      multiRunningMetaEl,
-      runningCount > 0
-        ? runningSubCount > 0
+    const isEmpty = runningCount === 0;
+    const wasEmpty = Boolean(multiPanelEl.classList?.contains?.('is-empty'));
+    patchClasses(multiPanelEl, { 'is-empty': isEmpty });
+    patchAttr(multiRunningMetaEl, 'hidden', isEmpty);
+    if (!isEmpty) {
+      const isPureSwarm = runningSubCount > 0 && runningSwarmCount === runningSubCount;
+      patchText(
+        multiRunningMetaEl,
+        runningSubCount > 0
           ? t(isPureSwarm ? 'multi.metaWithSwarm' : 'multi.metaWithSubs', {
               main: runningCount,
               subs: runningSubCount,
             })
           : t('multi.metaMainOnly', { main: runningCount })
-        : t('multi.allIdle')
-    );
-    patchAttr(multiEmptyEl, 'hidden', runningCount > 0);
+      );
+    }
+    patchAttr(multiEmptyEl, 'hidden', !isEmpty);
+    if (!multiOpen || document.hidden) {
+      multiRunningWidget.refs.pauseTicker();
+      return;
+    }
     multiRunningWidget.refs.update({
       items: rawRunningList,
       hostRouteConversationId,
     });
+    if (wasEmpty !== isEmpty) {
+      positionFloatingElements();
+    }
   }
 
   function renderHoverWidgets() {
@@ -1657,26 +1702,27 @@ export function mountWindowOverlay() {
     syncPortalAppearance(telemetry?.settings);
     syncCapsuleOsAttr();
 
-    const showMulti = telemetry?.settings?.showTopbarMultiSession !== false;
-    patchAttr(multiBtn, 'hidden', !showMulti);
-    patchAttr(capsuleHost, 'data-multi', showMulti ? 'on' : 'off');
-    if (!showMulti && multiOpen) {
-      setMultiOpen(false);
-    }
-
     const slotKeys = normalizeClientTopbarSlots(telemetry?.settings?.topbarCapsuleSlots);
-    const layoutInputsChanged =
-      showMulti !== lastShowMulti || slotKeys.length !== lastSlotCount;
-    if (layoutInputsChanged) {
-      lastShowMulti = showMulti;
-      lastSlotCount = slotKeys.length;
-      updateResponsiveLayout();
-    }
 
     if (!telemetry) {
+      lastRunningCount = 0;
+      const showMulti = resolveEffectiveShowMulti(null, 0);
+      patchAttr(multiBtn, 'hidden', !showMulti);
+      patchAttr(capsuleHost, 'data-multi', showMulti ? 'on' : 'off');
+      if (!showMulti && multiOpen) {
+        setMultiOpen(false);
+      }
+      if (showMulti !== lastShowMulti || slotKeys.length !== lastSlotCount) {
+        lastShowMulti = showMulti;
+        lastSlotCount = slotKeys.length;
+        updateResponsiveLayout();
+      }
       patchClasses(multiBtn, { 'is-running': false, 'is-waiting': false });
       patchCapsuleOdometerText(multiLabel, t('capsule.multiZero'), { resetKey: 'multi' });
+      patchClasses(multiPanelEl, { 'is-empty': true });
+      patchAttr(multiRunningMetaEl, 'hidden', false);
       patchText(multiRunningMetaEl, t('multi.loading'));
+      patchAttr(multiEmptyEl, 'hidden', false);
       multiRunningWidget.refs.stopLiveTicker();
 
       applyCapsuleSlots(slotKeys, { hasTelemetry: false });
@@ -1714,6 +1760,22 @@ export function mountWindowOverlay() {
       latestTokPerSec: overviewActive.latestTokPerSec ?? null,
       contextUsedPct: slotCtx.usedPct,
     });
+
+    lastRunningCount = runningCount;
+    const showMulti = resolveEffectiveShowMulti(telemetry, runningCount);
+    patchAttr(multiBtn, 'hidden', !showMulti);
+    patchAttr(capsuleHost, 'data-multi', showMulti ? 'on' : 'off');
+    if (!showMulti && multiOpen) {
+      setMultiOpen(false);
+    }
+
+    const layoutInputsChanged =
+      showMulti !== lastShowMulti || slotKeys.length !== lastSlotCount;
+    if (layoutInputsChanged) {
+      lastShowMulti = showMulti;
+      lastSlotCount = slotKeys.length;
+      updateResponsiveLayout();
+    }
 
     patchClasses(multiBtn, {
       'is-running': runningCount > 0 && !hasWaiting,
@@ -1782,9 +1844,8 @@ export function mountWindowOverlay() {
     }
   }
 
-  let lastAppliedMountMode = normalizeClientWindowMountMode(
-    telemetryStore.getState().telemetry?.settings?.windowMountMode,
-    telemetryStore.getState().telemetry?.settings?.enableWindowOverlay
+  let lastAppliedMountMode = resolveClientEffectiveOverlayMountMode(
+    telemetryStore.getState().telemetry?.settings
   );
 
   const unsubStore = telemetryStore.subscribe(
@@ -1795,13 +1856,15 @@ export function mountWindowOverlay() {
       selectedConversationId: st.selectedConversationId,
     }),
     (slice) => {
-      const nextMountMode = normalizeClientWindowMountMode(
-        slice.telemetry?.settings?.windowMountMode,
-        slice.telemetry?.settings?.enableWindowOverlay
-      );
-      if (slice.telemetry?.settings?.enableWindowOverlay === false || nextMountMode === 'sidebar') {
+      const nextMountMode = resolveClientEffectiveOverlayMountMode(slice.telemetry?.settings);
+      if (
+        !isVsCodeExtensionHost() &&
+        !isForceTopbarOverlay() &&
+        (slice.telemetry?.settings?.enableWindowOverlay === false || nextMountMode === 'sidebar')
+      ) {
         if (popoverOpen) setPopoverOpen(false);
         if (multiOpen) setMultiOpen(false);
+        if (tooltipOpen) setTooltipOpen(false);
       } else if (nextMountMode !== lastAppliedMountMode) {
         lastAppliedMountMode = nextMountMode;
         ensureCapsuleDocked();
@@ -1862,6 +1925,7 @@ export function mountWindowOverlay() {
     if (disposed) return;
     const currentRouteId = extractHostRouteCascadeId();
     if (currentRouteId === lastObservedRouteId) return;
+    const prevRouteId = lastObservedRouteId;
     lastObservedRouteId = currentRouteId;
     const st = telemetryStore.getState();
     const activeCascadeId = String(st.telemetry?.activeConversation?.cascadeId || '').trim();
@@ -1874,8 +1938,15 @@ export function mountWindowOverlay() {
       Boolean(resolveHostRouteMatch(st.telemetry, currentRouteId)?.isChildRoute);
     const shouldPreserveSameSession =
       !currentRouteId || isSameActiveRoot || isChildOfActiveRoot;
+    const selectedMatchesPrevRoute =
+      Boolean(prevRouteId) &&
+      Boolean(st.selectedConversationId) &&
+      st.selectedConversationId.toLowerCase() === prevRouteId.toLowerCase();
     const nextSelectedId =
-      currentRouteId && st.selectedConversationId && st.selectedConversationId !== currentRouteId
+      st.selectedConversationId &&
+      ((currentRouteId &&
+        st.selectedConversationId.toLowerCase() !== currentRouteId.toLowerCase()) ||
+        (!currentRouteId && selectedMatchesPrevRoute))
         ? ''
         : st.selectedConversationId;
     if (!shouldPreserveSameSession) {
@@ -1894,6 +1965,9 @@ export function mountWindowOverlay() {
     if (multiOpen && !isEventInside(e, multiPanelEl) && !isEventInside(e, capsuleHost)) {
       setMultiOpen(false);
     }
+    if (tooltipOpen && !isEventInside(e, capsuleHost)) {
+      setTooltipOpen(false);
+    }
   };
 
   const onDocKeyDown = (e) => {
@@ -1904,10 +1978,32 @@ export function mountWindowOverlay() {
       if (multiOpen) {
         setMultiOpen(false);
       }
+      if (tooltipOpen) {
+        setTooltipOpen(false);
+      }
     }
   };
 
-  const onWindowPointerMove = (e) => recordPointerCoords(e);
+  const onWindowPointerMove = (e) => {
+    recordPointerCoords(e);
+    // 悬停态自愈：未收到胶囊 mouseleave（如指针掠入系统菜单栏后返回）时，按实时坐标兜底关闭
+    if (tooltipOpen && !isPointerStillInCapsule()) {
+      setTooltipOpen(false);
+    }
+    if (multiOpen && !multiPinned && !multiLeaveTimer && !isPointerInMultiZone()) {
+      scheduleMultiHoverClose();
+    }
+  };
+  const onDocMouseLeave = (e) => {
+    if (e?.relatedTarget) return;
+    hasPointerCoords = false;
+    if (tooltipOpen) {
+      setTooltipOpen(false);
+    }
+    if (multiOpen && !multiPinned) {
+      setMultiOpen(false);
+    }
+  };
   const onWindowBlur = () => {
     hasPointerCoords = false;
     if (tooltipOpen) {
@@ -2032,6 +2128,7 @@ export function mountWindowOverlay() {
   document.addEventListener?.('keydown', onDocKeyDown);
   document.addEventListener?.('focusin', onDocFocusIn);
   document.addEventListener?.('visibilitychange', onVisibilityChange);
+  document.addEventListener?.('mouseleave', onDocMouseLeave);
   window.addEventListener?.('pointermove', onWindowPointerMove, { passive: true });
   window.addEventListener?.('blur', onWindowBlur);
   window.addEventListener?.('resize', onWindowResize);
@@ -2050,8 +2147,7 @@ export function mountWindowOverlay() {
 
   ensureCapsuleDocked();
   renderCapsuleTelemetry();
-  const allowMultiCarryOver =
-    telemetryStore.getState().telemetry?.settings?.showTopbarMultiSession !== false;
+  const allowMultiCarryOver = !multiBtn.hasAttribute('hidden');
   if (carryOverPopoverOpen) {
     setPopoverOpen(true, { instant: true });
   } else if (carryOverMultiPinnedOpen && allowMultiCarryOver) {
@@ -2087,15 +2183,26 @@ export function mountWindowOverlay() {
           : prevEndpointId;
       const portChanged = Number(cur.port || 0) !== port || String(cur.token || '') !== token;
       const endpointChanged = prevEndpointId !== nextEndpointId;
+      const prevForceTopbar = Boolean(cur.forceTopbarMode);
+      const prevIsVsCodeHost = Boolean(cur.isVsCodeHost);
       cur.port = port;
       cur.token = token;
       cur[WINDOW_BRIDGE_ENDPOINT_KEY] = nextEndpointId;
+      if (nextBridge.isVsCodeHost !== undefined) {
+        cur.isVsCodeHost = Boolean(nextBridge.isVsCodeHost);
+      }
+      if (nextBridge.forceTopbarMode !== undefined) {
+        cur.forceTopbarMode = Boolean(nextBridge.forceTopbarMode);
+      }
       if (nextBridge.isRemoteEndpoint !== undefined) {
         cur.isRemoteEndpoint = Boolean(nextBridge.isRemoteEndpoint);
       }
       if (nextBridge.endpointLabel !== undefined) {
         cur.endpointLabel = String(nextBridge.endpointLabel || '');
       }
+      const hostFlagsChanged =
+        Boolean(cur.forceTopbarMode) !== prevForceTopbar ||
+        Boolean(cur.isVsCodeHost) !== prevIsVsCodeHost;
       if (portChanged || endpointChanged) {
         cur.transportMode = 'http';
       }
@@ -2117,6 +2224,13 @@ export function mountWindowOverlay() {
         }
       }
       window[WINDOW_BRIDGE_KEY] = cur;
+      if (hostFlagsChanged) {
+        lastAppliedMountMode = resolveClientEffectiveOverlayMountMode(
+          telemetryStore.getState().telemetry?.settings,
+          cur
+        );
+        ensureCapsuleDocked();
+      }
       if (endpointChanged) {
         resetTelemetryForEndpointSwitch();
         void fetchTelemetry({ force: true });
@@ -2160,8 +2274,31 @@ export function mountWindowOverlay() {
     [WINDOW_OVERLAY_METHODS.getMountMode]: () => lastAppliedMountMode,
     [WINDOW_OVERLAY_METHODS.applyMountMode](nextMode) {
       if (disposed) return false;
-      const normalized = normalizeClientWindowMountMode(nextMode, nextMode !== 'sidebar');
       const bridgeConfig = readInjectedWindowBridge();
+      if (isForceTopbarOverlay(bridgeConfig)) {
+        if (bridgeConfig) bridgeConfig.mountMode = 'dual';
+        lastAppliedMountMode = 'dual';
+        return ensureCapsuleDocked();
+      }
+      if (isVsCodeExtensionHost(bridgeConfig)) {
+        const normalizedVsCode = normalizeClientVsCodeMountMode(nextMode);
+        if (bridgeConfig) bridgeConfig.mountMode = normalizedVsCode;
+        const curTel = telemetryStore.getState().telemetry;
+        if (curTel?.settings) {
+          telemetryStore.setState({
+            telemetry: {
+              ...curTel,
+              settings: {
+                ...curTel.settings,
+                vsCodeMountMode: normalizedVsCode,
+              },
+            },
+          });
+        }
+        lastAppliedMountMode = normalizedVsCode;
+        return ensureCapsuleDocked();
+      }
+      const normalized = normalizeClientWindowMountMode(nextMode, nextMode !== 'sidebar');
       if (bridgeConfig) bridgeConfig.mountMode = normalized;
       const curTel = telemetryStore.getState().telemetry;
       if (curTel?.settings) {
@@ -2222,6 +2359,7 @@ export function mountWindowOverlay() {
       document.removeEventListener?.('keydown', onDocKeyDown);
       document.removeEventListener?.('focusin', onDocFocusIn);
       document.removeEventListener?.('visibilitychange', onVisibilityChange);
+      document.removeEventListener?.('mouseleave', onDocMouseLeave);
       popoverEl.removeEventListener?.('animationend', onPopoverAnimationEnd);
       window.removeEventListener?.('pointermove', onWindowPointerMove);
       window.removeEventListener?.('blur', onWindowBlur);

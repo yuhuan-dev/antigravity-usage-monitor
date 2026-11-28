@@ -17,6 +17,7 @@ import {
   formatLiveActivityDetail,
   formatLiveActivityLabel,
   getAgentBadgeClass,
+  getTaskStepsSignature,
 } from '../core/formatters.js';
 import { normalizeI18nLanguage, t } from '../i18n/index.js';
 import { normalizeDisplayCurrency } from '../../shared/currency-catalog.mjs';
@@ -31,38 +32,66 @@ import {
   DEFAULT_CLI_STATUSLINE_SLOTS,
   DEFAULT_CONTEXT_AGENT_MODE,
   DEFAULT_HOVER_METRICS,
+  DEFAULT_HOVER_METRIC_ROWS,
+  DEFAULT_HOVER_METRIC_SIZES,
   DEFAULT_HOVER_METRIC_STYLE,
+  DEFAULT_HOVER_METRIC_TEXT_MODE,
   DEFAULT_HOVER_MODULES,
   DEFAULT_HOVER_SYNC_OVERVIEW_METRICS,
+  DEFAULT_METRIC_ROWS,
+  DEFAULT_METRIC_TEXT_MODE,
   DEFAULT_OVERVIEW_METRICS,
+  DEFAULT_OVERVIEW_METRIC_ROWS,
+  DEFAULT_OVERVIEW_METRIC_SIZES,
   DEFAULT_OVERVIEW_METRIC_STYLE,
+  DEFAULT_OVERVIEW_METRIC_TEXT_MODE,
   DEFAULT_OVERVIEW_MODULES,
   DEFAULT_POPOVER_WIDTH,
   DEFAULT_QUOTA_DISPLAY_MODE,
   DEFAULT_STEP_TABLE_COLUMNS,
   DEFAULT_STEP_TOKEN_COMBO_FORMAT,
+  DEFAULT_TOPBAR_MULTI_SESSION_MODE,
   DEFAULT_TOPBAR_SLOTS,
   MAX_LARGE_METRIC_SLOTS,
+  MAX_OVERVIEW_METRICS,
   MAX_POPOVER_WIDTH,
+  METRIC_CARD_SIZES,
+  METRIC_GRID_COLS,
+  METRIC_GRID_ROWS,
+  METRIC_TEXT_MODES,
   MIN_POPOVER_WIDTH,
   OVERVIEW_METRIC_KEYS,
   OVERVIEW_MODULE_KEYS,
   STEP_TABLE_COLUMN_KEYS,
+  TOPBAR_MULTI_SESSION_MODES,
   TOPBAR_SLOT_KEYS,
+  deriveMetricCardStyleFromLayout,
   isRiskyFeaturesGateOpen,
+  isTopbarMultiSessionVisible,
   normalizeAccountQuotaRefreshMinutes,
   normalizeAutoConfigureLaunch,
   normalizeCliStatusLineSlots,
   normalizeContextAgentMode,
   normalizeDeveloperModeEnabled,
   normalizeEnableRemoteSshTelemetry,
+  normalizeEnableSafetyMonitor,
   normalizeExperimentalQuotaReservation,
+  normalizeHoverMetricRows,
+  normalizeHoverMetricSizes,
   normalizeHoverMetricStyle,
+  normalizeHoverMetricTextMode,
   normalizeHoverMetrics,
   normalizeHoverModules,
   normalizeHoverSyncOverviewMetrics,
+  normalizeMetricCardSize,
+  normalizeMetricCardSizes,
+  normalizeMetricGridRows,
+  normalizeMetricTextMode,
   normalizeModelDisplayMode,
+  normalizeOverviewMetricRows,
+  normalizeOverviewMetricSizes,
   normalizeOverviewMetricStyle,
+  normalizeOverviewMetricTextMode,
   normalizeOverviewMetrics,
   normalizeOverviewModules,
   normalizePluginUpdateMode,
@@ -73,8 +102,11 @@ import {
   normalizeStepTableColumns,
   normalizeStepTokenComboFormat,
   normalizeTopbarCapsuleSlots,
+  normalizeTopbarMultiSessionMode,
+  normalizeVsCodeMountMode,
   normalizeWeeklyLimitMode,
   normalizeWindowMountMode,
+  packMetricBentoLayout,
   parseStepTokenComboSegments,
   resolveEffectiveCliStatusLineSlots,
   resolveEffectiveMetricMatrixConfig,
@@ -99,63 +131,71 @@ const CASCADE_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-
  */
 export function extractHostRouteCascadeId() {
   if (typeof window === 'undefined' || !isWindowOverlayMode()) return '';
+  const bridge = readInjectedWindowBridge();
+  const isExtView =
+    bridge?.isIdeChatFrame === true ||
+    /[?&]extension(?:View|Variant)=/i.test(String(window.location?.search || ''));
   const pathname = String(window.location?.pathname || '');
   const m = pathname.match(/^\/c\/([a-f0-9-]{36})(?:\/|$)/i);
-  if (m && CASCADE_UUID_RE.test(m[1])) {
-    return m[1];
+  const pathId = m && CASCADE_UUID_RE.test(m[1]) ? m[1] : '';
+  if (!isExtView && pathId) {
+    return pathId;
   }
-  const extBridgeRouteId = String(readInjectedWindowBridge()?.[WINDOW_BRIDGE_ROUTE_KEY] || '').trim();
-  if (extBridgeRouteId && CASCADE_UUID_RE.test(extBridgeRouteId)) {
+  const extBridgeRouteId = String(bridge?.[WINDOW_BRIDGE_ROUTE_KEY] || '').trim();
+  if (!isExtView && extBridgeRouteId && CASCADE_UUID_RE.test(extBridgeRouteId)) {
     return extBridgeRouteId;
   }
   try {
-    if (typeof document === 'undefined' || typeof document.querySelector !== 'function') {
-      return '';
-    }
-    const selectedRow = document.querySelector(
-      '[data-testid^="conversation-row-"][data-selected="true"][data-cascade-id]'
-    );
-    const selectedRowId = String(selectedRow?.getAttribute?.('data-cascade-id') || '').trim();
+    if (typeof document !== 'undefined' && typeof document.querySelector === 'function') {
+      const selectedRow = document.querySelector(
+        '[data-testid^="conversation-row-"][data-selected="true"][data-cascade-id]'
+      );
+      const selectedRowId = String(selectedRow?.getAttribute?.('data-cascade-id') || '').trim();
 
-    if (typeof document.querySelectorAll === 'function') {
-      const views = document.querySelectorAll('[data-testid="conversation-view"][data-cascade-id]');
-      const visibleIds = [];
-      let focusedId = '';
-      const activeEl = document.activeElement || null;
-      for (const viewEl of views) {
-        const cid = String(viewEl?.getAttribute?.('data-cascade-id') || '').trim();
-        if (!CASCADE_UUID_RE.test(cid)) continue;
-        if (viewEl.hasAttribute?.('hidden')) continue;
-        if (viewEl.getBoundingClientRect) {
-          const r = viewEl.getBoundingClientRect();
-          if (r.width <= 0 && r.height <= 0) continue;
+      if (typeof document.querySelectorAll === 'function') {
+        const views = document.querySelectorAll('[data-testid="conversation-view"][data-cascade-id]');
+        const visibleIds = [];
+        let focusedId = '';
+        const activeEl = document.activeElement || null;
+        for (const viewEl of views) {
+          const cid = String(viewEl?.getAttribute?.('data-cascade-id') || '').trim();
+          if (!CASCADE_UUID_RE.test(cid)) continue;
+          if (viewEl.hasAttribute?.('hidden')) continue;
+          if (viewEl.getBoundingClientRect) {
+            const r = viewEl.getBoundingClientRect();
+            if (r.width <= 0 && r.height <= 0) continue;
+          }
+          visibleIds.push(cid);
+          if (activeEl && viewEl.contains?.(activeEl)) {
+            focusedId = cid;
+          }
         }
-        visibleIds.push(cid);
-        if (activeEl && viewEl.contains?.(activeEl)) {
-          focusedId = cid;
+        if (focusedId) return focusedId;
+        if (
+          selectedRowId &&
+          CASCADE_UUID_RE.test(selectedRowId) &&
+          visibleIds.some((id) => id.toLowerCase() === selectedRowId.toLowerCase())
+        ) {
+          return selectedRowId;
         }
+        if (visibleIds.length > 0) return visibleIds[0];
       }
-      if (focusedId) return focusedId;
-      if (
-        selectedRowId &&
-        CASCADE_UUID_RE.test(selectedRowId) &&
-        visibleIds.some((id) => id.toLowerCase() === selectedRowId.toLowerCase())
-      ) {
+
+      const singleView = document.querySelector('[data-testid="conversation-view"][data-cascade-id]');
+      const singleViewId = String(singleView?.getAttribute?.('data-cascade-id') || '').trim();
+      if (CASCADE_UUID_RE.test(singleViewId)) {
+        return singleViewId;
+      }
+      if (CASCADE_UUID_RE.test(selectedRowId)) {
         return selectedRowId;
       }
-      if (visibleIds.length > 0) return visibleIds[0];
-    }
-
-    const singleView = document.querySelector('[data-testid="conversation-view"][data-cascade-id]');
-    const singleViewId = String(singleView?.getAttribute?.('data-cascade-id') || '').trim();
-    if (CASCADE_UUID_RE.test(singleViewId)) {
-      return singleViewId;
-    }
-    if (CASCADE_UUID_RE.test(selectedRowId)) {
-      return selectedRowId;
     }
   } catch {
     // 忽略宿主 DOM 查询异常
+  }
+  if (pathId) return pathId;
+  if (extBridgeRouteId && CASCADE_UUID_RE.test(extBridgeRouteId)) {
+    return extBridgeRouteId;
   }
   return '';
 }
@@ -191,6 +231,7 @@ let lastPrefetchedUsageRevision = 0;
 let consumptionCacheScopeSig = '';
 const MAX_CONSUMPTION_RANGE_CACHE = 24;
 const MAX_CONVERSATION_VIEW_CACHE = 12;
+const MAX_CONVERSATION_VIEW_CACHE_STEPS = 10000;
 const CONSUMPTION_PRESET_KEYS = ['cycle', 'today', '24h', '7d', '14d', '30d', 'all'];
 const consumptionRangeCache = new Map();
 const conversationViewCache = new Map();
@@ -208,9 +249,11 @@ const TELEMETRY_RECOMPUTE_SETTING_KEYS = new Set([
   'weeklyTokenBudget',
   'weeklyCostBudget',
   'windowMountMode',
+  'vsCodeMountMode',
   'enableWindowOverlay',
   'autoConfigureLaunch',
   'enableRemoteSshTelemetry',
+  'enableSafetyMonitor',
 ]);
 
 function makeConsumptionRangeCacheKey(
@@ -278,6 +321,12 @@ function recordConversationViewToCache(payload) {
   const active = payload?.activeConversation;
   const cidLower = String(active?.cascadeId || '').trim().toLowerCase();
   if (!cidLower || !Array.isArray(active?.recentSteps)) return;
+  let stepCount = Array.isArray(active?.recentSteps) ? active.recentSteps.length : 0;
+  if (Array.isArray(active?.agents)) {
+    for (const ag of active.agents) {
+      if (Array.isArray(ag?.recentSteps)) stepCount += ag.recentSteps.length;
+    }
+  }
   const entry = {
     cascadeId: active.cascadeId,
     activeConversation: active,
@@ -292,12 +341,24 @@ function recordConversationViewToCache(payload) {
           )
         : null),
     stepRevision: String(payload.stepRevision || ''),
+    stepCount,
     cachedAtMs: Date.now(),
   };
   conversationViewCache.delete(cidLower);
   conversationViewCache.set(cidLower, entry);
-  while (conversationViewCache.size > MAX_CONVERSATION_VIEW_CACHE) {
-    conversationViewCache.delete(conversationViewCache.keys().next().value);
+  let totalCachedSteps = 0;
+  for (const rec of conversationViewCache.values()) {
+    totalCachedSteps += Number(rec?.stepCount || 0);
+  }
+  while (
+    conversationViewCache.size > MAX_CONVERSATION_VIEW_CACHE ||
+    (conversationViewCache.size > 2 && totalCachedSteps > MAX_CONVERSATION_VIEW_CACHE_STEPS)
+  ) {
+    const oldestKey = conversationViewCache.keys().next().value;
+    if (oldestKey === undefined) break;
+    const evicted = conversationViewCache.get(oldestKey);
+    conversationViewCache.delete(oldestKey);
+    totalCachedSteps -= Number(evicted?.stepCount || 0);
   }
 }
 
@@ -494,6 +555,8 @@ function reconcileIncomingTelemetrySettings(payload, reqSettingsRev) {
 
 export const CLIENT_TOPBAR_SLOT_KEYS = TOPBAR_SLOT_KEYS;
 export const DEFAULT_CLIENT_TOPBAR_SLOTS = DEFAULT_TOPBAR_SLOTS;
+export const CLIENT_TOPBAR_MULTI_SESSION_MODES = TOPBAR_MULTI_SESSION_MODES;
+export const DEFAULT_CLIENT_TOPBAR_MULTI_SESSION_MODE = DEFAULT_TOPBAR_MULTI_SESSION_MODE;
 export const DEFAULT_CLIENT_CONTEXT_AGENT_MODE = DEFAULT_CONTEXT_AGENT_MODE;
 export const CLIENT_CLI_STATUSLINE_PRESETS = CLI_STATUSLINE_PRESETS;
 export const DEFAULT_CLIENT_CLI_STATUSLINE_SLOTS = DEFAULT_CLI_STATUSLINE_SLOTS;
@@ -502,8 +565,21 @@ export const DEFAULT_CLIENT_OVERVIEW_MODULES = DEFAULT_OVERVIEW_MODULES;
 export const DEFAULT_CLIENT_HOVER_MODULES = DEFAULT_HOVER_MODULES;
 export const DEFAULT_CLIENT_HOVER_SYNC_OVERVIEW_METRICS = DEFAULT_HOVER_SYNC_OVERVIEW_METRICS;
 export const DEFAULT_CLIENT_HOVER_METRIC_STYLE = DEFAULT_HOVER_METRIC_STYLE;
+export const DEFAULT_CLIENT_HOVER_METRIC_ROWS = DEFAULT_HOVER_METRIC_ROWS;
+export const DEFAULT_CLIENT_HOVER_METRIC_SIZES = DEFAULT_HOVER_METRIC_SIZES;
+export const DEFAULT_CLIENT_HOVER_METRIC_TEXT_MODE = DEFAULT_HOVER_METRIC_TEXT_MODE;
 export const DEFAULT_CLIENT_HOVER_METRICS = DEFAULT_HOVER_METRICS;
 export const DEFAULT_CLIENT_OVERVIEW_METRIC_STYLE = DEFAULT_OVERVIEW_METRIC_STYLE;
+export const DEFAULT_CLIENT_OVERVIEW_METRIC_ROWS = DEFAULT_OVERVIEW_METRIC_ROWS;
+export const DEFAULT_CLIENT_OVERVIEW_METRIC_SIZES = DEFAULT_OVERVIEW_METRIC_SIZES;
+export const DEFAULT_CLIENT_OVERVIEW_METRIC_TEXT_MODE = DEFAULT_OVERVIEW_METRIC_TEXT_MODE;
+export const DEFAULT_CLIENT_METRIC_ROWS = DEFAULT_METRIC_ROWS;
+export const DEFAULT_CLIENT_METRIC_TEXT_MODE = DEFAULT_METRIC_TEXT_MODE;
+export const CLIENT_METRIC_GRID_COLS = METRIC_GRID_COLS;
+export const CLIENT_METRIC_GRID_ROWS = METRIC_GRID_ROWS;
+export const CLIENT_METRIC_CARD_SIZES = METRIC_CARD_SIZES;
+export const CLIENT_METRIC_TEXT_MODES = METRIC_TEXT_MODES;
+export const MAX_CLIENT_OVERVIEW_METRICS = MAX_OVERVIEW_METRICS;
 export const MAX_CLIENT_LARGE_METRIC_SLOTS = MAX_LARGE_METRIC_SLOTS;
 export const CLIENT_OVERVIEW_METRIC_KEYS = OVERVIEW_METRIC_KEYS;
 export const DEFAULT_CLIENT_OVERVIEW_METRICS = DEFAULT_OVERVIEW_METRICS;
@@ -521,6 +597,8 @@ export const normalizeClientPopoverWidthMode = normalizePopoverWidthMode;
 export const normalizeClientPopoverWidth = normalizePopoverWidth;
 export const normalizeClientModelDisplayMode = normalizeModelDisplayMode;
 export const normalizeClientTopbarSlots = normalizeTopbarCapsuleSlots;
+export const normalizeClientTopbarMultiSessionMode = normalizeTopbarMultiSessionMode;
+export const isClientTopbarMultiSessionVisible = isTopbarMultiSessionVisible;
 export const normalizeClientContextAgentMode = normalizeContextAgentMode;
 export const normalizeClientQuotaDisplayMode = normalizeQuotaDisplayMode;
 export const normalizeClientExperimentalQuotaReservation = normalizeExperimentalQuotaReservation;
@@ -556,14 +634,27 @@ export const resolveEffectiveClientCliStatusLineSlots = resolveEffectiveCliStatu
 export const normalizeClientHoverModules = normalizeHoverModules;
 export const normalizeClientHoverSyncOverviewMetrics = normalizeHoverSyncOverviewMetrics;
 export const normalizeClientHoverMetricStyle = normalizeHoverMetricStyle;
+export const normalizeClientHoverMetricRows = normalizeHoverMetricRows;
+export const normalizeClientHoverMetricSizes = normalizeHoverMetricSizes;
+export const normalizeClientHoverMetricTextMode = normalizeHoverMetricTextMode;
 export const normalizeClientHoverMetrics = normalizeHoverMetrics;
 export const normalizeClientOverviewModules = normalizeOverviewModules;
 export const normalizeClientOverviewMetricStyle = normalizeOverviewMetricStyle;
+export const normalizeClientOverviewMetricRows = normalizeOverviewMetricRows;
+export const normalizeClientOverviewMetricSizes = normalizeOverviewMetricSizes;
+export const normalizeClientOverviewMetricTextMode = normalizeOverviewMetricTextMode;
 export const normalizeClientOverviewMetrics = normalizeOverviewMetrics;
+export const normalizeClientMetricCardSize = normalizeMetricCardSize;
+export const normalizeClientMetricCardSizes = normalizeMetricCardSizes;
+export const normalizeClientMetricGridRows = normalizeMetricGridRows;
+export const normalizeClientMetricTextMode = normalizeMetricTextMode;
+export const deriveClientMetricCardStyle = deriveMetricCardStyleFromLayout;
+export const packClientMetricBentoLayout = packMetricBentoLayout;
 export const resolveEffectiveClientMetricMatrixConfig = resolveEffectiveMetricMatrixConfig;
 export const normalizeClientStepColumns = normalizeStepTableColumns;
 export const normalizeClientUpdateMode = normalizePluginUpdateMode;
 export const normalizeClientWindowMountMode = normalizeWindowMountMode;
+export const normalizeClientVsCodeMountMode = normalizeVsCodeMountMode;
 export const normalizeClientDisplayCurrency = normalizeDisplayCurrency;
 
 export function isEquivalentTelemetry(prev, next) {
@@ -663,11 +754,29 @@ export function isEquivalentTelemetry(prev, next) {
   ) {
     return false;
   }
+  if (
+    normalizeClientVsCodeMountMode(pSet?.vsCodeMountMode) !==
+    normalizeClientVsCodeMountMode(nSet?.vsCodeMountMode)
+  ) {
+    return false;
+  }
   if (pSet?.enableWindowOverlay !== nSet?.enableWindowOverlay) return false;
   if ((pSet?.enableCliStatusLine !== false) !== (nSet?.enableCliStatusLine !== false)) {
     return false;
   }
   if (!sameArr(pSet?.cliStatusLineSlots, nSet?.cliStatusLineSlots)) return false;
+  if (
+    normalizeClientTopbarMultiSessionMode(
+      pSet?.topbarMultiSessionMode,
+      pSet?.showTopbarMultiSession
+    ) !==
+    normalizeClientTopbarMultiSessionMode(
+      nSet?.topbarMultiSessionMode,
+      nSet?.showTopbarMultiSession
+    )
+  ) {
+    return false;
+  }
   if ((pSet?.showTopbarMultiSession !== false) !== (nSet?.showTopbarMultiSession !== false)) {
     return false;
   }
@@ -725,6 +834,12 @@ export function isEquivalentTelemetry(prev, next) {
   ) {
     return false;
   }
+  if (
+    normalizeEnableSafetyMonitor(pSet?.enableSafetyMonitor) !==
+    normalizeEnableSafetyMonitor(nSet?.enableSafetyMonitor)
+  ) {
+    return false;
+  }
   if (!sameArr(pSet?.topbarCapsuleSlots, nSet?.topbarCapsuleSlots)) return false;
   if (!sameArr(pSet?.hoverModules, nSet?.hoverModules)) return false;
   if (
@@ -733,9 +848,33 @@ export function isEquivalentTelemetry(prev, next) {
   ) {
     return false;
   }
+  const sameSizeMap = (a, b) => {
+    const na = normalizeClientMetricCardSizes(a);
+    const nb = normalizeClientMetricCardSizes(b);
+    const ka = Object.keys(na);
+    const kb = Object.keys(nb);
+    if (ka.length !== kb.length) return false;
+    for (let i = 0; i < ka.length; i += 1) {
+      if (na[ka[i]] !== nb[ka[i]]) return false;
+    }
+    return true;
+  };
   if (
     normalizeClientHoverMetricStyle(pSet?.hoverMetricStyle) !==
     normalizeClientHoverMetricStyle(nSet?.hoverMetricStyle)
+  ) {
+    return false;
+  }
+  if (
+    normalizeClientHoverMetricRows(pSet?.hoverMetricRows, pSet?.hoverMetricStyle) !==
+    normalizeClientHoverMetricRows(nSet?.hoverMetricRows, nSet?.hoverMetricStyle)
+  ) {
+    return false;
+  }
+  if (!sameSizeMap(pSet?.hoverMetricSizes, nSet?.hoverMetricSizes)) return false;
+  if (
+    normalizeClientHoverMetricTextMode(pSet?.hoverMetricTextMode) !==
+    normalizeClientHoverMetricTextMode(nSet?.hoverMetricTextMode)
   ) {
     return false;
   }
@@ -744,6 +883,19 @@ export function isEquivalentTelemetry(prev, next) {
   if (
     normalizeClientOverviewMetricStyle(pSet?.overviewMetricStyle) !==
     normalizeClientOverviewMetricStyle(nSet?.overviewMetricStyle)
+  ) {
+    return false;
+  }
+  if (
+    normalizeClientOverviewMetricRows(pSet?.overviewMetricRows, pSet?.overviewMetricStyle) !==
+    normalizeClientOverviewMetricRows(nSet?.overviewMetricRows, nSet?.overviewMetricStyle)
+  ) {
+    return false;
+  }
+  if (!sameSizeMap(pSet?.overviewMetricSizes, nSet?.overviewMetricSizes)) return false;
+  if (
+    normalizeClientOverviewMetricTextMode(pSet?.overviewMetricTextMode) !==
+    normalizeClientOverviewMetricTextMode(nSet?.overviewMetricTextMode)
   ) {
     return false;
   }
@@ -778,6 +930,36 @@ export function isEquivalentTelemetry(prev, next) {
     String(pCli?.managedFlags || '') !== String(nCli?.managedFlags || '')
   ) {
     return false;
+  }
+  const pSm = prev.safetyMonitor;
+  const nSm = next.safetyMonitor;
+  if (Boolean(pSm) !== Boolean(nSm)) {
+    return false;
+  }
+  if (pSm && nSm) {
+    const p5 = pSm.window5h;
+    const n5 = nSm.window5h;
+    const p24 = pSm.window24h;
+    const n24 = nSm.window24h;
+    if (
+      Number(pSm.sourceCount || 0) !== Number(nSm.sourceCount || 0) ||
+      Number(p5?.totalStreamGen || 0) !== Number(n5?.totalStreamGen || 0) ||
+      Number(p5?.hiddenStreamGen || 0) !== Number(n5?.hiddenStreamGen || 0) ||
+      Number(p5?.flashLiteCalls || 0) !== Number(n5?.flashLiteCalls || 0) ||
+      Number(p5?.heavyCalls || 0) !== Number(n5?.heavyCalls || 0) ||
+      Number(p5?.heavyTrajChars || 0) !== Number(n5?.heavyTrajChars || 0) ||
+      Number(p5?.blockedMs || 0) !== Number(n5?.blockedMs || 0) ||
+      Number(p5?.rateLimit429Count || 0) !== Number(n5?.rateLimit429Count || 0) ||
+      Number(p5?.fallbackCount || 0) !== Number(n5?.fallbackCount || 0) ||
+      Number(p24?.flashLiteCalls || 0) !== Number(n24?.flashLiteCalls || 0) ||
+      Number(p24?.heavyCalls || 0) !== Number(n24?.heavyCalls || 0) ||
+      Number(p24?.heavyTrajChars || 0) !== Number(n24?.heavyTrajChars || 0) ||
+      Boolean(pSm.alerts?.has429Fallback) !== Boolean(nSm.alerts?.has429Fallback) ||
+      Boolean(pSm.alerts?.hasHeavyBurst) !== Boolean(nSm.alerts?.hasHeavyBurst) ||
+      Boolean(pSm.alerts?.nearFlashLiteLimit) !== Boolean(nSm.alerts?.nearFlashLiteLimit)
+    ) {
+      return false;
+    }
   }
   const pCloud = prev.cloudStatus;
   const nCloud = next.cloudStatus;
@@ -839,7 +1021,9 @@ export function isEquivalentTelemetry(prev, next) {
   }
   if (
     pAct?.liveActivity?.signature !== nAct?.liveActivity?.signature ||
-    pAct?.liveActivity?.startedAtMs !== nAct?.liveActivity?.startedAtMs
+    pAct?.liveActivity?.startedAtMs !== nAct?.liveActivity?.startedAtMs ||
+    getTaskStepsSignature(pAct?.liveActivity?.taskSteps) !==
+      getTaskStepsSignature(nAct?.liveActivity?.taskSteps)
   ) {
     return false;
   }
@@ -854,7 +1038,9 @@ export function isEquivalentTelemetry(prev, next) {
   }
   if (
     pAct?.aggregated?.liveActivity?.signature !== nAct?.aggregated?.liveActivity?.signature ||
-    pAct?.aggregated?.liveActivity?.startedAtMs !== nAct?.aggregated?.liveActivity?.startedAtMs
+    pAct?.aggregated?.liveActivity?.startedAtMs !== nAct?.aggregated?.liveActivity?.startedAtMs ||
+    getTaskStepsSignature(pAct?.aggregated?.liveActivity?.taskSteps) !==
+      getTaskStepsSignature(nAct?.aggregated?.liveActivity?.taskSteps)
   ) {
     return false;
   }
@@ -912,6 +1098,8 @@ export function isEquivalentTelemetry(prev, next) {
       pa?.stepCount !== na?.stepCount ||
       pa?.isRunning !== na?.isRunning ||
       pa?.liveActivity?.signature !== na?.liveActivity?.signature ||
+      getTaskStepsSignature(pa?.liveActivity?.taskSteps) !==
+        getTaskStepsSignature(na?.liveActivity?.taskSteps) ||
       pa?.latestTokPerSec !== na?.latestTokPerSec ||
       pa?.latestTtftSec !== na?.latestTtftSec ||
       pa?.lastKnownTtftSec !== na?.lastKnownTtftSec ||
@@ -1246,11 +1434,13 @@ export function isEquivalentTelemetry(prev, next) {
       pPools[i]?.remainingPct !== nPools[i]?.remainingPct ||
       pPools[i]?.reservedPct !== nPools[i]?.reservedPct ||
       pPools[i]?.reservedLeaseCount !== nPools[i]?.reservedLeaseCount ||
+      pPools[i]?.externalUsedPct !== nPools[i]?.externalUsedPct ||
       pPools[i]?.resetTime !== nPools[i]?.resetTime ||
       pPools[i]?.weeklyUsedPct !== nPools[i]?.weeklyUsedPct ||
       pPools[i]?.weeklyRemainingPct !== nPools[i]?.weeklyRemainingPct ||
       pPools[i]?.weeklyReservedPct !== nPools[i]?.weeklyReservedPct ||
       pPools[i]?.weeklyReservedLeaseCount !== nPools[i]?.weeklyReservedLeaseCount ||
+      pPools[i]?.weeklyExternalUsedPct !== nPools[i]?.weeklyExternalUsedPct ||
       pPools[i]?.weeklyResetTime !== nPools[i]?.weeklyResetTime ||
       pPools[i]?.cycle5h?.tokens !== nPools[i]?.cycle5h?.tokens ||
       pPools[i]?.cycle5h?.costUsd !== nPools[i]?.cycle5h?.costUsd ||
@@ -1306,7 +1496,9 @@ export function isEquivalentTelemetry(prev, next) {
       pr?.runningSubagentCount !== nr?.runningSubagentCount ||
       (pr?.runningSwarmCount || 0) !== (nr?.runningSwarmCount || 0) ||
       pr?.mainActivity?.signature !== nr?.mainActivity?.signature ||
-      pr?.mainActivity?.startedAtMs !== nr?.mainActivity?.startedAtMs
+      pr?.mainActivity?.startedAtMs !== nr?.mainActivity?.startedAtMs ||
+      getTaskStepsSignature(pr?.mainActivity?.taskSteps) !==
+        getTaskStepsSignature(nr?.mainActivity?.taskSteps)
     ) {
       return false;
     }
@@ -1322,7 +1514,9 @@ export function isEquivalentTelemetry(prev, next) {
         pSubs[j]?.isRunning !== nSubs[j]?.isRunning ||
         pSubs[j]?.stepCount !== nSubs[j]?.stepCount ||
         pSubs[j]?.liveActivity?.signature !== nSubs[j]?.liveActivity?.signature ||
-        pSubs[j]?.liveActivity?.startedAtMs !== nSubs[j]?.liveActivity?.startedAtMs
+        pSubs[j]?.liveActivity?.startedAtMs !== nSubs[j]?.liveActivity?.startedAtMs ||
+        getTaskStepsSignature(pSubs[j]?.liveActivity?.taskSteps) !==
+          getTaskStepsSignature(nSubs[j]?.liveActivity?.taskSteps)
       ) {
         return false;
       }
@@ -2025,8 +2219,17 @@ export async function saveSettingsPatch(patch) {
   if (Object.prototype.hasOwnProperty.call(safePatch, 'enableCliStatusLine')) {
     safePatch.enableCliStatusLine = Boolean(safePatch.enableCliStatusLine);
   }
-  if (Object.prototype.hasOwnProperty.call(safePatch, 'showTopbarMultiSession')) {
-    safePatch.showTopbarMultiSession = Boolean(safePatch.showTopbarMultiSession);
+  if (Object.prototype.hasOwnProperty.call(safePatch, 'topbarMultiSessionMode')) {
+    const normMultiMode = normalizeClientTopbarMultiSessionMode(
+      safePatch.topbarMultiSessionMode,
+      safePatch.showTopbarMultiSession
+    );
+    safePatch.topbarMultiSessionMode = normMultiMode;
+    safePatch.showTopbarMultiSession = normMultiMode !== 'hide';
+  } else if (Object.prototype.hasOwnProperty.call(safePatch, 'showTopbarMultiSession')) {
+    const nextShowMulti = Boolean(safePatch.showTopbarMultiSession);
+    safePatch.showTopbarMultiSession = nextShowMulti;
+    safePatch.topbarMultiSessionMode = nextShowMulti ? 'show' : 'hide';
   }
   if (Object.prototype.hasOwnProperty.call(safePatch, 'contextAgentMode')) {
     safePatch.contextAgentMode = normalizeClientContextAgentMode(safePatch.contextAgentMode);
@@ -2096,22 +2299,110 @@ export async function saveSettingsPatch(patch) {
       safePatch.hoverSyncOverviewMetrics
     );
   }
-  if (Object.prototype.hasOwnProperty.call(safePatch, 'hoverMetricStyle')) {
-    safePatch.hoverMetricStyle = normalizeClientHoverMetricStyle(safePatch.hoverMetricStyle);
-  }
-  if (Object.prototype.hasOwnProperty.call(safePatch, 'hoverMetrics')) {
+  const curSettings = telemetryStore.getState().telemetry?.settings || {};
+  const hasHoverMetrics = Object.prototype.hasOwnProperty.call(safePatch, 'hoverMetrics');
+  const hasHoverRows = Object.prototype.hasOwnProperty.call(safePatch, 'hoverMetricRows');
+  const hasHoverSizes = Object.prototype.hasOwnProperty.call(safePatch, 'hoverMetricSizes');
+  const hasHoverStyle = Object.prototype.hasOwnProperty.call(safePatch, 'hoverMetricStyle');
+  if (hasHoverMetrics) {
     safePatch.hoverMetrics = normalizeClientHoverMetrics(safePatch.hoverMetrics);
+  }
+  if (Object.prototype.hasOwnProperty.call(safePatch, 'hoverMetricTextMode')) {
+    safePatch.hoverMetricTextMode = normalizeClientHoverMetricTextMode(
+      safePatch.hoverMetricTextMode
+    );
+  }
+  if (hasHoverRows || hasHoverSizes) {
+    if (hasHoverRows) {
+      safePatch.hoverMetricRows = normalizeClientHoverMetricRows(safePatch.hoverMetricRows);
+    }
+    if (hasHoverSizes) {
+      safePatch.hoverMetricSizes = normalizeClientHoverMetricSizes(safePatch.hoverMetricSizes);
+    }
+    const nextHoverRows = hasHoverRows
+      ? safePatch.hoverMetricRows
+      : normalizeClientHoverMetricRows(curSettings.hoverMetricRows, curSettings.hoverMetricStyle);
+    const nextHoverMetrics = hasHoverMetrics
+      ? safePatch.hoverMetrics
+      : normalizeClientHoverMetrics(curSettings.hoverMetrics);
+    const nextHoverSizes = hasHoverSizes
+      ? safePatch.hoverMetricSizes
+      : normalizeClientHoverMetricSizes(
+          curSettings.hoverMetricSizes,
+          nextHoverMetrics,
+          curSettings.hoverMetricRows === undefined ? curSettings.hoverMetricStyle : undefined
+        );
+    safePatch.hoverMetricStyle = deriveClientMetricCardStyle(
+      nextHoverRows,
+      nextHoverMetrics,
+      nextHoverSizes
+    );
+  } else if (hasHoverStyle) {
+    const nextStyle = normalizeClientHoverMetricStyle(safePatch.hoverMetricStyle);
+    const nextHoverMetrics = hasHoverMetrics
+      ? safePatch.hoverMetrics
+      : normalizeClientHoverMetrics(curSettings.hoverMetrics);
+    safePatch.hoverMetricStyle = nextStyle;
+    safePatch.hoverMetricRows = normalizeClientHoverMetricRows(undefined, nextStyle);
+    safePatch.hoverMetricSizes = normalizeClientHoverMetricSizes(undefined, nextHoverMetrics, nextStyle);
   }
   if (Object.prototype.hasOwnProperty.call(safePatch, 'overviewModules')) {
     safePatch.overviewModules = normalizeClientOverviewModules(safePatch.overviewModules);
   }
-  if (Object.prototype.hasOwnProperty.call(safePatch, 'overviewMetricStyle')) {
-    safePatch.overviewMetricStyle = normalizeClientOverviewMetricStyle(
-      safePatch.overviewMetricStyle
+  const hasOverviewMetrics = Object.prototype.hasOwnProperty.call(safePatch, 'overviewMetrics');
+  const hasOverviewRows = Object.prototype.hasOwnProperty.call(safePatch, 'overviewMetricRows');
+  const hasOverviewSizes = Object.prototype.hasOwnProperty.call(safePatch, 'overviewMetricSizes');
+  const hasOverviewStyle = Object.prototype.hasOwnProperty.call(safePatch, 'overviewMetricStyle');
+  if (hasOverviewMetrics) {
+    safePatch.overviewMetrics = normalizeClientOverviewMetrics(safePatch.overviewMetrics);
+  }
+  if (Object.prototype.hasOwnProperty.call(safePatch, 'overviewMetricTextMode')) {
+    safePatch.overviewMetricTextMode = normalizeClientOverviewMetricTextMode(
+      safePatch.overviewMetricTextMode
     );
   }
-  if (Object.prototype.hasOwnProperty.call(safePatch, 'overviewMetrics')) {
-    safePatch.overviewMetrics = normalizeClientOverviewMetrics(safePatch.overviewMetrics);
+  if (hasOverviewRows || hasOverviewSizes) {
+    if (hasOverviewRows) {
+      safePatch.overviewMetricRows = normalizeClientOverviewMetricRows(safePatch.overviewMetricRows);
+    }
+    if (hasOverviewSizes) {
+      safePatch.overviewMetricSizes = normalizeClientOverviewMetricSizes(
+        safePatch.overviewMetricSizes
+      );
+    }
+    const nextOverviewRows = hasOverviewRows
+      ? safePatch.overviewMetricRows
+      : normalizeClientOverviewMetricRows(
+          curSettings.overviewMetricRows,
+          curSettings.overviewMetricStyle
+        );
+    const nextOverviewMetrics = hasOverviewMetrics
+      ? safePatch.overviewMetrics
+      : normalizeClientOverviewMetrics(curSettings.overviewMetrics);
+    const nextOverviewSizes = hasOverviewSizes
+      ? safePatch.overviewMetricSizes
+      : normalizeClientOverviewMetricSizes(
+          curSettings.overviewMetricSizes,
+          nextOverviewMetrics,
+          curSettings.overviewMetricRows === undefined ? curSettings.overviewMetricStyle : undefined
+        );
+    safePatch.overviewMetricStyle = deriveClientMetricCardStyle(
+      nextOverviewRows,
+      nextOverviewMetrics,
+      nextOverviewSizes
+    );
+  } else if (hasOverviewStyle) {
+    const nextStyle = normalizeClientOverviewMetricStyle(safePatch.overviewMetricStyle);
+    const nextOverviewMetrics = hasOverviewMetrics
+      ? safePatch.overviewMetrics
+      : normalizeClientOverviewMetrics(curSettings.overviewMetrics);
+    safePatch.overviewMetricStyle = nextStyle;
+    safePatch.overviewMetricRows = normalizeClientOverviewMetricRows(undefined, nextStyle);
+    safePatch.overviewMetricSizes = normalizeClientOverviewMetricSizes(
+      undefined,
+      nextOverviewMetrics,
+      nextStyle
+    );
   }
   if (Object.prototype.hasOwnProperty.call(safePatch, 'stepTableColumns')) {
     safePatch.stepTableColumns = normalizeClientStepColumns(safePatch.stepTableColumns);
@@ -2160,6 +2451,9 @@ export async function saveSettingsPatch(patch) {
       safePatch.enableRemoteSshTelemetry
     );
   }
+  if (Object.prototype.hasOwnProperty.call(safePatch, 'enableSafetyMonitor')) {
+    safePatch.enableSafetyMonitor = normalizeEnableSafetyMonitor(safePatch.enableSafetyMonitor);
+  }
   if (Object.prototype.hasOwnProperty.call(safePatch, 'windowMountMode')) {
     const normMount = normalizeClientWindowMountMode(
       safePatch.windowMountMode,
@@ -2170,6 +2464,9 @@ export async function saveSettingsPatch(patch) {
   } else if (Object.prototype.hasOwnProperty.call(safePatch, 'enableWindowOverlay')) {
     safePatch.enableWindowOverlay = Boolean(safePatch.enableWindowOverlay);
     safePatch.windowMountMode = safePatch.enableWindowOverlay ? 'dual' : 'sidebar';
+  }
+  if (Object.prototype.hasOwnProperty.call(safePatch, 'vsCodeMountMode')) {
+    safePatch.vsCodeMountMode = normalizeClientVsCodeMountMode(safePatch.vsCodeMountMode);
   }
   const myRev = ++settingsRevision;
   const prevTelemetry = telemetryStore.getState().telemetry;
@@ -2374,6 +2671,7 @@ export async function triggerFxSync() {
 
 export const normalizeClientAutoConfigureLaunch = normalizeAutoConfigureLaunch;
 export const normalizeClientEnableRemoteSshTelemetry = normalizeEnableRemoteSshTelemetry;
+export const normalizeClientEnableSafetyMonitor = normalizeEnableSafetyMonitor;
 
 export async function triggerBridgeHostRelaunch(options = {}) {
   const payload =
@@ -2590,7 +2888,16 @@ export function startAsyncTelemetryLoop(intervalMs = 2000) {
       return Math.min(loopIntervalMs, 800);
     }
     if (isWindowOverlayMode() && typeof document !== 'undefined' && document.hidden) {
-      return Math.max(loopIntervalMs, 8000);
+      return Math.max(loopIntervalMs, 10000);
+    }
+    if (isWindowOverlayMode() && readInjectedWindowBridge()?.isRemoteEndpoint) {
+      const tel = telemetryStore.getState().telemetry;
+      const hasRunning =
+        (Array.isArray(tel?.runningConversations) && tel.runningConversations.length > 0) ||
+        tel?.activeConversation?.status === 'CASCADE_RUN_STATUS_RUNNING';
+      if (!hasRunning) {
+        return Math.max(loopIntervalMs, 6000);
+      }
     }
     return loopIntervalMs;
   };

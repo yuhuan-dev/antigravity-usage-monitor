@@ -4157,6 +4157,978 @@
       "source": "^(.+?) \\(all agent edits\\)$",
       "replace": "$1 (toutes les modifications de l'agent)",
       "hint": "(all agent edits)"
+    },
+    {
+      "source": "^(\\d+) posts?$",
+      "flags": "",
+      "replace": "$1 messages",
+      "hint": "post"
+    },
+    {
+      "source": "^(\\d+) members?$",
+      "flags": "",
+      "replace": "$1 membres",
+      "hint": "member"
+    },
+    {
+      "source": "^(\\d+) frames?$",
+      "flags": "",
+      "replace": "$1 images",
+      "hint": "frame"
+    },
+    {
+      "source": "^(\\d+) bees?$",
+      "flags": "",
+      "replace": "$1 agents",
+      "hint": "bee"
+    },
+    {
+      "source": "^(\\d+) threads?$",
+      "flags": "",
+      "replace": "$1 fils",
+      "hint": "thread"
+    },
+    {
+      "source": "^(\\d+) of (\\d+) tasks done$",
+      "flags": "",
+      "replace": "$1 tâches terminées sur $2",
+      "hint": "tasks done"
+    },
+    {
+      "source": "^(\\d+) of (\\d+) done$",
+      "flags": "",
+      "replace": "$1 sur $2 terminées",
+      "hint": "done"
+    },
+    {
+      "source": "^(\\d+) of (\\d+)$",
+      "flags": "",
+      "replace": "$1 sur $2",
+      "hint": "of"
+    },
+    {
+      "source": "^Waiting on (\\d+)$",
+      "flags": "",
+      "replace": "En attente de $1",
+      "hint": "Waiting on"
+    },
+    {
+      "source": "^Working for @([A-Za-z0-9_.-]+)$",
+      "flags": "",
+      "replace": "Travaille pour @$1",
+      "hint": "Working for @"
+    },
+    {
+      "source": "^(\\d+) waiting on @([A-Za-z0-9_.-]+)$",
+      "flags": "",
+      "replace": "$1 en attente de @$2",
+      "hint": "waiting on @"
+    },
+    {
+      "source": "^(\\d+) needs? you$",
+      "flags": "",
+      "replace": "$1 requièrent votre action",
+      "hint": "you"
+    },
+    {
+      "source": "^(\\d+) in review$",
+      "flags": "",
+      "replace": "$1 en révision",
+      "hint": "in review"
+    },
+    {
+      "source": "^(\\d+) threads? open$",
+      "flags": "",
+      "replace": "$1 fils ouverts",
+      "hint": "open"
+    },
+    {
+      "source": "^(\\d+) active$",
+      "flags": "",
+      "replace": "$1 actifs",
+      "hint": "active"
+    },
+    {
+      "source": "^(\\d+) stuck$",
+      "flags": "",
+      "replace": "$1 bloqués",
+      "hint": "stuck"
+    },
+    {
+      "source": "^(\\d+) working$",
+      "flags": "",
+      "replace": "$1 en cours",
+      "hint": "working"
+    },
+    {
+      "source": "^(\\d+) waiting$",
+      "flags": "",
+      "replace": "$1 en attente",
+      "hint": "waiting"
+    },
+    {
+      "source": "^(\\d+) done$",
+      "flags": "",
+      "replace": "$1 terminés",
+      "hint": "done"
+    },
+    {
+      "source": "^Up next · (\\d+)$",
+      "flags": "",
+      "replace": "À suivre · $1",
+      "hint": "Up next"
+    },
+    {
+      "source": "^@([^\\s]+) ran out of quota$",
+      "flags": "",
+      "replace": "@$1 a épuisé son quota",
+      "hint": "ran out of quota"
+    },
+    {
+      "source": "^@([^\\s]+) looks stuck$",
+      "flags": "",
+      "replace": "@$1 semble bloqué",
+      "hint": "looks stuck"
+    },
+    {
+      "source": "^@([^\\s]+) hit an error$",
+      "flags": "",
+      "replace": "@$1 a rencontré une erreur",
+      "hint": "hit an error"
+    },
+    {
+      "source": "^From @([A-Za-z0-9_.-]+)$",
+      "flags": "",
+      "replace": "De @$1",
+      "hint": "From @"
+    },
+    {
+      "source": "^To @([A-Za-z0-9_.-]+)$",
+      "flags": "",
+      "replace": "À @$1",
+      "hint": "To @"
+    },
+    {
+      "source": "^Go to #(\\d+) on the Board$",
+      "flags": "",
+      "replace": "Aller au #$1 sur le tableau",
+      "hint": "on the Board"
+    },
+    {
+      "source": "^Go to #(\\d+) \\((.+?)\\)$",
+      "flags": "",
+      "replace": "Aller au #$1 ($2)",
+      "hint": "Go to #"
+    },
+    {
+      "source": "^Go to #(\\d+)$",
+      "flags": "",
+      "replace": "Aller au #$1",
+      "hint": "Go to #"
+    },
+    {
+      "source": "^Posted in #([a-z0-9-]+); click to show only #([a-z0-9-]+)$",
+      "flags": "",
+      "replace": "Publié dans #$1 ; cliquer pour afficher uniquement #$2",
+      "hint": "Posted in #"
+    },
+    {
+      "source": "^Everyone in #([a-z0-9-]+)$",
+      "flags": "",
+      "replace": "Tout le monde dans #$1",
+      "hint": "Everyone in #"
+    },
+    {
+      "source": "^#([a-z0-9-]+) is archived: this addresses nobody$",
+      "flags": "",
+      "replace": "#$1 est archivé : ce message n'est adressé à personne",
+      "hint": "is archived"
+    },
+    {
+      "source": "^Loading earlier posts… \\((\\d+) older\\)$",
+      "flags": "",
+      "replace": "Chargement des messages antérieurs… ($1 plus anciens)",
+      "hint": "Loading earlier posts"
+    },
+    {
+      "source": "^Loading (\\d+) earlier posts?\\.$",
+      "flags": "",
+      "replace": "Chargement de $1 messages antérieurs.",
+      "hint": "earlier post"
+    },
+    {
+      "source": "^(\\d+) earlier posts? could not be loaded\\.$",
+      "flags": "",
+      "replace": "Impossible de charger $1 messages antérieurs.",
+      "hint": "could not be loaded"
+    },
+    {
+      "source": "^Show (\\d+) earlier posts? \\((\\d+) older\\)$",
+      "flags": "",
+      "replace": "Afficher $1 messages antérieurs ($2 plus anciens)",
+      "hint": "earlier post"
+    },
+    {
+      "source": "^Retry loading (\\d+) earlier posts?$",
+      "flags": "",
+      "replace": "Réessayer de charger $1 messages antérieurs",
+      "hint": "Retry loading"
+    },
+    {
+      "source": "^Exporting (\\d+)%$",
+      "flags": "",
+      "replace": "Exportation $1 %",
+      "hint": "Exporting"
+    },
+    {
+      "source": "^Exporting (.+?)…$",
+      "flags": "",
+      "replace": "Exportation de $1…",
+      "hint": "Exporting"
+    },
+    {
+      "source": "^Rendering (.+?)…$",
+      "flags": "",
+      "replace": "Rendu de $1…",
+      "hint": "Rendering"
+    },
+    {
+      "source": "^Exported (.+?) \\((.+?)\\)$",
+      "flags": "",
+      "replace": "$1 exporté ($2)",
+      "hint": "Exported"
+    },
+    {
+      "source": "^Download (.+?\\.gif)$",
+      "flags": "",
+      "replace": "Télécharger $1",
+      "hint": "Download"
+    },
+    {
+      "source": "^GIF ready \\((.+?)\\) — right-click image to save\\.$",
+      "flags": "",
+      "replace": "GIF prêt ($1) — clic droit sur l'image pour enregistrer.",
+      "hint": "GIF ready ("
+    },
+    {
+      "source": "^The narrator's last step failed:\\s*(.+?)$",
+      "flags": "",
+      "replace": "La dernière étape du narrateur a échoué : $1",
+      "hint": "last step failed:"
+    },
+    {
+      "source": "^Narrator read up to #(\\d+) of (\\d+)$",
+      "flags": "",
+      "replace": "Le narrateur a lu jusqu'au #$1 sur $2",
+      "hint": "Narrator read up to #"
+    },
+    {
+      "source": "^read #(\\d+) · updated (.+?)$",
+      "flags": "",
+      "replace": "lu #$1 · mis à jour $2",
+      "hint": "· updated"
+    },
+    {
+      "source": "^read #(\\d+)$",
+      "flags": "",
+      "replace": "lu #$1",
+      "hint": "read #"
+    },
+    {
+      "source": "^(\\d+) posts? since the view was updated$",
+      "flags": "",
+      "replace": "$1 messages depuis la mise à jour de la vue",
+      "hint": "since the view was updated"
+    },
+    {
+      "source": "^Opening (.+?)'s conversation needs the app\\.$",
+      "flags": "",
+      "replace": "L'application est requise pour ouvrir la conversation de $1.",
+      "hint": "conversation needs the app"
+    },
+    {
+      "source": "^(.+?) runs on (.+?); open it there\\.$",
+      "flags": "",
+      "replace": "$1 tourne sur $2 ; ouvrez-le là-bas.",
+      "hint": "runs on"
+    },
+    {
+      "source": "^Runs on (.+?)$",
+      "flags": "",
+      "replace": "Tourne sur $1",
+      "hint": "Runs on"
+    },
+    {
+      "source": "^last seen (\\d+[smhd]) ago$",
+      "flags": "",
+      "replace": "vu il y a $1",
+      "hint": "last seen"
+    },
+    {
+      "source": "^over (\\d+[smhd](?: \\d+[smhd])?)$",
+      "flags": "",
+      "replace": "sur $1",
+      "hint": "over"
+    },
+    {
+      "source": "^of (\\d+)$",
+      "flags": "",
+      "replace": "sur $1",
+      "hint": "of"
+    },
+    {
+      "source": "^Add (.+?): (.+?)$",
+      "flags": "",
+      "replace": "Ajouter $1 : $2",
+      "hint": "Add"
+    },
+    {
+      "source": "^Answered: “(\\d+(?:\\.\\d+)?)”$",
+      "flags": "",
+      "replace": "Répondu : « $1 »",
+      "hint": "Answered: “"
+    },
+    {
+      "source": "^Automation error: (.+?)$",
+      "flags": "",
+      "replace": "Erreur d'automatisation : $1",
+      "hint": "Automation error:"
+    },
+    {
+      "source": "^Copied link to (.+?)$",
+      "flags": "",
+      "replace": "Lien copié vers $1",
+      "hint": "Copied link to"
+    },
+    {
+      "source": "^Copy link to (.+?)$",
+      "flags": "",
+      "replace": "Copier le lien vers $1",
+      "hint": "Copy link to"
+    },
+    {
+      "source": "^Environment variable \"(.+?)\" is already used by (.+?) in this scope\\. Choose a different (.+?) or replace the existing credential\\.$",
+      "flags": "",
+      "replace": "La variable d'environnement « $1 » est déjà utilisée par $2 dans cette portée. Choisissez un autre $3 ou remplacez l'identifiant existant.",
+      "hint": "or replace the existing credenti"
+    },
+    {
+      "source": "^Environment variable \"(.+?)\" is reserved by the system and cannot be used\\. Choose a different key\\.$",
+      "flags": "",
+      "replace": "La variable d'environnement « $1 » est réservée par le système et ne peut pas être utilisée. Choisissez une autre clé.",
+      "hint": "\" is reserved by the system and"
+    },
+    {
+      "source": "^Environment variable \"(.+?)\" is reserved by the system and cannot be used\\. Choose a different name\\.$",
+      "flags": "",
+      "replace": "La variable d'environnement « $1 » est réservée par le système et ne peut pas être utilisée. Choisissez un autre nom.",
+      "hint": "\" is reserved by the system and"
+    },
+    {
+      "source": "^Hid (.+?) from sidebar$",
+      "flags": "",
+      "replace": "$1 masqué de la barre latérale",
+      "hint": "from sidebar"
+    },
+    {
+      "source": "^Looks good on (.+?) — go ahead and proceed\\.$",
+      "flags": "",
+      "replace": "Tout est bon pour $1 — vous pouvez poursuivre.",
+      "hint": "— go ahead and proceed."
+    },
+    {
+      "source": "^Maximum (.+?) attachments reached$",
+      "flags": "",
+      "replace": "Maximum de $1 pièces jointes atteint",
+      "hint": "attachments reached"
+    },
+    {
+      "source": "^No settings match (.+?)$",
+      "flags": "",
+      "replace": "Aucun paramètre ne correspond à $1",
+      "hint": "No settings match"
+    },
+    {
+      "source": "^Open (.+?) preview (.+?) of (.+?)$",
+      "flags": "",
+      "replace": "Ouvrir l'aperçu $1 ($2 sur $3)",
+      "hint": "preview"
+    },
+    {
+      "source": "^Permission: (.+?)$",
+      "flags": "",
+      "replace": "Autorisation : $1",
+      "hint": "Permission:"
+    },
+    {
+      "source": "^Preview (.+?)$",
+      "flags": "",
+      "replace": "Aperçu de $1",
+      "hint": "Preview"
+    },
+    {
+      "source": "^Project: (.+?)$",
+      "flags": "",
+      "replace": "Projet : $1",
+      "hint": "Project:"
+    },
+    {
+      "source": "^Remove (.+?) reaction$",
+      "flags": "",
+      "replace": "Retirer la réaction $1",
+      "hint": "reaction"
+    },
+    {
+      "source": "^Replace environment variable: (.+?)$",
+      "flags": "",
+      "replace": "Remplacer la variable d'environnement : $1",
+      "hint": "Replace environment variable:"
+    },
+    {
+      "source": "^Replace secret: (.+?)$",
+      "flags": "",
+      "replace": "Remplacer le secret : $1",
+      "hint": "Replace secret:"
+    },
+    {
+      "source": "^Replace (.+?)$",
+      "flags": "",
+      "replace": "Remplacer $1",
+      "hint": "Replace"
+    },
+    {
+      "source": "^Reply in thread to (.+?)$",
+      "flags": "",
+      "replace": "Répondre dans le fil à $1",
+      "hint": "Reply in thread to"
+    },
+    {
+      "source": "^Retry loading (.+?) configuration$",
+      "flags": "",
+      "replace": "Réessayer de charger la configuration de $1",
+      "hint": "Retry loading"
+    },
+    {
+      "source": "^Retry uploading (.+?)$",
+      "flags": "",
+      "replace": "Réessayer d'importer $1",
+      "hint": "Retry uploading"
+    },
+    {
+      "source": "^Run failed: (.+?)$",
+      "flags": "",
+      "replace": "Échec de l'exécution : $1",
+      "hint": "Run failed:"
+    },
+    {
+      "source": "^Running “(.+?)” now$",
+      "flags": "",
+      "replace": "Exécution de « $1 » en cours",
+      "hint": "Running “"
+    },
+    {
+      "source": "^Screenshot for (.+?)$",
+      "flags": "",
+      "replace": "Capture d'écran pour $1",
+      "hint": "Screenshot for"
+    },
+    {
+      "source": "^Scroll to Bottom \\((.+?) unread\\)$",
+      "flags": "",
+      "replace": "Défiler vers le bas ($1 non lu(s))",
+      "hint": "Scroll to Bottom ("
+    },
+    {
+      "source": "^Send (.+?)$",
+      "flags": "",
+      "replace": "Envoyer $1",
+      "hint": "Send"
+    },
+    {
+      "source": "^Show in Sidebar \\((.+?)/(.+?)\\)$",
+      "flags": "",
+      "replace": "Afficher dans la barre latérale ($1/$2)",
+      "hint": "Show in Sidebar ("
+    },
+    {
+      "source": "^Still thinking, (\\d+(?:\\.\\d+)?) seconds$",
+      "flags": "",
+      "replace": "Toujours en réflexion, $1 s",
+      "hint": "Still thinking,"
+    },
+    {
+      "source": "^Thread (.+?)$",
+      "flags": "",
+      "replace": "Fil $1",
+      "hint": "Thread"
+    },
+    {
+      "source": "^Thread: (.+?)$",
+      "flags": "",
+      "replace": "Fil : $1",
+      "hint": "Thread:"
+    },
+    {
+      "source": "^Topic (.+?)$",
+      "flags": "",
+      "replace": "Sujet $1",
+      "hint": "Topic"
+    },
+    {
+      "source": "^Upload failed for (.+?)$",
+      "flags": "",
+      "replace": "Échec de l'importation de $1",
+      "hint": "Upload failed for"
+    },
+    {
+      "source": "^Uploading (.+?)$",
+      "flags": "",
+      "replace": "Importation de $1",
+      "hint": "Uploading"
+    },
+    {
+      "source": "^Uploading (.+?)…$",
+      "flags": "",
+      "replace": "Importation de $1…",
+      "hint": "Uploading"
+    },
+    {
+      "source": "^View (.+?) full screen$",
+      "flags": "",
+      "replace": "Afficher $1 en plein écran",
+      "hint": "full screen"
+    },
+    {
+      "source": "^Voice open timed out after (\\d+(?:\\.\\d+)?)ms$",
+      "flags": "",
+      "replace": "Délai d'ouverture vocale dépassé après $1 ms",
+      "hint": "Voice open timed out after"
+    },
+    {
+      "source": "^You reacted with (.+?)$",
+      "flags": "",
+      "replace": "Vous avez réagi avec $1",
+      "hint": "You reacted with"
+    },
+    {
+      "source": "^Your quota for (.+?) has been reached\\.$",
+      "flags": "",
+      "replace": "Votre quota pour $1 est atteint.",
+      "hint": "has been reached."
+    },
+    {
+      "source": "^Your quota for (.+?) resets (.+?)\\.$",
+      "flags": "",
+      "replace": "Votre quota pour $1 se réinitialise $2.",
+      "hint": "Your quota for"
+    },
+    {
+      "source": "^(.+?) \\(Disabled\\)$",
+      "flags": "",
+      "replace": "$1 (Désactivé)",
+      "hint": "(Disabled)"
+    },
+    {
+      "source": "^(.+?) files?$",
+      "flags": "",
+      "replace": "$1 fichier(s)",
+      "hint": "file"
+    },
+    {
+      "source": "^(.+?) is required\\.$",
+      "flags": "",
+      "replace": "$1 est requis.",
+      "hint": "is required."
+    },
+    {
+      "source": "^(.+?) needing your input$",
+      "flags": "",
+      "replace": "$1 nécessitant votre intervention",
+      "hint": "needing your input"
+    },
+    {
+      "source": "^(.+?) of (\\d+(?:\\.\\d+)?) steps done$",
+      "flags": "",
+      "replace": "$1 sur $2 étapes terminées",
+      "hint": "steps done"
+    },
+    {
+      "source": "^(.+?) reacted with (.+?)$",
+      "flags": "",
+      "replace": "$1 a réagi avec $2",
+      "hint": "reacted with"
+    },
+    {
+      "source": "^(.+?) replies$",
+      "flags": "",
+      "replace": "$1 réponses",
+      "hint": "replies"
+    },
+    {
+      "source": "^(.+?) tab, (.+?)$",
+      "flags": "",
+      "replace": "Onglet $1, $2",
+      "hint": "tab,"
+    },
+    {
+      "source": "^(.+?) tasks?$",
+      "flags": "",
+      "replace": "$1 tâche(s)",
+      "hint": "task"
+    },
+    {
+      "source": "^(.+?) — restore split view$",
+      "flags": "",
+      "replace": "$1 — restaurer la vue scindée",
+      "hint": "— restore split view"
+    },
+    {
+      "source": "^(.+?)\\. Managed by your organization\\.$",
+      "flags": "",
+      "replace": "$1. Géré par votre organisation.",
+      "hint": ". Managed by your organization."
+    },
+    {
+      "source": "^· \\+(\\d+(?:\\.\\d+)?) more$",
+      "flags": "",
+      "replace": "· +$1 de plus",
+      "hint": "more"
+    },
+    {
+      "source": "^No automations match “(.+?)”\\.$",
+      "flags": "",
+      "replace": "Aucune automatisation ne correspond à « $1 ».",
+      "hint": "No automations match"
+    },
+    {
+      "source": "^No (.+?) yet$",
+      "flags": "",
+      "replace": "Aucun $1 pour l'instant",
+      "hint": "yet"
+    },
+    {
+      "source": "^You can upgrade to a higher (.+?) plan to receive the highest rate limits\\.$",
+      "flags": "",
+      "replace": "Vous pouvez passer à un forfait $1 supérieur pour bénéficier des limites de débit les plus élevées.",
+      "hint": "upgrade to a higher"
+    },
+    {
+      "source": "^You can upgrade to a (.+?) plan to receive higher rate limits\\.$",
+      "flags": "",
+      "replace": "Vous pouvez passer à un forfait $1 pour bénéficier de limites de débit plus élevées.",
+      "hint": "receive higher rate limits"
+    },
+    {
+      "source": "^You have used some of your weekly limit, it will fully refresh in (\\d+) days?, (\\d+) hours?\\.$",
+      "flags": "",
+      "replace": "Vous avez utilisé une partie de votre limite hebdomadaire, elle sera entièrement réinitialisée dans $1 j $2 h.",
+      "hint": "your weekly limit, it will fully"
+    },
+    {
+      "source": "^You have used most of your weekly limit, it will fully refresh in (\\d+) days?, (\\d+) hours?\\.$",
+      "flags": "",
+      "replace": "Vous avez utilisé la majeure partie de votre limite hebdomadaire, elle sera entièrement réinitialisée dans $1 j $2 h.",
+      "hint": "your weekly limit, it will fully"
+    },
+    {
+      "source": "^You have used all of your weekly limit, it will fully refresh in (\\d+) days?, (\\d+) hours?\\.$",
+      "flags": "",
+      "replace": "Vous avez utilisé la totalité de votre limite hebdomadaire, elle sera entièrement réinitialisée dans $1 j $2 h.",
+      "hint": "your weekly limit, it will fully"
+    },
+    {
+      "source": "^You have used some of your weekly limit, it will fully refresh in (\\d+) hours?, (\\d+) minutes?\\.$",
+      "flags": "",
+      "replace": "Vous avez utilisé une partie de votre limite hebdomadaire, elle sera entièrement réinitialisée dans $1 h $2 min.",
+      "hint": "your weekly limit, it will fully"
+    },
+    {
+      "source": "^You have used most of your weekly limit, it will fully refresh in (\\d+) hours?, (\\d+) minutes?\\.$",
+      "flags": "",
+      "replace": "Vous avez utilisé la majeure partie de votre limite hebdomadaire, elle sera entièrement réinitialisée dans $1 h $2 min.",
+      "hint": "your weekly limit, it will fully"
+    },
+    {
+      "source": "^You have used all of your weekly limit, it will fully refresh in (\\d+) hours?, (\\d+) minutes?\\.$",
+      "flags": "",
+      "replace": "Vous avez utilisé la totalité de votre limite hebdomadaire, elle sera entièrement réinitialisée dans $1 h $2 min.",
+      "hint": "your weekly limit, it will fully"
+    },
+    {
+      "source": "^You have used some of your weekly limit, it will fully refresh in (\\d+) days?\\.$",
+      "flags": "",
+      "replace": "Vous avez utilisé une partie de votre limite hebdomadaire, elle sera entièrement réinitialisée dans $1 j.",
+      "hint": "your weekly limit, it will fully"
+    },
+    {
+      "source": "^You have used most of your weekly limit, it will fully refresh in (\\d+) days?\\.$",
+      "flags": "",
+      "replace": "Vous avez utilisé la majeure partie de votre limite hebdomadaire, elle sera entièrement réinitialisée dans $1 j.",
+      "hint": "your weekly limit, it will fully"
+    },
+    {
+      "source": "^You have used all of your weekly limit, it will fully refresh in (\\d+) days?\\.$",
+      "flags": "",
+      "replace": "Vous avez utilisé la totalité de votre limite hebdomadaire, elle sera entièrement réinitialisée dans $1 j.",
+      "hint": "your weekly limit, it will fully"
+    },
+    {
+      "source": "^You have used some of your weekly limit, it will fully refresh in (\\d+) hours?\\.$",
+      "flags": "",
+      "replace": "Vous avez utilisé une partie de votre limite hebdomadaire, elle sera entièrement réinitialisée dans $1 h.",
+      "hint": "your weekly limit, it will fully"
+    },
+    {
+      "source": "^You have used most of your weekly limit, it will fully refresh in (\\d+) hours?\\.$",
+      "flags": "",
+      "replace": "Vous avez utilisé la majeure partie de votre limite hebdomadaire, elle sera entièrement réinitialisée dans $1 h.",
+      "hint": "your weekly limit, it will fully"
+    },
+    {
+      "source": "^You have used all of your weekly limit, it will fully refresh in (\\d+) hours?\\.$",
+      "flags": "",
+      "replace": "Vous avez utilisé la totalité de votre limite hebdomadaire, elle sera entièrement réinitialisée dans $1 h.",
+      "hint": "your weekly limit, it will fully"
+    },
+    {
+      "source": "^You have used some of your weekly limit, it will fully refresh in (\\d+) minutes?\\.$",
+      "flags": "",
+      "replace": "Vous avez utilisé une partie de votre limite hebdomadaire, elle sera entièrement réinitialisée dans $1 min.",
+      "hint": "your weekly limit, it will fully"
+    },
+    {
+      "source": "^You have used most of your weekly limit, it will fully refresh in (\\d+) minutes?\\.$",
+      "flags": "",
+      "replace": "Vous avez utilisé la majeure partie de votre limite hebdomadaire, elle sera entièrement réinitialisée dans $1 min.",
+      "hint": "your weekly limit, it will fully"
+    },
+    {
+      "source": "^You have used all of your weekly limit, it will fully refresh in (\\d+) minutes?\\.$",
+      "flags": "",
+      "replace": "Vous avez utilisé la totalité de votre limite hebdomadaire, elle sera entièrement réinitialisée dans $1 min.",
+      "hint": "your weekly limit, it will fully"
+    },
+    {
+      "source": "^You have used some of your weekly limit, it will fully refresh in less than a minute\\.$",
+      "flags": "",
+      "replace": "Vous avez utilisé une partie de votre limite hebdomadaire, elle sera entièrement réinitialisée dans moins d'une minute.",
+      "hint": "your weekly limit, it will fully"
+    },
+    {
+      "source": "^You have used most of your weekly limit, it will fully refresh in less than a minute\\.$",
+      "flags": "",
+      "replace": "Vous avez utilisé la majeure partie de votre limite hebdomadaire, elle sera entièrement réinitialisée dans moins d'une minute.",
+      "hint": "your weekly limit, it will fully"
+    },
+    {
+      "source": "^You have used all of your weekly limit, it will fully refresh in less than a minute\\.$",
+      "flags": "",
+      "replace": "Vous avez utilisé la totalité de votre limite hebdomadaire, elle sera entièrement réinitialisée dans moins d'une minute.",
+      "hint": "your weekly limit, it will fully"
+    },
+    {
+      "source": "^You have used some of your weekly limit, it will fully refresh in (.+?)\\.$",
+      "flags": "",
+      "replace": "Vous avez utilisé une partie de votre limite hebdomadaire, elle sera entièrement réinitialisée dans $1.",
+      "hint": "your weekly limit, it will fully"
+    },
+    {
+      "source": "^You have used most of your weekly limit, it will fully refresh in (.+?)\\.$",
+      "flags": "",
+      "replace": "Vous avez utilisé la majeure partie de votre limite hebdomadaire, elle sera entièrement réinitialisée dans $1.",
+      "hint": "your weekly limit, it will fully"
+    },
+    {
+      "source": "^You have used all of your weekly limit, it will fully refresh in (.+?)\\.$",
+      "flags": "",
+      "replace": "Vous avez utilisé la totalité de votre limite hebdomadaire, elle sera entièrement réinitialisée dans $1.",
+      "hint": "your weekly limit, it will fully"
+    },
+    {
+      "source": "^You have used some of your 5-hour limit, it will fully refresh in (\\d+) hours?, (\\d+) minutes?\\.$",
+      "flags": "",
+      "replace": "Vous avez utilisé une partie de votre limite de 5 heures, elle sera entièrement réinitialisée dans $1 h $2 min.",
+      "hint": "your 5-hour limit, it will fully"
+    },
+    {
+      "source": "^You have used most of your 5-hour limit, it will fully refresh in (\\d+) hours?, (\\d+) minutes?\\.$",
+      "flags": "",
+      "replace": "Vous avez utilisé la majeure partie de votre limite de 5 heures, elle sera entièrement réinitialisée dans $1 h $2 min.",
+      "hint": "your 5-hour limit, it will fully"
+    },
+    {
+      "source": "^You have used all of your 5-hour limit, it will fully refresh in (\\d+) hours?, (\\d+) minutes?\\.$",
+      "flags": "",
+      "replace": "Vous avez utilisé la totalité de votre limite de 5 heures, elle sera entièrement réinitialisée dans $1 h $2 min.",
+      "hint": "your 5-hour limit, it will fully"
+    },
+    {
+      "source": "^You have used some of your 5-hour limit, it will fully refresh in (\\d+) hours?\\.$",
+      "flags": "",
+      "replace": "Vous avez utilisé une partie de votre limite de 5 heures, elle sera entièrement réinitialisée dans $1 h.",
+      "hint": "your 5-hour limit, it will fully"
+    },
+    {
+      "source": "^You have used most of your 5-hour limit, it will fully refresh in (\\d+) hours?\\.$",
+      "flags": "",
+      "replace": "Vous avez utilisé la majeure partie de votre limite de 5 heures, elle sera entièrement réinitialisée dans $1 h.",
+      "hint": "your 5-hour limit, it will fully"
+    },
+    {
+      "source": "^You have used all of your 5-hour limit, it will fully refresh in (\\d+) hours?\\.$",
+      "flags": "",
+      "replace": "Vous avez utilisé la totalité de votre limite de 5 heures, elle sera entièrement réinitialisée dans $1 h.",
+      "hint": "your 5-hour limit, it will fully"
+    },
+    {
+      "source": "^You have used some of your 5-hour limit, it will fully refresh in (\\d+) minutes?\\.$",
+      "flags": "",
+      "replace": "Vous avez utilisé une partie de votre limite de 5 heures, elle sera entièrement réinitialisée dans $1 min.",
+      "hint": "your 5-hour limit, it will fully"
+    },
+    {
+      "source": "^You have used most of your 5-hour limit, it will fully refresh in (\\d+) minutes?\\.$",
+      "flags": "",
+      "replace": "Vous avez utilisé la majeure partie de votre limite de 5 heures, elle sera entièrement réinitialisée dans $1 min.",
+      "hint": "your 5-hour limit, it will fully"
+    },
+    {
+      "source": "^You have used all of your 5-hour limit, it will fully refresh in (\\d+) minutes?\\.$",
+      "flags": "",
+      "replace": "Vous avez utilisé la totalité de votre limite de 5 heures, elle sera entièrement réinitialisée dans $1 min.",
+      "hint": "your 5-hour limit, it will fully"
+    },
+    {
+      "source": "^You have used some of your 5-hour limit, it will fully refresh in less than a minute\\.$",
+      "flags": "",
+      "replace": "Vous avez utilisé une partie de votre limite de 5 heures, elle sera entièrement réinitialisée dans moins d'une minute.",
+      "hint": "your 5-hour limit, it will fully"
+    },
+    {
+      "source": "^You have used most of your 5-hour limit, it will fully refresh in less than a minute\\.$",
+      "flags": "",
+      "replace": "Vous avez utilisé la majeure partie de votre limite de 5 heures, elle sera entièrement réinitialisée dans moins d'une minute.",
+      "hint": "your 5-hour limit, it will fully"
+    },
+    {
+      "source": "^You have used all of your 5-hour limit, it will fully refresh in less than a minute\\.$",
+      "flags": "",
+      "replace": "Vous avez utilisé la totalité de votre limite de 5 heures, elle sera entièrement réinitialisée dans moins d'une minute.",
+      "hint": "your 5-hour limit, it will fully"
+    },
+    {
+      "source": "^You have used some of your 5-hour limit, it will fully refresh in (.+?)\\.$",
+      "flags": "",
+      "replace": "Vous avez utilisé une partie de votre limite de 5 heures, elle sera entièrement réinitialisée dans $1.",
+      "hint": "your 5-hour limit, it will fully"
+    },
+    {
+      "source": "^You have used most of your 5-hour limit, it will fully refresh in (.+?)\\.$",
+      "flags": "",
+      "replace": "Vous avez utilisé la majeure partie de votre limite de 5 heures, elle sera entièrement réinitialisée dans $1.",
+      "hint": "your 5-hour limit, it will fully"
+    },
+    {
+      "source": "^You have used all of your 5-hour limit, it will fully refresh in (.+?)\\.$",
+      "flags": "",
+      "replace": "Vous avez utilisé la totalité de votre limite de 5 heures, elle sera entièrement réinitialisée dans $1.",
+      "hint": "your 5-hour limit, it will fully"
+    },
+    {
+      "source": "^You have used some of your daily limit, it will fully refresh in (\\d+) hours?, (\\d+) minutes?\\.$",
+      "flags": "",
+      "replace": "Vous avez utilisé une partie de votre limite quotidienne, elle sera entièrement réinitialisée dans $1 h $2 min.",
+      "hint": "your daily limit, it will fully"
+    },
+    {
+      "source": "^You have used most of your daily limit, it will fully refresh in (\\d+) hours?, (\\d+) minutes?\\.$",
+      "flags": "",
+      "replace": "Vous avez utilisé la majeure partie de votre limite quotidienne, elle sera entièrement réinitialisée dans $1 h $2 min.",
+      "hint": "your daily limit, it will fully"
+    },
+    {
+      "source": "^You have used all of your daily limit, it will fully refresh in (\\d+) hours?, (\\d+) minutes?\\.$",
+      "flags": "",
+      "replace": "Vous avez utilisé la totalité de votre limite quotidienne, elle sera entièrement réinitialisée dans $1 h $2 min.",
+      "hint": "your daily limit, it will fully"
+    },
+    {
+      "source": "^You have used some of your daily limit, it will fully refresh in (\\d+) hours?\\.$",
+      "flags": "",
+      "replace": "Vous avez utilisé une partie de votre limite quotidienne, elle sera entièrement réinitialisée dans $1 h.",
+      "hint": "your daily limit, it will fully"
+    },
+    {
+      "source": "^You have used most of your daily limit, it will fully refresh in (\\d+) hours?\\.$",
+      "flags": "",
+      "replace": "Vous avez utilisé la majeure partie de votre limite quotidienne, elle sera entièrement réinitialisée dans $1 h.",
+      "hint": "your daily limit, it will fully"
+    },
+    {
+      "source": "^You have used all of your daily limit, it will fully refresh in (\\d+) hours?\\.$",
+      "flags": "",
+      "replace": "Vous avez utilisé la totalité de votre limite quotidienne, elle sera entièrement réinitialisée dans $1 h.",
+      "hint": "your daily limit, it will fully"
+    },
+    {
+      "source": "^You have used some of your daily limit, it will fully refresh in (\\d+) minutes?\\.$",
+      "flags": "",
+      "replace": "Vous avez utilisé une partie de votre limite quotidienne, elle sera entièrement réinitialisée dans $1 min.",
+      "hint": "your daily limit, it will fully"
+    },
+    {
+      "source": "^You have used most of your daily limit, it will fully refresh in (\\d+) minutes?\\.$",
+      "flags": "",
+      "replace": "Vous avez utilisé la majeure partie de votre limite quotidienne, elle sera entièrement réinitialisée dans $1 min.",
+      "hint": "your daily limit, it will fully"
+    },
+    {
+      "source": "^You have used all of your daily limit, it will fully refresh in (\\d+) minutes?\\.$",
+      "flags": "",
+      "replace": "Vous avez utilisé la totalité de votre limite quotidienne, elle sera entièrement réinitialisée dans $1 min.",
+      "hint": "your daily limit, it will fully"
+    },
+    {
+      "source": "^You have used some of your daily limit, it will fully refresh in less than a minute\\.$",
+      "flags": "",
+      "replace": "Vous avez utilisé une partie de votre limite quotidienne, elle sera entièrement réinitialisée dans moins d'une minute.",
+      "hint": "your daily limit, it will fully"
+    },
+    {
+      "source": "^You have used most of your daily limit, it will fully refresh in less than a minute\\.$",
+      "flags": "",
+      "replace": "Vous avez utilisé la majeure partie de votre limite quotidienne, elle sera entièrement réinitialisée dans moins d'une minute.",
+      "hint": "your daily limit, it will fully"
+    },
+    {
+      "source": "^You have used all of your daily limit, it will fully refresh in less than a minute\\.$",
+      "flags": "",
+      "replace": "Vous avez utilisé la totalité de votre limite quotidienne, elle sera entièrement réinitialisée dans moins d'une minute.",
+      "hint": "your daily limit, it will fully"
+    },
+    {
+      "source": "^You have used some of your daily limit, it will fully refresh in (.+?)\\.$",
+      "flags": "",
+      "replace": "Vous avez utilisé une partie de votre limite quotidienne, elle sera entièrement réinitialisée dans $1.",
+      "hint": "your daily limit, it will fully"
+    },
+    {
+      "source": "^You have used most of your daily limit, it will fully refresh in (.+?)\\.$",
+      "flags": "",
+      "replace": "Vous avez utilisé la majeure partie de votre limite quotidienne, elle sera entièrement réinitialisée dans $1.",
+      "hint": "your daily limit, it will fully"
+    },
+    {
+      "source": "^You have used all of your daily limit, it will fully refresh in (.+?)\\.$",
+      "flags": "",
+      "replace": "Vous avez utilisé la totalité de votre limite quotidienne, elle sera entièrement réinitialisée dans $1.",
+      "hint": "your daily limit, it will fully"
+    },
+    {
+      "source": "^(\\d+) agents? working quietly in the background\\. Anything that needs your input will show up here\\.$",
+      "flags": "",
+      "replace": "$1 agent(s) en cours d'exécution discrète en arrière-plan. Tout élément nécessitant votre intervention s'affichera ici.",
+      "hint": "working quietly in the backgroun"
     }
   ],
   "light": [
@@ -4683,6 +5655,48 @@
       "source": "^(.+?) \\(branch changes\\)$",
       "replace": "$1 (modifications de Branch)",
       "hint": "(branch changes)"
+    },
+    {
+      "source": "^Copied “(.+?)”\\. Paste it to the coordinator and say what you want changed\\.$",
+      "flags": "",
+      "replace": "« $1 » copié. Collez-le au Coordinator en précisant ce que vous souhaitez changer.",
+      "hint": "Paste it to the coordinator"
+    },
+    {
+      "source": "^Couldn't load plugin configuration: (.+?)$",
+      "flags": "",
+      "replace": "Impossible de charger la configuration du plugin : $1",
+      "hint": "Couldn't load plugin configurati"
+    },
+    {
+      "source": "^Create plugin, (.+?)$",
+      "flags": "",
+      "replace": "Créer un plugin, $1",
+      "hint": "Create plugin,"
+    },
+    {
+      "source": "^Failed to enable plugin (.+?)$",
+      "flags": "",
+      "replace": "Échec de l'activation du plugin $1",
+      "hint": "Failed to enable plugin"
+    },
+    {
+      "source": "^Plugin: (.+?)$",
+      "flags": "",
+      "replace": "Plugin : $1",
+      "hint": "Plugin:"
+    },
+    {
+      "source": "^(.+?) subagents?$",
+      "flags": "",
+      "replace": "$1 subagent(s)",
+      "hint": "subagent"
+    },
+    {
+      "source": "^(.+?)\\. Managed by your organization\\. Disabling the bundle turns off its plugins\\.$",
+      "flags": "",
+      "replace": "$1. Géré par votre organisation. La désactivation du lot désactive ses plugins.",
+      "hint": ". Managed by your organization."
     }
   ],
   "deep": [
@@ -5209,6 +6223,48 @@
       "source": "^(.+?) \\(branch changes\\)$",
       "replace": "$1 (modifications de branche)",
       "hint": "(branch changes)"
+    },
+    {
+      "source": "^Copied “(.+?)”\\. Paste it to the coordinator and say what you want changed\\.$",
+      "flags": "",
+      "replace": "« $1 » copié. Collez-le au Coordinateur en précisant ce que vous souhaitez changer.",
+      "hint": "Paste it to the coordinator"
+    },
+    {
+      "source": "^Couldn't load plugin configuration: (.+?)$",
+      "flags": "",
+      "replace": "Impossible de charger la configuration de l'extension : $1",
+      "hint": "Couldn't load plugin configurati"
+    },
+    {
+      "source": "^Create plugin, (.+?)$",
+      "flags": "",
+      "replace": "Créer une extension, $1",
+      "hint": "Create plugin,"
+    },
+    {
+      "source": "^Failed to enable plugin (.+?)$",
+      "flags": "",
+      "replace": "Échec de l'activation de l'extension $1",
+      "hint": "Failed to enable plugin"
+    },
+    {
+      "source": "^Plugin: (.+?)$",
+      "flags": "",
+      "replace": "Extension : $1",
+      "hint": "Plugin:"
+    },
+    {
+      "source": "^(.+?) subagents?$",
+      "flags": "",
+      "replace": "$1 sous-agent(s)",
+      "hint": "subagent"
+    },
+    {
+      "source": "^(.+?)\\. Managed by your organization\\. Disabling the bundle turns off its plugins\\.$",
+      "flags": "",
+      "replace": "$1. Géré par votre organisation. La désactivation du lot désactive ses extensions.",
+      "hint": ". Managed by your organization."
     }
   ]
 }

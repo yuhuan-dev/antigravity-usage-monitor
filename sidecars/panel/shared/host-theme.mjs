@@ -136,6 +136,12 @@ export function buildHostThemeFallbackCss(snapshot) {
       hasVarDecl = true;
     }
   }
+  if (!norm.vars['--font-sans'] && norm.vars['--font-family']) {
+    decls.push(`--host-font-sans:${norm.vars['--font-family']}`);
+  }
+  if (!norm.vars['--font-mono'] && norm.vars['--editor-font-family']) {
+    decls.push(`--host-font-mono:${norm.vars['--editor-font-family']}`);
+  }
   if (!hasVarDecl) return '';
   return `:root{${decls.join(';')}}`;
 }

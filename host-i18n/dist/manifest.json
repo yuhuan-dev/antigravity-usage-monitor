@@ -5,126 +5,126 @@
       "locale": "de-DE",
       "name": "German",
       "nativeName": "Deutsch",
-      "version": "1.0.0",
+      "version": "1.0.2",
       "file": "packs/de-DE.json",
-      "sha256": "e7a382c1610a9fb8c1919bed75873a33878c275bc24b94549ad0959be36b7c4a",
-      "bytes": 574352,
+      "sha256": "8753734e537b2744d5068e9b8a733e9b9ab12de642c79a9ee68b1ffc8c605af7",
+      "bytes": 621660,
       "depths": [
         "light",
         "deep"
       ],
       "stats": {
-        "baseExact": 4644,
-        "lightExact": 653,
-        "deepExact": 653,
-        "basePatterns": 854,
-        "lightPatterns": 77,
-        "deepPatterns": 77
+        "baseExact": 4973,
+        "lightExact": 718,
+        "deepExact": 718,
+        "basePatterns": 972,
+        "lightPatterns": 86,
+        "deepPatterns": 86
       }
     },
     {
       "locale": "fr-FR",
       "name": "French",
       "nativeName": "Français",
-      "version": "1.0.0",
+      "version": "1.0.2",
       "file": "packs/fr-FR.json",
-      "sha256": "de9bed6083b3cf142fdcdfbfe6667c30cf0eb902299b1319bc57148ab7720e9c",
-      "bytes": 593295,
+      "sha256": "fc6a4b4d10f3cbe235a0a9d0f7a0d7d487dd949983d44e927eae822375f888f1",
+      "bytes": 651280,
       "depths": [
         "light",
         "deep"
       ],
       "stats": {
-        "baseExact": 4541,
-        "lightExact": 757,
-        "deepExact": 757,
-        "basePatterns": 827,
-        "lightPatterns": 104,
-        "deepPatterns": 104
+        "baseExact": 4896,
+        "lightExact": 797,
+        "deepExact": 797,
+        "basePatterns": 989,
+        "lightPatterns": 111,
+        "deepPatterns": 111
       }
     },
     {
       "locale": "ja-JP",
       "name": "Japanese",
       "nativeName": "日本語",
-      "version": "1.0.0",
+      "version": "1.0.2",
       "file": "packs/ja-JP.json",
-      "sha256": "75523372575eb3e9b659ac8d3045e6a4f547bc5b617c81aa1b590ea5bd57e587",
-      "bytes": 671903,
+      "sha256": "f8f27ccf93d0a4bcfbebe40c455a72f6eda1e5ec0792d0417c9213d59c040216",
+      "bytes": 733974,
       "depths": [
         "light",
         "deep"
       ],
       "stats": {
-        "baseExact": 4320,
-        "lightExact": 977,
-        "deepExact": 977,
-        "basePatterns": 802,
-        "lightPatterns": 129,
-        "deepPatterns": 129
+        "baseExact": 4671,
+        "lightExact": 1020,
+        "deepExact": 1020,
+        "basePatterns": 963,
+        "lightPatterns": 137,
+        "deepPatterns": 137
       }
     },
     {
       "locale": "ko-KR",
       "name": "Korean",
       "nativeName": "한국어",
-      "version": "1.0.0",
+      "version": "1.0.2",
       "file": "packs/ko-KR.json",
-      "sha256": "9b607e66f5cd02603945fbf912c93217b0be9a0206d21fcdf5b6ac3515e11761",
-      "bytes": 623323,
+      "sha256": "d816299641b729fa2f2bf87de8cc14e5c62fe0dff2687b46b4382d2f0ae2afc3",
+      "bytes": 681510,
       "depths": [
         "light",
         "deep"
       ],
       "stats": {
-        "baseExact": 4320,
-        "lightExact": 977,
-        "deepExact": 977,
-        "basePatterns": 802,
-        "lightPatterns": 129,
-        "deepPatterns": 129
+        "baseExact": 4673,
+        "lightExact": 1018,
+        "deepExact": 1018,
+        "basePatterns": 963,
+        "lightPatterns": 137,
+        "deepPatterns": 137
       }
     },
     {
       "locale": "zh-CN",
       "name": "Chinese (Simplified)",
       "nativeName": "简体中文",
-      "version": "1.0.3",
+      "version": "1.0.5",
       "file": "packs/zh-CN.json",
-      "sha256": "7d7c53e762864e1be8f49528365361b6b6f7e158702348b23f2739ef570e4453",
-      "bytes": 558614,
+      "sha256": "eafe85eb13e5d22fc07c0b2682187e4268af2f360492b905c16a230f52990a1d",
+      "bytes": 605784,
       "depths": [
         "light",
         "deep"
       ],
       "stats": {
-        "baseExact": 4319,
-        "lightExact": 978,
-        "deepExact": 978,
-        "basePatterns": 802,
-        "lightPatterns": 129,
-        "deepPatterns": 129
+        "baseExact": 4668,
+        "lightExact": 1023,
+        "deepExact": 1023,
+        "basePatterns": 940,
+        "lightPatterns": 137,
+        "deepPatterns": 137
       }
     },
     {
       "locale": "zh-TW",
       "name": "Chinese (Traditional)",
       "nativeName": "繁體中文",
-      "version": "1.0.0",
+      "version": "1.0.2",
       "file": "packs/zh-TW.json",
-      "sha256": "a6af1761018c8c4f3daa46a3ba8eea84b5fbc6f6a472c9f653f7f94ce0d70026",
-      "bytes": 559839,
+      "sha256": "0569c86b5a4f60e6f497fccb2e66bcaae00f68f280f00fd1c22a16eff9f9446e",
+      "bytes": 606966,
       "depths": [
         "light",
         "deep"
       ],
       "stats": {
-        "baseExact": 4319,
-        "lightExact": 978,
-        "deepExact": 978,
-        "basePatterns": 802,
-        "lightPatterns": 129,
-        "deepPatterns": 129
+        "baseExact": 4671,
+        "lightExact": 1020,
+        "deepExact": 1020,
+        "basePatterns": 940,
+        "lightPatterns": 137,
+        "deepPatterns": 137
       }
     }
   ]

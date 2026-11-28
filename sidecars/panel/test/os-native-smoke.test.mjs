@@ -12,6 +12,7 @@ import {
   createMacOsLaunchWrapper,
   inspectMacOsLaunchWrapperStatus,
   removeMacOsLaunchWrapper,
+  resolveWindowsPowerShellExecutable,
   triggerDesktopHostRelaunch,
 } from '../backend/desktop-launcher-config.mjs';
 
@@ -252,6 +253,146 @@ test(
       try {
         child?.kill('SIGKILL');
       } catch {}
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  }
+);
+
+test(
+  'Windows native smoke: out-of-job relaunch dispatcher verifies .ack sentinel and falls back cleanly when WMI Create silently fails',
+  { skip: process.platform !== 'win32' },
+  async () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ag-win32-smoke-'));
+    try {
+      const psExe = resolveWindowsPowerShellExecutable(process.env);
+      const fakeExe = path.join(tmpDir, 'Antigravity.exe');
+      fs.writeFileSync(fakeExe, 'MZ', 'utf8');
+
+      let capturedArgs = null;
+      let capturedEnv = null;
+      const planRes = await triggerDesktopHostRelaunch({
+        platform: 'win32',
+        homeDir: tmpDir,
+        preferredProduct: 'desktop',
+        stalePortFiles: [path.join(tmpDir, 'Antigravity', 'DevToolsActivePort')],
+        env: { ...process.env, USAGE_MONITOR_HOST_EXE: fakeExe, TEMP: tmpDir },
+        allowInTest: true,
+        execFileFn: async (_file, args, opts) => {
+          capturedArgs = args;
+          capturedEnv = opts?.env;
+          return '{"ok":true,"method":"shell_application"}';
+        },
+      });
+      assert.equal(planRes.ok, true);
+      const dispatchPs = capturedArgs[capturedArgs.length - 1];
+      const generatedPs1 = capturedEnv.AGY_RELAUNCH_PS1;
+      assert.equal(fs.existsSync(generatedPs1), true);
+
+      // 1. Validate Windows PowerShell 5.1 AST syntax on production-generated inner .ps1
+      const astOut = execFileSync(
+        psExe,
+        [
+          '-NoProfile',
+          '-NonInteractive',
+          '-ExecutionPolicy',
+          'Bypass',
+          '-Command',
+          `$t = $null; $e = $null; [void][System.Management.Automation.Language.Parser]::ParseFile('${generatedPs1.replace(/'/g, "''")}', [ref]$t, [ref]$e); Write-Output ("AST_ERR=" + $e.Count)`,
+        ],
+        { encoding: 'utf8', input: '', windowsHide: true, timeout: 10000 }
+      ).trim();
+      assert.equal(astOut, 'AST_ERR=0', `Generated Windows relaunch .ps1 must have 0 parse errors, got: ${astOut}`);
+
+      const writeHarmlessProbe = (ps1File, outFile) => {
+        const lines = [
+          "param([string]$HostElevated = '0')",
+          'if ($PSCommandPath) {',
+          "  try { [System.IO.File]::WriteAllText(($PSCommandPath + '.ack'), [string]$PID) } catch {}",
+          '}',
+          'Start-Sleep -Milliseconds 120',
+          `[System.IO.File]::WriteAllText('${outFile.replace(/'/g, "''")}', "OK:" + $HostElevated, [System.Text.Encoding]::UTF8)`,
+          'if ($PSCommandPath) {',
+          "  $ackPath = $PSCommandPath + '.ack'",
+          '  if (Test-Path -LiteralPath $ackPath) { Remove-Item -LiteralPath $ackPath -Force -ErrorAction SilentlyContinue }',
+          '  if (Test-Path -LiteralPath $PSCommandPath) { Remove-Item -LiteralPath $PSCommandPath -Force -ErrorAction SilentlyContinue }',
+          '}',
+        ].join('\r\n');
+        fs.writeFileSync(ps1File, `\uFEFF${lines}\r\n`, 'utf8');
+      };
+
+      const waitForFile = async (filePath, maxMs = 3000) => {
+        const deadline = Date.now() + maxMs;
+        while (Date.now() < deadline) {
+          if (fs.existsSync(filePath)) return true;
+          await waitMs(50);
+        }
+        return fs.existsSync(filePath);
+      };
+
+      // 2. Native execution of unaltered WIN_OUT_OF_JOB_DISPATCH_PS
+      const probe1 = path.join(tmpDir, 'probe-default.ps1');
+      const out1 = path.join(tmpDir, 'probe-default.txt');
+      writeHarmlessProbe(probe1, out1);
+      const rawOut1 = execFileSync(
+        psExe,
+        ['-Sta', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', dispatchPs],
+        {
+          encoding: 'utf8',
+          input: '',
+          windowsHide: true,
+          timeout: 12000,
+          env: { ...process.env, AGY_PS_EXE: psExe, AGY_RELAUNCH_PS1: probe1 },
+        }
+      ).trim();
+      const parsed1 = JSON.parse(rawOut1.split(/\r?\n/).pop());
+      assert.equal(parsed1.ok, true);
+      assert.equal(await waitForFile(out1), true, 'Default Windows dispatch must execute probe .ps1');
+      assert.match(fs.readFileSync(out1, 'utf8').replace(/^\uFEFF/, ''), /^OK:[01]$/);
+      await waitMs(150);
+      assert.equal(fs.existsSync(probe1), false, 'Probe .ps1 must self-delete');
+      assert.equal(fs.existsSync(`${probe1}.ack`), false, 'Probe .ack sentinel must self-delete');
+
+      // 3. Simulate HIPS/AV blocking WmiPrvSE.exe -> powershell.exe while WMI Create still returns ReturnValue=0
+      const simulatedBlockedWmiPs = dispatchPs
+        .replace('if ($isElev -and -not $shellPreservesElev)', 'if ($true)')
+        .replaceAll(
+          "([wmiclass]'Win32_Process').Create($fullCmd)",
+          '[pscustomobject]@{ ReturnValue = 0; ProcessId = 999999 }'
+        );
+      const probe2 = path.join(tmpDir, 'probe-hips-fallback.ps1');
+      const out2 = path.join(tmpDir, 'probe-hips-fallback.txt');
+      writeHarmlessProbe(probe2, out2);
+      const rawOut2 = execFileSync(
+        psExe,
+        [
+          '-Sta',
+          '-NoProfile',
+          '-NonInteractive',
+          '-ExecutionPolicy',
+          'Bypass',
+          '-Command',
+          simulatedBlockedWmiPs,
+        ],
+        {
+          encoding: 'utf8',
+          input: '',
+          windowsHide: true,
+          timeout: 12000,
+          env: { ...process.env, AGY_PS_EXE: psExe, AGY_RELAUNCH_PS1: probe2 },
+        }
+      ).trim();
+      const parsed2 = JSON.parse(rawOut2.split(/\r?\n/).pop());
+      assert.equal(parsed2.ok, true);
+      assert.notEqual(
+        parsed2.method,
+        'wmi_elevated',
+        'Must not false-positive report wmi_elevated when WMI child fails to write .ack'
+      );
+      assert.equal(await waitForFile(out2), true, 'Fallback after silent WMI block must execute probe .ps1');
+      await waitMs(150);
+      assert.equal(fs.existsSync(probe2), false);
+      assert.equal(fs.existsSync(`${probe2}.ack`), false);
+    } finally {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }
   }

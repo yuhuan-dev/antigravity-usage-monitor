@@ -988,9 +988,11 @@ export function estimateImageGenStepUsage(step, hasGeneratedResult = true) {
   };
 }
 
-export function extractModelSteps(rawSteps = [], generatorMetadata = []) {
+export function extractModelSteps(rawSteps = [], generatorMetadata = [], initialState = null) {
   const genByStep = new Map();
-  const orchestratorExecModels = new Set();
+  const orchestratorExecModels = new Set(
+    Array.isArray(initialState?.orchestratorExecModels) ? initialState.orchestratorExecModels : []
+  );
   const collectOrchestratorExecModel = (pc) => {
     const execModel = pc?.planExecuteConfig?.executionModel;
     if (typeof execModel !== 'string' || !execModel.trim()) {
@@ -1010,7 +1012,9 @@ export function extractModelSteps(rawSteps = [], generatorMetadata = []) {
   let latestBreakdownChat = null;
   let latestBreakdownStepIdx = -1;
   let latestBreakdownUnindexed = false;
-  let lastKnownGmStepIdx = -1;
+  let lastKnownGmStepIdx = Number.isFinite(Number(initialState?.lastKnownGmStepIdx))
+    ? Number(initialState.lastKnownGmStepIdx)
+    : -1;
 
   for (const gm of generatorMetadata || []) {
     collectOrchestratorExecModel(gm?.plannerConfig);
@@ -1036,9 +1040,16 @@ export function extractModelSteps(rawSteps = [], generatorMetadata = []) {
   }
 
   const result = [];
-  let lastCompactionStepIdx = -1;
-  let turnCounter = 0;
-  let activeTurnIndex = null;
+  let lastCompactionStepIdx = Number.isFinite(Number(initialState?.lastCompactionStepIdx))
+    ? Number(initialState.lastCompactionStepIdx)
+    : -1;
+  let turnCounter = Number.isFinite(Number(initialState?.turnCounter))
+    ? Number(initialState.turnCounter)
+    : 0;
+  let activeTurnIndex =
+    initialState && initialState.activeTurnIndex !== undefined
+      ? initialState.activeTurnIndex
+      : null;
   let pendingTurnPrompts = [];
   let pendingTurnHasMedia = false;
   let hasUnconsumedTurn = false;
@@ -1052,7 +1063,8 @@ export function extractModelSteps(rawSteps = [], generatorMetadata = []) {
     return Boolean(step.userInput && typeof step.userInput === 'object');
   };
 
-  const hasHumanUserTurn = rawSteps.some(isUserTurnBoundary);
+  const hasHumanUserTurn =
+    Boolean(initialState?.hasHumanUserTurn) || rawSteps.some(isUserTurnBoundary);
 
   const isSystemWakeupBoundary = (step) => {
     if (hasHumanUserTurn || !step || typeof step !== 'object') return false;
@@ -1659,6 +1671,9 @@ export function extractModelSteps(rawSteps = [], generatorMetadata = []) {
     }
   }
 
+  if (initialState?.lastExplicitDonorStep && result.length > 0) {
+    return inferCompactionStepModels([initialState.lastExplicitDonorStep, ...result]).slice(1);
+  }
   return inferCompactionStepModels(result);
 }
 
@@ -2275,6 +2290,180 @@ function isAuxiliaryMetaStep(step) {
   return t.includes('MEMENTO') || t.includes('EPHEMERAL');
 }
 
+const MAX_EXTRACTED_TASK_STEPS = 12;
+
+function normalizeTaskStepStatus(rawStatus) {
+  const s = String(rawStatus ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, '_');
+  if (s === 'done' || s === 'completed' || s === 'complete') return 'done';
+  if (s === 'in_progress' || s === 'inprogress' || s === 'running' || s === 'active') {
+    return 'in_progress';
+  }
+  if (s === 'failed' || s === 'fail' || s === 'error') return 'failed';
+  if (s === 'skipped' || s === 'skip') return 'skipped';
+  return 'pending';
+}
+
+function unescapePartialJsonStr(raw) {
+  return String(raw || '')
+    .replace(/\\"/g, '"')
+    .replace(/\\\\/g, '\\')
+    .replace(/\\n/g, ' ')
+    .replace(/\\r/g, '')
+    .trim();
+}
+
+function cleanTaskStepTitle(raw, maxLen = 60) {
+  const s = String(raw || '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!s) return '';
+  if (s.length <= maxLen) return s;
+  return `${s.slice(0, Math.max(1, maxLen - 1)).trimEnd()}…`;
+}
+
+function parsePartialTaskStepsFromJson(rawArgsStr) {
+  if (typeof rawArgsStr !== 'string' || !rawArgsStr.includes('"title"')) return [];
+  const items = [];
+  const objRe = /\{[^{}]*\}/g;
+  let match;
+  while ((match = objRe.exec(rawArgsStr)) !== null && items.length < MAX_EXTRACTED_TASK_STEPS) {
+    const chunk = match[0];
+    const titleM = chunk.match(/"title"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"/i);
+    const statusM = chunk.match(/"status"\s*:\s*"([^"\\]*)"/i);
+    const title = titleM ? cleanTaskStepTitle(unescapePartialJsonStr(titleM[1]), 60) : '';
+    if (!title) continue;
+    items.push({
+      title,
+      status: normalizeTaskStepStatus(statusM ? statusM[1] : 'pending'),
+    });
+  }
+  return items;
+}
+
+function buildTaskStepsSummary(rawStepsVal, rawArgsStr = '') {
+  const unwrapped = unwrapArgValue(rawStepsVal);
+  let allItems = [];
+  if (Array.isArray(unwrapped)) {
+    for (let i = 0; i < unwrapped.length; i += 1) {
+      const entry = unwrapped[i];
+      if (!entry || typeof entry !== 'object') continue;
+      const title = cleanTaskStepTitle(
+        unwrapArgString(entry.title ?? entry.Title ?? entry.label ?? entry.name),
+        60
+      );
+      if (!title) continue;
+      const status = normalizeTaskStepStatus(entry.status ?? entry.Status);
+      allItems.push({ title, status });
+    }
+  } else if (rawArgsStr) {
+    allItems = parsePartialTaskStepsFromJson(rawArgsStr);
+  }
+  if (allItems.length === 0) return null;
+
+  let done = 0;
+  let inProgress = 0;
+  let failed = 0;
+  let skipped = 0;
+  let firstInProgressTitle = '';
+  let firstPendingTitle = '';
+  let lastFailedTitle = '';
+  let lastDoneTitle = '';
+
+  for (const item of allItems) {
+    if (item.status === 'done') {
+      done += 1;
+      lastDoneTitle = item.title;
+    } else if (item.status === 'in_progress') {
+      inProgress += 1;
+      if (!firstInProgressTitle) firstInProgressTitle = item.title;
+    } else if (item.status === 'failed') {
+      failed += 1;
+      lastFailedTitle = item.title;
+    } else if (item.status === 'skipped') {
+      skipped += 1;
+    } else if (!firstPendingTitle) {
+      firstPendingTitle = item.title;
+    }
+  }
+
+  const currentTitle =
+    firstInProgressTitle || firstPendingTitle || lastFailedTitle || lastDoneTitle || '';
+  return {
+    total: allItems.length,
+    done,
+    inProgress,
+    failed,
+    skipped,
+    currentTitle,
+    items: allItems.slice(0, MAX_EXTRACTED_TASK_STEPS),
+  };
+}
+
+function extractTaskStepsFromToolCall(rawToolCall, fallbackStep = null) {
+  const stepToolCall = fallbackStep?.metadata?.toolCall || {};
+  const stepType = String(fallbackStep?.type || '').toUpperCase();
+  const rawName = String(
+    rawToolCall?.name ||
+      rawToolCall?.toolName ||
+      rawToolCall?.function?.name ||
+      stepToolCall?.name ||
+      ''
+  )
+    .trim()
+    .toLowerCase()
+    .replace(/^default_api:/, '');
+  const isStepsTool =
+    rawName === 'update_steps' ||
+    (!rawName && (stepType.includes('UPDATE_STEPS') || Boolean(fallbackStep?.updateSteps)));
+  if (!isStepsTool) return null;
+
+  const candidateArgs =
+    rawToolCall?.args ??
+    rawToolCall?.arguments ??
+    rawToolCall?.argumentsJson ??
+    rawToolCall?.function?.arguments ??
+    stepToolCall?.argumentsJson;
+
+  let args = {};
+  let rawArgsStr = '';
+  if (candidateArgs && typeof candidateArgs === 'object') {
+    args = candidateArgs;
+  } else if (typeof candidateArgs === 'string' && candidateArgs.trim()) {
+    rawArgsStr = candidateArgs.trim();
+    try {
+      const parsed = JSON.parse(rawArgsStr);
+      if (parsed && typeof parsed === 'object') args = parsed;
+    } catch {
+      // 半流式 JSON 将回退至正则提取已完成条目
+    }
+  }
+
+  const rawSteps = args?.steps ?? args?.Steps ?? fallbackStep?.updateSteps?.steps;
+  return buildTaskStepsSummary(rawSteps, rawArgsStr);
+}
+
+export function extractLatestTaskSteps(rawSteps = [], minIdx = 0) {
+  if (!Array.isArray(rawSteps) || rawSteps.length === 0) return null;
+  const floor = Math.max(0, minIdx, rawSteps.length - 200);
+  for (let i = rawSteps.length - 1; i >= floor; i -= 1) {
+    const st = rawSteps[i];
+    if (!st || typeof st !== 'object') continue;
+    if (st.metadata?.toolCall || st.updateSteps || String(st.type || '').toUpperCase().includes('UPDATE_STEPS')) {
+      const direct = extractTaskStepsFromToolCall(st.metadata?.toolCall || null, st);
+      if (direct) return direct;
+    }
+    const plannerCalls = getStepPlannerToolCalls(st);
+    for (let j = plannerCalls.length - 1; j >= 0; j -= 1) {
+      const fromPlanner = extractTaskStepsFromToolCall(plannerCalls[j], null);
+      if (fromPlanner) return fromPlanner;
+    }
+  }
+  return null;
+}
+
 /**
  * 解析工具调用对象或半流式 JSON 参数，返回适合界面单行展示的中文动作标签与详情描述。
  *
@@ -2328,6 +2517,10 @@ export function summarizeToolCall(rawToolCall, fallbackStep = null) {
       rawName = 'search_web';
     } else if (stepType.includes('GENERATE_IMAGE') || fallbackStep?.generateImage) {
       rawName = 'generate_image';
+    } else if (stepType.includes('UPDATE_STEPS') || fallbackStep?.updateSteps) {
+      rawName = 'update_steps';
+    } else if (stepType.includes('UPDATE_FOCUS') || fallbackStep?.updateFocus) {
+      rawName = 'update_focus';
     }
   }
 
@@ -2723,6 +2916,38 @@ export function summarizeToolCall(rawToolCall, fallbackStep = null) {
     };
   }
 
+  if (nameLower === 'update_steps') {
+    const summary = buildTaskStepsSummary(
+      args?.steps ?? args?.Steps ?? fallbackStep?.updateSteps?.steps,
+      rawArgsStr
+    );
+    const detail = summary
+      ? summary.currentTitle
+        ? `${summary.done}/${summary.total} · ${summary.currentTitle}`
+        : `${summary.done}/${summary.total}`
+      : '';
+    return {
+      toolName: nameLower,
+      actionKey: 'update_steps',
+      isAskUser: false,
+      label: '更新进度',
+      detail,
+    };
+  }
+
+  if (nameLower === 'update_focus') {
+    const focusText =
+      pickField(['focus', 'Focus', 'status', 'Status']) ||
+      unwrapArgString(fallbackStep?.updateFocus?.focus);
+    return {
+      toolName: nameLower,
+      actionKey: 'update_focus',
+      isAskUser: false,
+      label: '更新状态',
+      detail: cleanTaskStepTitle(focusText, 56) || '',
+    };
+  }
+
   if (nameLower === 'ask_question') {
     const rawQuestions = unwrapArgValue(args?.questions);
     const qText =
@@ -2807,6 +3032,98 @@ export function getMaxMeaningfulStepIndex(rawSteps = []) {
   return Number.isFinite(numId) ? numId : idx;
 }
 
+/**
+ * 判断后台任务步骤是否显式声明为长期常驻守护进程（`IsDaemon: true`），
+ * 避免如 dev server / 独立长期 cron 等守护任务令已完成会话永久卡在「运行中」。
+ *
+ * @param {object|null|undefined} step
+ * @returns {boolean}
+ */
+export function isDaemonBackgroundTaskStep(step) {
+  if (!step || typeof step !== 'object') return false;
+  if (step.runCommand?.isDaemon === true || step.schedule?.isDaemon === true) return true;
+  const rawArgs = String(step?.metadata?.toolCall?.argumentsJson || '').trim();
+  if (!rawArgs || !/isdaemon/i.test(rawArgs)) return false;
+  try {
+    const parsed = JSON.parse(rawArgs);
+    return parsed?.IsDaemon === true || parsed?.isDaemon === true;
+  } catch {
+    return /["']?isDaemon["']?\s*:\s*true\b/i.test(rawArgs);
+  }
+}
+
+/**
+ * 从原始步骤数组（SQLite 或 Connect RPC 轨迹）中提取所有仍在运行的非守护后台任务。
+ *
+ * 仅采信携带结构化 `taskDetails` 且 `status` 尚未进入终态的步骤，天然免疫 append-only
+ * `transcript.jsonl` 中历史后台任务永久停留在 `"status":"RUNNING"` 的误判。
+ *
+ * @param {Array<object>} [rawSteps=[]]
+ * @returns {Array<{ step: object, stepId: string|number, id: string, toolName: string, title: string, startedAtMs: number }>}
+ */
+export function extractActiveBackgroundTasks(rawSteps = []) {
+  if (!Array.isArray(rawSteps) || rawSteps.length === 0) return [];
+  const tasks = [];
+  const seen = new Set();
+  for (let i = 0; i < rawSteps.length; i += 1) {
+    const st = rawSteps[i];
+    if (!st || typeof st !== 'object') continue;
+    const td = st.taskDetails;
+    if (!td || typeof td !== 'object') continue;
+    if (isRawStepComplete(st)) continue;
+    if (isDaemonBackgroundTaskStep(st)) continue;
+
+    const stepId = getStepStableId(st, i);
+    const id = String(td.id || '').trim();
+    const dedupeKey = id || `step:${stepId}`;
+    if (seen.has(dedupeKey)) continue;
+    seen.add(dedupeKey);
+
+    const info = summarizeToolCall(null, st);
+    const tdTitle = cleanTaskStepTitle(td.title, 60);
+    const tdDesc = cleanTaskStepTitle(td.description, 52);
+    const title = tdTitle || info.detail || tdDesc || '';
+    const startedAtMs =
+      getRawStepStartMs(st) || parseIsoMs(td.movedToBackgroundAt) || 0;
+    tasks.push({
+      step: st,
+      stepId,
+      id,
+      toolName: info.toolName || 'run_command',
+      title,
+      startedAtMs,
+    });
+  }
+  return tasks;
+}
+
+function buildBackgroundTasksActivity(activeBgTasks, fallbackStartMs = 0) {
+  const primary = activeBgTasks[activeBgTasks.length - 1];
+  const isTimer = primary.toolName === 'schedule';
+  const actionKey = isTimer ? 'schedule' : 'background_task';
+  const label = isTimer ? '定时任务' : '后台任务';
+  const detail =
+    activeBgTasks.length > 1
+      ? primary.title
+        ? `${primary.title} (+${activeBgTasks.length - 1})`
+        : `+${activeBgTasks.length}`
+      : primary.title || '';
+  const startedAtMs = primary.startedAtMs || Math.floor(fallbackStartMs || 0);
+  const idSig = activeBgTasks.map((t) => t.id || t.stepId).join(',');
+  return {
+    phase: 'tool',
+    toolName: primary.toolName || 'run_command',
+    actionKey,
+    waitingApproval: false,
+    detailKey: '',
+    label,
+    detail,
+    stepProgress: activeBgTasks.length > 1 ? String(activeBgTasks.length) : '',
+    startedAtMs,
+    signature: `bg-task:${idSig}:${detail}`,
+  };
+}
+
 export function extractLiveActivity(rawSteps = [], isRunning = false, fallbackStartMs = 0) {
   if (!isRunning) return null;
   if (!Array.isArray(rawSteps) || rawSteps.length === 0) {
@@ -2852,9 +3169,20 @@ export function extractLiveActivity(rawSteps = [], isRunning = false, fallbackSt
   const lastStep = rawSteps[lastIdx];
   const lastStepId = getStepStableId(lastStep, lastIdx);
   const lastComplete = isRawStepComplete(lastStep);
+  const taskSteps = extractLatestTaskSteps(rawSteps, lastUserIdx >= 0 ? lastUserIdx + 1 : 0);
+  const activeBgTasks = extractActiveBackgroundTasks(rawSteps);
 
+  const resolveActivity = () => {
   // 情况 A：最后一个有效步骤本身尚未完成（正在流式生成、正在上下文压缩或正在执行工具）
   if (!lastComplete) {
+    if (
+      lastStep?.taskDetails &&
+      typeof lastStep.taskDetails === 'object' &&
+      !isDaemonBackgroundTaskStep(lastStep) &&
+      activeBgTasks.length > 0
+    ) {
+      return buildBackgroundTasksActivity(activeBgTasks, fallbackStartMs);
+    }
     const prevStepEndMs =
       lastIdx > 0
         ? getRawStepFinishMs(rawSteps[lastIdx - 1]) || getRawStepEndMs(rawSteps[lastIdx - 1])
@@ -3077,6 +3405,11 @@ export function extractLiveActivity(rawSteps = [], isRunning = false, fallbackSt
       };
     }
 
+    // B1.5：若存在尚未完成的后台任务（如模型已结束本轮回复等待 run_command / schedule 完成），优先展示后台任务状态
+    if (activeBgTasks.length > 0) {
+      return buildBackgroundTasksActivity(activeBgTasks, fallbackStartMs);
+    }
+
     // B2：上一轮发出的工具已全部执行完毕，按各自对应的工具完成步骤提取目标文件/命令
     if (pTools.length > 0 && completedAfterPlanner >= pTools.length) {
       const infos = pTools.map((t, idx) =>
@@ -3202,7 +3535,10 @@ export function extractLiveActivity(rawSteps = [], isRunning = false, fallbackSt
     }
   }
 
-  // B4：末尾是 USER_INPUT 或普通完成步骤
+  // B4：末尾是 USER_INPUT 或普通完成步骤（若仍有未完成后台任务，优先保留后台任务跟踪）
+  if (activeBgTasks.length > 0) {
+    return buildBackgroundTasksActivity(activeBgTasks, fallbackStartMs);
+  }
   const startMs = getRawStepFinishMs(lastStep) || getRawStepStartMs(lastStep) || 0;
   return {
     phase: 'thinking',
@@ -3215,6 +3551,10 @@ export function extractLiveActivity(rawSteps = [], isRunning = false, fallbackSt
     startedAtMs: startMs,
     signature: `post-step-think:${lastStepId}`,
   };
+  };
+
+  const activity = resolveActivity();
+  return taskSteps ? { ...activity, taskSteps } : activity;
 }
 
 /**

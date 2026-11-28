@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import {
   BUILTIN_FX_RATES,
   DEFAULT_DISPLAY_CURRENCY,
+  LOCALE_DEFAULT_CURRENCY,
   SUPPORTED_CURRENCY_CODES,
   SUPPORTED_DISPLAY_CURRENCIES,
   formatConvertedApprox,
@@ -14,6 +15,7 @@ import {
   resolveCurrencyRateInfo,
   resolveEffectiveCurrency,
 } from '../shared/currency-catalog.mjs';
+import { SUPPORTED_LOCALES } from '../shared/settings-normalization.mjs';
 import {
   createFxRatesManager,
   parseErApiResponse,
@@ -48,7 +50,7 @@ function createTempDir(t, prefix = 'ag-fx-rates-test-') {
   return dir;
 }
 
-test('currency catalog maps all 7 locales automatically in auto mode, supports manual overrides, and hides secondary USD estimate', () => {
+test('currency catalog maps all supported locales automatically in auto mode, supports manual overrides, and hides secondary USD estimate', () => {
   assert.equal(DEFAULT_DISPLAY_CURRENCY, 'auto');
   assert.ok(SUPPORTED_DISPLAY_CURRENCIES.includes('auto'));
   assert.ok(SUPPORTED_CURRENCY_CODES.includes('CNY'));
@@ -72,6 +74,14 @@ test('currency catalog maps all 7 locales automatically in auto mode, supports m
   assert.equal(resolveEffectiveCurrency('auto', 'ko-KR'), 'KRW');
   assert.equal(resolveEffectiveCurrency('auto', 'de-DE'), 'EUR');
   assert.equal(resolveEffectiveCurrency('auto', 'fr-FR'), 'EUR');
+  assert.equal(resolveEffectiveCurrency('auto', 'vi-VN'), 'VND');
+  for (const loc of SUPPORTED_LOCALES) {
+    assert.equal(
+      resolveEffectiveCurrency('auto', loc),
+      LOCALE_DEFAULT_CURRENCY[loc],
+      `auto currency mapping for ${loc}`
+    );
+  }
 
   // Manual override takes precedence regardless of UI language
   assert.equal(resolveEffectiveCurrency('MYR', 'en-US'), 'MYR');
@@ -85,6 +95,7 @@ test('currency catalog maps all 7 locales automatically in auto mode, supports m
   assert.equal(formatConvertedApprox(158.05, { displayCurrency: 'auto', locale: 'ko-KR' }), '≈ ₩218,109');
   assert.equal(formatConvertedApprox(158.05, { displayCurrency: 'auto', locale: 'de-DE' }), '≈ €145');
   assert.equal(formatConvertedApprox(158.05, { displayCurrency: 'auto', locale: 'fr-FR' }), '≈ €145');
+  assert.equal(formatConvertedApprox(158.05, { displayCurrency: 'auto', locale: 'vi-VN' }), '≈ ₫4,014,470');
   assert.equal(formatConvertedApprox(158.05, { displayCurrency: 'MYR', locale: 'en-US' }), '≈ RM703');
   assert.equal(formatConvertedApprox(158.05, { displayCurrency: 'USD', locale: 'zh-CN' }), '');
 

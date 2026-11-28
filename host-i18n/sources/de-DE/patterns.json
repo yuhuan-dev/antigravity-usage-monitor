@@ -4293,6 +4293,714 @@
       "source": "^(.+?) \\(branch changes\\)$",
       "replace": "$1 (Zweig-Änderungen)",
       "hint": "(branch changes)"
+    },
+    {
+      "source": "^(\\d+) posts?$",
+      "flags": "",
+      "replace": "$1 Beiträge",
+      "hint": "post"
+    },
+    {
+      "source": "^(\\d+) members?$",
+      "flags": "",
+      "replace": "$1 Mitglieder",
+      "hint": "member"
+    },
+    {
+      "source": "^(\\d+) frames?$",
+      "flags": "",
+      "replace": "$1 Frames",
+      "hint": "frame"
+    },
+    {
+      "source": "^(\\d+) bees?$",
+      "flags": "",
+      "replace": "$1 Worker",
+      "hint": "bee"
+    },
+    {
+      "source": "^(\\d+) threads?$",
+      "flags": "",
+      "replace": "$1 Threads",
+      "hint": "thread"
+    },
+    {
+      "source": "^(\\d+) of (\\d+) tasks done$",
+      "flags": "",
+      "replace": "$1 von $2 Aufgaben erledigt",
+      "hint": "tasks done"
+    },
+    {
+      "source": "^(\\d+) of (\\d+) done$",
+      "flags": "",
+      "replace": "$1 von $2 erledigt",
+      "hint": "done"
+    },
+    {
+      "source": "^(\\d+) of (\\d+)$",
+      "flags": "",
+      "replace": "$1 von $2",
+      "hint": "of"
+    },
+    {
+      "source": "^Waiting on (\\d+)$",
+      "flags": "",
+      "replace": "Wartet auf $1",
+      "hint": "Waiting on"
+    },
+    {
+      "source": "^Working for @([A-Za-z0-9_.-]+)$",
+      "flags": "",
+      "replace": "Arbeitet für @$1",
+      "hint": "Working for @"
+    },
+    {
+      "source": "^(\\d+) waiting on @([A-Za-z0-9_.-]+)$",
+      "flags": "",
+      "replace": "$1 warten auf @$2",
+      "hint": "waiting on @"
+    },
+    {
+      "source": "^(\\d+) needs? you$",
+      "flags": "",
+      "replace": "$1 benötigen dich",
+      "hint": "you"
+    },
+    {
+      "source": "^(\\d+) in review$",
+      "flags": "",
+      "replace": "$1 in Prüfung",
+      "hint": "in review"
+    },
+    {
+      "source": "^(\\d+) threads? open$",
+      "flags": "",
+      "replace": "$1 Threads offen",
+      "hint": "open"
+    },
+    {
+      "source": "^(\\d+) active$",
+      "flags": "",
+      "replace": "$1 aktiv",
+      "hint": "active"
+    },
+    {
+      "source": "^(\\d+) stuck$",
+      "flags": "",
+      "replace": "$1 festgefahren",
+      "hint": "stuck"
+    },
+    {
+      "source": "^(\\d+) working$",
+      "flags": "",
+      "replace": "$1 in Arbeit",
+      "hint": "working"
+    },
+    {
+      "source": "^(\\d+) waiting$",
+      "flags": "",
+      "replace": "$1 wartend",
+      "hint": "waiting"
+    },
+    {
+      "source": "^(\\d+) done$",
+      "flags": "",
+      "replace": "$1 erledigt",
+      "hint": "done"
+    },
+    {
+      "source": "^Up next · (\\d+)$",
+      "flags": "",
+      "replace": "Als Nächstes · $1",
+      "hint": "Up next"
+    },
+    {
+      "source": "^@([^\\s]+) ran out of quota$",
+      "flags": "",
+      "replace": "@$1 hat kein Kontingent mehr",
+      "hint": "ran out of quota"
+    },
+    {
+      "source": "^@([^\\s]+) looks stuck$",
+      "flags": "",
+      "replace": "@$1 scheint festzustecken",
+      "hint": "looks stuck"
+    },
+    {
+      "source": "^@([^\\s]+) hit an error$",
+      "flags": "",
+      "replace": "@$1 hat einen Fehler gemeldet",
+      "hint": "hit an error"
+    },
+    {
+      "source": "^From @([A-Za-z0-9_.-]+)$",
+      "flags": "",
+      "replace": "Von @$1",
+      "hint": "From @"
+    },
+    {
+      "source": "^To @([A-Za-z0-9_.-]+)$",
+      "flags": "",
+      "replace": "An @$1",
+      "hint": "To @"
+    },
+    {
+      "source": "^Go to #(\\d+) on the Board$",
+      "flags": "",
+      "replace": "Zu #$1 im Board springen",
+      "hint": "on the Board"
+    },
+    {
+      "source": "^Go to #(\\d+) \\((.+?)\\)$",
+      "flags": "",
+      "replace": "Zu #$1 ($2) springen",
+      "hint": "Go to #"
+    },
+    {
+      "source": "^Go to #(\\d+)$",
+      "flags": "",
+      "replace": "Zu #$1 springen",
+      "hint": "Go to #"
+    },
+    {
+      "source": "^Posted in #([a-z0-9-]+); click to show only #([a-z0-9-]+)$",
+      "flags": "",
+      "replace": "In #$1 gepostet; klicken, um nur #$2 anzuzeigen",
+      "hint": "Posted in #"
+    },
+    {
+      "source": "^Everyone in #([a-z0-9-]+)$",
+      "flags": "",
+      "replace": "Alle in #$1",
+      "hint": "Everyone in #"
+    },
+    {
+      "source": "^#([a-z0-9-]+) is archived: this addresses nobody$",
+      "flags": "",
+      "replace": "#$1 ist archiviert: erreicht niemanden",
+      "hint": "is archived"
+    },
+    {
+      "source": "^Loading earlier posts… \\((\\d+) older\\)$",
+      "flags": "",
+      "replace": "Lade ältere Beiträge… ($1 ältere)",
+      "hint": "Loading earlier posts"
+    },
+    {
+      "source": "^Loading (\\d+) earlier posts?\\.$",
+      "flags": "",
+      "replace": "Lade $1 ältere Beiträge.",
+      "hint": "earlier post"
+    },
+    {
+      "source": "^(\\d+) earlier posts? could not be loaded\\.$",
+      "flags": "",
+      "replace": "$1 ältere Beiträge konnten nicht geladen werden.",
+      "hint": "could not be loaded"
+    },
+    {
+      "source": "^Show (\\d+) earlier posts? \\((\\d+) older\\)$",
+      "flags": "",
+      "replace": "$1 ältere Beiträge anzeigen ($2 ältere)",
+      "hint": "earlier post"
+    },
+    {
+      "source": "^Retry loading (\\d+) earlier posts?$",
+      "flags": "",
+      "replace": "$1 ältere Beiträge erneut laden",
+      "hint": "Retry loading"
+    },
+    {
+      "source": "^Exporting (\\d+)%$",
+      "flags": "",
+      "replace": "Exportiere $1 %",
+      "hint": "Exporting"
+    },
+    {
+      "source": "^Exporting (.+?)…$",
+      "flags": "",
+      "replace": "Exportiere $1…",
+      "hint": "Exporting"
+    },
+    {
+      "source": "^Rendering (.+?)…$",
+      "flags": "",
+      "replace": "Rendere $1…",
+      "hint": "Rendering"
+    },
+    {
+      "source": "^Exported (.+?) \\((.+?)\\)$",
+      "flags": "",
+      "replace": "$1 exportiert ($2)",
+      "hint": "Exported"
+    },
+    {
+      "source": "^Download (.+?\\.gif)$",
+      "flags": "",
+      "replace": "$1 herunterladen",
+      "hint": "Download"
+    },
+    {
+      "source": "^GIF ready \\((.+?)\\) — right-click image to save\\.$",
+      "flags": "",
+      "replace": "GIF bereit ($1) — Rechtsklick zum Speichern.",
+      "hint": "GIF ready ("
+    },
+    {
+      "source": "^The narrator's last step failed:\\s*(.+?)$",
+      "flags": "",
+      "replace": "Letzter Schritt des Erzählers fehlgeschlagen: $1",
+      "hint": "last step failed:"
+    },
+    {
+      "source": "^Narrator read up to #(\\d+) of (\\d+)$",
+      "flags": "",
+      "replace": "Erzähler hat bis #$1 von $2 gelesen",
+      "hint": "Narrator read up to #"
+    },
+    {
+      "source": "^read #(\\d+) · updated (.+?)$",
+      "flags": "",
+      "replace": "#$1 gelesen · aktualisiert vor $2",
+      "hint": "· updated"
+    },
+    {
+      "source": "^read #(\\d+)$",
+      "flags": "",
+      "replace": "#$1 gelesen",
+      "hint": "read #"
+    },
+    {
+      "source": "^(\\d+) posts? since the view was updated$",
+      "flags": "",
+      "replace": "$1 Beiträge seit der letzten Ansichtsaktualisierung",
+      "hint": "since the view was updated"
+    },
+    {
+      "source": "^Opening (.+?)'s conversation needs the app\\.$",
+      "flags": "",
+      "replace": "Zum Öffnen der Unterhaltung von $1 ist die App erforderlich.",
+      "hint": "conversation needs the app"
+    },
+    {
+      "source": "^(.+?) runs on (.+?); open it there\\.$",
+      "flags": "",
+      "replace": "$1 läuft auf $2; bitte dort öffnen.",
+      "hint": "runs on"
+    },
+    {
+      "source": "^Runs on (.+?)$",
+      "flags": "",
+      "replace": "Läuft auf $1",
+      "hint": "Runs on"
+    },
+    {
+      "source": "^last seen (\\d+[smhd]) ago$",
+      "flags": "",
+      "replace": "zuletzt gesehen vor $1",
+      "hint": "last seen"
+    },
+    {
+      "source": "^over (\\d+[smhd](?: \\d+[smhd])?)$",
+      "flags": "",
+      "replace": "über $1",
+      "hint": "over"
+    },
+    {
+      "source": "^of (\\d+)$",
+      "flags": "",
+      "replace": "von $1",
+      "hint": "of"
+    },
+    {
+      "source": "^Add (.+?): (.+?)$",
+      "flags": "",
+      "replace": "$1 hinzufügen: $2",
+      "hint": "Add"
+    },
+    {
+      "source": "^Answered: “(\\d+(?:\\.\\d+)?)”$",
+      "flags": "",
+      "replace": "Beantwortet: „$1“",
+      "hint": "Answered: “"
+    },
+    {
+      "source": "^Automation error: (.+?)$",
+      "flags": "",
+      "replace": "Automatisierungsfehler: $1",
+      "hint": "Automation error:"
+    },
+    {
+      "source": "^Copied link to (.+?)$",
+      "flags": "",
+      "replace": "Link zu $1 kopiert",
+      "hint": "Copied link to"
+    },
+    {
+      "source": "^Copy link to (.+?)$",
+      "flags": "",
+      "replace": "Link zu $1 kopieren",
+      "hint": "Copy link to"
+    },
+    {
+      "source": "^Environment variable \"(.+?)\" is already used by (.+?) in this scope\\. Choose a different (.+?) or replace the existing credential\\.$",
+      "flags": "",
+      "replace": "Umgebungsvariable „$1“ wird in diesem Bereich bereits von $2 verwendet. Wählen Sie einen anderen Wert ($3) oder ersetzen Sie die bestehenden Anmeldedaten.",
+      "hint": "or replace the existing credenti"
+    },
+    {
+      "source": "^Environment variable \"(.+?)\" is reserved by the system and cannot be used\\. Choose a different key\\.$",
+      "flags": "",
+      "replace": "Umgebungsvariable „$1“ ist vom System reserviert und kann nicht verwendet werden. Wählen Sie einen anderen Schlüssel.",
+      "hint": "\" is reserved by the system and"
+    },
+    {
+      "source": "^Environment variable \"(.+?)\" is reserved by the system and cannot be used\\. Choose a different name\\.$",
+      "flags": "",
+      "replace": "Umgebungsvariable „$1“ ist vom System reserviert und kann nicht verwendet werden. Wählen Sie einen anderen Namen.",
+      "hint": "\" is reserved by the system and"
+    },
+    {
+      "source": "^Hid (.+?) from sidebar$",
+      "flags": "",
+      "replace": "$1 aus der Seitenleiste ausgeblendet",
+      "hint": "from sidebar"
+    },
+    {
+      "source": "^Looks good on (.+?) — go ahead and proceed\\.$",
+      "flags": "",
+      "replace": "$1 sieht gut aus — bitte fortfahren.",
+      "hint": "— go ahead and proceed."
+    },
+    {
+      "source": "^Maximum (.+?) attachments reached$",
+      "flags": "",
+      "replace": "Maximal $1 Anhänge erreicht",
+      "hint": "attachments reached"
+    },
+    {
+      "source": "^No settings match (.+?)$",
+      "flags": "",
+      "replace": "Keine Einstellungen passen zu $1",
+      "hint": "No settings match"
+    },
+    {
+      "source": "^Open (.+?) preview (.+?) of (.+?)$",
+      "flags": "",
+      "replace": "$1-Vorschau $2 von $3 öffnen",
+      "hint": "preview"
+    },
+    {
+      "source": "^Permission: (.+?)$",
+      "flags": "",
+      "replace": "Berechtigung: $1",
+      "hint": "Permission:"
+    },
+    {
+      "source": "^Preview (.+?)$",
+      "flags": "",
+      "replace": "Vorschau von $1",
+      "hint": "Preview"
+    },
+    {
+      "source": "^Project: (.+?)$",
+      "flags": "",
+      "replace": "Projekt: $1",
+      "hint": "Project:"
+    },
+    {
+      "source": "^Remove (.+?) reaction$",
+      "flags": "",
+      "replace": "Reaktion $1 entfernen",
+      "hint": "reaction"
+    },
+    {
+      "source": "^Replace environment variable: (.+?)$",
+      "flags": "",
+      "replace": "Umgebungsvariable ersetzen: $1",
+      "hint": "Replace environment variable:"
+    },
+    {
+      "source": "^Replace (.+?)$",
+      "flags": "",
+      "replace": "$1 ersetzen",
+      "hint": "Replace"
+    },
+    {
+      "source": "^Reply in thread to (.+?)$",
+      "flags": "",
+      "replace": "Im Thread auf $1 antworten",
+      "hint": "Reply in thread to"
+    },
+    {
+      "source": "^Retry loading (.+?) configuration$",
+      "flags": "",
+      "replace": "Laden der Konfiguration für $1 erneut versuchen",
+      "hint": "Retry loading"
+    },
+    {
+      "source": "^Retry uploading (.+?)$",
+      "flags": "",
+      "replace": "Hochladen von $1 erneut versuchen",
+      "hint": "Retry uploading"
+    },
+    {
+      "source": "^Run failed: (.+?)$",
+      "flags": "",
+      "replace": "Lauf fehlgeschlagen: $1",
+      "hint": "Run failed:"
+    },
+    {
+      "source": "^Running “(.+?)” now$",
+      "flags": "",
+      "replace": "„$1“ wird jetzt ausgeführt",
+      "hint": "Running “"
+    },
+    {
+      "source": "^Screenshot for (.+?)$",
+      "flags": "",
+      "replace": "Screenshot für $1",
+      "hint": "Screenshot for"
+    },
+    {
+      "source": "^Scroll to Bottom \\((.+?) unread\\)$",
+      "flags": "",
+      "replace": "Nach unten scrollen ($1 ungelesen)",
+      "hint": "Scroll to Bottom ("
+    },
+    {
+      "source": "^Send (.+?)$",
+      "flags": "",
+      "replace": "$1 senden",
+      "hint": "Send"
+    },
+    {
+      "source": "^Show in Sidebar \\((.+?)/(.+?)\\)$",
+      "flags": "",
+      "replace": "In Seitenleiste anzeigen ($1/$2)",
+      "hint": "Show in Sidebar ("
+    },
+    {
+      "source": "^Still thinking, (\\d+(?:\\.\\d+)?) seconds$",
+      "flags": "",
+      "replace": "Denkt noch nach, $1 Sekunden",
+      "hint": "Still thinking,"
+    },
+    {
+      "source": "^Thread (.+?)$",
+      "flags": "",
+      "replace": "Thread $1",
+      "hint": "Thread"
+    },
+    {
+      "source": "^Thread: (.+?)$",
+      "flags": "",
+      "replace": "Thread: $1",
+      "hint": "Thread:"
+    },
+    {
+      "source": "^Topic (.+?)$",
+      "flags": "",
+      "replace": "Thema $1",
+      "hint": "Topic"
+    },
+    {
+      "source": "^Upload failed for (.+?)$",
+      "flags": "",
+      "replace": "Hochladen von $1 fehlgeschlagen",
+      "hint": "Upload failed for"
+    },
+    {
+      "source": "^Uploading (.+?)$",
+      "flags": "",
+      "replace": "$1 wird hochgeladen",
+      "hint": "Uploading"
+    },
+    {
+      "source": "^Uploading (.+?)…$",
+      "flags": "",
+      "replace": "$1 wird hochgeladen…",
+      "hint": "Uploading"
+    },
+    {
+      "source": "^View (.+?) full screen$",
+      "flags": "",
+      "replace": "$1 im Vollbild anzeigen",
+      "hint": "full screen"
+    },
+    {
+      "source": "^Voice open timed out after (\\d+(?:\\.\\d+)?)ms$",
+      "flags": "",
+      "replace": "Zeitüberschreitung beim Öffnen des Sprachkanals nach $1 ms",
+      "hint": "Voice open timed out after"
+    },
+    {
+      "source": "^You reacted with (.+?)$",
+      "flags": "",
+      "replace": "Sie haben mit $1 reagiert",
+      "hint": "You reacted with"
+    },
+    {
+      "source": "^Your quota for (.+?) has been reached\\.$",
+      "flags": "",
+      "replace": "Ihr Kontingent für $1 wurde erreicht.",
+      "hint": "has been reached."
+    },
+    {
+      "source": "^Your quota for (.+?) resets (.+?)\\.$",
+      "flags": "",
+      "replace": "Ihr Kontingent für $1 wird $2 zurückgesetzt.",
+      "hint": "Your quota for"
+    },
+    {
+      "source": "^(.+?) \\(Disabled\\)$",
+      "flags": "",
+      "replace": "$1 (Deaktiviert)",
+      "hint": "(Disabled)"
+    },
+    {
+      "source": "^(.+?) files?$",
+      "flags": "",
+      "replace": "$1 Datei(en)",
+      "hint": "file"
+    },
+    {
+      "source": "^(.+?) is required\\.$",
+      "flags": "",
+      "replace": "$1 ist erforderlich.",
+      "hint": "is required."
+    },
+    {
+      "source": "^(.+?) needing your input$",
+      "flags": "",
+      "replace": "$1: Eingabe erforderlich",
+      "hint": "needing your input"
+    },
+    {
+      "source": "^(.+?) of (\\d+(?:\\.\\d+)?) steps done$",
+      "flags": "",
+      "replace": "$1 von $2 Schritten abgeschlossen",
+      "hint": "steps done"
+    },
+    {
+      "source": "^(.+?) reacted with (.+?)$",
+      "flags": "",
+      "replace": "$1 hat mit $2 reagiert",
+      "hint": "reacted with"
+    },
+    {
+      "source": "^(.+?) replies$",
+      "flags": "",
+      "replace": "$1 Antworten",
+      "hint": "replies"
+    },
+    {
+      "source": "^(.+?) tab, (.+?)$",
+      "flags": "",
+      "replace": "Tab $1, $2",
+      "hint": "tab,"
+    },
+    {
+      "source": "^(.+?) tasks?$",
+      "flags": "",
+      "replace": "$1 Aufgabe(n)",
+      "hint": "task"
+    },
+    {
+      "source": "^(.+?) — restore split view$",
+      "flags": "",
+      "replace": "$1 — geteilte Ansicht wiederherstellen",
+      "hint": "— restore split view"
+    },
+    {
+      "source": "^(.+?)\\. Managed by your organization\\.$",
+      "flags": "",
+      "replace": "$1. Von Ihrer Organisation verwaltet.",
+      "hint": ". Managed by your organization."
+    },
+    {
+      "source": "^· \\+(\\d+(?:\\.\\d+)?) more$",
+      "flags": "",
+      "replace": "· +$1 weitere",
+      "hint": "more"
+    },
+    {
+      "source": "^No automations match “(.+?)”\\.$",
+      "flags": "",
+      "replace": "Keine Automatisierungen passen zu „$1“.",
+      "hint": "No automations match"
+    },
+    {
+      "source": "^No (.+?) yet$",
+      "flags": "",
+      "replace": "Noch keine $1",
+      "hint": "yet"
+    },
+    {
+      "source": "^You can upgrade to a higher (.+?) plan to receive the highest rate limits\\.$",
+      "flags": "",
+      "replace": "Sie können auf einen höheren $1-Tarif upgraden, um die höchsten Ratenlimits zu erhalten.",
+      "hint": "upgrade to a higher"
+    },
+    {
+      "source": "^You can upgrade to a (.+?) plan to receive higher rate limits\\.$",
+      "flags": "",
+      "replace": "Sie können auf einen $1-Tarif upgraden, um höhere Ratenlimits zu erhalten.",
+      "hint": "receive higher rate limits"
+    },
+    {
+      "source": "^You have used some of your weekly limit, it will fully refresh in (.+?)\\.$",
+      "flags": "",
+      "replace": "Sie haben einen Teil Ihres Wochenlimits verbraucht. Es wird in $1 vollständig zurückgesetzt.",
+      "hint": "some of your weekly limit"
+    },
+    {
+      "source": "^You have used most of your weekly limit, it will fully refresh in (.+?)\\.$",
+      "flags": "",
+      "replace": "Sie haben den Großteil Ihres Wochenlimits verbraucht. Es wird in $1 vollständig zurückgesetzt.",
+      "hint": "most of your weekly limit"
+    },
+    {
+      "source": "^You have used all of your weekly limit, it will fully refresh in (.+?)\\.$",
+      "flags": "",
+      "replace": "Sie haben Ihr gesamtes Wochenlimit verbraucht. Es wird in $1 vollständig zurückgesetzt.",
+      "hint": "all of your weekly limit"
+    },
+    {
+      "source": "^You have used some of your 5-hour limit, it will fully refresh in (.+?)\\.$",
+      "flags": "",
+      "replace": "Sie haben einen Teil Ihres 5-Stunden-Limits verbraucht. Es wird in $1 vollständig zurückgesetzt.",
+      "hint": "some of your 5-hour limit"
+    },
+    {
+      "source": "^You have used most of your 5-hour limit, it will fully refresh in (.+?)\\.$",
+      "flags": "",
+      "replace": "Sie haben den Großteil Ihres 5-Stunden-Limits verbraucht. Es wird in $1 vollständig zurückgesetzt.",
+      "hint": "most of your 5-hour limit"
+    },
+    {
+      "source": "^You have used all of your 5-hour limit, it will fully refresh in (.+?)\\.$",
+      "flags": "",
+      "replace": "Sie haben Ihr gesamtes 5-Stunden-Limit verbraucht. Es wird in $1 vollständig zurückgesetzt.",
+      "hint": "all of your 5-hour limit"
+    },
+    {
+      "source": "^You have used some of your daily limit, it will fully refresh in (.+?)\\.$",
+      "flags": "",
+      "replace": "Sie haben einen Teil Ihres Tageslimits verbraucht. Es wird in $1 vollständig zurückgesetzt.",
+      "hint": "some of your daily limit"
+    },
+    {
+      "source": "^You have used most of your daily limit, it will fully refresh in (.+?)\\.$",
+      "flags": "",
+      "replace": "Sie haben den Großteil Ihres Tageslimits verbraucht. Es wird in $1 vollständig zurückgesetzt.",
+      "hint": "most of your daily limit"
+    },
+    {
+      "source": "^You have used all of your daily limit, it will fully refresh in (.+?)\\.$",
+      "flags": "",
+      "replace": "Sie haben Ihr gesamtes Tageslimit verbraucht. Es wird in $1 vollständig zurückgesetzt.",
+      "hint": "all of your daily limit"
     }
   ],
   "light": [
@@ -4683,6 +5391,60 @@
       "source": "^Yes, save rule (.+?)$",
       "replace": "Ja, Rule $1 speichern",
       "hint": "Yes, save rule"
+    },
+    {
+      "source": "^Copied “(.+?)”\\. Paste it to the coordinator and say what you want changed\\.$",
+      "flags": "",
+      "replace": "„$1“ kopiert. Füge es beim Coordinator ein und sag, was geändert werden soll.",
+      "hint": "Paste it to the coordinator"
+    },
+    {
+      "source": "^Couldn't load plugin configuration: (.+?)$",
+      "flags": "",
+      "replace": "Plugin-Konfiguration konnte nicht geladen werden: $1",
+      "hint": "Couldn't load plugin configurati"
+    },
+    {
+      "source": "^Create plugin, (.+?)$",
+      "flags": "",
+      "replace": "Plugin erstellen, $1",
+      "hint": "Create plugin,"
+    },
+    {
+      "source": "^Failed to enable plugin (.+?)$",
+      "flags": "",
+      "replace": "Plugin $1 konnte nicht aktiviert werden",
+      "hint": "Failed to enable plugin"
+    },
+    {
+      "source": "^Plugin: (.+?)$",
+      "flags": "",
+      "replace": "Plugin: $1",
+      "hint": "Plugin:"
+    },
+    {
+      "source": "^Replace secret: (.+?)$",
+      "flags": "",
+      "replace": "Secret ersetzen: $1",
+      "hint": "Replace secret:"
+    },
+    {
+      "source": "^(.+?) subagents?$",
+      "flags": "",
+      "replace": "$1 Subagent(s)",
+      "hint": "subagent"
+    },
+    {
+      "source": "^(.+?)\\. Managed by your organization\\. Disabling the bundle turns off its plugins\\.$",
+      "flags": "",
+      "replace": "$1. Von Ihrer Organisation verwaltet. Das Deaktivieren des Pakets schaltet seine Plugins aus.",
+      "hint": ". Managed by your organization."
+    },
+    {
+      "source": "^(\\d+) agents? working quietly in the background\\. Anything that needs your input will show up here\\.$",
+      "flags": "",
+      "replace": "$1 Agent(s) arbeiten still im Hintergrund. Alles, was Ihre Eingabe erfordert, erscheint hier.",
+      "hint": "working quietly in the backgroun"
     }
   ],
   "deep": [
@@ -5073,6 +5835,60 @@
       "source": "^Yes, save rule (.+?)$",
       "replace": "Ja, Regel $1 speichern",
       "hint": "Yes, save rule"
+    },
+    {
+      "source": "^Copied “(.+?)”\\. Paste it to the coordinator and say what you want changed\\.$",
+      "flags": "",
+      "replace": "„$1“ kopiert. Füge es beim Koordinator ein und sag, was geändert werden soll.",
+      "hint": "Paste it to the coordinator"
+    },
+    {
+      "source": "^Couldn't load plugin configuration: (.+?)$",
+      "flags": "",
+      "replace": "Erweiterungskonfiguration konnte nicht geladen werden: $1",
+      "hint": "Couldn't load plugin configurati"
+    },
+    {
+      "source": "^Create plugin, (.+?)$",
+      "flags": "",
+      "replace": "Erweiterung erstellen, $1",
+      "hint": "Create plugin,"
+    },
+    {
+      "source": "^Failed to enable plugin (.+?)$",
+      "flags": "",
+      "replace": "Erweiterung $1 konnte nicht aktiviert werden",
+      "hint": "Failed to enable plugin"
+    },
+    {
+      "source": "^Plugin: (.+?)$",
+      "flags": "",
+      "replace": "Erweiterung: $1",
+      "hint": "Plugin:"
+    },
+    {
+      "source": "^Replace secret: (.+?)$",
+      "flags": "",
+      "replace": "Geheimnis ersetzen: $1",
+      "hint": "Replace secret:"
+    },
+    {
+      "source": "^(.+?) subagents?$",
+      "flags": "",
+      "replace": "$1 Unteragent(en)",
+      "hint": "subagent"
+    },
+    {
+      "source": "^(.+?)\\. Managed by your organization\\. Disabling the bundle turns off its plugins\\.$",
+      "flags": "",
+      "replace": "$1. Von Ihrer Organisation verwaltet. Das Deaktivieren des Pakets schaltet seine Erweiterungen aus.",
+      "hint": ". Managed by your organization."
+    },
+    {
+      "source": "^(\\d+) agents? working quietly in the background\\. Anything that needs your input will show up here\\.$",
+      "flags": "",
+      "replace": "$1 KI-Agent(en) arbeiten still im Hintergrund. Alles, was Ihre Eingabe erfordert, erscheint hier.",
+      "hint": "working quietly in the backgroun"
     }
   ]
 }

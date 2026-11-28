@@ -143,6 +143,8 @@ export async function startBridgeDaemon() {
     if (stdinBuf.includes('SHUTDOWN_DISPOSE')) {
       sawShutdownDispose = true;
       void shutdown({ disposeWindows: true, exitCode: 0 });
+    } else if (stdinBuf.includes('SHUTDOWN_STANDBY')) {
+      void shutdown({ disposeWindows: false, exitCode: 0 });
     } else if (stdinBuf.length > 4096) {
       stdinBuf = stdinBuf.slice(-1024);
     }

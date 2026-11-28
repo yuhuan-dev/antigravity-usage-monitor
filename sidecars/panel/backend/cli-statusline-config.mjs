@@ -23,7 +23,11 @@ import {
   normalizeLanguageSetting,
   normalizeTopbarCapsuleSlots,
 } from './config.mjs';
-import { resolveLocaleFromLanguageTag } from '../shared/settings-normalization.mjs';
+import {
+  isTopbarMultiSessionVisible,
+  normalizeTopbarMultiSessionMode,
+  resolveLocaleFromLanguageTag,
+} from '../shared/settings-normalization.mjs';
 import {
   classifyCacheTier,
   classifySpeedTier,
@@ -799,7 +803,7 @@ function cliBuildBarGauge(label, pct, { fillFg = SGR_FG_ACCENT, valFg = SGR_FG_B
   return `${SGR_FG_MUTED}${label} ${fillFg}${filledPart}${emptyPart ? `${SGR_FG_DIM}${emptyPart}` : ''} ${valFg}${valStr}${SGR_RESET}`;
 }
 
-const CLI_STATUS_COPY = Object.freeze({
+export const CLI_STATUS_COPY = Object.freeze({
   'zh-CN': {
     ctx: '上下文',
     gen: '生成中...',
@@ -969,6 +973,32 @@ const CLI_STATUS_COPY = Object.freeze({
     activeSub: (r, s) => `${r} actif · ${s} sous`,
     active: (r) => `${r} actif`,
     idleZero: '0 actif',
+    anom: {
+      capacity: (n) => (n === 1 ? '503' : `503x${n}`),
+      upstream: (n) => (n === 1 ? '500' : `500x${n}`),
+      rate_limit: (n) => `429x${n}`,
+      timeout: (n) => `TO${n}`,
+      disconnect: (n) => `Drop${n}`,
+      model_output: (n) => `Fix${n}`,
+      safety: (n) => `Safe${n}`,
+      auth_or_model: (n) => `Err${n}`,
+      mixed: (n) => `Warn${n}`,
+      error: (n) => `Err${n}`,
+    },
+  },
+  'vi-VN': {
+    ctx: 'Ctx',
+    gen: 'Đang chạy...',
+    idle: 'Chờ',
+    avg: 'TB ',
+    sum: 'tổng ',
+    cache: 'cache ',
+    quotaAuto: '5g',
+    quotaEmpty: 'Quota --',
+    wk: 'T',
+    activeSub: (r, s) => `${r} chạy · ${s} sub`,
+    active: (r) => `${r} chạy`,
+    idleZero: '0 chạy',
     anom: {
       capacity: (n) => (n === 1 ? '503' : `503x${n}`),
       upstream: (n) => (n === 1 ? '500' : `500x${n}`),
@@ -1314,7 +1344,16 @@ function cliStatusShedLowestPrioritySlot(slotKeys) {
 export function formatCliStatusLineCapsule(slotCtx = {}, options = {}) {
   const normalizedCliSlots = normalizeCliStatusLineSlots(options.slots);
   const rawSlots = normalizedCliSlots || normalizeTopbarCapsuleSlots(options.slots);
-  const showMulti = options.showMultiSession !== false;
+  const runningCount = Math.max(0, Math.floor(Number(slotCtx.runningCount) || 0));
+  const multiSessionMode =
+    options.multiSessionMode !== undefined
+      ? normalizeTopbarMultiSessionMode(options.multiSessionMode, options.showMultiSession)
+      : typeof options.showMultiSession === 'string'
+        ? normalizeTopbarMultiSessionMode(options.showMultiSession)
+        : options.showMultiSession === false
+          ? 'hide'
+          : 'show';
+  const showMulti = isTopbarMultiSessionVisible(multiSessionMode, runningCount);
   const showAnomaly = options.showAnomaly !== false;
   const normLang = normalizeLanguageSetting(options.language);
   const locale = normLang === 'auto' ? detectCliHostLocale() : normLang;
@@ -1338,7 +1377,6 @@ export function formatCliStatusLineCapsule(slotCtx = {}, options = {}) {
     }
   }
 
-  const runningCount = Math.max(0, Math.floor(Number(slotCtx.runningCount) || 0));
   const runningSubCount = Math.max(0, Math.floor(Number(slotCtx.runningSubCount) || 0));
   const hasWaiting = Boolean(slotCtx.hasWaiting);
 

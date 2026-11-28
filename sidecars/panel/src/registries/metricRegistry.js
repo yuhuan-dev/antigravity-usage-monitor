@@ -77,23 +77,28 @@ export function splitMetricValueAndUnit(valueText) {
 }
 
 const SPARKLINE_DEFAULT_WIDTH_BY_COLS = Object.freeze({ 1: 248, 2: 136, 3: 74 });
+const SPARKLINE_DEFAULT_HEIGHT = 34;
 const SPARKLINE_MIN_WIDTH = 28;
 const SPARKLINE_MAX_WIDTH = 640;
+const SPARKLINE_MIN_HEIGHT = 24;
+const SPARKLINE_MAX_HEIGHT = 120;
 const SPARKLINE_PAD_X = 4;
 const SPARKLINE_TARGET_PITCH_PX = 7.5;
 const SPARKLINE_MIN_POINTS = 5;
 const SPARKLINE_MAX_POINTS = 48;
 
 /**
- * 根据折线容器实际可用像素宽度，自适应计算 SVG 画布尺寸、采样步数上限与笔触粗细：
+ * 根据折线容器实际可用像素宽高，自适应计算 SVG 画布尺寸、采样步数上限与笔触粗细：
  * - 保持约 7.5px / 步的均衡节奏：极窄 3 列悬浮卡收敛为 5~7 步避免锯齿拥挤，
  *   宽卡 / 单列 / 宽屏面板则平滑扩展至最多 48 步以展示更长趋势；
- * - 未挂载或无法测宽时（如首帧 / 无头测试）按列数回退至默认基准宽度。
+ * - 支持按容器实测高度自适应拉伸纵轴（宽卡满高、2×2 大卡随隐藏标题/副标自动舒展），
+ * - 未挂载或无法测宽时（如首帧 / 无头测试）按列数回退至默认基准尺寸。
  *
  * @param {number} [availableWidth]
  * @param {number} [colCount=3]
+ * @param {number} [availableHeight=0]
  */
-export function resolveAdaptiveSparklineSpec(availableWidth, colCount = 3) {
+export function resolveAdaptiveSparklineSpec(availableWidth, colCount = 3, availableHeight = 0) {
   const safeCols = colCount === 1 || colCount === 2 ? colCount : 3;
   const fallbackWidth = SPARKLINE_DEFAULT_WIDTH_BY_COLS[safeCols];
   const rawWidth = Number(availableWidth);
@@ -101,6 +106,11 @@ export function resolveAdaptiveSparklineSpec(availableWidth, colCount = 3) {
     Number.isFinite(rawWidth) && rawWidth > 0
       ? Math.max(SPARKLINE_MIN_WIDTH, Math.min(SPARKLINE_MAX_WIDTH, Math.round(rawWidth)))
       : fallbackWidth;
+  const rawHeight = Number(availableHeight);
+  const height =
+    Number.isFinite(rawHeight) && rawHeight > 0
+      ? Math.max(SPARKLINE_MIN_HEIGHT, Math.min(SPARKLINE_MAX_HEIGHT, Math.round(rawHeight)))
+      : SPARKLINE_DEFAULT_HEIGHT;
   const plotWidth = Math.max(8, width - SPARKLINE_PAD_X * 2);
   const maxPoints = Math.max(
     SPARKLINE_MIN_POINTS,
@@ -108,10 +118,10 @@ export function resolveAdaptiveSparklineSpec(availableWidth, colCount = 3) {
   );
   return {
     width,
-    height: 34,
+    height,
     maxPoints,
-    strokeWidth: width < 64 ? '1.5' : width < 100 ? '1.55' : '1.65',
-    dotRadius: width < 64 ? '2.25' : width < 100 ? '2.5' : '2.75',
+    strokeWidth: width < 64 ? '1.5' : width < 100 ? '1.55' : height >= 56 ? '1.8' : '1.65',
+    dotRadius: width < 64 ? '2.25' : width < 100 ? '2.5' : height >= 56 ? '3' : '2.75',
   };
 }
 

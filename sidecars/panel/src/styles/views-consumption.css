@@ -1513,3 +1513,121 @@
   font-size: var(--fs-md);
   color: var(--text-secondary);
 }
+
+/* --- 6. 后台安全审查审计卡片（可选，与用量概览 3+3 矩阵视觉同源） --- */
+.safety-monitor-panel[hidden] {
+  display: none;
+}
+
+.safety-monitor-head {
+  gap: 8px;
+}
+
+.safety-monitor-head .segmented {
+  gap: 1px;
+}
+
+.safety-monitor-head .seg-btn {
+  padding: 2px 7px;
+}
+
+.safety-monitor-panel .status-tag[hidden] {
+  display: none;
+}
+
+.safety-monitor-panel .status-tag.state-danger {
+  color: var(--metric-danger);
+  background: var(--metric-danger-soft);
+  border-color: color-mix(in srgb, var(--metric-danger) 30%, transparent);
+}
+
+.safety-sub-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+
+.safety-dot-muted {
+  background: var(--text-muted);
+  opacity: 0.55;
+}
+
+.safety-dot-danger {
+  background: var(--metric-danger);
+}
+
+.safety-monitor-matrix .cons-mid-num.is-alert {
+  color: var(--metric-danger);
+}
+
+.safety-share-bar {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  height: 5px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-track);
+  overflow: hidden;
+}
+
+.safety-share-bar[hidden] {
+  display: none;
+}
+
+.safety-share-seg {
+  width: var(--seg-w, 0%);
+  height: 100%;
+  transition: width var(--dur-normal) var(--ease-fast);
+}
+
+.safety-share-seg.is-visible {
+  background: color-mix(in srgb, var(--text-primary) 16%, var(--surface-panel));
+}
+
+.safety-share-seg.is-flash {
+  background: var(--ctx-cached);
+}
+
+.safety-share-seg.is-heavy {
+  background: var(--ctx-input);
+}
+
+.safety-monitor-advice {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 6px 9px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  font-size: var(--fs-xs);
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+.safety-monitor-advice[hidden] {
+  display: none;
+}
+
+.safety-monitor-advice.tone-warn {
+  background: var(--metric-warn-soft);
+  border-color: color-mix(in srgb, var(--metric-warn) 26%, transparent);
+  color: var(--metric-warn);
+}
+
+.safety-monitor-advice.tone-danger {
+  background: var(--metric-danger-soft);
+  border-color: color-mix(in srgb, var(--metric-danger) 28%, transparent);
+  color: var(--metric-danger);
+}
+
+.safety-advice-icon {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.safety-monitor-note {
+  font-size: var(--fs-xs);
+  line-height: 1.45;
+  color: var(--text-muted);
+}

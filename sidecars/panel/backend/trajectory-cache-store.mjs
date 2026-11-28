@@ -53,6 +53,16 @@ function tcsDefineHiddenProp(obj, key, value) {
   });
 }
 
+// Process-wide monotonic sequence so _accountingRev never collides across distinct
+// createTrajectoryCacheStore instances (e.g., pruned & re-registered remote endpoints).
+let nextGlobalAccountingRevSeq = 0;
+
+function tcsAssignNextAccountingRev(entry) {
+  if (!entry || typeof entry !== 'object') return;
+  nextGlobalAccountingRevSeq += 1;
+  tcsDefineHiddenProp(entry, '_accountingRev', nextGlobalAccountingRevSeq);
+}
+
 function tcsAttachEntryStepFlags(entry, flags) {
   if (!entry || typeof entry !== 'object') return;
   const resolved = flags || entry._stepFlags || computePrecomputedStepFlags(entry.steps);
@@ -220,6 +230,7 @@ export function createTrajectoryCacheStore({
     entry.steps = slimSteps;
     tcsDefineHiddenProp(entry, '_coldSteps', true);
     tcsDefineHiddenProp(entry, '_stepFlags', flags);
+    sqliteLedger.releasePersistedStepSigs?.(lower);
     hotLru.delete(lower);
     return true;
   }
@@ -239,6 +250,7 @@ export function createTrajectoryCacheStore({
     for (const key of Object.keys(cacheObj)) {
       const lower = key.toLowerCase();
       byLower.set(lower, key);
+      tcsAssignNextAccountingRev(cacheObj[key]);
       if (markCold) {
         finalizeColdEntryInPlace(cacheObj[key]);
       }
@@ -265,6 +277,7 @@ export function createTrajectoryCacheStore({
     loadedOnce = true;
     for (const key of Object.keys(cacheObj)) {
       byLower.set(key.toLowerCase(), key);
+      tcsAssignNextAccountingRev(cacheObj[key]);
     }
     if (hydrated.migrated) {
       state.needsSave = true;
@@ -311,6 +324,7 @@ export function createTrajectoryCacheStore({
         if (prevCanon && prevCanon !== cascadeId) {
           delete cacheObj[prevCanon];
         }
+        tcsAssignNextAccountingRev(entry);
         finalizeColdEntryInPlace(entry);
         cacheObj[cascadeId] = entry;
         byLower.set(lowerId, cascadeId);
@@ -601,6 +615,7 @@ export function createTrajectoryCacheStore({
       ensureLoaded();
       const lower = String(cascadeId || '').toLowerCase();
       const prevCanon = lower ? byLower.get(lower) : undefined;
+      const prevEntry = prevCanon ? cacheObj[prevCanon] : cacheObj[cascadeId];
       if (
         prevCanon &&
         prevCanon !== cascadeId &&
@@ -612,6 +627,11 @@ export function createTrajectoryCacheStore({
         const isStillCold = Boolean(entry.steps?._isColdSlimSteps === true);
         tcsDefineHiddenProp(entry, '_coldSteps', isStillCold);
         tcsAttachEntryStepFlags(entry, entry._stepFlags || null);
+        if (prevEntry && prevEntry.steps === entry.steps && prevEntry._accountingRev > 0) {
+          tcsDefineHiddenProp(entry, '_accountingRev', prevEntry._accountingRev);
+        } else {
+          tcsAssignNextAccountingRev(entry);
+        }
         if (useSqlite && lower) {
           dirtyRemovals.delete(lower);
           dirtyUpserts.add(lower);
@@ -724,6 +744,7 @@ export function createTrajectoryCacheStore({
           if (preFlags) {
             tcsDefineHiddenProp(nextEntry, '_stepFlags', preFlags);
           }
+          tcsAssignNextAccountingRev(nextEntry);
           cacheObj[canon] = nextEntry;
           dirtyUpserts.delete(lower);
           memConvsChanged += 1;
@@ -871,6 +892,7 @@ export function createTrajectoryCacheStore({
           if (preFlags) {
             tcsDefineHiddenProp(nextEntry, '_stepFlags', preFlags);
           }
+          tcsAssignNextAccountingRev(nextEntry);
           cacheObj[toCascadeId] = nextEntry;
           byLower.set(toLower, toCascadeId);
           dirtyRemovals.delete(toLower);

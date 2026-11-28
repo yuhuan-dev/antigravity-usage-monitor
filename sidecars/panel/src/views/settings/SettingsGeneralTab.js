@@ -27,6 +27,7 @@ import {
   SUPPORTED_CURRENCY_CODES,
   resolveEffectiveCurrency,
 } from '../../../shared/currency-catalog.mjs';
+import { SUPPORTED_LOCALE_ENTRIES } from '../../../shared/settings-normalization.mjs';
 import {
   normalizeClientDisplayCurrency,
   normalizeClientUpdateMode,
@@ -44,13 +45,10 @@ import { ToggleSwitch } from '../../components/ui/ToggleSwitch.js';
 function getLanguageOptions() {
   return [
     { value: 'auto', label: t('settings.gen.langAuto') },
-    { value: 'zh-CN', label: t('settings.gen.langZh') },
-    { value: 'zh-TW', label: t('settings.gen.langZhTw') },
-    { value: 'en-US', label: t('settings.gen.langEn') },
-    { value: 'ja-JP', label: t('settings.gen.langJa') },
-    { value: 'ko-KR', label: t('settings.gen.langKo') },
-    { value: 'de-DE', label: t('settings.gen.langDe') },
-    { value: 'fr-FR', label: t('settings.gen.langFr') },
+    ...SUPPORTED_LOCALE_ENTRIES.map(({ locale, nativeName }) => ({
+      value: locale,
+      label: nativeName,
+    })),
   ];
 }
 

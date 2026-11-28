@@ -21,8 +21,11 @@ const IDE_SSH_SECTION_PS = '===UM_PS===';
 const IDE_SSH_SECTION_PROC = '===UM_PROC_FD===';
 const IDE_SSH_SECTION_NET = '===UM_PROC_NET===';
 const IDE_SSH_SECTION_SS = '===UM_SS===';
+const IDE_SSH_SECTION_CAPABILITIES = '===UM_CAPABILITIES===';
 
 const IDE_SSH_BACKOFF_STEPS_MS = Object.freeze([30_000, 120_000, 300_000]);
+const IDE_SSH_ABSENT_BACKOFF_STEPS_MS = Object.freeze([60_000, 180_000, 300_000]);
+const IDE_SSH_CLI_IDLE_RETRY_MS = 15_000;
 const IDE_SSH_HEALTHY_CACHE_TTL_MS = 20_000;
 const IDE_SSH_MAX_HOSTS = 32;
 const IDE_SSH_MAX_TUNNEL_PORT_ATTEMPTS = 4;
@@ -30,7 +33,7 @@ const IDE_SSH_TIER1B_MAX_BUDGET_MS = 12_000;
 
 export const IDE_SSH_REMOTE_PROBE_SH = [
   `echo "${IDE_SSH_SECTION_DAEMON}"`,
-  'for d in "$HOME"/.gemini/*/daemon "$HOME"/.antigravity-ide-server/data/User/globalStorage/*/daemon "$HOME"/.antigravity-ide-server/*/daemon; do',
+  'for d in "$HOME"/.gemini/*/daemon "$HOME"/.antigravity-ide-server/data/User/globalStorage/*/daemon "$HOME"/.antigravity-ide-server/*/daemon "$HOME"/.vscode-server/data/User/globalStorage/*/daemon "$HOME"/.vscode-server-insiders/data/User/globalStorage/*/daemon; do',
   '  [ -d "$d" ] || continue',
   '  for f in "$d"/hub_*.json "$d"/ls_*.json; do',
   '    [ -f "$f" ] || continue',
@@ -55,6 +58,26 @@ export const IDE_SSH_REMOTE_PROBE_SH = [
   'done',
   `echo "${IDE_SSH_SECTION_NET}"`,
   'cat /proc/net/tcp /proc/net/tcp6 2>/dev/null || true',
+  `echo "${IDE_SSH_SECTION_CAPABILITIES}"`,
+  'um_has_cli=0',
+  'if command -v agy >/dev/null 2>&1 || [ -x "$HOME/.local/bin/agy" ] || [ -x "$HOME/.gemini/bin/agy" ] || [ -d "$HOME/.gemini/antigravity-cli" ]; then um_has_cli=1; fi',
+  'um_has_cli_plugin=0',
+  'if [ "$um_has_cli" = "1" ]; then',
+  '  if [ -f "$HOME/.gemini/config/plugins/usage-monitor/plugin.json" ] || [ -f "$HOME/.gemini/antigravity-cli/plugins/usage-monitor/plugin.json" ]; then',
+  '    um_has_cli_plugin=1',
+  '  elif [ -f "$HOME/.gemini/antigravity-cli/settings.json" ]; then',
+  '    if command -v node >/dev/null 2>&1; then',
+  '      node -e \'try{const s=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8").replace(/^\\uFEFF/,""));const l=s&&s.statusLine;process.exit(l&&typeof l==="object"&&l.enabled!==false&&/cli-statusline\\.mjs|usage-monitor/i.test(String(l.command||""))?0:1)}catch{process.exit(1)}\' "$HOME/.gemini/antigravity-cli/settings.json" 2>/dev/null && um_has_cli_plugin=1',
+  '    elif grep -qsE "cli-statusline\\.mjs|usage-monitor" "$HOME/.gemini/antigravity-cli/settings.json" 2>/dev/null && ! grep -qsE \'"enabled"[[:space:]]*:[[:space:]]*false\' "$HOME/.gemini/antigravity-cli/settings.json" 2>/dev/null; then',
+  '      um_has_cli_plugin=1',
+  '    fi',
+  '  fi',
+  'fi',
+  'um_has_vscode_ext=0',
+  'for ext_dir in "$HOME"/.vscode-server/extensions/google.google-antigravity* "$HOME"/.vscode-server-insiders/extensions/google.google-antigravity*; do',
+  '  if [ -e "$ext_dir" ]; then um_has_vscode_ext=1; break; fi',
+  'done',
+  'printf "hasCli=%s\\nhasCliPlugin=%s\\nhasVsCodeExt=%s\\n" "$um_has_cli" "$um_has_cli_plugin" "$um_has_vscode_ext"',
 ].join('\n');
 
 let ideSshNodeDepsPromise = null;
@@ -168,6 +191,7 @@ export function parseRemoteProbeStdout(stdoutText) {
     IDE_SSH_SECTION_SS,
     IDE_SSH_SECTION_PROC,
     IDE_SSH_SECTION_NET,
+    IDE_SSH_SECTION_CAPABILITIES,
   ];
   const sections = new Map();
   let currentMarker = '';
@@ -284,6 +308,42 @@ export function parseRemoteProbeStdout(stdoutText) {
     return bScore - aScore;
   });
 
+  return out;
+}
+
+/**
+ * 解析单趟非交互 SSH 探测输出中的 `===UM_CAPABILITIES===` 分段，识别远端是否安装了
+ * `agy` CLI、`usage-monitor` CLI 插件或 VS Code 官方 Antigravity 扩展。
+ *
+ * @param {string} stdoutText
+ * @returns {{ known: boolean, hasCli: boolean, hasCliPlugin: boolean, hasVsCodeExt: boolean }}
+ */
+export function parseRemoteProbeCapabilities(stdoutText) {
+  const empty = { known: false, hasCli: false, hasCliPlugin: false, hasVsCodeExt: false };
+  const raw = String(stdoutText || '');
+  if (!raw.includes(IDE_SSH_SECTION_CAPABILITIES)) {
+    return empty;
+  }
+  const lines = raw.split(/\r?\n/);
+  let inSection = false;
+  const out = { known: true, hasCli: false, hasCliPlugin: false, hasVsCodeExt: false };
+  for (const rawLine of lines) {
+    const trimmed = rawLine.trim();
+    if (trimmed === IDE_SSH_SECTION_CAPABILITIES) {
+      inSection = true;
+      continue;
+    }
+    if (inSection && trimmed.startsWith('===UM_') && trimmed.endsWith('===')) {
+      break;
+    }
+    if (!inSection || !trimmed) continue;
+    if (trimmed === 'hasCli=1' || trimmed === 'hasCli=true') out.hasCli = true;
+    else if (trimmed === 'hasCliPlugin=1' || trimmed === 'hasCliPlugin=true') out.hasCliPlugin = true;
+    else if (trimmed === 'hasVsCodeExt=1' || trimmed === 'hasVsCodeExt=true') out.hasVsCodeExt = true;
+  }
+  if (!out.hasCli) {
+    out.hasCliPlugin = false;
+  }
   return out;
 }
 
@@ -597,8 +657,16 @@ export function createIdeRemoteSshCoordinator(options = {}) {
    */
   const hostStateMap = new Map();
 
+  const emptyCapabilities = Object.freeze({
+    known: false,
+    hasCli: false,
+    hasCliPlugin: false,
+    hasVsCodeExt: false,
+  });
+
   function getOrCreateHostState(stableHostKey) {
-    let st = hostStateMap.get(stableHostKey);
+    const key = String(stableHostKey || '').trim().toLowerCase();
+    let st = hostStateMap.get(key);
     if (!st) {
       if (hostStateMap.size >= IDE_SSH_MAX_HOSTS) {
         const oldestKey = hostStateMap.keys().next().value;
@@ -609,9 +677,11 @@ export function createIdeRemoteSshCoordinator(options = {}) {
       st = {
         disposed: false,
         failCount: 0,
+        absentCount: 0,
         backoffUntilMs: 0,
         discoveredTokens: [],
         triedForwardedInBackoff: new Set(),
+        capabilities: { ...emptyCapabilities },
         resolvedBaseUrl: '',
         resolvedCsrfToken: '',
         resolvedMode: '',
@@ -619,7 +689,7 @@ export function createIdeRemoteSshCoordinator(options = {}) {
         tunnel: null,
         inFlight: null,
       };
-      hostStateMap.set(stableHostKey, st);
+      hostStateMap.set(key, st);
     }
     return st;
   }
@@ -652,20 +722,54 @@ export function createIdeRemoteSshCoordinator(options = {}) {
     hostStateMap.clear();
   }
 
+  function pruneInactiveHosts(activeHostKeys) {
+    const keep = new Set();
+    if (activeHostKeys && typeof activeHostKeys[Symbol.iterator] === 'function') {
+      for (const rawKey of activeHostKeys) {
+        const normKey = String(rawKey || '').trim().toLowerCase();
+        if (normKey) keep.add(normKey);
+      }
+    }
+    for (const key of Array.from(hostStateMap.keys())) {
+      if (!keep.has(key)) {
+        disposeHost(key);
+      }
+    }
+  }
+
   /**
-   * 解析目标 IDE Remote-SSH 主机的最佳回环 RPC 连接参数（优先配对已转发端口，按需建立回环隧道）。
+   * 解析目标 IDE / VS Code Remote-SSH 主机的最佳回环 RPC 连接参数（优先配对已转发端口，按需建立回环隧道）。
    *
    * @param {{
    *   parsedAuthority: { isSshRemote: boolean, host: string, user: string, port: number, sshDestination: string, stableHostKey: string, displayLabel: string },
    *   forwardedOrigins?: string[],
+   *   requireCapabilities?: boolean,
    * }} params
    */
-  async function resolveEndpointConnection({ parsedAuthority, forwardedOrigins = [] } = {}) {
+  async function resolveEndpointConnection({
+    parsedAuthority,
+    forwardedOrigins = [],
+    requireCapabilities = false,
+  } = {}) {
     if (!parsedAuthority?.isSshRemote || !parsedAuthority.stableHostKey) {
-      return { ok: false, reason: 'not_ssh_remote', baseUrl: '', csrfToken: '', mode: '' };
+      return {
+        ok: false,
+        reason: 'not_ssh_remote',
+        baseUrl: '',
+        csrfToken: '',
+        mode: '',
+        capabilities: { ...emptyCapabilities },
+      };
     }
     if (lsRuntimeEndpoint.addr === 'test.invalid' && !allowInTest && !options.execSshProbeFn) {
-      return { ok: false, reason: 'test_sandbox_skipped', baseUrl: '', csrfToken: '', mode: '' };
+      return {
+        ok: false,
+        reason: 'test_sandbox_skipped',
+        baseUrl: '',
+        csrfToken: '',
+        mode: '',
+        capabilities: { ...emptyCapabilities },
+      };
     }
 
     const hostKey = parsedAuthority.stableHostKey;
@@ -691,6 +795,7 @@ export function createIdeRemoteSshCoordinator(options = {}) {
         baseUrl: st.resolvedBaseUrl,
         csrfToken: st.resolvedCsrfToken,
         mode: st.resolvedMode,
+        capabilities: { ...st.capabilities },
       };
     }
 
@@ -703,10 +808,18 @@ export function createIdeRemoteSshCoordinator(options = {}) {
           for (const tok of st.discoveredTokens) {
             if (await handshakeFn(origin, tok, 1000)) {
               if (st.disposed) {
-                return { ok: false, reason: 'disposed', baseUrl: '', csrfToken: '', mode: '' };
+                return {
+                  ok: false,
+                  reason: 'disposed',
+                  baseUrl: '',
+                  csrfToken: '',
+                  mode: '',
+                  capabilities: { ...st.capabilities },
+                };
               }
               closeHostTunnel(st);
               st.failCount = 0;
+              st.absentCount = 0;
               st.backoffUntilMs = 0;
               st.triedForwardedInBackoff.clear();
               st.resolvedBaseUrl = origin;
@@ -718,6 +831,7 @@ export function createIdeRemoteSshCoordinator(options = {}) {
                 baseUrl: origin,
                 csrfToken: tok,
                 mode: 'forwarded',
+                capabilities: { ...st.capabilities },
               };
             }
           }
@@ -730,6 +844,7 @@ export function createIdeRemoteSshCoordinator(options = {}) {
         baseUrl: cleanForwarded[0] || '',
         csrfToken: '',
         mode: '',
+        capabilities: { ...st.capabilities },
       };
     }
 
@@ -746,7 +861,14 @@ export function createIdeRemoteSshCoordinator(options = {}) {
       ) {
         if (st.disposed) {
           closeHostTunnel(st);
-          return { ok: false, reason: 'disposed', baseUrl: '', csrfToken: '', mode: '' };
+          return {
+            ok: false,
+            reason: 'disposed',
+            baseUrl: '',
+            csrfToken: '',
+            mode: '',
+            capabilities: { ...st.capabilities },
+          };
         }
         st.verifiedAtMs = nowFn();
         return {
@@ -755,12 +877,20 @@ export function createIdeRemoteSshCoordinator(options = {}) {
           baseUrl: st.resolvedBaseUrl,
           csrfToken: st.resolvedCsrfToken,
           mode: st.resolvedMode,
+          capabilities: { ...st.capabilities },
         };
       }
 
       const sshArgs = buildSshProbeCommandArgs(parsedAuthority, 5);
       if (!sshArgs) {
-        return { ok: false, reason: 'invalid_authority', baseUrl: '', csrfToken: '', mode: '' };
+        return {
+          ok: false,
+          reason: 'invalid_authority',
+          baseUrl: '',
+          csrfToken: '',
+          mode: '',
+          capabilities: { ...st.capabilities },
+        };
       }
 
       let probeStdout = '';
@@ -768,7 +898,14 @@ export function createIdeRemoteSshCoordinator(options = {}) {
         probeStdout = await execSshProbe(sshArgs, 6500);
       } catch {
         if (st.disposed) {
-          return { ok: false, reason: 'disposed', baseUrl: '', csrfToken: '', mode: '' };
+          return {
+            ok: false,
+            reason: 'disposed',
+            baseUrl: '',
+            csrfToken: '',
+            mode: '',
+            capabilities: { ...st.capabilities },
+          };
         }
         st.failCount += 1;
         const stepIdx = Math.min(st.failCount - 1, IDE_SSH_BACKOFF_STEPS_MS.length - 1);
@@ -785,23 +922,74 @@ export function createIdeRemoteSshCoordinator(options = {}) {
           baseUrl: cleanForwarded[0] || '',
           csrfToken: '',
           mode: '',
+          capabilities: { ...st.capabilities },
         };
       }
       if (st.disposed) {
-        return { ok: false, reason: 'disposed', baseUrl: '', csrfToken: '', mode: '' };
+        return {
+          ok: false,
+          reason: 'disposed',
+          baseUrl: '',
+          csrfToken: '',
+          mode: '',
+          capabilities: { ...st.capabilities },
+        };
       }
+
+      const probedCapabilities = parseRemoteProbeCapabilities(probeStdout);
+      if (probedCapabilities.known) {
+        st.capabilities = probedCapabilities;
+      }
+
+      // 标准 VS Code Remote-SSH 未打开扩展时：若远端既无 VS Code Antigravity 扩展也无 agy CLI 插件，绝不拉起隧道
+      if (
+        requireCapabilities &&
+        st.capabilities.known &&
+        !st.capabilities.hasCliPlugin &&
+        !st.capabilities.hasVsCodeExt &&
+        cleanForwarded.length === 0
+      ) {
+        closeHostTunnel(st);
+        st.resolvedBaseUrl = '';
+        st.resolvedCsrfToken = '';
+        st.resolvedMode = '';
+        st.absentCount += 1;
+        const absIdx = Math.min(st.absentCount - 1, IDE_SSH_ABSENT_BACKOFF_STEPS_MS.length - 1);
+        st.backoffUntilMs = nowFn() + IDE_SSH_ABSENT_BACKOFF_STEPS_MS[absIdx];
+        st.triedForwardedInBackoff.clear();
+        return {
+          ok: false,
+          reason: 'no_remote_plugin',
+          backoffUntilMs: st.backoffUntilMs,
+          baseUrl: '',
+          csrfToken: '',
+          mode: '',
+          capabilities: { ...st.capabilities },
+        };
+      }
+      st.absentCount = 0;
 
       const candidates = parseRemoteProbeStdout(probeStdout);
       if (candidates.length === 0) {
+        closeHostTunnel(st);
+        st.resolvedBaseUrl = '';
+        st.resolvedCsrfToken = '';
+        st.resolvedMode = '';
         st.failCount += 1;
-        st.backoffUntilMs = nowFn() + IDE_SSH_BACKOFF_STEPS_MS[0];
+        const retryDelayMs =
+          st.capabilities.known && st.capabilities.hasCliPlugin && !st.capabilities.hasVsCodeExt
+            ? IDE_SSH_CLI_IDLE_RETRY_MS
+            : IDE_SSH_BACKOFF_STEPS_MS[0];
+        st.backoffUntilMs = nowFn() + retryDelayMs;
         st.triedForwardedInBackoff.clear();
         return {
           ok: false,
           reason: 'no_remote_daemon',
+          backoffUntilMs: st.backoffUntilMs,
           baseUrl: cleanForwarded[0] || '',
           csrfToken: '',
           mode: '',
+          capabilities: { ...st.capabilities },
         };
       }
 
@@ -816,7 +1004,14 @@ export function createIdeRemoteSshCoordinator(options = {}) {
           for (const tok of tokensToTry) {
             if (await handshakeFn(origin, tok, 1200)) {
               if (st.disposed) {
-                return { ok: false, reason: 'disposed', baseUrl: '', csrfToken: '', mode: '' };
+                return {
+                  ok: false,
+                  reason: 'disposed',
+                  baseUrl: '',
+                  csrfToken: '',
+                  mode: '',
+                  capabilities: { ...st.capabilities },
+                };
               }
               closeHostTunnel(st);
               st.failCount = 0;
@@ -831,6 +1026,7 @@ export function createIdeRemoteSshCoordinator(options = {}) {
                 baseUrl: origin,
                 csrfToken: tok,
                 mode: 'forwarded',
+                capabilities: { ...st.capabilities },
               };
             }
           }
@@ -863,7 +1059,14 @@ export function createIdeRemoteSshCoordinator(options = {}) {
             tunnelHandle = await openTunnelFn({ parsedAuthority, remotePort });
             if (st.disposed) {
               tunnelHandle?.close?.();
-              return { ok: false, reason: 'disposed', baseUrl: '', csrfToken: '', mode: '' };
+              return {
+                ok: false,
+                reason: 'disposed',
+                baseUrl: '',
+                csrfToken: '',
+                mode: '',
+                capabilities: { ...st.capabilities },
+              };
             }
             const protos = httpsSet.has(remotePort) ? ['https', 'http'] : ['http', 'https'];
             for (const proto of protos) {
@@ -875,7 +1078,14 @@ export function createIdeRemoteSshCoordinator(options = {}) {
                 if (await handshakeFn(candidateBaseUrl, cand.csrfToken, 1200)) {
                   if (st.disposed) {
                     tunnelHandle.close();
-                    return { ok: false, reason: 'disposed', baseUrl: '', csrfToken: '', mode: '' };
+                    return {
+                      ok: false,
+                      reason: 'disposed',
+                      baseUrl: '',
+                      csrfToken: '',
+                      mode: '',
+                      capabilities: { ...st.capabilities },
+                    };
                   }
                   closeHostTunnel(st);
                   st.tunnel = tunnelHandle;
@@ -891,6 +1101,7 @@ export function createIdeRemoteSshCoordinator(options = {}) {
                     baseUrl: candidateBaseUrl,
                     csrfToken: cand.csrfToken,
                     mode: 'tunnel',
+                    capabilities: { ...st.capabilities },
                   };
                 }
               }
@@ -902,6 +1113,10 @@ export function createIdeRemoteSshCoordinator(options = {}) {
         }
       }
 
+      closeHostTunnel(st);
+      st.resolvedBaseUrl = '';
+      st.resolvedCsrfToken = '';
+      st.resolvedMode = '';
       st.failCount += 1;
       const stepIdx = Math.min(st.failCount - 1, IDE_SSH_BACKOFF_STEPS_MS.length - 1);
       st.backoffUntilMs = nowFn() + IDE_SSH_BACKOFF_STEPS_MS[stepIdx];
@@ -913,6 +1128,7 @@ export function createIdeRemoteSshCoordinator(options = {}) {
         baseUrl: cleanForwarded[0] || '',
         csrfToken: uniqueTokens[0] || '',
         mode: '',
+        capabilities: { ...st.capabilities },
       };
     })().finally(() => {
       st.inFlight = null;
@@ -925,6 +1141,7 @@ export function createIdeRemoteSshCoordinator(options = {}) {
     resolveEndpointConnection,
     disposeHost,
     disposeAll,
+    pruneInactiveHosts,
     getActiveHostCount: () => hostStateMap.size,
   };
 }

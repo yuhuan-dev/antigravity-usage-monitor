@@ -541,7 +541,6 @@ function getStepsTimeBounds(steps) {
 function collectUsageEntriesToAggregate(familySet, endpoint = null) {
   const isRemote = Boolean(endpoint && endpoint.isRemote);
   const cacheStore = getEndpointCacheStore(endpoint);
-  const externalConvos = isRemote ? new Map() : loadExternalDeepStatsCache();
 
   // 构建大小写归一化的内存缓存与跨端深层缓存索引，彻底杜绝 `${appSource}:${cascadeId}` 键不匹配导致的双倍重复计费
   const allLiveByLower = new Map();
@@ -553,6 +552,10 @@ function collectUsageEntriesToAggregate(familySet, endpoint = null) {
       allLiveByLower.set(cidLower, entry);
     }
   }
+
+  const externalConvos = isRemote
+    ? new Map()
+    : loadExternalDeepStatsCache({ coveredByLive: allLiveByLower });
 
   const externalByCid = new Map();
   for (const ext of externalConvos.values()) {
@@ -588,6 +591,7 @@ function collectUsageEntriesToAggregate(familySet, endpoint = null) {
       accountName: entry?.accountName || extMatch?.accountName || '',
       workspaceUri: entryWorkspaceUri,
       steps: entry?.steps || [],
+      accountingRev: Number(entry?._accountingRev || 0),
       isCurrentConv: familySet.has(cidLower),
     });
   }
@@ -1252,7 +1256,14 @@ function planUsageTrend(window, nowMs, earliest, latest) {
 function sameUsageEntries(previous, current) {
   return previous.length === current.length && current.every((entry, index) => {
     const before = previous[index];
-    return entry.steps === before.steps && entry.cascadeId === before.cascadeId &&
+    const sameSteps =
+      entry.steps === before.steps ||
+      (entry.accountingRev > 0 &&
+        entry.accountingRev === before.accountingRev &&
+        Array.isArray(entry.steps) &&
+        Array.isArray(before.steps) &&
+        entry.steps.length === before.steps.length);
+    return sameSteps && entry.cascadeId === before.cascadeId &&
       entry.appSource === before.appSource && entry.accountName === before.accountName &&
       entry.workspaceUri === before.workspaceUri;
   });
@@ -1590,8 +1601,10 @@ export function aggregateMultiWindowUsage({
     { key: `${key}:week`, startMs: startWkMs, endMs: nowMs },
   ]).flat();
   const windows = [selectedWindow, ...Object.values(presetWindows), ...quotaWindows];
+  const endpointInstanceId = endpoint?.isRemote ? Number(endpoint.instanceId || 0) : 0;
   const snapshot = lastUsageSnapshotsByEndpoint.get(endpointKey) || null;
   const sameSnapshot = modelInputs && snapshot && timeZone === snapshot.timeZone &&
+    endpointInstanceId === Number(snapshot.endpointInstanceId || 0) &&
     currentYear === snapshot.currentYear &&
     Boolean(isCustomWeeklyMode) === Boolean(snapshot.isCustomWeeklyMode) &&
     normalizedQuotaAccount === snapshot.normalizedQuotaAccount &&
@@ -2068,6 +2081,7 @@ export function aggregateMultiWindowUsage({
       resolvedUsageRevision = ++usageSnapshotRevisionSeq;
       activeSnap = {
         revision: resolvedUsageRevision,
+        endpointInstanceId,
         timeZone,
         modelInputs,
         currentYear,
@@ -2214,10 +2228,12 @@ export function aggregateSelectedWindowUsage({
         ]
       : [selectedWindow];
 
+  const endpointInstanceId = endpoint?.isRemote ? Number(endpoint.instanceId || 0) : 0;
   const snapshot = lastUsageSnapshotsByEndpoint.get(endpointKey) || null;
   const sameSnapshot = Boolean(
     modelInputs &&
       snapshot &&
+      endpointInstanceId === Number(snapshot.endpointInstanceId || 0) &&
       timeZone === snapshot.timeZone &&
       currentYear === snapshot.currentYear &&
       Boolean(isCustomWeeklyMode) === Boolean(snapshot.isCustomWeeklyMode) &&

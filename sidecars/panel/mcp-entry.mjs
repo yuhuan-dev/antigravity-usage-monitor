@@ -12,12 +12,166 @@
 
 import { execFile, spawn } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+  readBridgeLeaseSync,
+  resolveBridgeLeaseFilePath,
+  resolveSharedSidecarDataDir,
+} from './backend/bridge-paths.mjs';
 
 const PANEL_DIR = dirname(fileURLToPath(import.meta.url));
 const PLUGIN_MANIFEST_PATH = join(dirname(dirname(PANEL_DIR)), 'plugin.json');
 const DAEMON_SCRIPT_PATH = join(PANEL_DIR, 'bridge-daemon.mjs');
+const MCP_LEASE_WATCH_INTERVAL_MS = 4000;
+const MCP_SIDECAR_LEASE_TTL_MS = 12_000;
+const MCP_YIELD_CONSECUTIVE_CHECKS = 3;
+
+function isLivePid(pid) {
+  const num = Number(pid);
+  if (!Number.isInteger(num) || num <= 0) return false;
+  try {
+    process.kill(num, 0);
+    return true;
+  } catch (err) {
+    return err?.code === 'EPERM';
+  }
+}
+
+function normalizeStandbyPort(raw) {
+  const n = Number(raw);
+  return Number.isInteger(n) && n >= 1024 && n <= 65535 ? n : 0;
+}
+
+function resolveLightweightDataDir(
+  env = process.env,
+  { existsSyncFn = existsSync, readFileSyncFn = readFileSync, homeDir = homedir() } = {}
+) {
+  const explicitDataDir = String(env?.USAGE_MONITOR_DATA_DIR || '').trim();
+  if (explicitDataDir) return explicitDataDir;
+  if (env?.ANTIGRAVITY_EXECUTABLE_DATA_DIR) {
+    return String(env.ANTIGRAVITY_EXECUTABLE_DATA_DIR).trim();
+  }
+  if (String(env?.ANTIGRAVITY_LS_ADDRESS || '').trim() === 'test.invalid') {
+    return join(PANEL_DIR, '.data');
+  }
+  const sharedSidecarDir = resolveSharedSidecarDataDir({
+    env,
+    existsSyncFn,
+    readFileSyncFn,
+    homeDir,
+  });
+  if (sharedSidecarDir) return sharedSidecarDir;
+  const geminiBase = String(env?.ANTIGRAVITY_GEMINI_DIR || '').trim() || join(homeDir, '.gemini');
+  const pluginEnvDataDir =
+    env?.USAGE_MONITOR_PLUGIN_DATA && !String(env.USAGE_MONITOR_PLUGIN_DATA).includes('${')
+      ? String(env.USAGE_MONITOR_PLUGIN_DATA).trim()
+      : '';
+  const candidates = [
+    join(geminiBase, 'antigravity', 'sidecar_data', 'usage-monitor', 'panel', 'data'),
+    join(geminiBase, 'antigravity', 'sidecar_data', 'usage-monitor', 'data'),
+    ...(pluginEnvDataDir ? [pluginEnvDataDir] : []),
+    join(geminiBase, 'antigravity-ide', 'sidecar_data', 'usage-monitor', 'panel', 'data'),
+    join(geminiBase, 'antigravity-cli', 'sidecar_data', 'usage-monitor', 'panel', 'data'),
+  ];
+  for (const dir of candidates) {
+    if (existsSyncFn(dir)) return dir;
+  }
+  return candidates[0];
+}
+
+function readJsonSilent(filePath, { existsSyncFn = existsSync, readFileSyncFn = readFileSync } = {}) {
+  try {
+    if (!filePath || !existsSyncFn(filePath)) return null;
+    return JSON.parse(readFileSyncFn(filePath, 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 判断当前是否已有存活的 Desktop Sidecar 进程持有共享桥接租约，
+ * 且未启用独立 Web 端口（`standalonePort`）。满足时无需额外维持一份约 60 MB 的空闲 `bridge-daemon.mjs` 进程，
+ * 仅由本轻量 MCP 进程周期守望，一旦 Sidecar 退出或用户启用独立端口即在数秒内拉起接管。
+ *
+ * @param {object} [options]
+ * @returns {boolean}
+ */
+export function shouldDeferDaemonToActiveSidecar({
+  env = process.env,
+  dataDir = '',
+  leaseFilePath = '',
+  daemonPid = 0,
+  nowMs = Date.now(),
+  existsSyncFn = existsSync,
+  readFileSyncFn = readFileSync,
+  isPidAliveFn = isLivePid,
+} = {}) {
+  if (String(env?.ANTIGRAVITY_LS_ADDRESS || '').trim() === 'test.invalid') {
+    return false;
+  }
+  if (normalizeStandbyPort(env?.USAGE_MONITOR_STANDALONE_PORT) > 0) {
+    return false;
+  }
+  const explicitDataDir = String(dataDir || '').trim();
+  const explicitLeasePath = String(leaseFilePath || '').trim();
+  const resolvedDir =
+    explicitDataDir || resolveLightweightDataDir(env, { existsSyncFn, readFileSyncFn });
+
+  const leaseCandidates = explicitLeasePath
+    ? [explicitLeasePath]
+    : explicitDataDir
+      ? [join(explicitDataDir, 'window-bridge-lease.json')]
+      : [
+          resolveBridgeLeaseFilePath({ env, dataDir: resolvedDir }),
+          ...(resolvedDir ? [join(resolvedDir, 'window-bridge-lease.json')] : []),
+        ];
+
+  let lease = null;
+  for (const candidate of leaseCandidates) {
+    const parsed = readBridgeLeaseSync(candidate, { existsSyncFn, readFileSyncFn });
+    if (parsed) {
+      lease = parsed;
+      break;
+    }
+  }
+  if (!lease || typeof lease !== 'object') return false;
+
+  const settingsDir =
+    (String(lease.sidecarDataDir || '').trim() &&
+    existsSyncFn(join(String(lease.sidecarDataDir).trim(), 'settings.json'))
+      ? String(lease.sidecarDataDir).trim()
+      : '') || resolvedDir;
+  if (settingsDir) {
+    const settings = readJsonSilent(join(settingsDir, 'settings.json'), {
+      existsSyncFn,
+      readFileSyncFn,
+    });
+    if (normalizeStandbyPort(settings?.standalonePort) > 0) {
+      return false;
+    }
+  }
+
+  const leasePid = Number(lease.pid || 0);
+  if (
+    !Number.isInteger(leasePid) ||
+    leasePid <= 0 ||
+    leasePid === process.pid ||
+    (daemonPid > 0 && leasePid === daemonPid)
+  ) {
+    return false;
+  }
+  const ageMs = nowMs - Number(lease.updatedAtMs || 0);
+  if (!(ageMs >= 0 && ageMs < MCP_SIDECAR_LEASE_TTL_MS)) {
+    return false;
+  }
+  const leaderRole = String(lease?.role || lease?.peers?.[String(leasePid)]?.role || '').trim();
+  if (leaderRole !== 'sidecar') {
+    return false;
+  }
+  return Boolean(isPidAliveFn(leasePid));
+}
 
 const SUPPORTED_MCP_VERSIONS = new Set([
   '2025-11-25',
@@ -265,18 +419,94 @@ export async function shouldSkipDaemonForParentProcess(ppid = process.ppid, opti
   return cmdLines.some((cmd) => isOneShotCliParentCommand(cmd));
 }
 
+/**
+ * 为受管子进程 `bridge-daemon.mjs` 组装 Node 启动参数。
+ * 默认限制 V8 新生代半空间为 4 MB（双半区上限 8 MB），避免冷启动大查询把静息 `new_space` 长期撑在 32 MB；
+ * 若用户已通过 `NODE_OPTIONS` 显式指定 `--max-semi-space-size`，则尊重外部配置不覆盖。
+ *
+ * @param {string} [daemonScriptPath=DAEMON_SCRIPT_PATH]
+ * @param {NodeJS.ProcessEnv} [env=process.env]
+ * @returns {string[]}
+ */
+export function buildDaemonSpawnArgs(daemonScriptPath = DAEMON_SCRIPT_PATH, env = process.env) {
+  const nodeOptions = String(env?.NODE_OPTIONS || '');
+  if (/--max-semi-space-size(?:=|\s|$)/.test(nodeOptions)) {
+    return [daemonScriptPath];
+  }
+  return ['--max-semi-space-size=4', daemonScriptPath];
+}
+
 function startMcpHostSupervisor() {
   const serverVersion = readMcpServerVersion();
   let shuttingDown = false;
   let daemonChild = null;
   let respawnTimer = null;
+  let leaseWatchTimer = null;
+  let daemonParkedForSidecar = false;
+  let consecutiveSidecarLeaderChecks = 0;
   let rapidCrashCount = 0;
   let lastSpawnMs = 0;
 
+  function parkDaemonForSidecar() {
+    const child = daemonChild;
+    if (!child || daemonParkedForSidecar) return;
+    daemonParkedForSidecar = true;
+    consecutiveSidecarLeaderChecks = 0;
+    if (respawnTimer) {
+      clearTimeout(respawnTimer);
+      respawnTimer = null;
+    }
+    try {
+      child.stdin?.write('SHUTDOWN_STANDBY\n');
+      child.stdin?.end();
+    } catch {
+      try {
+        child.kill();
+      } catch {
+        // 忽略异常
+      }
+    }
+  }
+
+  function startLeaseWatcher() {
+    if (
+      leaseWatchTimer ||
+      shuttingDown ||
+      String(process.env?.ANTIGRAVITY_LS_ADDRESS || '').trim() === 'test.invalid'
+    ) {
+      return;
+    }
+    leaseWatchTimer = setInterval(() => {
+      if (shuttingDown) return;
+      const shouldDefer = shouldDeferDaemonToActiveSidecar({
+        daemonPid: daemonChild?.pid || 0,
+      });
+      if (!daemonChild) {
+        consecutiveSidecarLeaderChecks = 0;
+        if (!shouldDefer && !respawnTimer) {
+          daemonParkedForSidecar = false;
+          spawnDaemon();
+        }
+        return;
+      }
+      if (shouldDefer) {
+        consecutiveSidecarLeaderChecks += 1;
+        if (consecutiveSidecarLeaderChecks >= MCP_YIELD_CONSECUTIVE_CHECKS) {
+          parkDaemonForSidecar();
+        }
+      } else {
+        consecutiveSidecarLeaderChecks = 0;
+      }
+    }, MCP_LEASE_WATCH_INTERVAL_MS);
+    leaseWatchTimer.unref?.();
+  }
+
   function spawnDaemon() {
     if (shuttingDown) return;
+    daemonParkedForSidecar = false;
+    consecutiveSidecarLeaderChecks = 0;
     lastSpawnMs = Date.now();
-    const child = spawn(process.execPath, [DAEMON_SCRIPT_PATH], {
+    const child = spawn(process.execPath, buildDaemonSpawnArgs(DAEMON_SCRIPT_PATH, process.env), {
       cwd: PANEL_DIR,
       windowsHide: true,
       stdio: ['pipe', 'ignore', 'pipe'],
@@ -296,10 +526,22 @@ function startMcpHostSupervisor() {
     });
 
     child.on('exit', (code) => {
+      const wasParked = daemonParkedForSidecar;
       if (daemonChild === child) {
         daemonChild = null;
       }
       if (shuttingDown) return;
+      if (wasParked) {
+        if (!shouldDeferDaemonToActiveSidecar()) {
+          daemonParkedForSidecar = false;
+          spawnDaemon();
+        }
+        return;
+      }
+      if (shouldDeferDaemonToActiveSidecar()) {
+        daemonParkedForSidecar = true;
+        return;
+      }
 
       const ranDurationMs = Date.now() - lastSpawnMs;
       let delayMs = code === 0 ? 120 : 350;
@@ -313,6 +555,10 @@ function startMcpHostSupervisor() {
       if (respawnTimer) clearTimeout(respawnTimer);
       respawnTimer = setTimeout(() => {
         respawnTimer = null;
+        if (shouldDeferDaemonToActiveSidecar()) {
+          daemonParkedForSidecar = true;
+          return;
+        }
         spawnDaemon();
       }, delayMs);
     });
@@ -325,6 +571,10 @@ function startMcpHostSupervisor() {
   function shutdownSupervisor() {
     if (shuttingDown) return;
     shuttingDown = true;
+    if (leaseWatchTimer) {
+      clearInterval(leaseWatchTimer);
+      leaseWatchTimer = null;
+    }
     if (respawnTimer) {
       clearTimeout(respawnTimer);
       respawnTimer = null;
@@ -449,14 +699,22 @@ function startMcpHostSupervisor() {
 
   void shouldSkipDaemonForParentProcess(process.ppid, { platform: process.platform })
     .then((skipDaemon) => {
-      if (!shuttingDown && !skipDaemon) {
-        spawnDaemon();
+      if (shuttingDown || skipDaemon) return;
+      startLeaseWatcher();
+      if (shouldDeferDaemonToActiveSidecar()) {
+        daemonParkedForSidecar = true;
+        return;
       }
+      spawnDaemon();
     })
     .catch(() => {
-      if (!shuttingDown) {
-        spawnDaemon();
+      if (shuttingDown) return;
+      startLeaseWatcher();
+      if (shouldDeferDaemonToActiveSidecar()) {
+        daemonParkedForSidecar = true;
+        return;
       }
+      spawnDaemon();
     });
 }
 

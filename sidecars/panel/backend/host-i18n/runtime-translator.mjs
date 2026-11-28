@@ -54,6 +54,7 @@ export const HOST_I18N_SKIP_CONFIG = Object.freeze({
   testIds: Object.freeze([
     'user-message-content',
     'user-message-bubble',
+    'agent-message-bubble',
     'user-message-document-chip',
     'attached-context-pill',
     'entity-pill',
@@ -91,6 +92,14 @@ export const HOST_I18N_SKIP_CONFIG = Object.freeze({
     'transcript-line-text',
     'terminal-surface',
     'terminal-tab-surface',
+    'swarm-title',
+    'swarm-overview-frame',
+    'swarm-raw',
+    'swarm-control-message',
+    'swarm-running-activity',
+    'swarm-member-activity',
+    'swarm-member-owner',
+    'swarm-member-workspace',
   ]),
   classes: Object.freeze([
     'monaco-editor',
@@ -102,7 +111,6 @@ export const HOST_I18N_SKIP_CONFIG = Object.freeze({
     'markdown-body',
     'prose',
     'md-divider-spacing',
-    'bleed-contain',
     'agy-sidebar-row',
     'katex',
     'katex-display',
@@ -118,6 +126,32 @@ export const HOST_I18N_SKIP_CONFIG = Object.freeze({
     'prism-code',
     'hljs',
     'token-line',
+    'swarm-title',
+    'ov-frame',
+    'raw',
+    'raw-pre',
+    'raw-meta',
+    'msg-body',
+    'post-body',
+    'post-md',
+    'msg-author',
+    'msg-to',
+    'chip-name',
+    'sys-text',
+    'o2-mauth',
+    'o2-wchip',
+    'o2-runsum',
+    'o2-runt',
+    'o2-runnote',
+    'o2-donem',
+    'o2-rcap',
+    'o2-thg',
+    'o2-sttxt',
+    'o2-mnow',
+    'o2-mrole',
+    'o2-tvcap',
+    'hv-nm',
+    'hv-rl',
   ]),
   collectorExtraClasses: Object.freeze([
     'material-symbols-outlined',
@@ -622,6 +656,76 @@ export function applyHostI18nInPage(
           }
         }
       },
+      applyTextNodeRun(run, parentVerifiedSafe = false) {
+        if (!Array.isArray(run) || run.length < 2) return;
+        if (!parentVerifiedSafe) {
+          const parent = run[0]?.parentElement || run[0]?.parentNode;
+          if (parent && isSkippedElement(parent)) return;
+        }
+        const firstRec = state.textRecords.get(run[0]);
+        if (
+          firstRec?.runGroup &&
+          firstRec.runGroup.nodes.length === run.length &&
+          firstRec.runGroup.nodes.every((n, idx) => n === run[idx]) &&
+          run.every((n) => {
+            const r = state.textRecords.get(n);
+            return r && n.nodeValue === r.translated;
+          })
+        ) {
+          return;
+        }
+        const origs = [];
+        for (let k = 0; k < run.length; k += 1) {
+          const n = run[k];
+          const curVal = typeof n?.nodeValue === 'string' ? n.nodeValue : '';
+          const rec = state.textRecords.get(n);
+          if (rec && curVal === rec.translated) {
+            origs.push(rec.orig);
+          } else {
+            origs.push(curVal);
+          }
+        }
+        const combinedOrig = origs.join('');
+        const combinedTranslated = translateTextWithMatchers(combinedOrig, state.matchers);
+        if (combinedTranslated !== null && combinedTranslated !== combinedOrig) {
+          const runGroup = { nodes: run.slice() };
+          state.isMutating = true;
+          try {
+            for (let k = 0; k < run.length; k += 1) {
+              const nextVal = k === 0 ? combinedTranslated : '';
+              state.textRecords.set(run[k], {
+                orig: origs[k],
+                translated: nextVal,
+                runGroup,
+              });
+              if (run[k].nodeValue !== nextVal) {
+                run[k].nodeValue = nextVal;
+              }
+            }
+            state.translatedCount += 1;
+          } finally {
+            state.isMutating = false;
+          }
+          return;
+        }
+        state.isMutating = true;
+        try {
+          for (let k = 0; k < run.length; k += 1) {
+            const rec = state.textRecords.get(run[k]);
+            if (rec?.runGroup) {
+              if (run[k].nodeValue === rec.translated) {
+                run[k].nodeValue = rec.orig;
+              }
+              state.textRecords.delete(run[k]);
+            }
+          }
+        } finally {
+          state.isMutating = false;
+        }
+        for (let k = 0; k < run.length; k += 1) {
+          state.applyTextNode(run[k], true);
+        }
+      },
       applyElementAttrs(el, selfVerifiedSafe = false) {
         if (!el || el.nodeType !== 1) return;
         if (!selfVerifiedSafe && isSkippedElement(el)) return;
@@ -676,6 +780,20 @@ export function applyHostI18nInPage(
           if (budgetRef.remaining <= 0) {
             state.pendingNodes.add(children[i]);
             return false;
+          }
+          if (children[i]?.nodeType === 3) {
+            let j = i + 1;
+            while (j < children.length && children[j]?.nodeType === 3) {
+              j += 1;
+            }
+            if (j - i >= 2) {
+              const run = [];
+              for (let k = i; k < j; k += 1) run.push(children[k]);
+              budgetRef.remaining -= run.length;
+              state.applyTextNodeRun(run, true);
+              i = j - 1;
+              continue;
+            }
           }
           if (!state.walkSubtree(children[i], budgetRef, true)) {
             for (let j = i + 1; j < children.length; j += 1) {
@@ -771,12 +889,38 @@ export function applyHostI18nInPage(
         if (state.isMutating) return;
         for (let i = 0; i < mutations.length; i += 1) {
           const m = mutations[i];
-          if (m.type === 'characterData' || m.type === 'attributes') {
+          if (m.type === 'characterData') {
+            const rec = state.textRecords.get(m.target);
+            const hasAdjacentText =
+              m.target?.previousSibling?.nodeType === 3 || m.target?.nextSibling?.nodeType === 3;
+            state.enqueue(
+              (rec?.runGroup || hasAdjacentText) && m.target?.parentNode
+                ? m.target.parentNode
+                : m.target
+            );
+          } else if (m.type === 'attributes') {
             state.enqueue(m.target);
           } else if (m.type === 'childList') {
             const added = m.addedNodes || [];
-            for (let j = 0; j < added.length; j += 1) {
-              state.enqueue(added[j]);
+            let enqueuedParent = false;
+            if (
+              m.target &&
+              (added.some((n) => n?.nodeType === 3) ||
+                (m.removedNodes && m.removedNodes.length > 0))
+            ) {
+              const kids = m.target.childNodes || [];
+              for (let c = 0; c < kids.length - 1; c += 1) {
+                if (kids[c]?.nodeType === 3 && kids[c + 1]?.nodeType === 3) {
+                  state.enqueue(m.target);
+                  enqueuedParent = true;
+                  break;
+                }
+              }
+            }
+            if (!enqueuedParent) {
+              for (let j = 0; j < added.length; j += 1) {
+                state.enqueue(added[j]);
+              }
             }
           }
         }

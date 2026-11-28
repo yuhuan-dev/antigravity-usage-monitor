@@ -13,6 +13,8 @@ import { join } from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 import { extractShortPromptTitle } from '../shared/prompt-clean.mjs';
 import {
+  extractActiveBackgroundTasks,
+  extractLatestTaskSteps,
   extractLiveActivity,
   extractModelSteps,
   extractSwarmMetaFromSteps,
@@ -29,9 +31,11 @@ import {
   CONVERSATIONS_DIR,
   CONVERSATION_DIRS,
   DEEP_STATS_CACHE_CANDIDATES,
+  DEEP_STATS_COVERAGE_MEMO_FILE,
   externalDeepStatsMemo,
   loadJson,
   localSummaryMemo,
+  saveJson,
 } from './config.mjs';
 import { getEndpointCacheStore, getRegisteredRemoteEndpoint } from './endpoint-registry.mjs';
 import {
@@ -40,7 +44,9 @@ import {
   isSqliteDbReadyForRead,
   readAnnotationTitleForCascade,
   readLocalImageDimensionsFromUri,
+  readLocalSqliteActiveTasks,
   readLocalSqliteTrajectory,
+  readLocalSqliteTrajectoryIncremental,
   readLocalSummaryIndex,
   readLocalSummarySnapshot,
 } from './cli-sqlite-reader.mjs';
@@ -182,13 +188,29 @@ function readConversationMtime(files = []) {
   return mtimeMs;
 }
 
-/**
- * 加载并解析跨端（IDE / Standalone / JetBrains）写入的 `.deep_stats_cache.json` 缓存。
- * 使用文件签名 (`mtimeMs + size`) 进行 Memoize，文件未变化时直接返回内存 Map。
- *
- * @returns {Map<string, {cascadeId: string, appSource: string, accountName: string, title: string, lastModifiedMs: number, steps: object[]}>}
- */
-export function loadExternalDeepStatsCache() {
+function isVirtualDeepStatsMemoPath(filePath) {
+  const norm = String(filePath || '').replace(/\\/g, '/');
+  return !norm || norm.startsWith('/test/') || norm.startsWith('/test-home/');
+}
+
+function isDeepStatsCoveragePairsSatisfied(coveredPairs, coveredByLive) {
+  if (!(coveredByLive instanceof Map) || !Array.isArray(coveredPairs)) return false;
+  for (let i = 0; i < coveredPairs.length; i += 1) {
+    const rec = coveredPairs[i];
+    if (!Array.isArray(rec) || rec.length < 2) return false;
+    const cid = rec[0];
+    const minSteps = Number(rec[1]) || 0;
+    const needsAcc = rec[2] === 1;
+    const needsTitle = rec[3] === 1;
+    const live = coveredByLive.get(cid);
+    if (!live || (live.steps?.length || 0) < minSteps) return false;
+    if (needsAcc && !live.accountName) return false;
+    if (needsTitle && !live.title) return false;
+  }
+  return true;
+}
+
+function computeDeepStatsFilesSig() {
   const sigParts = [];
   const existingFiles = [];
   for (const candidate of DEEP_STATS_CACHE_CANDIDATES) {
@@ -201,21 +223,88 @@ export function loadExternalDeepStatsCache() {
       // 忽略 stat 异常
     }
   }
+  return { sig: sigParts.join('|'), existingFiles };
+}
+
+function findCoveredPairMinSteps(coveredPairs, cidLower) {
+  if (!Array.isArray(coveredPairs) || !cidLower) return -1;
+  for (let i = 0; i < coveredPairs.length; i += 1) {
+    const rec = coveredPairs[i];
+    if (Array.isArray(rec) && rec[0] === cidLower) {
+      return Number(rec[1]) || 0;
+    }
+  }
+  return -1;
+}
+
+/**
+ * 加载并解析跨端（IDE / Standalone / JetBrains）写入的 `.deep_stats_cache.json` 缓存。
+ * 使用文件签名 (`mtimeMs + size`) 进行 Memoize；当传入 `coveredByLive`（常规聚合路径）时，
+ * 自动剪枝已被本地 SQLite 账本完整覆盖的旧会话，并在 100% 覆盖时持久化轻量校验签名以避免下次冷启动整文件读入。
+ * 当传入 `targetCascadeId` 时，仅解析目标单会话且不污染全局 `externalDeepStatsMemo`。
+ *
+ * @param {{ coveredByLive?: Map<string, object> | null, targetCascadeId?: string }} [options={}]
+ * @returns {Map<string, {cascadeId: string, appSource: string, accountName: string, title: string, lastModifiedMs: number, steps: object[]}>}
+ */
+export function loadExternalDeepStatsCache({ coveredByLive = null, targetCascadeId = '' } = {}) {
+  const { sig, existingFiles } = computeDeepStatsFilesSig();
   if (existingFiles.length === 0) {
     return new Map();
   }
-  const sig = sigParts.join('|');
-  if (externalDeepStatsMemo.sig === sig && externalDeepStatsMemo.convos.size > 0) {
-    return externalDeepStatsMemo.convos;
+  const targetCidLower = String(targetCascadeId || '').trim().toLowerCase();
+  const isSingleTargetLookup = Boolean(targetCidLower);
+  const allowPrune = !isSingleTargetLookup && coveredByLive instanceof Map;
+
+  if (!isSingleTargetLookup && externalDeepStatsMemo.sig === sig && externalDeepStatsMemo.loaded) {
+    if (!externalDeepStatsMemo.pruned) {
+      return externalDeepStatsMemo.convos;
+    }
+    if (
+      allowPrune &&
+      isDeepStatsCoveragePairsSatisfied(externalDeepStatsMemo.coveredPairs, coveredByLive)
+    ) {
+      return externalDeepStatsMemo.convos;
+    }
+  }
+
+  // 常规聚合冷启动快路径：若上次已验证 100% 会话都被本地账本覆盖且本次逐条校验仍满足，直接跳过整文件 JSON 读取
+  if (allowPrune && !isVirtualDeepStatsMemoPath(DEEP_STATS_COVERAGE_MEMO_FILE)) {
+    const persisted = loadJson(DEEP_STATS_COVERAGE_MEMO_FILE, null);
+    if (
+      persisted &&
+      persisted.version === 1 &&
+      persisted.sig === sig &&
+      Array.isArray(persisted.coveredPairs) &&
+      isDeepStatsCoveragePairsSatisfied(persisted.coveredPairs, coveredByLive)
+    ) {
+      externalDeepStatsMemo.sig = sig;
+      externalDeepStatsMemo.loaded = true;
+      externalDeepStatsMemo.pruned = true;
+      externalDeepStatsMemo.coveredPairs = persisted.coveredPairs;
+      externalDeepStatsMemo.convos = new Map();
+      return externalDeepStatsMemo.convos;
+    }
   }
 
   const convos = new Map();
+  const coveredPairs = allowPrune ? [] : null;
+  const coveredMap = allowPrune ? new Map() : null;
   const runtimeDisplayMap = new Map();
+  const extStringPool = new Map();
+  const internExtStr = (val) => {
+    if (typeof val !== 'string' || val.length === 0) return '';
+    if (val.length > 96) return val;
+    const hit = extStringPool.get(val);
+    if (hit !== undefined) return hit;
+    if (extStringPool.size >= 4096) extStringPool.clear();
+    extStringPool.set(val, val);
+    return val;
+  };
 
   for (const filePath of existingFiles) {
     const raw = loadJson(filePath, null);
     if (!raw || typeof raw.perConvo !== 'object' || !raw.perConvo) continue;
-    const fileAccountName = String(raw.accountName || raw.email || '').trim();
+    const fileAccountName = internExtStr(String(raw.accountName || raw.email || '').trim());
 
     for (const item of Object.values(raw.perConvo)) {
       for (const e of item?.entries || []) {
@@ -237,7 +326,7 @@ export function loadExternalDeepStatsCache() {
           intrinsicDisplay ||
           formatGenericModelSlug(e?.modelAggregationId);
         if (!display) continue;
-        const base = getBaseModelLabel(display);
+        const base = internExtStr(getBaseModelLabel(display));
         if (e?.modelRuntimeId && !runtimeDisplayMap.has(e.modelRuntimeId)) {
           runtimeDisplayMap.set(e.modelRuntimeId, base);
         }
@@ -252,15 +341,70 @@ export function loadExternalDeepStatsCache() {
       const rawEntries = item?.entries;
       if (!Array.isArray(rawEntries) || rawEntries.length === 0) continue;
       const colonIdx = fullKey.indexOf(':');
-      const appSource = item?.appSource || (colonIdx > 0 ? fullKey.slice(0, colonIdx) : 'ide');
+      const appSource = internExtStr(
+        item?.appSource || (colonIdx > 0 ? fullKey.slice(0, colonIdx) : 'ide')
+      );
       const cascadeId = (colonIdx > 0 ? fullKey.slice(colonIdx + 1) : fullKey).toLowerCase();
+      if (isSingleTargetLookup && cascadeId !== targetCidLower) continue;
       const mapKey = `${appSource}:${cascadeId}`;
       const existing = convos.get(mapKey);
       if (existing && existing.steps.length >= rawEntries.length) continue;
 
-      const itemAccountName = String(
-        item?.accountName || item?.email || fileAccountName || ''
-      ).trim();
+      const itemAccountName = internExtStr(
+        String(item?.accountName || item?.email || fileAccountName || '').trim()
+      );
+      const resolvedTitle = titleMap[fullKey] || titleMap[cascadeId] || cascadeId.slice(0, 8);
+
+      // 若本地账本已持有 >= 该条目全部有效步骤，则跳过构建重型 steps 数组
+      if (allowPrune) {
+        const liveEntry = coveredByLive.get(cascadeId);
+        const liveLen = liveEntry?.steps?.length || 0;
+        if (liveEntry && liveLen > 0) {
+          let validStepCount = 0;
+          for (let idx = 0; idx < rawEntries.length; idx += 1) {
+            const e = rawEntries[idx];
+            const inp = Math.max(0, Math.floor(Number(e?.inp) || 0));
+            const cache = Math.max(0, Math.floor(Number(e?.cache) || 0));
+            const out =
+              Math.max(0, Math.floor(Number(e?.out) || 0)) +
+              Math.max(0, Math.floor(Number(e?.reasoning) || 0));
+            if (inp > 0 || cache > 0 || out > 0) validStepCount += 1;
+          }
+          if (validStepCount === 0) continue;
+          if (liveLen >= validStepCount) {
+            const needsAcc = Boolean(itemAccountName);
+            const needsTitle = Boolean(resolvedTitle && resolvedTitle !== cascadeId.slice(0, 8));
+            if ((!needsAcc || liveEntry.accountName) && (!needsTitle || liveEntry.title)) {
+              const prevRec = coveredMap.get(cascadeId);
+              if (!prevRec) {
+                coveredMap.set(cascadeId, [
+                  cascadeId,
+                  validStepCount,
+                  needsAcc ? 1 : 0,
+                  needsTitle ? 1 : 0,
+                ]);
+              } else {
+                if (validStepCount > prevRec[1]) prevRec[1] = validStepCount;
+                if (needsAcc) prevRec[2] = 1;
+                if (needsTitle) prevRec[3] = 1;
+              }
+              continue;
+            }
+            // 步骤已覆盖但本地缺 accountName / title：仅保留零步骤的轻量元数据存根
+            if (!existing) {
+              convos.set(mapKey, {
+                cascadeId,
+                appSource,
+                accountName: itemAccountName,
+                title: resolvedTitle,
+                lastModifiedMs: 0,
+                steps: [],
+              });
+            }
+            continue;
+          }
+        }
+      }
 
       const steps = [];
       let lastModifiedMs = 0;
@@ -287,29 +431,31 @@ export function loadExternalDeepStatsCache() {
           )
             ? e.modelDisplayName
             : '';
-        const resolvedDisplay =
+        const resolvedDisplay = internExtStr(
           safeStepDisplayName ||
-          stepIntrinsicLabel ||
-          runtimeDisplayMap.get(e?.model) ||
-          runtimeDisplayMap.get(e?.modelRuntimeId) ||
-          formatGenericModelSlug(e?.modelAggregationId) ||
-          '';
+            stepIntrinsicLabel ||
+            runtimeDisplayMap.get(e?.model) ||
+            runtimeDisplayMap.get(e?.modelRuntimeId) ||
+            formatGenericModelSlug(e?.modelAggregationId) ||
+            ''
+        );
         const rawUpstreamCandidate = String(e?.model || e?.modelCanonicalId || '').trim();
         const inferredResponseModel =
           /^session:/i.test(String(e?.modelAggregationId || '')) &&
           rawUpstreamCandidate &&
           !/^MODEL_/i.test(rawUpstreamCandidate) &&
           !/\s/.test(rawUpstreamCandidate)
-            ? rawUpstreamCandidate
+            ? internExtStr(rawUpstreamCandidate)
             : '';
         steps.push({
           stepIndex: idx + 1,
-          createdAt: e?.ts || '',
           createdAtMs,
-          modelKey: e?.modelCanonicalId || e?.model || e?.modelRuntimeId || 'unknown',
+          modelKey: internExtStr(
+            e?.modelCanonicalId || e?.model || e?.modelRuntimeId || 'unknown'
+          ),
           modelDisplayName: resolvedDisplay,
           ...(inferredResponseModel ? { responseModel: inferredResponseModel } : {}),
-          apiProvider: e?.provider || '',
+          apiProvider: internExtStr(e?.provider || ''),
           appSource,
           inputTokens,
           cacheReadTokens,
@@ -323,7 +469,7 @@ export function loadExternalDeepStatsCache() {
           cascadeId,
           appSource,
           accountName: itemAccountName,
-          title: titleMap[fullKey] || titleMap[cascadeId] || cascadeId.slice(0, 8),
+          title: resolvedTitle,
           lastModifiedMs,
           steps,
         });
@@ -331,8 +477,39 @@ export function loadExternalDeepStatsCache() {
     }
   }
 
+  if (isSingleTargetLookup) {
+    return convos;
+  }
+
+  if (allowPrune) {
+    for (const rec of coveredMap.values()) {
+      coveredPairs.push(rec);
+    }
+  }
+
   externalDeepStatsMemo.sig = sig;
+  externalDeepStatsMemo.loaded = true;
+  externalDeepStatsMemo.pruned = allowPrune;
+  externalDeepStatsMemo.coveredPairs = coveredPairs;
   externalDeepStatsMemo.convos = convos;
+
+  if (
+    allowPrune &&
+    convos.size === 0 &&
+    coveredPairs.length > 0 &&
+    !isVirtualDeepStatsMemoPath(DEEP_STATS_COVERAGE_MEMO_FILE)
+  ) {
+    try {
+      saveJson(DEEP_STATS_COVERAGE_MEMO_FILE, {
+        version: 1,
+        sig,
+        coveredPairs,
+      });
+    } catch {
+      // 忽略覆盖跳过缓存落盘异常
+    }
+  }
+
   return convos;
 }
 
@@ -678,6 +855,13 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const failedFetchCooldownMap = new Map();
 const liveActivityMemo = new Map();
 const transcriptTailMemo = new Map();
+const transcriptBackfillMemo = new Map();
+const stepTitleProbeMemo = new Map();
+const MAX_STEP_TITLE_PROBE_MEMO = 2048;
+const sqliteIncrementalCursorMap = new Map();
+const MAX_SQLITE_INCREMENTAL_CURSORS = 32;
+const activeTasksMemo = new Map();
+const MAX_ACTIVE_TASKS_MEMO = 32;
 const swarmManifestMemo = new Map();
 let lastKnownLocalLiveCascadeIds = null;
 
@@ -921,11 +1105,316 @@ export function clearScannerRuntimeMemos(endpointId = null, { totalHint = 0, arm
   failedFetchCooldownMap.clear();
   liveActivityMemo.clear();
   transcriptTailMemo.clear();
+  transcriptBackfillMemo.clear();
+  stepTitleProbeMemo.clear();
+  sqliteIncrementalCursorMap.clear();
+  activeTasksMemo.clear();
   swarmManifestMemo.clear();
   brainDirListingMemo.clear();
   knownExistingTranscriptPaths.clear();
   knownBrainCascadeSet = null;
   lastKnownLocalLiveCascadeIds = null;
+}
+
+function setSqliteIncrementalCursor(cidLower, cursor) {
+  if (!cidLower) return;
+  sqliteIncrementalCursorMap.delete(cidLower);
+  if (!cursor) return;
+  if (sqliteIncrementalCursorMap.size >= MAX_SQLITE_INCREMENTAL_CURSORS) {
+    const oldestKey = sqliteIncrementalCursorMap.keys().next().value;
+    if (oldestKey !== undefined) sqliteIncrementalCursorMap.delete(oldestKey);
+  }
+  sqliteIncrementalCursorMap.set(cidLower, cursor);
+}
+
+function readCachedActiveBackgroundTasks(cidLower, dbPath, diskFileSig) {
+  if (!cidLower || !dbPath) return [];
+  const sig = String(diskFileSig || '');
+  const cached = activeTasksMemo.get(cidLower);
+  if (cached && cached.dbPath === dbPath && sig && cached.diskFileSig === sig) {
+    return cached.tasks;
+  }
+  const tasks = readLocalSqliteActiveTasks(dbPath);
+  if (activeTasksMemo.size >= MAX_ACTIVE_TASKS_MEMO && !activeTasksMemo.has(cidLower)) {
+    const oldestKey = activeTasksMemo.keys().next().value;
+    if (oldestKey !== undefined) activeTasksMemo.delete(oldestKey);
+  }
+  activeTasksMemo.set(cidLower, { dbPath, diskFileSig: sig, tasks });
+  return tasks;
+}
+
+function isUserInputRawStep(step) {
+  if (!step || typeof step !== 'object') return false;
+  const t = String(step.type || '').toUpperCase();
+  return t.includes('USER_INPUT') || Boolean(step.userInput && typeof step.userInput === 'object');
+}
+
+function resolveTurnTaskStepsFromRaw(rawSteps, prevTaskSteps = null) {
+  if (!Array.isArray(rawSteps) || rawSteps.length === 0) {
+    return prevTaskSteps || null;
+  }
+  let lastUserPos = -1;
+  for (let i = rawSteps.length - 1; i >= 0; i -= 1) {
+    if (isUserInputRawStep(rawSteps[i])) {
+      lastUserPos = i;
+      break;
+    }
+  }
+  if (lastUserPos >= 0) {
+    return extractLatestTaskSteps(rawSteps, lastUserPos + 1);
+  }
+  return extractLatestTaskSteps(rawSteps, 0) || prevTaskSteps || null;
+}
+
+function mergeLiveStepsWithActiveBackgroundTasks(rawSteps, activeBackgroundTasks) {
+  const base = Array.isArray(rawSteps) ? rawSteps : [];
+  if (!Array.isArray(activeBackgroundTasks) || activeBackgroundTasks.length === 0) {
+    return base;
+  }
+  if (base.length === 0) {
+    return activeBackgroundTasks;
+  }
+  const existingIdx = new Set();
+  for (const st of base) {
+    const idx = Number(st?.idx ?? st?.metadata?.sourceTrajectoryStepInfo?.stepIndex);
+    if (Number.isFinite(idx)) existingIdx.add(idx);
+  }
+  const missing = [];
+  for (const bg of activeBackgroundTasks) {
+    const idx = Number(bg?.idx ?? bg?.metadata?.sourceTrajectoryStepInfo?.stepIndex);
+    if (!Number.isFinite(idx) || !existingIdx.has(idx)) {
+      missing.push(bg);
+    }
+  }
+  return missing.length > 0 ? [...missing, ...base] : base;
+}
+
+function collectOrchestratorExecModelsFromRaw(rawSteps = [], generatorMeta = []) {
+  const out = new Set();
+  const collectPc = (pc) => {
+    const execModel = pc?.planExecuteConfig?.executionModel;
+    if (typeof execModel !== 'string' || !execModel.trim()) return;
+    const cleanExec = execModel.trim();
+    const cleanPlan = String(pc?.planModel || '').trim();
+    if (
+      /orchestrator|MODEL_PLACEHOLDER_M(?:667|681|537)\b/i.test(
+        `${pc?.modelName || ''} ${cleanPlan}`
+      ) ||
+      (cleanPlan && cleanExec !== cleanPlan)
+    ) {
+      out.add(cleanExec);
+    }
+  };
+  for (const gm of generatorMeta || []) {
+    collectPc(gm?.plannerConfig);
+  }
+  for (const st of rawSteps || []) {
+    const inlineList = st?.metadata?.generatorMetadata;
+    if (Array.isArray(inlineList)) {
+      for (const g of inlineList) collectPc(g?.plannerConfig);
+    }
+  }
+  return Array.from(out);
+}
+
+function findLastExplicitDonorStep(steps, maxCount) {
+  const limit = Math.min(Array.isArray(steps) ? steps.length : 0, maxCount);
+  for (let i = limit - 1; i >= 0; i -= 1) {
+    const st = steps[i];
+    if (
+      st &&
+      !st.isImageGenStep &&
+      st.modelKey &&
+      st.modelKey !== 'unknown' &&
+      st.modelSource !== 'inferred_compaction' &&
+      st.modelSource !== 'legacy_unverified'
+    ) {
+      return st;
+    }
+  }
+  return null;
+}
+
+/**
+ * 为已完整解析的本地 SQLite 会话构建无损增量尾读游标：
+ * 切点落在倒数第 3 条已完成且非压缩的模型步（`M_cut`），保证 `M_cut` 及之前的所有步骤均已闭合
+ * （不会再挂接尾部错误、不会触发末尾 `contextBreakdown` 回填、也不等待后向压缩捐赠者）。
+ */
+function buildSqliteIncrementalCursor({
+  trajRes,
+  rawSteps,
+  generatorMeta,
+  extractedSteps,
+  mergedSteps,
+  subagentRefs,
+  rpcSwarmMeta,
+  prevCursor = null,
+}) {
+  if (!trajRes || trajRes.hasForeignOriginSteps || rpcSwarmMeta) {
+    return null;
+  }
+  if (!Array.isArray(extractedSteps) || extractedSteps.length < 8) {
+    return null;
+  }
+  if (!Array.isArray(mergedSteps) || mergedSteps.some((st) => Boolean(st?.isReverted))) {
+    return null;
+  }
+
+  // 仅当存在至少 2 条后续模型步保护切点且切点与下一模型步之间无悬挂错误步时才切分，保证前缀 100% 不可变
+  const errorRawIdxSet = new Set();
+  for (const s of rawSteps || []) {
+    const t = String(s?.type || '').trim().toUpperCase();
+    if (
+      t === 'CORTEX_STEP_TYPE_ERROR_MESSAGE' ||
+      t === 'ERROR_MESSAGE' ||
+      Boolean(s?.errorMessage && typeof s.errorMessage === 'object')
+    ) {
+      const eIdx = Number(s?.idx ?? s?.metadata?.sourceTrajectoryStepInfo?.stepIndex);
+      if (Number.isFinite(eIdx)) errorRawIdxSet.add(eIdx);
+    }
+  }
+  const hasErrorBetween = (afterIdx, beforeIdx) => {
+    if (errorRawIdxSet.size === 0) return false;
+    for (const eIdx of errorRawIdxSet) {
+      if (eIdx > afterIdx && eIdx < beforeIdx) return true;
+    }
+    return false;
+  };
+  let cutModelPos = -1;
+  for (let i = extractedSteps.length - 3; i >= 0; i -= 1) {
+    const cand = extractedSteps[i];
+    const nextModel = extractedSteps[i + 1];
+    if (
+      cand &&
+      cand.isComplete === true &&
+      !cand.isCompactionStep &&
+      Number.isFinite(Number(cand.stepIndex)) &&
+      Number.isFinite(Number(nextModel?.stepIndex)) &&
+      !hasErrorBetween(Number(cand.stepIndex), Number(nextModel.stepIndex))
+    ) {
+      cutModelPos = i;
+      break;
+    }
+  }
+  if (cutModelPos < 4) return null;
+
+  const cutStep = extractedSteps[cutModelPos];
+  const stableRawIdx = Math.floor(Number(cutStep.stepIndex));
+
+  // 统计 rawSteps 中 idx <= stableRawIdx 的精确行数及切点前的原始信息
+  let stableRawRowCount = 0;
+  let prefixSubagentRefs = [];
+  let hasHumanUserTurn = Boolean(prevCursor?.hasHumanUserTurn);
+  let lastCompactionStepIdx = Number.isFinite(Number(prevCursor?.lastCompactionStepIdx))
+    ? Number(prevCursor.lastCompactionStepIdx)
+    : -1;
+  if (prevCursor && trajRes.incremental) {
+    let addedPrefixRows = 0;
+    const newlyFrozenRaw = [];
+    for (const s of rawSteps || []) {
+      const idx = Number(s?.idx ?? s?.metadata?.sourceTrajectoryStepInfo?.stepIndex);
+      if (!Number.isFinite(idx) || idx > stableRawIdx) break;
+      addedPrefixRows += 1;
+      newlyFrozenRaw.push(s);
+      if (
+        !hasHumanUserTurn &&
+        (s?.type === 'CORTEX_STEP_TYPE_USER_INPUT' ||
+          s?.type === 'USER_INPUT' ||
+          (s?.userInput && typeof s.userInput === 'object'))
+      ) {
+        hasHumanUserTurn = true;
+      }
+    }
+    if (addedPrefixRows === 0) {
+      // 切点尚未前移，直接沿用原切点仅刷新 stepsRef 与最新任务步骤清单
+      const nextTaskSteps = resolveTurnTaskStepsFromRaw(rawSteps, prevCursor.lastTaskSteps || null);
+      return {
+        ...prevCursor,
+        stepsRef: mergedSteps,
+        ...(nextTaskSteps ? { lastTaskSteps: nextTaskSteps } : { lastTaskSteps: null }),
+      };
+    }
+    stableRawRowCount = prevCursor.stableRawRowCount + addedPrefixRows;
+    const mergedRefs = Array.isArray(prevCursor.prefixSubagentRefs)
+      ? prevCursor.prefixSubagentRefs.slice()
+      : [];
+    const seen = new Set(mergedRefs.map((r) => r.cascadeId));
+    for (const r of extractSubagentRefsFromSteps(newlyFrozenRaw)) {
+      if (!seen.has(r.cascadeId)) {
+        seen.add(r.cascadeId);
+        mergedRefs.push(r);
+      }
+    }
+    prefixSubagentRefs = mergedRefs;
+  } else {
+    if (!Array.isArray(rawSteps) || rawSteps.length < 64) {
+      return null;
+    }
+    const prefixRaw = [];
+    for (const s of rawSteps) {
+      const idx = Number(s?.idx ?? s?.metadata?.sourceTrajectoryStepInfo?.stepIndex);
+      if (!Number.isFinite(idx) || idx > stableRawIdx) break;
+      prefixRaw.push(s);
+      if (
+        !hasHumanUserTurn &&
+        (s?.type === 'CORTEX_STEP_TYPE_USER_INPUT' ||
+          s?.type === 'USER_INPUT' ||
+          (s?.userInput && typeof s.userInput === 'object'))
+      ) {
+        hasHumanUserTurn = true;
+      }
+    }
+    if (prefixRaw.length === 0) return null;
+    stableRawRowCount = prefixRaw.length;
+    prefixSubagentRefs = extractSubagentRefsFromSteps(prefixRaw);
+  }
+
+  for (let i = 0; i <= cutModelPos; i += 1) {
+    const st = extractedSteps[i];
+    if (st?.isCompactionStep && Number.isFinite(Number(st.stepIndex))) {
+      lastCompactionStepIdx = Math.max(lastCompactionStepIdx, Number(st.stepIndex));
+    }
+  }
+
+  const stableModelStepsCount = cutModelPos + 1;
+  const turnCounter = Number.isFinite(Number(cutStep.turnIndex)) ? Number(cutStep.turnIndex) : 0;
+  const activeTurnIndex = cutStep.turnIndex ?? null;
+  const orchSet = new Set([
+    ...(Array.isArray(prevCursor?.orchestratorExecModels) ? prevCursor.orchestratorExecModels : []),
+    ...collectOrchestratorExecModelsFromRaw(rawSteps, generatorMeta),
+  ]);
+
+  // 保留最近 4 条 gen_metadata 留给下次增量查询重读，确保边界步总能命中对应 gen_metadata
+  const stableMaxGenIdx = Math.max(-1, Number(trajRes.maxGenIdx ?? -1) - 4);
+  const lastTaskSteps = resolveTurnTaskStepsFromRaw(
+    rawSteps,
+    prevCursor?.lastTaskSteps || null
+  );
+
+  return {
+    stepsRef: mergedSteps,
+    stableRawIdx,
+    stableRawRowCount,
+    stableModelStepsCount,
+    stableMaxGenIdx,
+    turnCounter,
+    activeTurnIndex,
+    hasHumanUserTurn,
+    lastCompactionStepIdx,
+    lastKnownGmStepIdx: stableRawIdx,
+    orchestratorExecModels: Array.from(orchSet),
+    lastExplicitDonorStep: findLastExplicitDonorStep(extractedSteps, stableModelStepsCount),
+    lastTaskSteps,
+    prefixSubagentRefs,
+    isChildTrajectory: Boolean(trajRes.isChildTrajectory),
+    isSideQuestion: Boolean(trajRes.isSideQuestion),
+    trajectoryType: Number(trajRes.trajectoryType || 0),
+    forkParentConversationId: trajRes.forkParentConversationId || '',
+    firstOwnUserPrompt: trajRes.firstOwnUserPrompt || '',
+    rootConversationId: trajRes.rootConversationId || '',
+    parentConversationId: trajRes.parentConversationId || '',
+    trajectoryMetadata: trajRes.trajectory?.metadata || null,
+  };
 }
 
 function findSwarmMembersPath(cascadeId) {
@@ -1288,88 +1777,348 @@ function inferAppSourceFromSummary(sourceEnum = '', diskFiles = [], fallback = '
   return fallback || 'standalone';
 }
 
-function enrichSqliteStepsFromTranscriptIfNeeded(cidLower, sqliteSteps) {
-  if (!cidLower || !Array.isArray(sqliteSteps) || sqliteSteps.length === 0) {
-    return { firstUserTitle: '' };
-  }
-  const needsTranscriptBackfill = sqliteSteps.some(
-    (s) =>
-      (s?.type === 'CORTEX_STEP_TYPE_USER_INPUT' && !s.userInput) ||
-      (s?.type === 'CORTEX_STEP_TYPE_SYSTEM_MESSAGE' && !s.content && !s.systemMessage) ||
-      (s?.metadata?.modelUsage && !s.metadata.modelUsage.model)
-  );
-  if (!needsTranscriptBackfill) {
-    return { firstUserTitle: '' };
-  }
-  const transcriptPath = findTranscriptPath(cidLower);
-  if (!transcriptPath || !existsSync(transcriptPath)) {
-    return { firstUserTitle: '' };
-  }
-  let raw = '';
-  try {
-    raw = readFileSync(transcriptPath, 'utf8');
-  } catch {
-    return { firstUserTitle: '' };
-  }
-  if (typeof raw !== 'string' || !raw.trim()) {
-    return { firstUserTitle: '' };
-  }
+const TRANSCRIPT_BACKFILL_STREAM_THRESHOLD_BYTES = 512 * 1024;
+const TRANSCRIPT_BACKFILL_CHUNK_BYTES = 256 * 1024;
 
+function parseTranscriptStepIndexFast(lineStr) {
+  const keyPos = lineStr.indexOf('"step_index"');
+  if (keyPos < 0) return null;
+  let pos = keyPos + 12;
+  const len = lineStr.length;
+  while (pos < len && (lineStr.charCodeAt(pos) === 32 || lineStr.charCodeAt(pos) === 9 || lineStr.charCodeAt(pos) === 58)) {
+    pos += 1;
+  }
+  if (pos >= len) return null;
+  const start = pos;
+  while (pos < len) {
+    const ch = lineStr.charCodeAt(pos);
+    if (ch >= 48 && ch <= 57) {
+      pos += 1;
+    } else {
+      break;
+    }
+  }
+  if (pos === start) return null;
+  const n = Number(lineStr.slice(start, pos));
+  return Number.isFinite(n) ? n : null;
+}
+
+function buildCompactTranscriptPatch(parsed) {
+  if (!parsed || typeof parsed !== 'object') return null;
+  const patch = {};
+  let hasAny = false;
+  if (typeof parsed.content === 'string' && parsed.content.length > 0) {
+    patch.content = parsed.content.length > 4096 ? parsed.content.slice(0, 4096) : parsed.content;
+    hasAny = true;
+  }
+  if (parsed.userInput && typeof parsed.userInput === 'object') {
+    patch.userInput = parsed.userInput;
+    hasAny = true;
+  }
+  if (Array.isArray(parsed.media) && parsed.media.length > 0) {
+    patch.media = parsed.media;
+    hasAny = true;
+  }
+  const fallbackModel = String(parsed.model || parsed.generator_model || '').trim();
+  if (fallbackModel) {
+    patch.model = fallbackModel;
+    hasAny = true;
+  }
+  return hasAny ? patch : null;
+}
+
+function scanTranscriptBackfillLines(
+  transcriptPath,
+  { startOffset = 0, fileSize = 0, startLineOrdinal = 0, neededIdxSet, needFirstUserTitle }
+) {
   let firstUserTitle = '';
-  const byStepIdx = new Map();
-  let lineOrdinal = 0;
-  for (const rawLine of raw.split(/\r?\n/)) {
+  let lineOrdinal = startLineOrdinal;
+  let maxScannedIdx = -1;
+  let scannedBytes = startOffset;
+  const patchesByIdx = new Map();
+
+  const processLine = (rawLine) => {
     const trimmed = rawLine.trim();
-    if (!trimmed) continue;
+    if (!trimmed) return;
+    const curOrd = lineOrdinal;
+    lineOrdinal += 1;
+
+    const fastIdx = parseTranscriptStepIndexFast(trimmed);
+    const effectiveIdx = fastIdx !== null ? fastIdx : curOrd;
+    if (effectiveIdx > maxScannedIdx) maxScannedIdx = effectiveIdx;
+
+    const wantsIdx = neededIdxSet.has(effectiveIdx);
+    const maybeUserTitle =
+      needFirstUserTitle &&
+      !firstUserTitle &&
+      (trimmed.includes('USER_INPUT') || trimmed.includes('"userInput"'));
+    if (!wantsIdx && !maybeUserTitle) {
+      return;
+    }
     try {
       const parsed = JSON.parse(trimmed);
-      if (!parsed || typeof parsed !== 'object') continue;
-      const idx = Number.isFinite(Number(parsed.step_index))
+      if (!parsed || typeof parsed !== 'object') return;
+      const parsedIdx = Number.isFinite(Number(parsed.step_index))
         ? Number(parsed.step_index)
-        : lineOrdinal;
-      lineOrdinal += 1;
-      byStepIdx.set(idx, parsed);
-      const upperType = String(parsed.type || '').trim().toUpperCase();
-      if (
-        !firstUserTitle &&
-        (upperType === 'USER_INPUT' ||
+        : curOrd;
+      if (parsedIdx > maxScannedIdx) maxScannedIdx = parsedIdx;
+      if (neededIdxSet.has(parsedIdx)) {
+        const patch = buildCompactTranscriptPatch(parsed);
+        if (patch) {
+          patchesByIdx.set(parsedIdx, patch);
+        }
+      }
+      if (needFirstUserTitle && !firstUserTitle) {
+        const upperType = String(parsed.type || '').trim().toUpperCase();
+        if (
+          upperType === 'USER_INPUT' ||
           upperType === 'CORTEX_STEP_TYPE_USER_INPUT' ||
-          (parsed.userInput && typeof parsed.userInput === 'object'))
-      ) {
-        firstUserTitle = extractOfflineUserTitle(
-          typeof parsed.content === 'string'
-            ? parsed.content
-            : parsed.userInput?.userResponse || ''
-        );
+          (parsed.userInput && typeof parsed.userInput === 'object')
+        ) {
+          firstUserTitle = extractOfflineUserTitle(
+            typeof parsed.content === 'string'
+              ? parsed.content
+              : parsed.userInput?.userResponse || ''
+          );
+        }
       }
     } catch {
       // 忽略损坏 JSON 行
     }
+  };
+
+  const useChunkedStream =
+    fileSize > TRANSCRIPT_BACKFILL_STREAM_THRESHOLD_BYTES &&
+    typeof openSync === 'function' &&
+    typeof readSync === 'function' &&
+    typeof closeSync === 'function';
+
+  if (useChunkedStream) {
+    const fd = openSync(transcriptPath, 'r');
+    try {
+      const chunkBuf = Buffer.allocUnsafe(TRANSCRIPT_BACKFILL_CHUNK_BYTES);
+      let offset = startOffset;
+      let remainder = null;
+      while (offset < fileSize) {
+        const toRead = Math.min(TRANSCRIPT_BACKFILL_CHUNK_BYTES, fileSize - offset);
+        const bytesRead = readSync(fd, chunkBuf, 0, toRead, offset);
+        if (bytesRead <= 0) break;
+        offset += bytesRead;
+        let lineStart = 0;
+        for (let i = 0; i < bytesRead; i += 1) {
+          if (chunkBuf[i] !== 0x0a) continue;
+          const slice = chunkBuf.subarray(lineStart, i);
+          const lineStr = remainder
+            ? Buffer.concat([remainder, slice]).toString('utf8')
+            : slice.toString('utf8');
+          remainder = null;
+          processLine(lineStr);
+          lineStart = i + 1;
+        }
+        if (lineStart < bytesRead) {
+          const tail = Buffer.from(chunkBuf.subarray(lineStart, bytesRead));
+          remainder = remainder ? Buffer.concat([remainder, tail]) : tail;
+        }
+      }
+      if (remainder && remainder.length > 0) {
+        // 仅在文件完整读至尾部时消费最后一行；保留完整已换行位置作为安全续读偏移
+        scannedBytes = offset - remainder.length;
+        processLine(remainder.toString('utf8'));
+      } else {
+        scannedBytes = offset;
+      }
+    } finally {
+      try {
+        closeSync(fd);
+      } catch {
+        // 忽略关闭异常
+      }
+    }
+  } else {
+    const raw = readFileSync(transcriptPath, 'utf8');
+    if (typeof raw !== 'string' || !raw.trim()) {
+      return { firstUserTitle: '', patchesByIdx, scannedBytes: fileSize, lineOrdinal, maxScannedIdx };
+    }
+    let pos = 0;
+    while (pos <= raw.length) {
+      const nl = raw.indexOf('\n', pos);
+      if (nl < 0) {
+        if (pos < raw.length) processLine(raw.slice(pos));
+        break;
+      }
+      processLine(raw.slice(pos, nl));
+      pos = nl + 1;
+    }
+    scannedBytes = fileSize;
   }
 
-  let maxSqliteIdx = -1;
-  for (const sq of sqliteSteps) {
-    const sIdx = Number(sq?.metadata?.sourceTrajectoryStepInfo?.stepIndex ?? sq?.idx);
-    if (Number.isFinite(sIdx) && sIdx > maxSqliteIdx) maxSqliteIdx = sIdx;
-    const tLine = byStepIdx.get(sIdx);
-    if (!tLine) continue;
-    if (sq.type === 'CORTEX_STEP_TYPE_USER_INPUT' && !sq.userInput) {
-      if (typeof tLine.content === 'string') sq.content = tLine.content;
-      if (tLine.userInput) sq.userInput = tLine.userInput;
-      if (Array.isArray(tLine.media)) sq.media = tLine.media;
-    } else if (
-      sq.type === 'CORTEX_STEP_TYPE_SYSTEM_MESSAGE' &&
-      !sq.content &&
-      typeof tLine.content === 'string'
-    ) {
-      sq.content = tLine.content;
-    } else if (sq.metadata?.modelUsage && !sq.metadata.modelUsage.model) {
-      const fallbackModel = String(tLine.model || tLine.generator_model || '').trim();
-      if (fallbackModel) sq.metadata.modelUsage.model = fallbackModel;
+  return { firstUserTitle, patchesByIdx, scannedBytes, lineOrdinal, maxScannedIdx };
+}
+
+function enrichSqliteStepsFromTranscriptIfNeeded(
+  cidLower,
+  sqliteSteps,
+  { hasHumanUserStep = null } = {}
+) {
+  if (!cidLower || !Array.isArray(sqliteSteps) || sqliteSteps.length === 0) {
+    return { firstUserTitle: '' };
+  }
+  const hasHuman =
+    typeof hasHumanUserStep === 'boolean'
+      ? hasHumanUserStep
+      : sqliteSteps.some((s) => s?.type === 'CORTEX_STEP_TYPE_USER_INPUT');
+
+  const neededIdxSet = new Set();
+  for (const s of sqliteSteps) {
+    const needsThis =
+      (s?.type === 'CORTEX_STEP_TYPE_USER_INPUT' && !s.userInput) ||
+      (!hasHuman && s?.type === 'CORTEX_STEP_TYPE_SYSTEM_MESSAGE' && !s.content && !s.systemMessage) ||
+      (s?.metadata?.modelUsage && !s.metadata.modelUsage.model);
+    if (!needsThis) continue;
+    const sIdx = Number(s?.metadata?.sourceTrajectoryStepInfo?.stepIndex ?? s?.idx);
+    if (Number.isFinite(sIdx)) {
+      neededIdxSet.add(sIdx);
+    }
+  }
+  if (neededIdxSet.size === 0) {
+    return { firstUserTitle: '' };
+  }
+
+  const transcriptPath = findTranscriptPath(cidLower);
+  if (!transcriptPath || !existsSync(transcriptPath)) {
+    return { firstUserTitle: '' };
+  }
+
+  let mtimeMs = 0;
+  let fileSize = 0;
+  try {
+    const st = statSync(transcriptPath);
+    mtimeMs = Math.floor(Number(st?.mtimeMs || 0));
+    fileSize = Math.max(0, Number(st?.size || 0));
+  } catch {
+    return { firstUserTitle: '' };
+  }
+
+  let memo = transcriptBackfillMemo.get(cidLower) || null;
+  let allCovered = false;
+  if (memo && memo.path === transcriptPath && fileSize >= memo.size) {
+    if (memo.mtimeMs === mtimeMs && memo.size === fileSize) {
+      allCovered = true;
+      for (const idx of neededIdxSet) {
+        if (!memo.coveredIndices.has(idx)) {
+          allCovered = false;
+          break;
+        }
+      }
+    } else if (fileSize > memo.size) {
+      allCovered = true;
+      for (const idx of neededIdxSet) {
+        if (!memo.coveredIndices.has(idx) || idx > memo.maxScannedIdx) {
+          allCovered = false;
+          break;
+        }
+      }
     }
   }
 
-  return { firstUserTitle };
+  if (!allCovered) {
+    const canAppendOnly =
+      Boolean(
+        memo &&
+          memo.path === transcriptPath &&
+          fileSize > memo.size &&
+          memo.scannedBytes > 0 &&
+          memo.scannedBytes <= fileSize
+      ) &&
+      Array.from(neededIdxSet).every(
+        (idx) => memo.coveredIndices.has(idx) || idx > memo.maxScannedIdx
+      );
+
+    try {
+      if (canAppendOnly) {
+        const missingNew = new Set();
+        for (const idx of neededIdxSet) {
+          if (!memo.coveredIndices.has(idx)) missingNew.add(idx);
+        }
+        const delta = scanTranscriptBackfillLines(transcriptPath, {
+          startOffset: memo.scannedBytes,
+          fileSize,
+          startLineOrdinal: memo.lineOrdinal,
+          neededIdxSet: missingNew,
+          needFirstUserTitle: !memo.firstUserTitle,
+        });
+        for (const [k, v] of delta.patchesByIdx.entries()) {
+          memo.patchesByIdx.set(k, v);
+        }
+        for (const idx of missingNew) {
+          memo.coveredIndices.add(idx);
+        }
+        if (!memo.firstUserTitle && delta.firstUserTitle) {
+          memo.firstUserTitle = delta.firstUserTitle;
+        }
+        memo.mtimeMs = mtimeMs;
+        memo.size = fileSize;
+        memo.scannedBytes = delta.scannedBytes;
+        memo.lineOrdinal = delta.lineOrdinal;
+        if (delta.maxScannedIdx > memo.maxScannedIdx) {
+          memo.maxScannedIdx = delta.maxScannedIdx;
+        }
+      } else {
+        const scanned = scanTranscriptBackfillLines(transcriptPath, {
+          startOffset: 0,
+          fileSize,
+          startLineOrdinal: 0,
+          neededIdxSet,
+          needFirstUserTitle: true,
+        });
+        memo = {
+          path: transcriptPath,
+          mtimeMs,
+          size: fileSize,
+          scannedBytes: scanned.scannedBytes,
+          lineOrdinal: scanned.lineOrdinal,
+          maxScannedIdx: scanned.maxScannedIdx,
+          firstUserTitle: scanned.firstUserTitle,
+          patchesByIdx: scanned.patchesByIdx,
+          coveredIndices: new Set(neededIdxSet),
+        };
+      }
+      if (transcriptBackfillMemo.has(cidLower)) {
+        transcriptBackfillMemo.delete(cidLower);
+      } else if (transcriptBackfillMemo.size >= MAX_TRANSCRIPT_MEMO_ENTRIES) {
+        const oldestKey = transcriptBackfillMemo.keys().next().value;
+        if (oldestKey !== undefined) transcriptBackfillMemo.delete(oldestKey);
+      }
+      transcriptBackfillMemo.set(cidLower, memo);
+    } catch {
+      return { firstUserTitle: '' };
+    }
+  }
+
+  const patchesByIdx = memo?.patchesByIdx;
+  if (patchesByIdx && patchesByIdx.size > 0) {
+    for (const sq of sqliteSteps) {
+      const sIdx = Number(sq?.metadata?.sourceTrajectoryStepInfo?.stepIndex ?? sq?.idx);
+      const tLine = patchesByIdx.get(sIdx);
+      if (!tLine) continue;
+      if (sq.type === 'CORTEX_STEP_TYPE_USER_INPUT' && !sq.userInput) {
+        if (typeof tLine.content === 'string') sq.content = tLine.content;
+        if (tLine.userInput) sq.userInput = tLine.userInput;
+        if (Array.isArray(tLine.media)) sq.media = tLine.media;
+      } else if (
+        !hasHuman &&
+        sq.type === 'CORTEX_STEP_TYPE_SYSTEM_MESSAGE' &&
+        !sq.content &&
+        typeof tLine.content === 'string'
+      ) {
+        sq.content = tLine.content;
+      } else if (sq.metadata?.modelUsage && !sq.metadata.modelUsage.model) {
+        if (tLine.model) sq.metadata.modelUsage.model = tLine.model;
+      }
+    }
+  }
+
+  return { firstUserTitle: memo?.firstUserTitle || '' };
 }
 
 function filterClonedTrajectorySteps(rawSteps, generatorMeta, targetCidLower) {
@@ -1722,7 +2471,8 @@ function loadOfflineTranscriptConversation(
         ...(ds.responseTokens !== undefined ? { responseTokens: ds.responseTokens } : {}),
       },
       metadata: {
-        createdAt: ds.createdAt || '',
+        createdAt:
+          ds.createdAt || (ds.createdAtMs > 0 ? new Date(ds.createdAtMs).toISOString() : ''),
         sourceTrajectoryStepInfo: { stepIndex: ds.stepIndex ?? idx + 1 },
         modelUsage: {
           model: ds.modelKey || 'unknown',
@@ -1904,7 +2654,8 @@ function scoreLiveActivitySpecificity(act) {
   if (
     sig.startsWith('planner-tool:') ||
     sig.startsWith('step-run:') ||
-    sig.startsWith('pending-tool:')
+    sig.startsWith('pending-tool:') ||
+    sig.startsWith('bg-task:')
   ) {
     return 4;
   }
@@ -1930,7 +2681,7 @@ function resolveBestLiveActivity(
   rpcRawSteps,
   isRunning,
   fallbackMs,
-  { isRemote = false, liveActivityMemoMap = liveActivityMemo } = {}
+  { isRemote = false, liveActivityMemoMap = liveActivityMemo, fallbackTaskSteps = null } = {}
 ) {
   if (!isRunning) return null;
   const hasRpcSteps = Array.isArray(rpcRawSteps) && rpcRawSteps.length > 0;
@@ -1939,35 +2690,76 @@ function resolveBestLiveActivity(
   const transcriptAct =
     transcriptSteps.length > 0 ? extractLiveActivity(transcriptSteps, true, fallbackMs) : null;
 
-  if (rpcAct && transcriptAct) {
-    // 1. 先按真实 Cortex 步骤序号对齐比较：尚未刷入 transcript.jsonl 的新步骤（如正在进行的 CHECKPOINT 压缩或流式回复）优先采用 RPC
-    const rpcStepIdx = getMaxMeaningfulStepIndex(rpcRawSteps);
-    const transStepIdx = getMaxMeaningfulStepIndex(transcriptSteps);
-    if (rpcStepIdx >= 0 && transStepIdx >= 0 && rpcStepIdx !== transStepIdx) {
-      return rpcStepIdx > transStepIdx ? rpcAct : transcriptAct;
-    }
+  const hasUserTurnAfter = (steps, afterIdx) =>
+    Array.isArray(steps) &&
+    steps.some((st) => {
+      const idx = Number(
+        st?.step_index ?? st?.stepIndex ?? st?.idx ?? st?.metadata?.sourceTrajectoryStepInfo?.stepIndex
+      );
+      return isUserInputRawStep(st) && Number.isFinite(idx) && idx > afterIdx;
+    });
 
-    // 2. 同一步骤序号下优先采用语义更明确的状态（上下文压缩 > 工具执行 > 流式生成 > 工具后置思考）
+  const attachTaskSteps = (winner, ...candidates) => {
+    if (!winner || winner.taskSteps) return winner;
+    for (const cand of candidates) {
+      if (cand && Number(cand.total) > 0) {
+        return { ...winner, taskSteps: cand };
+      }
+    }
+    return winner;
+  };
+
+  if (rpcAct && transcriptAct) {
+    const rpcIsBgTask = String(rpcAct.signature || '').startsWith('bg-task:');
     const rpcScore = scoreLiveActivitySpecificity(rpcAct);
     const transScore = scoreLiveActivitySpecificity(transcriptAct);
+    const rpcStepIdx = getMaxMeaningfulStepIndex(rpcRawSteps);
+    const transStepIdx = getMaxMeaningfulStepIndex(transcriptSteps);
+    const transcriptHasNewUserTurn =
+      rpcStepIdx >= 0 && hasUserTurnAfter(transcriptSteps, rpcStepIdx);
+    const rpcHasNewUserTurn =
+      transStepIdx >= 0 && hasUserTurnAfter(rpcRawSteps, transStepIdx);
+
+    // 0. SQLite/RPC 确认后台任务运行中时，不因 transcript 尾部已写入本轮结束回复（responding-done）而覆盖后台任务状态
+    if (rpcIsBgTask && transScore < 4 && !transcriptHasNewUserTurn) {
+      return attachTaskSteps(rpcAct, transcriptAct.taskSteps, fallbackTaskSteps);
+    }
+
+    // 1. 先按真实 Cortex 步骤序号对齐比较：尚未刷入 transcript.jsonl 的新步骤（如正在进行的 CHECKPOINT 压缩或流式回复）优先采用 RPC
+    if (rpcStepIdx >= 0 && transStepIdx >= 0 && rpcStepIdx !== transStepIdx) {
+      if (rpcStepIdx > transStepIdx) {
+        return rpcHasNewUserTurn
+          ? rpcAct
+          : attachTaskSteps(rpcAct, transcriptAct.taskSteps, fallbackTaskSteps);
+      }
+      return transcriptHasNewUserTurn
+        ? transcriptAct
+        : attachTaskSteps(transcriptAct, rpcAct.taskSteps, fallbackTaskSteps);
+    }
+
+    // 2. 同一步骤序号下优先采用语义更明确的状态（上下文压缩 > 工具/后台任务执行 > 流式生成 > 工具后置思考）
     if (rpcScore !== transScore) {
-      return rpcScore > transScore ? rpcAct : transcriptAct;
+      return rpcScore > transScore
+        ? attachTaskSteps(rpcAct, transcriptAct.taskSteps, fallbackTaskSteps)
+        : attachTaskSteps(transcriptAct, rpcAct.taskSteps, fallbackTaskSteps);
     }
 
     // 3. 同一步骤且均为压缩态时，优先采用携带精确完成时刻的 RPC 状态；常规步骤则优先采用含完整参数的 transcript.jsonl
     const rpcMs = Number(rpcAct.startedAtMs || 0);
     const transMs = Number(transcriptAct.startedAtMs || 0);
     if (rpcAct.phase === 'compacting' && rpcMs !== transMs) {
-      return rpcMs >= transMs ? rpcAct : transcriptAct;
+      return rpcMs >= transMs
+        ? attachTaskSteps(rpcAct, transcriptAct.taskSteps, fallbackTaskSteps)
+        : attachTaskSteps(transcriptAct, rpcAct.taskSteps, fallbackTaskSteps);
     }
-    return transcriptAct;
+    return attachTaskSteps(transcriptAct, rpcAct.taskSteps, fallbackTaskSteps);
   }
-  return (
+  const chosen =
     transcriptAct ||
     rpcAct ||
     liveActivityMemoMap.get(String(cascadeId || '').toLowerCase()) ||
-    extractLiveActivity([], true, fallbackMs)
-  );
+    extractLiveActivity([], true, fallbackMs);
+  return attachTaskSteps(chosen, fallbackTaskSteps);
 }
 
 /**
@@ -2445,6 +3237,24 @@ export async function enumerateAndSyncConversations({
       nowSweepMs - latestLocalTouchMs <= STALE_LOCAL_RUNNING_MAX_AGE_MS
         ? 'CASCADE_RUN_STATUS_RUNNING'
         : 'IDLE';
+    const baseConvStatus = item ? (isKilled ? 'IDLE' : item?.status || '') : localStatus;
+    let activeBackgroundTasks = [];
+    let isBackgroundTaskOnly = false;
+    if (
+      !isRemote &&
+      !isKilled &&
+      dbPath &&
+      sqliteAvailable &&
+      baseConvStatus !== 'CASCADE_RUN_STATUS_RUNNING' &&
+      Boolean(localSum?.notFullyIdle)
+    ) {
+      activeBackgroundTasks = readCachedActiveBackgroundTasks(cidLower, dbPath, diskFileSig);
+      if (activeBackgroundTasks.length > 0) {
+        isBackgroundTaskOnly = true;
+      }
+    }
+    const resolvedConvStatus =
+      activeBackgroundTasks.length > 0 ? 'CASCADE_RUN_STATUS_RUNNING' : baseConvStatus;
 
     const rawWsList = Array.isArray(item?.workspaces) ? item.workspaces : [];
     const rpcWorkspaceUri = String(
@@ -2518,7 +3328,9 @@ export async function enumerateAndSyncConversations({
           ]) || (isSideQuestion ? '旁路提问' : cascadeId.slice(0, 8)),
         stepCount: modelStepCount,
         rawStepCount: rawSummaryStepCount,
-        status: isKilled ? 'IDLE' : item?.status || '',
+        status: resolvedConvStatus,
+        ...(isBackgroundTaskOnly ? { isBackgroundTaskOnly: true } : {}),
+        ...(activeBackgroundTasks.length > 0 ? { activeBackgroundTasks } : {}),
         killed: isKilled,
         lastModifiedTime,
         lastModifiedMs,
@@ -2552,7 +3364,9 @@ export async function enumerateAndSyncConversations({
           ]) || (isSideQuestion ? '旁路提问' : cascadeId.slice(0, 8)),
         stepCount: cachedStepCount,
         rawStepCount: localSum?.stepCount || cached.rawStepCount || cachedStepCount,
-        status: localStatus,
+        status: resolvedConvStatus,
+        ...(isBackgroundTaskOnly ? { isBackgroundTaskOnly: true } : {}),
+        ...(activeBackgroundTasks.length > 0 ? { activeBackgroundTasks } : {}),
         killed: isKilled,
         lastModifiedTime: localSum?.lastModifiedTime || '',
         lastModifiedMs: Math.max(
@@ -2588,7 +3402,9 @@ export async function enumerateAndSyncConversations({
           ]) || (isSideQuestion ? '旁路提问' : cascadeId.slice(0, 8)),
         stepCount: 0,
         rawStepCount: localSum?.stepCount || 0,
-        status: localStatus,
+        status: resolvedConvStatus,
+        ...(isBackgroundTaskOnly ? { isBackgroundTaskOnly: true } : {}),
+        ...(activeBackgroundTasks.length > 0 ? { activeBackgroundTasks } : {}),
         killed: isKilled,
         lastModifiedTime: localSum?.lastModifiedTime || '',
         lastModifiedMs: Math.max(diskMtimeMs || 0, localSum?.lastModifiedMs || 0),
@@ -2734,42 +3550,104 @@ export async function enumerateAndSyncConversations({
             const cidLower = conv.cascadeId.toLowerCase();
             let trajRes = null;
             let loadedViaSqlite = false;
+            let usedIncrementalSqlite = false;
+            let incrementalTailModelSteps = null;
+            let prevCursorForInc = null;
             let transcriptFirstTitle = '';
             if (!isRemote && conv.dbPath && sqliteAvailable) {
               if (!isSqliteDbReadyForRead(conv.dbPath)) {
                 sqliteNotReady = true;
               } else {
-                const sqlRes = readLocalSqliteTrajectory(conv.dbPath, {
-                  cascadeId: conv.cascadeId,
-                  isRunning,
-                });
-                if (sqlRes && Array.isArray(sqlRes.trajectory?.steps)) {
-                  trajRes = sqlRes;
-                  loadedViaSqlite = true;
-                  const enriched = enrichSqliteStepsFromTranscriptIfNeeded(
-                    cidLower,
-                    trajRes.trajectory.steps
-                  );
-                  transcriptFirstTitle = enriched.firstUserTitle || '';
-                } else {
-                  sqliteProbedEmpty = true;
-                  const diskFilesForEmptyCheck = diskConvMap.get(cidLower) || [];
-                  if (
-                    !isRunning &&
-                    Number(conv.rawStepCount || 0) === 0 &&
-                    !hasLocalPbFile(diskFilesForEmptyCheck) &&
-                    !findTranscriptPath(cidLower)
-                  ) {
-                    // 已初始化但确实为 0 步（无 .pb 降级文件、摘要 0 步且无 transcript）的空本地会话，直接归档空缓存避免无意义 RPC 超时
-                    trajRes = {
-                      cascadeId: cidLower,
-                      numTotalSteps: 0,
-                      rawTableStepCount: 0,
-                      steps: [],
-                      generatorMetadata: [],
-                      trajectory: { metadata: {}, steps: [], generatorMetadata: [] },
-                    };
+                const candCursor = !forceRefresh
+                  ? sqliteIncrementalCursorMap.get(cidLower) || null
+                  : null;
+                const canUseIncremental = Boolean(
+                  candCursor &&
+                    prev &&
+                    prev.steps === candCursor.stepsRef &&
+                    !prev.offlineTranscriptFallback &&
+                    prev.contextLimitTelemetry &&
+                    prev.speedClearedTelemetry &&
+                    prev.turnRailTelemetry &&
+                    Number(prev.contextGroupsTelemetry || 0) >= 3 &&
+                    prev.anomalyTelemetry &&
+                    prev.imageGenTelemetry &&
+                    !hasMissingStepFields(prev) &&
+                    !hasMissingTurnRailFields(prev) &&
+                    Array.isArray(prev.subagentRefs) &&
+                    !prev.swarmMeta &&
+                    prev.steps.length >= candCursor.stableModelStepsCount
+                );
+                if (canUseIncremental) {
+                  const incRes = readLocalSqliteTrajectoryIncremental(conv.dbPath, candCursor, {
+                    cascadeId: conv.cascadeId,
+                    isRunning,
+                  });
+                  if (incRes && Array.isArray(incRes.trajectory?.steps)) {
+                    const tailEnriched = enrichSqliteStepsFromTranscriptIfNeeded(
+                      cidLower,
+                      incRes.trajectory.steps,
+                      { hasHumanUserStep: candCursor.hasHumanUserTurn }
+                    );
+                    const tailSwarm = extractSwarmMetaFromSteps(incRes.trajectory.steps);
+                    if (!tailSwarm) {
+                      const tailModelSteps = extractModelSteps(
+                        incRes.trajectory.steps,
+                        incRes.trajectory.generatorMetadata || [],
+                        {
+                          turnCounter: candCursor.turnCounter,
+                          activeTurnIndex: candCursor.activeTurnIndex,
+                          hasHumanUserTurn: candCursor.hasHumanUserTurn,
+                          lastCompactionStepIdx: candCursor.lastCompactionStepIdx,
+                          lastKnownGmStepIdx: candCursor.lastKnownGmStepIdx,
+                          orchestratorExecModels: candCursor.orchestratorExecModels,
+                          lastExplicitDonorStep: candCursor.lastExplicitDonorStep,
+                        }
+                      );
+                      if (tailModelSteps.length > 0) {
+                        trajRes = incRes;
+                        loadedViaSqlite = true;
+                        usedIncrementalSqlite = true;
+                        prevCursorForInc = candCursor;
+                        incrementalTailModelSteps = tailModelSteps;
+                        transcriptFirstTitle = tailEnriched.firstUserTitle || '';
+                      }
+                    }
+                  }
+                }
+                if (!trajRes) {
+                  const sqlRes = readLocalSqliteTrajectory(conv.dbPath, {
+                    cascadeId: conv.cascadeId,
+                    isRunning,
+                  });
+                  if (sqlRes && Array.isArray(sqlRes.trajectory?.steps)) {
+                    trajRes = sqlRes;
                     loadedViaSqlite = true;
+                    const enriched = enrichSqliteStepsFromTranscriptIfNeeded(
+                      cidLower,
+                      trajRes.trajectory.steps
+                    );
+                    transcriptFirstTitle = enriched.firstUserTitle || '';
+                  } else {
+                    sqliteProbedEmpty = true;
+                    const diskFilesForEmptyCheck = diskConvMap.get(cidLower) || [];
+                    if (
+                      !isRunning &&
+                      Number(conv.rawStepCount || 0) === 0 &&
+                      !hasLocalPbFile(diskFilesForEmptyCheck) &&
+                      !findTranscriptPath(cidLower)
+                    ) {
+                      // 已初始化但确实为 0 步（无 .pb 降级文件、摘要 0 步且无 transcript）的空本地会话，直接归档空缓存避免无意义 RPC 超时
+                      trajRes = {
+                        cascadeId: cidLower,
+                        numTotalSteps: 0,
+                        rawTableStepCount: 0,
+                        steps: [],
+                        generatorMetadata: [],
+                        trajectory: { metadata: {}, steps: [], generatorMetadata: [] },
+                      };
+                      loadedViaSqlite = true;
+                    }
                   }
                 }
               }
@@ -2824,7 +3702,11 @@ export async function enumerateAndSyncConversations({
                 }
               }
             }
-            const steps = extractModelSteps(rawSteps, generatorMeta);
+            const steps = usedIncrementalSqlite
+              ? prev.steps
+                  .slice(0, prevCursorForInc.stableModelStepsCount)
+                  .concat(incrementalTailModelSteps)
+              : extractModelSteps(rawSteps, generatorMeta);
             if (
               steps.length === 0 &&
               (prev?.steps?.length || 0) > 0 &&
@@ -2913,8 +3795,21 @@ export async function enumerateAndSyncConversations({
               conv.rawStepCount = trajRes.rawTableStepCount;
             }
 
-            const subagentRefs = extractSubagentRefsFromSteps(rawSteps);
-            const rpcSwarmMeta = extractSwarmMetaFromSteps(rawSteps);
+            const tailSubagentRefs = extractSubagentRefsFromSteps(rawSteps);
+            let subagentRefs;
+            if (usedIncrementalSqlite && Array.isArray(prevCursorForInc?.prefixSubagentRefs)) {
+              subagentRefs = prevCursorForInc.prefixSubagentRefs.slice();
+              const seenIncRefs = new Set(subagentRefs.map((r) => r.cascadeId));
+              for (const r of tailSubagentRefs) {
+                if (r?.cascadeId && !seenIncRefs.has(r.cascadeId)) {
+                  seenIncRefs.add(r.cascadeId);
+                  subagentRefs.push(r);
+                }
+              }
+            } else {
+              subagentRefs = tailSubagentRefs;
+            }
+            const rpcSwarmMeta = usedIncrementalSqlite ? null : extractSwarmMetaFromSteps(rawSteps);
             const ownSwarmManifest =
               !isRemote && !conv.isSubagent ? getPollSwarmManifest(cidLower) : null;
             if (ownSwarmManifest?.workerRefs?.length) {
@@ -2940,18 +3835,41 @@ export async function enumerateAndSyncConversations({
             conv.stepCount = steps.length;
             const finalSig = buildConvSig(conv);
 
-            const isParkedSwarm = isParkedOnSwarmWait(rawSteps);
-            const effectiveIsRunning = isRunning && !isParkedSwarm;
+            const liveStepsForActivity = mergeLiveStepsWithActiveBackgroundTasks(
+              rawSteps,
+              conv.activeBackgroundTasks
+            );
+            let detectedBgTasks = extractActiveBackgroundTasks(liveStepsForActivity);
+            if (!isRunning && !conv.killed && detectedBgTasks.length > 0) {
+              conv.status = 'CASCADE_RUN_STATUS_RUNNING';
+              conv.isBackgroundTaskOnly = true;
+              conv.activeBackgroundTasks = detectedBgTasks.map((t) => t.step);
+            }
+            const isRunningAfterBg = conv.status === 'CASCADE_RUN_STATUS_RUNNING';
+            const hasActiveBgTasks =
+              detectedBgTasks.length > 0 ||
+              (Array.isArray(conv.activeBackgroundTasks) && conv.activeBackgroundTasks.length > 0);
+            const isParkedSwarm = !hasActiveBgTasks && isParkedOnSwarmWait(rawSteps);
+            const effectiveIsRunning = isRunningAfterBg && !isParkedSwarm;
             if (!effectiveIsRunning && conv.status === 'CASCADE_RUN_STATUS_RUNNING') {
               conv.status = 'IDLE';
             }
 
+            const prevStoredTaskSteps =
+              prevCursorForInc?.lastTaskSteps ||
+              activeLiveActivityMemo.get(cidLower)?.taskSteps ||
+              null;
+            const fallbackTaskSteps = resolveTurnTaskStepsFromRaw(rawSteps, prevStoredTaskSteps);
             const liveAct = resolveBestLiveActivity(
               conv.cascadeId,
-              rawSteps,
+              liveStepsForActivity,
               effectiveIsRunning,
               resolvedLastModMs || conv.createdTimeMs || 0,
-              { isRemote, liveActivityMemoMap: activeLiveActivityMemo }
+              {
+                isRemote,
+                liveActivityMemoMap: activeLiveActivityMemo,
+                fallbackTaskSteps,
+              }
             );
             if (liveAct && liveAct.actionKey !== 'swarm_wait') {
               conv.liveActivity = liveAct;
@@ -3028,8 +3946,10 @@ export async function enumerateAndSyncConversations({
               Boolean(prev?.parkedOnSwarmWait) !== Boolean(cacheEntry.parkedOnSwarmWait) ||
               (prev?.rootConversationId || '') !== (cacheEntry.rootConversationId || '') ||
               Boolean(prev?.isSideQuestion) !== Boolean(cacheEntry.isSideQuestion);
+            const stepsContentChanged =
+              !prev || !isDeepStrictEqual(prev.steps, mergedSteps);
             const stepsChanged =
-              !prev ||
+              stepsContentChanged ||
               Boolean(prev.offlineTranscriptFallback) ||
               prev.signature !== finalSig ||
               Boolean(prev.wasRunning) !== Boolean(cacheEntry.wasRunning) ||
@@ -3039,11 +3959,25 @@ export async function enumerateAndSyncConversations({
               Number(prev.contextGroupsTelemetry || 0) < 3 ||
               !prev.anomalyTelemetry ||
               !prev.imageGenTelemetry ||
-              metaChanged ||
-              !isDeepStrictEqual(prev.steps, mergedSteps);
+              metaChanged;
 
-            if (!stepsChanged) cacheEntry.steps = prev.steps;
+            if (!stepsContentChanged) cacheEntry.steps = prev.steps;
             setEntry(conv.cascadeId, cacheEntry);
+            if (!isRemote && loadedViaSqlite) {
+              const nextCursor = buildSqliteIncrementalCursor({
+                trajRes,
+                rawSteps,
+                generatorMeta,
+                extractedSteps: steps,
+                mergedSteps: cacheEntry.steps,
+                subagentRefs,
+                rpcSwarmMeta,
+                prevCursor: usedIncrementalSqlite ? prevCursorForInc : null,
+              });
+              setSqliteIncrementalCursor(cidLower, nextCursor);
+            } else {
+              sqliteIncrementalCursorMap.delete(cidLower);
+            }
             if (stepsChanged) {
               cacheDirty = true;
             }
@@ -3054,12 +3988,40 @@ export async function enumerateAndSyncConversations({
             if (!isRemote && (!prev || prev.offlineTranscriptFallback)) {
               if (!lazyExternalByLower) {
                 lazyExternalByLower = new Map();
-                for (const ext of loadExternalDeepStatsCache().values()) {
+                const liveCoverageMap = new Map();
+                for (const [rawId, cachedItem] of cacheStore.listCachedTrajectoryEntries()) {
+                  const lid = String(rawId || '').toLowerCase();
+                  if (!lid || !cachedItem || typeof cachedItem !== 'object') continue;
+                  const prevCov = liveCoverageMap.get(lid);
+                  if (!prevCov || (cachedItem.steps?.length || 0) > (prevCov.steps?.length || 0)) {
+                    liveCoverageMap.set(lid, cachedItem);
+                  }
+                }
+                for (const ext of loadExternalDeepStatsCache({ coveredByLive: liveCoverageMap }).values()) {
                   const extCid = String(ext?.cascadeId || '').toLowerCase();
                   if (!extCid) continue;
                   const existingExt = lazyExternalByLower.get(extCid);
                   if (!existingExt || (ext.steps?.length || 0) > (existingExt.steps?.length || 0)) {
                     lazyExternalByLower.set(extCid, ext);
+                  }
+                }
+              }
+              let coveredMinSteps = -1;
+              if (
+                !lazyExternalByLower.has(cidLower) &&
+                externalDeepStatsMemo.pruned &&
+                Array.isArray(externalDeepStatsMemo.coveredPairs)
+              ) {
+                coveredMinSteps = findCoveredPairMinSteps(
+                  externalDeepStatsMemo.coveredPairs,
+                  cidLower
+                );
+                if (coveredMinSteps > 0 && (!prev || (prev.steps?.length || 0) < coveredMinSteps)) {
+                  for (const ext of loadExternalDeepStatsCache({ targetCascadeId: cidLower }).values()) {
+                    const existingExt = lazyExternalByLower.get(cidLower);
+                    if (!existingExt || (ext.steps?.length || 0) > (existingExt.steps?.length || 0)) {
+                      lazyExternalByLower.set(cidLower, ext);
+                    }
                   }
                 }
               }
@@ -3070,6 +4032,19 @@ export async function enumerateAndSyncConversations({
                 localSummaryByLower.get(cidLower) || null,
                 { skipSqlite: sqliteProbedEmpty || sqliteNotReady }
               );
+              if (
+                offlineFallback &&
+                coveredMinSteps > 0 &&
+                Array.isArray(prev?.steps) &&
+                prev.steps.length >= coveredMinSteps &&
+                offlineFallback.steps.length < prev.steps.length
+              ) {
+                offlineFallback.steps = prev.steps;
+                offlineFallback.lastModifiedMs = Math.max(
+                  Number(offlineFallback.lastModifiedMs || 0),
+                  Number(prev.lastModifiedMs || 0)
+                );
+              }
               if (offlineFallback) {
                 offlineRecovered = true;
                 conv.title = offlineFallback.title;
@@ -3393,7 +4368,11 @@ export async function enumerateAndSyncConversations({
     }
     if (!conv.inSummaries) {
       if (conv.dbPath && sqliteAvailable) {
-        if (Boolean(isRunning) !== Boolean(cached.wasRunning) || !sigMatches) {
+        if (
+          Boolean(isRunning) !== Boolean(cached.wasRunning) ||
+          !sigMatches ||
+          (isRunning && !activeLiveActivityMemo.has(lowerCid))
+        ) {
           return true;
         }
         if (isRunning) {
@@ -3431,6 +4410,18 @@ export async function enumerateAndSyncConversations({
         (!summariesFromLocalDb ||
           conv.appSource !== 'cli' ||
           (forceRefresh && lowerCid === reqLower));
+      if (!isRemote && conv.dbPath && sqliteAvailable) {
+        if (
+          shouldRetryOfflineUpgrade ||
+          missingSubagentRefs ||
+          !sigMatches ||
+          Boolean(isRunning) !== Boolean(cached.wasRunning) ||
+          (isRunning && !activeLiveActivityMemo.has(lowerCid))
+        ) {
+          return true;
+        }
+        return false;
+      }
       if (
         shouldRetryOfflineUpgrade ||
         missingSubagentRefs ||
@@ -3963,11 +4954,14 @@ export async function enumerateAndSyncConversations({
             if (touchedSubs.length > 0) {
               convergeSubagentRootChain(touchedSubs, latestById);
             }
-            if (!shouldAbortBg() && (cacheDirty || hasPendingSave())) {
+            const batchModifiedCache = Boolean(cacheDirty || hasPendingSave());
+            if (!shouldAbortBg() && batchModifiedCache) {
               cacheStore.flushTrajectoryCacheNow();
               cacheDirty = false;
             }
-            localRebuildBatchHook?.({ finished: false });
+            if (batchModifiedCache || trackRebuildProgress) {
+              localRebuildBatchHook?.({ finished: false });
+            }
           }
           if (shouldAbortBg()) return;
           if (trackRebuildProgress) {
@@ -4047,32 +5041,48 @@ export async function enumerateAndSyncConversations({
   for (const conv of rawConversations) {
     if (conv.status === 'CASCADE_RUN_STATUS_RUNNING') {
       if (!conv.liveActivity) {
-        const cachedConv = getEntry(conv.cascadeId);
-        const parkedByCache =
-          Boolean(cachedConv?.parkedOnSwarmWait) &&
-          cachedConv.signature === buildConvSig(conv);
-        const tailSteps = isRemote ? [] : readTranscriptTailSteps(conv.cascadeId);
-        const isParked = tailSteps.length > 0 ? isParkedOnSwarmWait(tailSteps) : parkedByCache;
-        if (isParked) {
-          conv.status = 'IDLE';
-          conv.liveActivity = null;
-          activeLiveActivityMemo.delete(conv.cascadeId.toLowerCase());
-          continue;
+        const cidLower = conv.cascadeId.toLowerCase();
+        const hasActiveBgTasks =
+          Array.isArray(conv.activeBackgroundTasks) && conv.activeBackgroundTasks.length > 0;
+        if (!hasActiveBgTasks) {
+          const cachedConv = getEntry(conv.cascadeId);
+          const parkedByCache =
+            Boolean(cachedConv?.parkedOnSwarmWait) &&
+            cachedConv.signature === buildConvSig(conv);
+          const tailSteps = isRemote ? [] : readTranscriptTailSteps(conv.cascadeId);
+          const isParked = tailSteps.length > 0 ? isParkedOnSwarmWait(tailSteps) : parkedByCache;
+          if (isParked) {
+            conv.status = 'IDLE';
+            conv.liveActivity = null;
+            activeLiveActivityMemo.delete(cidLower);
+            continue;
+          }
         }
         const fallbackMs = conv.lastModifiedMs || conv.createdTimeMs || 0;
-        const resolved = resolveBestLiveActivity(conv.cascadeId, [], true, fallbackMs, {
-          isRemote,
-          liveActivityMemoMap: activeLiveActivityMemo,
-        });
-        if (resolved?.actionKey === 'swarm_wait') {
+        const memoTaskSteps =
+          activeLiveActivityMemo.get(cidLower)?.taskSteps ||
+          sqliteIncrementalCursorMap.get(cidLower)?.lastTaskSteps ||
+          null;
+        const resolved = resolveBestLiveActivity(
+          conv.cascadeId,
+          hasActiveBgTasks ? conv.activeBackgroundTasks : [],
+          true,
+          fallbackMs,
+          {
+            isRemote,
+            liveActivityMemoMap: activeLiveActivityMemo,
+            fallbackTaskSteps: memoTaskSteps,
+          }
+        );
+        if (resolved?.actionKey === 'swarm_wait' && !hasActiveBgTasks) {
           conv.status = 'IDLE';
           conv.liveActivity = null;
-          activeLiveActivityMemo.delete(conv.cascadeId.toLowerCase());
+          activeLiveActivityMemo.delete(cidLower);
           continue;
         }
         conv.liveActivity = resolved;
         if (resolved) {
-          activeLiveActivityMemo.set(conv.cascadeId.toLowerCase(), resolved);
+          activeLiveActivityMemo.set(cidLower, resolved);
         }
       } else if (conv.liveActivity.actionKey === 'swarm_wait') {
         conv.status = 'IDLE';
@@ -4148,12 +5158,36 @@ export async function enumerateAndSyncConversations({
         rootCached?.title,
       ]);
       if (!recoveredTitle && rootCached) {
-        const titleSourceEntry = rootCached._coldSteps
-          ? getHydratedEntry(rootConv.cascadeId) || rootCached
-          : rootCached;
-        recoveredTitle = pickFirstMeaningfulTitle(cid, [
-          extractFirstStepTurnTitle(titleSourceEntry?.steps),
-        ]);
+        const probeKey = `${isRemote ? `${String(endpoint?.id || 'remote')}#${Number(endpoint?.instanceId || 0)}` : 'local'}::${cid}`;
+        const accRev = Number(rootCached._accountingRev || 0);
+        const stepsLen = Array.isArray(rootCached.steps) ? rootCached.steps.length : 0;
+        const cachedProbe = stepTitleProbeMemo.get(probeKey);
+        if (cachedProbe && accRev > 0 && cachedProbe.accRev === accRev && cachedProbe.stepsLen === stepsLen) {
+          recoveredTitle = cachedProbe.title;
+        } else if (
+          rootCached._coldSteps &&
+          rootCached._stepFlags &&
+          rootCached._stepFlags.hasAnyTurnIndex === false
+        ) {
+          recoveredTitle = '';
+          if (stepTitleProbeMemo.size >= MAX_STEP_TITLE_PROBE_MEMO) {
+            stepTitleProbeMemo.delete(stepTitleProbeMemo.keys().next().value);
+          }
+          stepTitleProbeMemo.set(probeKey, { accRev, stepsLen, title: '' });
+        } else {
+          const titleSourceEntry = rootCached._coldSteps
+            ? getHydratedEntry(rootConv.cascadeId) || rootCached
+            : rootCached;
+          recoveredTitle = pickFirstMeaningfulTitle(cid, [
+            extractFirstStepTurnTitle(titleSourceEntry?.steps),
+          ]);
+          if (stepTitleProbeMemo.has(probeKey)) {
+            stepTitleProbeMemo.delete(probeKey);
+          } else if (stepTitleProbeMemo.size >= MAX_STEP_TITLE_PROBE_MEMO) {
+            stepTitleProbeMemo.delete(stepTitleProbeMemo.keys().next().value);
+          }
+          stepTitleProbeMemo.set(probeKey, { accRev, stepsLen, title: recoveredTitle || '' });
+        }
       }
       if (!recoveredTitle && !isRemote && (!isDeferredRoot || titleLoopCount <= 30)) {
         recoveredTitle = probeLocalFallbackTitle(

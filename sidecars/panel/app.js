@@ -2,17 +2,76 @@
 'use strict';
 
 // --- shared/settings-normalization.mjs ---
-const { SUPPORTED_LOCALES, SUPPORTED_LANGUAGES, THEME_ACCENT_KEYS, FONT_SCALE_KEYS, TOPBAR_SLOT_KEYS, DEFAULT_TOPBAR_SLOTS, MIN_TOPBAR_SLOTS, MAX_TOPBAR_SLOTS, DEFAULT_CLI_STATUSLINE_SLOTS, MIN_CLI_STATUSLINE_SLOTS, MAX_CLI_STATUSLINE_SLOTS, CLI_STATUSLINE_PRESETS, OVERVIEW_MODULE_KEYS, DEFAULT_OVERVIEW_MODULES, DEFAULT_HOVER_MODULES, METRIC_CARD_STYLES, HOVER_METRIC_STYLES, DEFAULT_OVERVIEW_METRIC_STYLE, DEFAULT_HOVER_METRIC_STYLE, DEFAULT_HOVER_SYNC_OVERVIEW_METRICS, MAX_LARGE_METRIC_SLOTS, OVERVIEW_METRIC_KEYS, DEFAULT_OVERVIEW_METRICS, DEFAULT_HOVER_METRICS, STEP_TABLE_COLUMN_KEYS, DEFAULT_STEP_TABLE_COLUMNS, DEFAULT_STEP_TOKEN_COMBO_FORMAT, STEP_TOKEN_SEGMENT_ALIASES, POPOVER_WIDTH_MODES, MIN_POPOVER_WIDTH, MAX_POPOVER_WIDTH, DEFAULT_POPOVER_WIDTH, resolveLocaleFromLanguageTag, normalizeLanguageSetting, normalizeThemeAccent, normalizeFontScale, normalizeModelDisplayMode, normalizePopoverWidthMode, normalizePopoverWidth, parseStepTokenComboSegments, normalizeStepTokenComboFormat, normalizePluginUpdateMode, normalizeWindowMountMode, normalizeWeeklyLimitMode, normalizeTopbarCapsuleSlots, normalizeCliStatusLineSlots, resolveEffectiveCliStatusLineSlots, normalizeOverviewMetrics, normalizeOverviewModules, normalizeHoverModules, normalizeMetricCardStyle, normalizeOverviewMetricStyle, normalizeHoverMetricStyle, normalizeHoverSyncOverviewMetrics, normalizeHoverMetrics, resolveEffectiveMetricMatrixConfig, normalizeStepTableColumns, normalizeStandalonePort, normalizeModernUi, CONTEXT_AGENT_MODES, DEFAULT_CONTEXT_AGENT_MODE, QUOTA_DISPLAY_MODES, DEFAULT_QUOTA_DISPLAY_MODE, normalizeQuotaDisplayMode, ACCOUNT_QUOTA_REFRESH_MINUTES, DEFAULT_ACCOUNT_QUOTA_REFRESH_MINUTES, normalizeAccountQuotaRefreshMinutes, normalizeContextAgentMode, normalizeExperimentalQuotaReservation, normalizeExperimentalModernUi, normalizeAutoConfigureLaunch, normalizeEnableRemoteSshTelemetry, normalizeDeveloperModeEnabled, normalizeRiskyFeaturesEnabled, isRiskyFeaturesGateOpen, isContextWindowFeatureActive, isAccountSwitchFeatureActive } = (() => {
-const SUPPORTED_LOCALES = Object.freeze([
-  'zh-CN',
-  'zh-TW',
-  'en-US',
-  'ja-JP',
-  'ko-KR',
-  'de-DE',
-  'fr-FR',
+const { SUPPORTED_LOCALE_ENTRIES, SUPPORTED_LOCALES, SUPPORTED_LANGUAGES, THEME_ACCENT_KEYS, FONT_SCALE_KEYS, TOPBAR_SLOT_KEYS, DEFAULT_TOPBAR_SLOTS, MIN_TOPBAR_SLOTS, MAX_TOPBAR_SLOTS, DEFAULT_CLI_STATUSLINE_SLOTS, MIN_CLI_STATUSLINE_SLOTS, MAX_CLI_STATUSLINE_SLOTS, CLI_STATUSLINE_PRESETS, OVERVIEW_MODULE_KEYS, DEFAULT_OVERVIEW_MODULES, DEFAULT_HOVER_MODULES, METRIC_CARD_STYLES, HOVER_METRIC_STYLES, DEFAULT_OVERVIEW_METRIC_STYLE, DEFAULT_HOVER_METRIC_STYLE, DEFAULT_HOVER_SYNC_OVERVIEW_METRICS, MAX_LARGE_METRIC_SLOTS, METRIC_GRID_COLS, METRIC_GRID_ROWS, DEFAULT_METRIC_ROWS, DEFAULT_OVERVIEW_METRIC_ROWS, DEFAULT_HOVER_METRIC_ROWS, METRIC_CARD_SIZES, DEFAULT_OVERVIEW_METRIC_SIZES, DEFAULT_HOVER_METRIC_SIZES, METRIC_TEXT_MODES, DEFAULT_METRIC_TEXT_MODE, DEFAULT_OVERVIEW_METRIC_TEXT_MODE, DEFAULT_HOVER_METRIC_TEXT_MODE, MAX_OVERVIEW_METRICS, OVERVIEW_METRIC_KEYS, DEFAULT_OVERVIEW_METRICS, DEFAULT_HOVER_METRICS, STEP_TABLE_COLUMN_KEYS, DEFAULT_STEP_TABLE_COLUMNS, DEFAULT_STEP_TOKEN_COMBO_FORMAT, STEP_TOKEN_SEGMENT_ALIASES, POPOVER_WIDTH_MODES, MIN_POPOVER_WIDTH, MAX_POPOVER_WIDTH, DEFAULT_POPOVER_WIDTH, resolveLocaleFromLanguageTag, normalizeLanguageSetting, normalizeThemeAccent, normalizeFontScale, normalizeModelDisplayMode, normalizePopoverWidthMode, normalizePopoverWidth, parseStepTokenComboSegments, normalizeStepTokenComboFormat, normalizePluginUpdateMode, normalizeWindowMountMode, VSCODE_MOUNT_MODES, DEFAULT_VSCODE_MOUNT_MODE, normalizeVsCodeMountMode, normalizeWeeklyLimitMode, normalizeTopbarCapsuleSlots, normalizeCliStatusLineSlots, resolveEffectiveCliStatusLineSlots, normalizeOverviewMetrics, normalizeOverviewModules, normalizeHoverModules, normalizeMetricCardStyle, normalizeOverviewMetricStyle, normalizeHoverMetricStyle, normalizeMetricGridRows, normalizeOverviewMetricRows, normalizeHoverMetricRows, normalizeMetricCardSize, normalizeMetricCardSizes, normalizeOverviewMetricSizes, normalizeHoverMetricSizes, normalizeMetricTextMode, normalizeOverviewMetricTextMode, normalizeHoverMetricTextMode, deriveMetricCardStyleFromLayout, packMetricBentoLayout, normalizeHoverSyncOverviewMetrics, normalizeHoverMetrics, resolveEffectiveMetricMatrixConfig, normalizeStepTableColumns, normalizeStandalonePort, normalizeModernUi, CONTEXT_AGENT_MODES, DEFAULT_CONTEXT_AGENT_MODE, TOPBAR_MULTI_SESSION_MODES, DEFAULT_TOPBAR_MULTI_SESSION_MODE, normalizeTopbarMultiSessionMode, isTopbarMultiSessionVisible, QUOTA_DISPLAY_MODES, DEFAULT_QUOTA_DISPLAY_MODE, normalizeQuotaDisplayMode, ACCOUNT_QUOTA_REFRESH_MINUTES, DEFAULT_ACCOUNT_QUOTA_REFRESH_MINUTES, normalizeAccountQuotaRefreshMinutes, normalizeContextAgentMode, normalizeExperimentalQuotaReservation, normalizeExperimentalModernUi, normalizeAutoConfigureLaunch, normalizeEnableRemoteSshTelemetry, DEFAULT_ENABLE_SAFETY_MONITOR, normalizeEnableSafetyMonitor, normalizeDeveloperModeEnabled, normalizeRiskyFeaturesEnabled, isRiskyFeaturesGateOpen, isContextWindowFeatureActive, isAccountSwitchFeatureActive } = (() => {
+const SUPPORTED_LOCALE_ENTRIES = Object.freeze([
+  Object.freeze({
+    locale: 'zh-CN',
+    nativeName: '简体中文',
+    prefixes: Object.freeze(['zh']),
+  }),
+  Object.freeze({
+    locale: 'zh-TW',
+    nativeName: '繁體中文',
+    exactTags: Object.freeze(['zh-tw', 'zh-hk', 'zh-mo']),
+    prefixes: Object.freeze(['zh-hant']),
+  }),
+  Object.freeze({
+    locale: 'en-US',
+    nativeName: 'English',
+    prefixes: Object.freeze(['en']),
+  }),
+  Object.freeze({
+    locale: 'ja-JP',
+    nativeName: '日本語',
+    prefixes: Object.freeze(['ja']),
+  }),
+  Object.freeze({
+    locale: 'ko-KR',
+    nativeName: '한국어',
+    prefixes: Object.freeze(['ko']),
+  }),
+  Object.freeze({
+    locale: 'de-DE',
+    nativeName: 'Deutsch',
+    prefixes: Object.freeze(['de']),
+  }),
+  Object.freeze({
+    locale: 'fr-FR',
+    nativeName: 'Français',
+    prefixes: Object.freeze(['fr']),
+  }),
+  Object.freeze({
+    locale: 'vi-VN',
+    nativeName: 'Tiếng Việt',
+    prefixes: Object.freeze(['vi']),
+  }),
 ]);
+
+const SUPPORTED_LOCALES = Object.freeze(
+  SUPPORTED_LOCALE_ENTRIES.map((entry) => entry.locale)
+);
 const SUPPORTED_LANGUAGES = Object.freeze(['auto', ...SUPPORTED_LOCALES]);
+
+const LOCALE_EXACT_TAG_MAP = new Map();
+const LOCALE_PREFIX_MATCHERS = [];
+for (const entry of SUPPORTED_LOCALE_ENTRIES) {
+  LOCALE_EXACT_TAG_MAP.set(entry.locale.toLowerCase(), entry.locale);
+  if (Array.isArray(entry.exactTags)) {
+    for (const tag of entry.exactTags) {
+      LOCALE_EXACT_TAG_MAP.set(String(tag).toLowerCase(), entry.locale);
+    }
+  }
+  if (Array.isArray(entry.prefixes)) {
+    for (const prefix of entry.prefixes) {
+      LOCALE_PREFIX_MATCHERS.push({
+        prefix: String(prefix).toLowerCase(),
+        locale: entry.locale,
+      });
+    }
+  }
+}
+
+LOCALE_PREFIX_MATCHERS.sort((a, b) => b.prefix.length - a.prefix.length);
 
 const THEME_ACCENT_KEYS = Object.freeze([
   'host',
@@ -78,12 +137,25 @@ const DEFAULT_OVERVIEW_MODULES = Object.freeze([
 
 const DEFAULT_HOVER_MODULES = Object.freeze(['metrics', 'context', 'quotas']);
 
-const METRIC_CARD_STYLES = Object.freeze(['medium', 'large']);
+const METRIC_CARD_STYLES = Object.freeze(['medium', 'hybrid', 'large']);
 const HOVER_METRIC_STYLES = METRIC_CARD_STYLES;
 const DEFAULT_OVERVIEW_METRIC_STYLE = 'medium';
 const DEFAULT_HOVER_METRIC_STYLE = 'medium';
 const DEFAULT_HOVER_SYNC_OVERVIEW_METRICS = true;
 const MAX_LARGE_METRIC_SLOTS = 3;
+const METRIC_GRID_COLS = 12;
+const METRIC_GRID_ROWS = Object.freeze([1, 2]);
+const DEFAULT_METRIC_ROWS = 1;
+const DEFAULT_OVERVIEW_METRIC_ROWS = DEFAULT_METRIC_ROWS;
+const DEFAULT_HOVER_METRIC_ROWS = DEFAULT_METRIC_ROWS;
+const METRIC_CARD_SIZES = Object.freeze(['sm', 'third', 'wide', 'narrow', 'tall']);
+const DEFAULT_OVERVIEW_METRIC_SIZES = Object.freeze({});
+const DEFAULT_HOVER_METRIC_SIZES = Object.freeze({});
+const METRIC_TEXT_MODES = Object.freeze(['both', 'title', 'sub', 'none']);
+const DEFAULT_METRIC_TEXT_MODE = 'title';
+const DEFAULT_OVERVIEW_METRIC_TEXT_MODE = DEFAULT_METRIC_TEXT_MODE;
+const DEFAULT_HOVER_METRIC_TEXT_MODE = DEFAULT_METRIC_TEXT_MODE;
+const MAX_OVERVIEW_METRICS = 8;
 
 const OVERVIEW_METRIC_KEYS = Object.freeze([
   'tps',
@@ -182,20 +254,14 @@ function resolveLocaleFromLanguageTag(rawTag, fallback = 'en-US') {
     .replace(/\..*$/, '')
     .toLowerCase();
   if (!clean || clean === 'c' || clean === 'posix') return fallback;
-  if (
-    clean === 'zh-tw' ||
-    clean === 'zh-hk' ||
-    clean === 'zh-mo' ||
-    clean.startsWith('zh-hant')
-  ) {
-    return 'zh-TW';
+  const exact = LOCALE_EXACT_TAG_MAP.get(clean);
+  if (exact) return exact;
+  for (let i = 0; i < LOCALE_PREFIX_MATCHERS.length; i += 1) {
+    const { prefix, locale } = LOCALE_PREFIX_MATCHERS[i];
+    if (clean === prefix || clean.startsWith(`${prefix}-`)) {
+      return locale;
+    }
   }
-  if (clean === 'zh' || clean.startsWith('zh-')) return 'zh-CN';
-  if (clean === 'ja' || clean.startsWith('ja-')) return 'ja-JP';
-  if (clean === 'ko' || clean.startsWith('ko-')) return 'ko-KR';
-  if (clean === 'de' || clean.startsWith('de-')) return 'de-DE';
-  if (clean === 'fr' || clean.startsWith('fr-')) return 'fr-FR';
-  if (clean === 'en' || clean.startsWith('en-')) return 'en-US';
   return fallback;
 }
 
@@ -278,6 +344,15 @@ function normalizeWindowMountMode(mode, legacyEnableOverlay) {
   if (m === 'dual' || m === 'topbar') return 'dual';
   if (legacyEnableOverlay === false) return 'sidebar';
   return 'dual';
+}
+
+const VSCODE_MOUNT_MODES = Object.freeze(['composer', 'dual']);
+const DEFAULT_VSCODE_MOUNT_MODE = 'composer';
+
+function normalizeVsCodeMountMode(mode) {
+  const m = String(mode ?? '').trim().toLowerCase();
+  if (m === 'dual' || m === 'topbar') return 'dual';
+  return 'composer';
 }
 
 function normalizeWeeklyLimitMode(mode) {
@@ -367,7 +442,7 @@ function normalizeOverviewMetrics(raw) {
     if (!OVERVIEW_METRIC_KEYS.includes(val) || seen.has(val)) continue;
     seen.add(val);
     out.push(val);
-    if (out.length >= 4) break;
+    if (out.length >= MAX_OVERVIEW_METRICS) break;
   }
   return out.length > 0 ? out : ['tps'];
 }
@@ -406,11 +481,402 @@ function normalizeHoverModules(raw) {
 
 function normalizeMetricCardStyle(raw) {
   const val = String(raw ?? '').trim().toLowerCase();
-  return val === 'large' || val === 'sparkline' || val === 'trend' ? 'large' : 'medium';
+  if (val === 'large' || val === 'sparkline' || val === 'trend') return 'large';
+  if (val === 'hybrid' || val === 'mixed' || val === 'mix') return 'hybrid';
+  return 'medium';
 }
 
 const normalizeOverviewMetricStyle = normalizeMetricCardStyle;
 const normalizeHoverMetricStyle = normalizeMetricCardStyle;
+
+function normalizeMetricGridRows(raw, legacyStyle) {
+  if (raw === 2 || raw === '2') return 2;
+  if (raw === 1 || raw === '1') return 1;
+  if (typeof raw === 'string') {
+    const lower = raw.trim().toLowerCase();
+    if (lower === '2' || lower === 'two' || lower === 'double') return 2;
+    if (lower === '1' || lower === 'one' || lower === 'single') return 1;
+  }
+  if (legacyStyle !== undefined && normalizeMetricCardStyle(legacyStyle) === 'hybrid') {
+    return 2;
+  }
+  return DEFAULT_METRIC_ROWS;
+}
+
+const normalizeOverviewMetricRows = normalizeMetricGridRows;
+const normalizeHoverMetricRows = normalizeMetricGridRows;
+
+function normalizeMetricCardSize(raw) {
+  const val = String(raw ?? '').trim().toLowerCase();
+  if (val === 'tall' || val === 'large' || val === 'lg' || val === '2x2' || val === 'hero') {
+    return 'tall';
+  }
+  if (val === 'narrow' || val === 'col' || val === 'slim' || val === 'vertical' || val === '1x2') {
+    return 'narrow';
+  }
+  if (val === 'wide' || val === '2x1' || val === 'trend' || val === 'half') {
+    return 'wide';
+  }
+  if (
+    val === 'third' ||
+    val === 'md' ||
+    val === 'medium_trend' ||
+    val === '1/3' ||
+    val === '3up' ||
+    val === '1.33x1' ||
+    val === '1.333x1' ||
+    val === 'tri'
+  ) {
+    return 'third';
+  }
+  return 'sm';
+}
+
+function normalizeMetricCardSizes(raw, metricsList = null, legacyStyle = undefined) {
+  if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+    const out = {};
+    for (const [k, v] of Object.entries(raw)) {
+      const cleanKey = String(k ?? '').trim();
+      const mappedKey = cleanKey === 'cost' ? 'step_cost' : cleanKey;
+      if (!OVERVIEW_METRIC_KEYS.includes(mappedKey)) continue;
+      const size = normalizeMetricCardSize(v);
+      if (size !== 'sm') {
+        out[mappedKey] = size;
+      }
+    }
+    return out;
+  }
+  if (legacyStyle !== undefined) {
+    const style = normalizeMetricCardStyle(legacyStyle);
+    const list = Array.isArray(metricsList) && metricsList.length > 0
+      ? metricsList
+      : DEFAULT_OVERVIEW_METRICS;
+    if (style === 'large') {
+      const out = {};
+      for (const key of list) {
+        if (OVERVIEW_METRIC_KEYS.includes(key)) out[key] = 'third';
+      }
+      return out;
+    }
+    if (style === 'hybrid' && list[0] && OVERVIEW_METRIC_KEYS.includes(list[0])) {
+      const out = { [list[0]]: 'tall' };
+      if (list.length === 3) {
+        if (list[1] && OVERVIEW_METRIC_KEYS.includes(list[1])) out[list[1]] = 'wide';
+        if (list[2] && OVERVIEW_METRIC_KEYS.includes(list[2])) out[list[2]] = 'wide';
+      }
+      return out;
+    }
+  }
+  return {};
+}
+
+const normalizeOverviewMetricSizes = normalizeMetricCardSizes;
+const normalizeHoverMetricSizes = normalizeMetricCardSizes;
+
+function normalizeMetricTextMode(raw) {
+  const val = String(raw ?? '').trim().toLowerCase();
+  if (val === 'both' || val === 'all' || val === 'full') {
+    return 'both';
+  }
+  if (val === 'title' || val === 'title_only' || val === 'label' || val === 'label_only') {
+    return 'title';
+  }
+  if (val === 'sub' || val === 'sub_only' || val === 'subtitle' || val === 'meta') {
+    return 'sub';
+  }
+  if (val === 'none' || val === 'minimal' || val === 'value' || val === 'value_only') {
+    return 'none';
+  }
+  return DEFAULT_METRIC_TEXT_MODE;
+}
+
+const normalizeOverviewMetricTextMode = normalizeMetricTextMode;
+const normalizeHoverMetricTextMode = normalizeMetricTextMode;
+
+function deriveMetricCardStyleFromLayout(rows, metrics, sizesMap) {
+  const safeRows = normalizeMetricGridRows(rows);
+  const list = Array.isArray(metrics) ? metrics : [];
+  if (safeRows === 1 && list.length > 0) {
+    const effSizes = list.map((key) => {
+      const s = normalizeMetricCardSize(sizesMap?.[key]);
+      if (s === 'tall') return 'wide';
+      if (s === 'narrow') return 'sm';
+      return s;
+    });
+    if (effSizes.every((s) => s === 'sm')) return 'medium';
+    const checkLen = Math.min(MAX_LARGE_METRIC_SLOTS, effSizes.length);
+    if (effSizes.slice(0, checkLen).every((s) => s === 'third' || s === 'wide')) return 'large';
+  }
+  return 'hybrid';
+}
+
+function getMetricCardColSpan(effSize) {
+  if (effSize === 'wide' || effSize === 'tall') return 6;
+  if (effSize === 'third') return 4;
+  return 3;
+}
+
+function pushMetricGhostRunsForRow(occRow, rowNumber, out) {
+  let c = 0;
+  while (c < METRIC_GRID_COLS) {
+    if (occRow[c]) {
+      c += 1;
+      continue;
+    }
+    const start = c;
+    while (c < METRIC_GRID_COLS && !occRow[c]) c += 1;
+    let pos = start;
+    let rem = c - start;
+    const step = rem === 4 || rem === 8 ? 4 : 3;
+    while (rem > 0) {
+      const span = rem >= step ? step : rem;
+      out.push({ colStart: pos + 1, colSpan: span, rowStart: rowNumber });
+      pos += span;
+      rem -= span;
+    }
+  }
+}
+
+function packMetricBentoLayout({
+  rows = DEFAULT_METRIC_ROWS,
+  metrics = DEFAULT_OVERVIEW_METRICS,
+  sizes = {},
+  includeGhostCells = false,
+} = {}) {
+  const safeRows = normalizeMetricGridRows(rows);
+  const list = normalizeOverviewMetrics(metrics);
+  const sizesMap = normalizeMetricCardSizes(sizes);
+  const resolveEffSize = (key) => {
+    const rawSize = normalizeMetricCardSize(sizesMap[key]);
+    if (safeRows === 1) {
+      if (rawSize === 'tall') return 'wide';
+      if (rawSize === 'narrow') return 'sm';
+    }
+    return rawSize;
+  };
+
+  const occ = Array.from({ length: safeRows }, () => Array(METRIC_GRID_COLS).fill(false));
+  const placements = [];
+  const overflowKeys = [];
+
+  function tryRepackForTwoRowCard(existingPlacements, newWidth) {
+    if (safeRows !== 2) return null;
+    const leftLimit = METRIC_GRID_COLS - newWidth;
+    if (leftLimit < 3) return null;
+    const leftOcc = [Array(leftLimit).fill(false), Array(leftLimit).fill(false)];
+    const coords = new Array(existingPlacements.length);
+
+    for (let idx = 0; idx < existingPlacements.length; idx += 1) {
+      const item = existingPlacements[idx];
+      if (item.rowSpan !== 2) continue;
+      const w = item.colSpan;
+      if (w > leftLimit) return null;
+      let fitCol = -1;
+      const prefCol = item.colStart - 1;
+      if (prefCol >= 0 && prefCol + w <= leftLimit) {
+        let prefFree = true;
+        for (let dc = 0; dc < w; dc += 1) {
+          if (leftOcc[0][prefCol + dc] || leftOcc[1][prefCol + dc]) {
+            prefFree = false;
+            break;
+          }
+        }
+        if (prefFree) fitCol = prefCol;
+      }
+      if (fitCol < 0) {
+        for (let c = 0; c <= leftLimit - w; c += 1) {
+          let free = true;
+          for (let dc = 0; dc < w; dc += 1) {
+            if (leftOcc[0][c + dc] || leftOcc[1][c + dc]) {
+              free = false;
+              break;
+            }
+          }
+          if (free) {
+            fitCol = c;
+            break;
+          }
+        }
+      }
+      if (fitCol < 0) return null;
+      for (let dc = 0; dc < w; dc += 1) {
+        leftOcc[0][fitCol + dc] = true;
+        leftOcc[1][fitCol + dc] = true;
+      }
+      coords[idx] = { colStart: fitCol + 1, rowStart: 1 };
+    }
+
+    for (let idx = 0; idx < existingPlacements.length; idx += 1) {
+      const item = existingPlacements[idx];
+      if (item.rowSpan !== 1) continue;
+      const w = item.colSpan;
+      if (w > leftLimit) return null;
+      let fit = null;
+      for (let r = 0; r < 2 && !fit; r += 1) {
+        for (let c = 0; c <= leftLimit - w && !fit; c += 1) {
+          let free = true;
+          for (let dc = 0; dc < w; dc += 1) {
+            if (leftOcc[r][c + dc]) {
+              free = false;
+              break;
+            }
+          }
+          if (free) {
+            for (let dc = 0; dc < w; dc += 1) {
+              leftOcc[r][c + dc] = true;
+            }
+            fit = { colStart: c + 1, rowStart: r + 1 };
+          }
+        }
+      }
+      if (!fit) return null;
+      coords[idx] = fit;
+    }
+
+    return { leftOcc, leftLimit, coords };
+  }
+
+  for (let i = 0; i < list.length; i += 1) {
+    const key = list[i];
+    const rawSize = normalizeMetricCardSize(sizesMap[key]);
+    const effSize = resolveEffSize(key);
+    const w = getMetricCardColSpan(effSize);
+    const h = effSize === 'narrow' || effSize === 'tall' ? 2 : 1;
+    let placed = false;
+
+    for (let r = 0; r <= safeRows - h && !placed; r += 1) {
+      for (let c = 0; c <= METRIC_GRID_COLS - w && !placed; c += 1) {
+        let free = true;
+        for (let dr = 0; dr < h && free; dr += 1) {
+          for (let dc = 0; dc < w; dc += 1) {
+            if (occ[r + dr][c + dc]) {
+              free = false;
+              break;
+            }
+          }
+        }
+        if (free) {
+          for (let dr = 0; dr < h; dr += 1) {
+            for (let dc = 0; dc < w; dc += 1) {
+              occ[r + dr][c + dc] = true;
+            }
+          }
+          placements.push({
+            key,
+            index: i,
+            rawSize,
+            size: effSize,
+            isTrend: effSize !== 'sm',
+            isThird: effSize === 'third',
+            isWide: effSize === 'wide',
+            isNarrow: effSize === 'narrow',
+            isTall: effSize === 'tall',
+            colStart: c + 1,
+            colSpan: w,
+            rowStart: r + 1,
+            rowSpan: h,
+          });
+          placed = true;
+        }
+      }
+    }
+
+    if (!placed && safeRows === 2 && h === 2) {
+      const repacked = tryRepackForTwoRowCard(placements, w);
+      if (repacked) {
+        for (let r = 0; r < 2; r += 1) {
+          for (let c = 0; c < METRIC_GRID_COLS; c += 1) {
+            occ[r][c] = c < repacked.leftLimit ? repacked.leftOcc[r][c] : false;
+          }
+        }
+        for (let k = 0; k < placements.length; k += 1) {
+          placements[k].colStart = repacked.coords[k].colStart;
+          placements[k].rowStart = repacked.coords[k].rowStart;
+        }
+        const targetCol = repacked.leftLimit;
+        for (let dr = 0; dr < 2; dr += 1) {
+          for (let dc = 0; dc < w; dc += 1) {
+            occ[dr][targetCol + dc] = true;
+          }
+        }
+        placements.push({
+          key,
+          index: i,
+          rawSize,
+          size: effSize,
+          isTrend: true,
+          isThird: false,
+          isWide: false,
+          isNarrow: effSize === 'narrow',
+          isTall: effSize === 'tall',
+          colStart: targetCol + 1,
+          colSpan: w,
+          rowStart: 1,
+          rowSpan: 2,
+        });
+        placed = true;
+      }
+    }
+
+    if (!placed) {
+      overflowKeys.push(key);
+    }
+  }
+
+  if (safeRows === 1) {
+    const usedCols = placements.reduce((acc, item) => acc + item.colSpan, 0);
+    const isUniformThirdRow = placements.length > 0 && placements.every((p) => p.size === 'third');
+    const showRow1Ghosts = includeGhostCells && overflowKeys.length > 0 && usedCols < METRIC_GRID_COLS;
+    const ghostCells = [];
+    if (showRow1Ghosts) {
+      pushMetricGhostRunsForRow(occ[0], 1, ghostCells);
+    }
+    return {
+      rows: 1,
+      effectiveRows: 1,
+      gridCols: showRow1Ghosts ? METRIC_GRID_COLS : Math.max(1, Math.min(METRIC_GRID_COLS, usedCols)),
+      displayCols: Math.max(1, Math.min(4, placements.length)),
+      isThreeUpTrend: isUniformThirdRow,
+      placements,
+      overflowKeys,
+      ghostCells,
+    };
+  }
+
+  const row2HasAny = occ[1].some(Boolean);
+  if (!row2HasAny && !includeGhostCells) {
+    const usedCols = placements.reduce((acc, item) => acc + item.colSpan, 0);
+    const isUniformThirdRow = placements.length > 0 && placements.every((p) => p.size === 'third');
+    return {
+      rows: 2,
+      effectiveRows: 1,
+      gridCols: Math.max(1, Math.min(METRIC_GRID_COLS, usedCols)),
+      displayCols: Math.max(1, Math.min(4, placements.length)),
+      isThreeUpTrend: isUniformThirdRow,
+      placements,
+      overflowKeys,
+      ghostCells: [],
+    };
+  }
+
+  const ghostCells = [];
+  if (includeGhostCells) {
+    pushMetricGhostRunsForRow(occ[0], 1, ghostCells);
+    pushMetricGhostRunsForRow(occ[1], 2, ghostCells);
+  }
+
+  const allThird = placements.length > 0 && placements.every((p) => p.size === 'third');
+  return {
+    rows: 2,
+    effectiveRows: 2,
+    gridCols: METRIC_GRID_COLS,
+    displayCols: allThird ? 3 : 4,
+    isThreeUpTrend: false,
+    placements,
+    overflowKeys,
+    ghostCells,
+  };
+}
 
 function normalizeHoverSyncOverviewMetrics(raw) {
   return raw !== false;
@@ -420,24 +886,54 @@ function normalizeHoverMetrics(raw) {
   return normalizeOverviewMetrics(raw);
 }
 
-function resolveEffectiveMetricMatrixConfig(mode, settings = {}) {
+function resolveEffectiveMetricMatrixConfig(
+  mode,
+  settings = {},
+  { includeGhostCells = false } = {}
+) {
   const s = settings && typeof settings === 'object' ? settings : {};
   const isHover = mode === 'hover';
   const syncOverview = !isHover || normalizeHoverSyncOverviewMetrics(s.hoverSyncOverviewMetrics);
-  const style = syncOverview
-    ? normalizeOverviewMetricStyle(s.overviewMetricStyle)
-    : normalizeHoverMetricStyle(s.hoverMetricStyle);
   const allMetrics = syncOverview
     ? normalizeOverviewMetrics(s.overviewMetrics)
     : normalizeHoverMetrics(s.hoverMetrics);
+  const rawRows = syncOverview ? s.overviewMetricRows : s.hoverMetricRows;
+  const rawSizes = syncOverview ? s.overviewMetricSizes : s.hoverMetricSizes;
+  const rawStyle = syncOverview ? s.overviewMetricStyle : s.hoverMetricStyle;
+  const rawTextMode = syncOverview ? s.overviewMetricTextMode : s.hoverMetricTextMode;
+  const hasExplicitBento = rawRows !== undefined || rawSizes !== undefined;
+  const rows = normalizeMetricGridRows(rawRows, hasExplicitBento ? undefined : rawStyle);
+  const sizes = normalizeMetricCardSizes(
+    rawSizes,
+    allMetrics,
+    hasExplicitBento ? undefined : rawStyle
+  );
+  const textMode = normalizeMetricTextMode(rawTextMode);
+  const showTitle = textMode === 'both' || textMode === 'title';
+  const showSub = textMode === 'both' || textMode === 'sub';
+  const style = deriveMetricCardStyleFromLayout(rows, allMetrics, sizes);
+  const layout = packMetricBentoLayout({
+    rows,
+    metrics: allMetrics,
+    sizes,
+    includeGhostCells,
+  });
+  const metrics = layout.placements.map((p) => p.key);
   const isLarge = style === 'large';
-  const metrics = isLarge ? allMetrics.slice(0, MAX_LARGE_METRIC_SLOTS) : allMetrics;
+  const isHybrid = style === 'hybrid';
   return {
     syncOverview,
+    rows,
+    sizes,
+    textMode,
+    showTitle,
+    showSub,
     style,
     isLarge,
+    isHybrid,
     allMetrics,
     metrics,
+    layout,
   };
 }
 
@@ -487,6 +983,33 @@ function normalizeModernUi(val) {
 const CONTEXT_AGENT_MODES = Object.freeze(['main', 'auto']);
 const DEFAULT_CONTEXT_AGENT_MODE = 'main';
 
+const TOPBAR_MULTI_SESSION_MODES = Object.freeze(['show', 'running_only', 'hide']);
+const DEFAULT_TOPBAR_MULTI_SESSION_MODE = 'show';
+
+function normalizeTopbarMultiSessionMode(mode, legacyShowMulti) {
+  const m = String(mode ?? '').trim().toLowerCase();
+  if (m === 'running_only' || m === 'running' || m === 'active_only' || m === 'when_running') {
+    return 'running_only';
+  }
+  if (m === 'hide' || m === 'hidden' || m === 'off' || m === 'false') {
+    return 'hide';
+  }
+  if (m === 'show' || m === 'always' || m === 'on' || m === 'true') {
+    return 'show';
+  }
+  if (legacyShowMulti === false) {
+    return 'hide';
+  }
+  return DEFAULT_TOPBAR_MULTI_SESSION_MODE;
+}
+
+function isTopbarMultiSessionVisible(mode, runningCount = 0, legacyShowMulti = undefined) {
+  const normalized = normalizeTopbarMultiSessionMode(mode, legacyShowMulti);
+  if (normalized === 'hide') return false;
+  if (normalized === 'running_only') return Number(runningCount) > 0;
+  return true;
+}
+
 const QUOTA_DISPLAY_MODES = Object.freeze(['used', 'remaining']);
 const DEFAULT_QUOTA_DISPLAY_MODE = 'used';
 
@@ -495,10 +1018,18 @@ function normalizeQuotaDisplayMode(raw) {
   return val === 'remaining' ? 'remaining' : 'used';
 }
 
-const ACCOUNT_QUOTA_REFRESH_MINUTES = Object.freeze([10, 30, 60, 180, 360, 720, 1440]);
+const ACCOUNT_QUOTA_REFRESH_MINUTES = Object.freeze([10, 30, 60, 180, 360, 720, 1440, 0]);
 const DEFAULT_ACCOUNT_QUOTA_REFRESH_MINUTES = 60;
 
 function normalizeAccountQuotaRefreshMinutes(raw) {
+  if (raw === null || raw === undefined || raw === '' || typeof raw === 'boolean') {
+    return DEFAULT_ACCOUNT_QUOTA_REFRESH_MINUTES;
+  }
+  if (typeof raw === 'string') {
+    const clean = raw.trim().toLowerCase();
+    if (!clean) return DEFAULT_ACCOUNT_QUOTA_REFRESH_MINUTES;
+    if (clean === 'off' || clean === 'disabled' || clean === 'none') return 0;
+  }
   const num = Number(raw);
   return ACCOUNT_QUOTA_REFRESH_MINUTES.includes(num)
     ?   (num)
@@ -551,6 +1082,19 @@ function normalizeEnableRemoteSshTelemetry(val) {
   return Boolean(val);
 }
 
+const DEFAULT_ENABLE_SAFETY_MONITOR = false;
+
+function normalizeEnableSafetyMonitor(val) {
+  if (val === undefined || val === null || val === '') return DEFAULT_ENABLE_SAFETY_MONITOR;
+  if (typeof val === 'string') {
+    const lower = val.trim().toLowerCase();
+    if (lower === 'false' || lower === '0' || lower === 'off') return false;
+    if (lower === 'true' || lower === '1' || lower === 'on') return true;
+    return DEFAULT_ENABLE_SAFETY_MONITOR;
+  }
+  return Boolean(val);
+}
+
 function normalizeDeveloperModeEnabled(val) {
   return val === true;
 }
@@ -578,7 +1122,7 @@ function isAccountSwitchFeatureActive(settings) {
     isRiskyFeaturesGateOpen(settings) && settings.accountSwitchRiskAccepted === true
   );
 }
-return { SUPPORTED_LOCALES, SUPPORTED_LANGUAGES, THEME_ACCENT_KEYS, FONT_SCALE_KEYS, TOPBAR_SLOT_KEYS, DEFAULT_TOPBAR_SLOTS, MIN_TOPBAR_SLOTS, MAX_TOPBAR_SLOTS, DEFAULT_CLI_STATUSLINE_SLOTS, MIN_CLI_STATUSLINE_SLOTS, MAX_CLI_STATUSLINE_SLOTS, CLI_STATUSLINE_PRESETS, OVERVIEW_MODULE_KEYS, DEFAULT_OVERVIEW_MODULES, DEFAULT_HOVER_MODULES, METRIC_CARD_STYLES, HOVER_METRIC_STYLES, DEFAULT_OVERVIEW_METRIC_STYLE, DEFAULT_HOVER_METRIC_STYLE, DEFAULT_HOVER_SYNC_OVERVIEW_METRICS, MAX_LARGE_METRIC_SLOTS, OVERVIEW_METRIC_KEYS, DEFAULT_OVERVIEW_METRICS, DEFAULT_HOVER_METRICS, STEP_TABLE_COLUMN_KEYS, DEFAULT_STEP_TABLE_COLUMNS, DEFAULT_STEP_TOKEN_COMBO_FORMAT, STEP_TOKEN_SEGMENT_ALIASES, POPOVER_WIDTH_MODES, MIN_POPOVER_WIDTH, MAX_POPOVER_WIDTH, DEFAULT_POPOVER_WIDTH, resolveLocaleFromLanguageTag, normalizeLanguageSetting, normalizeThemeAccent, normalizeFontScale, normalizeModelDisplayMode, normalizePopoverWidthMode, normalizePopoverWidth, parseStepTokenComboSegments, normalizeStepTokenComboFormat, normalizePluginUpdateMode, normalizeWindowMountMode, normalizeWeeklyLimitMode, normalizeTopbarCapsuleSlots, normalizeCliStatusLineSlots, resolveEffectiveCliStatusLineSlots, normalizeOverviewMetrics, normalizeOverviewModules, normalizeHoverModules, normalizeMetricCardStyle, normalizeOverviewMetricStyle, normalizeHoverMetricStyle, normalizeHoverSyncOverviewMetrics, normalizeHoverMetrics, resolveEffectiveMetricMatrixConfig, normalizeStepTableColumns, normalizeStandalonePort, normalizeModernUi, CONTEXT_AGENT_MODES, DEFAULT_CONTEXT_AGENT_MODE, QUOTA_DISPLAY_MODES, DEFAULT_QUOTA_DISPLAY_MODE, normalizeQuotaDisplayMode, ACCOUNT_QUOTA_REFRESH_MINUTES, DEFAULT_ACCOUNT_QUOTA_REFRESH_MINUTES, normalizeAccountQuotaRefreshMinutes, normalizeContextAgentMode, normalizeExperimentalQuotaReservation, normalizeExperimentalModernUi, normalizeAutoConfigureLaunch, normalizeEnableRemoteSshTelemetry, normalizeDeveloperModeEnabled, normalizeRiskyFeaturesEnabled, isRiskyFeaturesGateOpen, isContextWindowFeatureActive, isAccountSwitchFeatureActive };
+return { SUPPORTED_LOCALE_ENTRIES, SUPPORTED_LOCALES, SUPPORTED_LANGUAGES, THEME_ACCENT_KEYS, FONT_SCALE_KEYS, TOPBAR_SLOT_KEYS, DEFAULT_TOPBAR_SLOTS, MIN_TOPBAR_SLOTS, MAX_TOPBAR_SLOTS, DEFAULT_CLI_STATUSLINE_SLOTS, MIN_CLI_STATUSLINE_SLOTS, MAX_CLI_STATUSLINE_SLOTS, CLI_STATUSLINE_PRESETS, OVERVIEW_MODULE_KEYS, DEFAULT_OVERVIEW_MODULES, DEFAULT_HOVER_MODULES, METRIC_CARD_STYLES, HOVER_METRIC_STYLES, DEFAULT_OVERVIEW_METRIC_STYLE, DEFAULT_HOVER_METRIC_STYLE, DEFAULT_HOVER_SYNC_OVERVIEW_METRICS, MAX_LARGE_METRIC_SLOTS, METRIC_GRID_COLS, METRIC_GRID_ROWS, DEFAULT_METRIC_ROWS, DEFAULT_OVERVIEW_METRIC_ROWS, DEFAULT_HOVER_METRIC_ROWS, METRIC_CARD_SIZES, DEFAULT_OVERVIEW_METRIC_SIZES, DEFAULT_HOVER_METRIC_SIZES, METRIC_TEXT_MODES, DEFAULT_METRIC_TEXT_MODE, DEFAULT_OVERVIEW_METRIC_TEXT_MODE, DEFAULT_HOVER_METRIC_TEXT_MODE, MAX_OVERVIEW_METRICS, OVERVIEW_METRIC_KEYS, DEFAULT_OVERVIEW_METRICS, DEFAULT_HOVER_METRICS, STEP_TABLE_COLUMN_KEYS, DEFAULT_STEP_TABLE_COLUMNS, DEFAULT_STEP_TOKEN_COMBO_FORMAT, STEP_TOKEN_SEGMENT_ALIASES, POPOVER_WIDTH_MODES, MIN_POPOVER_WIDTH, MAX_POPOVER_WIDTH, DEFAULT_POPOVER_WIDTH, resolveLocaleFromLanguageTag, normalizeLanguageSetting, normalizeThemeAccent, normalizeFontScale, normalizeModelDisplayMode, normalizePopoverWidthMode, normalizePopoverWidth, parseStepTokenComboSegments, normalizeStepTokenComboFormat, normalizePluginUpdateMode, normalizeWindowMountMode, VSCODE_MOUNT_MODES, DEFAULT_VSCODE_MOUNT_MODE, normalizeVsCodeMountMode, normalizeWeeklyLimitMode, normalizeTopbarCapsuleSlots, normalizeCliStatusLineSlots, resolveEffectiveCliStatusLineSlots, normalizeOverviewMetrics, normalizeOverviewModules, normalizeHoverModules, normalizeMetricCardStyle, normalizeOverviewMetricStyle, normalizeHoverMetricStyle, normalizeMetricGridRows, normalizeOverviewMetricRows, normalizeHoverMetricRows, normalizeMetricCardSize, normalizeMetricCardSizes, normalizeOverviewMetricSizes, normalizeHoverMetricSizes, normalizeMetricTextMode, normalizeOverviewMetricTextMode, normalizeHoverMetricTextMode, deriveMetricCardStyleFromLayout, packMetricBentoLayout, normalizeHoverSyncOverviewMetrics, normalizeHoverMetrics, resolveEffectiveMetricMatrixConfig, normalizeStepTableColumns, normalizeStandalonePort, normalizeModernUi, CONTEXT_AGENT_MODES, DEFAULT_CONTEXT_AGENT_MODE, TOPBAR_MULTI_SESSION_MODES, DEFAULT_TOPBAR_MULTI_SESSION_MODE, normalizeTopbarMultiSessionMode, isTopbarMultiSessionVisible, QUOTA_DISPLAY_MODES, DEFAULT_QUOTA_DISPLAY_MODE, normalizeQuotaDisplayMode, ACCOUNT_QUOTA_REFRESH_MINUTES, DEFAULT_ACCOUNT_QUOTA_REFRESH_MINUTES, normalizeAccountQuotaRefreshMinutes, normalizeContextAgentMode, normalizeExperimentalQuotaReservation, normalizeExperimentalModernUi, normalizeAutoConfigureLaunch, normalizeEnableRemoteSshTelemetry, DEFAULT_ENABLE_SAFETY_MONITOR, normalizeEnableSafetyMonitor, normalizeDeveloperModeEnabled, normalizeRiskyFeaturesEnabled, isRiskyFeaturesGateOpen, isContextWindowFeatureActive, isAccountSwitchFeatureActive };
 })();
 
 // --- shared/currency-catalog.mjs ---
@@ -589,6 +1133,7 @@ const LOCALE_DEFAULT_CURRENCY = Object.freeze({
   'zh-CN': 'CNY',
   'zh-TW': 'TWD',
   'en-US': 'USD',
+  'vi-VN': 'VND',
   'ja-JP': 'JPY',
   'ko-KR': 'KRW',
   'de-DE': 'EUR',
@@ -979,11 +1524,12 @@ return { THIRD_PARTY_POOL_RE, isThirdPartyPoolText, classifySpeedTier, classifyC
 })();
 
 // --- shared/window-bridge-protocol.mjs ---
-const { WINDOW_BRIDGE_KEY, WINDOW_BRIDGE_ROUTE_KEY, WINDOW_BRIDGE_ENDPOINT_KEY, WINDOW_BRIDGE_ENDPOINT_HEADER, LOCAL_ENDPOINT_ID, WINDOW_OVERLAY_KEY, CONTEXT_WINDOWS_GLOBAL_KEY, WINDOW_OVERLAY_METHODS, BRIDGE_API_ROUTE_DEFS, BRIDGE_API_PATHS, readInjectedWindowBridge } = (() => {
+const { WINDOW_BRIDGE_KEY, WINDOW_BRIDGE_ROUTE_KEY, WINDOW_BRIDGE_ENDPOINT_KEY, WINDOW_BRIDGE_ENDPOINT_HEADER, BRIDGE_ROUTE_PING_PATH, LOCAL_ENDPOINT_ID, WINDOW_OVERLAY_KEY, CONTEXT_WINDOWS_GLOBAL_KEY, WINDOW_OVERLAY_METHODS, BRIDGE_API_ROUTE_DEFS, BRIDGE_API_PATHS, readInjectedWindowBridge, isVsCodeHostUrl, detectVsCodeVariantFromUrl, isVsCodeExtensionHost, isForceTopbarOverlay, resolveClientEffectiveOverlayMountMode } = (() => {
 const WINDOW_BRIDGE_KEY = '__AGUsageMonitorBridge';
 const WINDOW_BRIDGE_ROUTE_KEY = 'hostRouteCascadeId';
 const WINDOW_BRIDGE_ENDPOINT_KEY = 'endpointId';
 const WINDOW_BRIDGE_ENDPOINT_HEADER = 'X-Usage-Monitor-Endpoint';
+const BRIDGE_ROUTE_PING_PATH = '/api/bridge-route-ping';
 const LOCAL_ENDPOINT_ID = 'local';
 const WINDOW_OVERLAY_KEY = '__AGUsageMonitorOverlay';
 const CONTEXT_WINDOWS_GLOBAL_KEY = '__AGUsageMonitorContextWindows';
@@ -1050,7 +1596,85 @@ const BRIDGE_API_PATHS = Object.freeze(BRIDGE_API_ROUTE_DEFS.map((r) => r.path))
 function readInjectedWindowBridge() {
   return typeof window === 'undefined' ? undefined : window[WINDOW_BRIDGE_KEY];
 }
-return { WINDOW_BRIDGE_KEY, WINDOW_BRIDGE_ROUTE_KEY, WINDOW_BRIDGE_ENDPOINT_KEY, WINDOW_BRIDGE_ENDPOINT_HEADER, LOCAL_ENDPOINT_ID, WINDOW_OVERLAY_KEY, CONTEXT_WINDOWS_GLOBAL_KEY, WINDOW_OVERLAY_METHODS, BRIDGE_API_ROUTE_DEFS, BRIDGE_API_PATHS, readInjectedWindowBridge };
+
+function isVsCodeHostUrl(rawUrl) {
+  const url = String(rawUrl || '').trim();
+  if (!url) return false;
+  if (/[?&]extensionVariant=vs-code(?:[&#]|$)/i.test(url)) {
+    return true;
+  }
+  const pathOnly = url.split(/[?#]/, 1)[0];
+  let decodedPath = pathOnly;
+  try {
+    decodedPath = decodeURIComponent(pathOnly);
+  } catch {
+    decodedPath = pathOnly.replace(/%20/gi, ' ');
+  }
+  if (/antigravity/i.test(decodedPath)) {
+    return false;
+  }
+  const normalized = decodedPath.replace(/\\/g, '/');
+  if (/(?:visual[\s-]+studio[\s-]+code|microsoft\s+vs\s+code|code\s*-?\s*insiders)/i.test(normalized)) {
+    return true;
+  }
+  if (/(?:^|\/)(?:code|code-insiders|vscode(?:-[a-z0-9._-]+)?)\/resources\/app\//i.test(normalized)) {
+    return true;
+  }
+  return false;
+}
+
+function detectVsCodeVariantFromUrl(rawUrl) {
+  const pathOnly = String(rawUrl || '').trim().split(/[?#]/, 1)[0];
+  let decodedPath = pathOnly;
+  try {
+    decodedPath = decodeURIComponent(pathOnly);
+  } catch {
+    decodedPath = pathOnly.replace(/%20/gi, ' ');
+  }
+  const normalized = decodedPath.replace(/\\/g, '/');
+  if (/(?:code\s*-\s*insiders|code-insiders|vscode-insiders|visual[\s-]+studio[\s-]+code[\s-]+insiders)/i.test(normalized)) {
+    return 'insiders';
+  }
+  return 'stable';
+}
+
+function isVsCodeExtensionHost(bridge = readInjectedWindowBridge()) {
+  if (bridge?.isVsCodeHost === true) return true;
+  if (bridge?.isVsCodeHost === false) return false;
+  if (typeof window !== 'undefined') {
+    const href = String(window.location?.href || '');
+    const search = String(window.location?.search || '');
+    if (isVsCodeHostUrl(href) || /[?&]extensionVariant=vs-code(?:[&#]|$)/i.test(search)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function isForceTopbarOverlay(bridge = readInjectedWindowBridge()) {
+  return bridge?.forceTopbarMode === true;
+}
+
+function resolveClientEffectiveOverlayMountMode(
+  settings,
+  bridge = readInjectedWindowBridge()
+) {
+  if (isForceTopbarOverlay(bridge)) {
+    return 'dual';
+  }
+  if (isVsCodeExtensionHost(bridge)) {
+    if (settings && settings.vsCodeMountMode !== undefined) {
+      return normalizeVsCodeMountMode(settings.vsCodeMountMode);
+    }
+    if (bridge?.mountMode !== undefined) {
+      return normalizeVsCodeMountMode(bridge.mountMode);
+    }
+    return 'composer';
+  }
+  const rawMode = settings?.windowMountMode ?? bridge?.mountMode;
+  return normalizeWindowMountMode(rawMode, settings?.enableWindowOverlay);
+}
+return { WINDOW_BRIDGE_KEY, WINDOW_BRIDGE_ROUTE_KEY, WINDOW_BRIDGE_ENDPOINT_KEY, WINDOW_BRIDGE_ENDPOINT_HEADER, BRIDGE_ROUTE_PING_PATH, LOCAL_ENDPOINT_ID, WINDOW_OVERLAY_KEY, CONTEXT_WINDOWS_GLOBAL_KEY, WINDOW_OVERLAY_METHODS, BRIDGE_API_ROUTE_DEFS, BRIDGE_API_PATHS, readInjectedWindowBridge, isVsCodeHostUrl, detectVsCodeVariantFromUrl, isVsCodeExtensionHost, isForceTopbarOverlay, resolveClientEffectiveOverlayMountMode };
 })();
 
 // --- shared/host-i18n-protocol.mjs ---
@@ -1203,6 +1827,12 @@ function buildHostThemeFallbackCss(snapshot) {
       else if (key === '--font-mono') decls.push(`--host-font-mono:${val}`);
       hasVarDecl = true;
     }
+  }
+  if (!norm.vars['--font-sans'] && norm.vars['--font-family']) {
+    decls.push(`--host-font-sans:${norm.vars['--font-family']}`);
+  }
+  if (!norm.vars['--font-mono'] && norm.vars['--editor-font-family']) {
+    decls.push(`--host-font-mono:${norm.vars['--editor-font-family']}`);
   }
   if (!hasVarDecl) return '';
   return `:root{${decls.join(';')}}`;
@@ -1381,6 +2011,11 @@ const SVG_ICON_DEFS = Object.freeze({
   shield: [
     { tag: 'path', attrs: { d: 'M8 2L3 4v3.8c0 3.1 2.1 5.3 5 6.2 2.9-.9 5-3.1 5-6.2V4L8 2z' } },
     { tag: 'path', attrs: { d: 'M6 8l1.4 1.4L10.3 6.5' } },
+  ],
+  database: [
+    { tag: 'ellipse', attrs: { cx: '8', cy: '4', rx: '5', ry: '1.8' } },
+    { tag: 'path', attrs: { d: 'M3 4v8c0 1 2.24 1.8 5 1.8s5-.8 5-1.8V4' } },
+    { tag: 'path', attrs: { d: 'M3 8c0 1 2.24 1.8 5 1.8s5-.8 5-1.8' } },
   ],
 });
 return { SVG_ICON_DEFS };
@@ -1751,9 +2386,33 @@ const I18N_MESSAGES_ZH_CN = Object.freeze({
   'quota.remainingAndReset': '{reset} · 剩余 {remaining}%',
   'quota.reservedTip': '预占估算（试验性）：约 {rsv}%（实际已用约 {actual}%），静默约 10 分钟后未用差额自动退还',
   'quota.reservedTipMulti': '预占估算（试验性）：约 {rsv}%（检测到 {leases} 笔叠加租约，实际已用约 {actual}%），静默约 10 分钟后未用差额自动退还',
+  'quota.externalTip': '本机自用约 {self}% · 非自用（家庭组 / 其他设备）约 {ext}%',
+  'quota.externalReservedTip': '本机自用约 {self}% · 非自用约 {ext}% · 预占约 {rsv}%（静默约 10 分钟后未用差额自动退还）',
+  'quota.externalReservedTipMulti': '本机自用约 {self}% · 非自用约 {ext}% · 预占约 {rsv}%（{leases} 笔叠加租约，静默约 10 分钟后未用差额自动退还）',
   'quota.legendActual': '实占',
   'quota.legendRemaining': '剩余',
+  'quota.legendExternal': '非自用',
   'quota.legendReserved': '预占',
+  'quota.safetyReviewTipSuffix': '含后台安全审查约 {pct}%',
+  'safety.cardTitle': '后台安全审查',
+  'safety.alert429Badge': '429 降级',
+  'safety.alertBurstBadge': '重型突发',
+  'safety.alertLimitBadge': '逼近水位',
+  'safety.alert429Advice': '检测到预检 429 触发降级重型复审，建议暂缓高频并发工具调用或新开会话缩短轨迹。',
+  'safety.alertBurstAdvice': '近 15 分钟频繁触发大轨迹重型复审，建议新开会话缩短上下文以减少额度损耗。',
+  'safety.alertLimitAdvice': '5 小时内预检次数正逼近 4,400 水位，建议适当降低并发以避免触发 429 降级复审。',
+  'safety.win5h': '5h',
+  'safety.win24h': '24h',
+  'safety.metricHiddenRatio': '隐藏请求占比',
+  'safety.metricCallsSplit': '预检 / 重型复审',
+  'safety.metricFlashLite': '一级预检 (Flash Lite)',
+  'safety.metricHeavy': '二级重型复审 (Sonar)',
+  'safety.metric429Fallback': '429 / 降级复审',
+  'safety.metricEstTokens': '重型输入估算',
+  'safety.falseAlarmSuffix': '误报 {pct}%',
+  'safety.charsUnit': '字符',
+  'safety.disclaimer': '次数、占比、字符量与阻塞时长为本地日志实测（未计入对话账本）；Token 区间按重型轨迹字符/4–字符/3 估算，不含审查系统提示词与缓存折扣。',
+  'safety.emptyWindow': '当前时间窗口内暂未观测到后台安全审查日志记录。',
   'quota.cycle5hTitle': '当前 5h 周期累计 ({pool})：{tok} Tokens · {cost} · {calls} 次调用',
   'quota.cycleWkCustomTitle': '本周自然周累计：{tok} Tokens · {cost} · {calls} 次调用',
   'quota.cycleWkPoolTitle': '当前周限周期累计 ({pool})：{tok} Tokens · {cost} · {calls} 次调用',
@@ -1799,6 +2458,10 @@ const I18N_MESSAGES_ZH_CN = Object.freeze({
   'live.swarmToggleIdle': '蜂群 ({total})',
   'live.subCollapseTitle': '点击收起子代理列表',
   'live.subExpandTitle': '点击展开查看子代理缩略状态',
+  'live.stepsProgress': '步骤 {done}/{total}',
+  'live.stepsExpandTitle': '点击展开查看任务步骤清单',
+  'live.stepsCollapseTitle': '点击收起任务步骤清单',
+  'live.stepsAllDone': '全部步骤已完成',
 
   'cons.rangeCycle': '周期',
   'cons.cyclePoolAll': '全部池',
@@ -2090,6 +2753,13 @@ const I18N_MESSAGES_ZH_CN = Object.freeze({
   'settings.smgr.clearSelShort': '清空',
   'settings.smgr.selectedCount': '已选 {n} 条',
   'settings.smgr.deleteSelected': '删除已选 ({n})',
+  'settings.smgr.totalSizeTitle': '共占用本地存储 {size}',
+  'settings.smgr.filteredSizeTitle': '当前筛选占用 {filtered} / 全部共 {total}',
+  'settings.smgr.selectedSizeTitle': '已选会话共占用 {size}',
+  'settings.smgr.sizeTooltipTotal': '占用存储：{size}',
+  'settings.smgr.sizePartDb': '对话库 {size}',
+  'settings.smgr.sizePartBrain': '产物与附件 {size}',
+  'settings.smgr.sizePartSubagents': '含子代理 {size}',
   'settings.smgr.prefsTitle': '清理偏好',
   'settings.smgr.prefRedactLedger': '删除时同步脱敏本插件账本',
   'settings.smgr.prefRedactLedgerDesc': '在线清除账本中已删会话的标题与提问正文，100% 保留 Token 与费用统计。',
@@ -2109,6 +2779,7 @@ const I18N_MESSAGES_ZH_CN = Object.freeze({
   'settings.smgr.deleteIndexOnlyOnlineTip': '客户端运行中无法清理仅索引残留，请退出该客户端后深度清理',
   'settings.smgr.confirmTitle': '确认永久删除',
   'settings.smgr.confirmSummary': '即将永久删除 {n} 条会话（不可撤销）。',
+  'settings.smgr.confirmReclaimSize': '预计释放本地存储空间：约 {size}。',
   'settings.smgr.confirmOnlineMode': '将通过运行中客户端的官方接口在线删除 {n} 条会话（无需退出客户端）。',
   'settings.smgr.confirmOnlineMixed': '其中 {online} 条通过运行中客户端官方接口在线删除，{offline} 条走离线深度清理。',
   'settings.smgr.confirmTargets': '目标会话：{titles}',
@@ -2186,6 +2857,7 @@ const I18N_MESSAGES_ZH_CN = Object.freeze({
   'settings.account.refresh6h': '6 小时',
   'settings.account.refresh12h': '12 小时',
   'settings.account.refresh24h': '24 小时',
+  'settings.account.refreshOff': '关闭',
   'settings.account.emptyCredentialQuota': '这个账号暂无可显示的额度池。',
   'settings.account.quota': '额度池剩余',
   'settings.account.quota5h': '5 小时 {percent}%',
@@ -2261,13 +2933,6 @@ const I18N_MESSAGES_ZH_CN = Object.freeze({
 
   'settings.gen.appearanceTitle': '界面与外观',
   'settings.gen.language': '界面语言',
-  'settings.gen.langZh': '简体中文',
-  'settings.gen.langZhTw': '繁體中文',
-  'settings.gen.langEn': 'English',
-  'settings.gen.langJa': '日本語',
-  'settings.gen.langKo': '한국어',
-  'settings.gen.langDe': 'Deutsch',
-  'settings.gen.langFr': 'Français',
   'settings.gen.langAuto': '跟随系统',
   'settings.gen.currencyLabel': '参考货币',
   'settings.gen.currencyAuto': '跟随界面语言（{code} {symbol}）',
@@ -2374,6 +3039,8 @@ const I18N_MESSAGES_ZH_CN = Object.freeze({
   'settings.str.mountDual': '双栖挂载 (顶部栏 + 侧边栏)',
   'settings.str.mountComposer': '输入框挂载 (输入框 + 侧边栏)',
   'settings.str.mountSidebar': '仅侧边栏',
+  'settings.str.mountVsCodeComposer': '输入框',
+  'settings.str.mountVsCodeTopbar': '顶部栏',
   'settings.bridge.restartTitle': '已自动补齐启动参数，重启一次即可启用悬浮胶囊',
   'settings.bridge.ctxRestartTitle': '已自动补齐启动参数，重启一次即可激活上下文覆写',
   'settings.bridge.restartBody': '已自动为快捷方式、自启项及协议关联写入 --remote-debugging-port=0（后续通过常规快捷方式打开均自动生效）。点击下方按钮即可退出后台进程并立即生效。',
@@ -2406,7 +3073,7 @@ const I18N_MESSAGES_ZH_CN = Object.freeze({
   'settings.str.popoverWidthAuto': '自适应',
   'settings.str.popoverWidthCustom': '指定宽度',
   'settings.str.popoverWidthHint': '自适应模式下在调用明细等宽表格视图自动撑宽免水平滚动；指定宽度范围 440~1080 px',
-  'settings.str.multiToggle': '实时运行会话入口',
+  'settings.str.multiToggle': '实时运行会话',
   'settings.str.contextAgentModeLabel': '胶囊及悬浮上下文',
   'settings.str.contextAgentMain': '锁定主代理',
   'settings.str.contextAgentAuto': '跟随活跃',
@@ -2424,6 +3091,7 @@ const I18N_MESSAGES_ZH_CN = Object.freeze({
   'settings.str.cliRestoringBtn': '正在写入...',
   'settings.str.cliPreviewRunning': '{count} 运行中',
   'settings.str.show': '显示',
+  'settings.str.runningOnly': '仅运行',
   'settings.str.hide': '隐藏',
   'settings.str.on': '开启',
   'settings.str.off': '关闭',
@@ -2439,13 +3107,26 @@ const I18N_MESSAGES_ZH_CN = Object.freeze({
   'settings.str.hoverModulesLabel': '悬浮窗展示模块',
   'settings.str.hoverEmptyHint': '已关闭悬浮速览窗（点击胶囊仍可展开完整面板）',
   'settings.str.addHoverModule': '添加模块 ({count}/{max})',
-  'settings.str.hoverMetricStyleLabel': '实时指标尺寸',
-  'settings.str.hoverMetricStyleMedium': '中 · 紧凑数值',
-  'settings.str.hoverMetricStyleLarge': '大 · 趋势折线',
+  'settings.str.metricHeightLabel': '指标区高度',
+  'settings.str.metricRows1': '一层',
+  'settings.str.metricRows2': '两层',
+  'settings.str.metricTextModeLabel': '卡片信息',
+  'settings.str.metricTextBoth': '都有',
+  'settings.str.metricTextTitle': '仅标题',
+  'settings.str.metricTextSub': '仅副标',
+  'settings.str.metricTextNone': '仅数值',
+  'settings.str.metricSizeSm': '小',
+  'settings.str.metricSizeThird': '中',
+  'settings.str.metricSizeWide': '宽',
+  'settings.str.metricSizeNarrow': '竖',
+  'settings.str.metricSizeTall': '大',
+  'settings.str.metricResizeHandleAria': '调整指标卡片尺寸（小 / 中 / 宽 / 竖 / 大）',
+  'settings.str.metricResizeHandleHint': '拖动切换 小 / 中 / 宽 / 竖 / 大 占格，点击快速循环切换',
+  'settings.str.metricSizePillHint': '点击切换卡片尺寸（小 1×1 / 中 1/3 / 宽 2×1 / 竖 1×2 / 大 2×2）',
   'settings.str.hoverSyncOverviewLabel': '与实时监控同步',
   'settings.str.hoverMetricsLabel': '实时指标',
   'settings.str.hoverMetricsInactiveHint': '当前悬浮窗已移出「实时指标」模块，重新添加模块后即生效',
-  'settings.str.metricOverflowTag': '大尺寸隐藏',
+  'settings.str.metricOverflowTag': '超出网格',
   'settings.str.overviewSection': '实时监控布局',
   'settings.str.overviewBadge': '{modCount} 模块 · {metCount} 指标',
   'settings.str.overviewModulesLabel': '监控模块',
@@ -2487,6 +3168,8 @@ const I18N_MESSAGES_ZH_CN = Object.freeze({
   'settings.oth.autoLaunchDesc': '自动为 Antigravity Desktop 与 IDE 维护调试端口参数',
   'settings.oth.remoteSshLabel': 'IDE Remote-SSH 远端遥测',
   'settings.oth.remoteSshDesc': '自动识别 IDE Remote-SSH 窗口',
+  'settings.oth.safetyMonitorLabel': '后台安全审查监测',
+  'settings.oth.safetyMonitorDesc': '只读扫描本机日志中的后台安全审查请求，在用量统计页展示统计与异常提醒',
   'settings.oth.macWrapperLabel': 'macOS 受管启动器 (.app)',
   'settings.oth.macWrapperDesc': '当前已在 ~/Applications 下创建带参启动器，可在此随时一键清理',
   'settings.oth.macRemoveWrapperBtn': '移除 macOS 启动器',
@@ -2608,7 +3291,10 @@ const I18N_MESSAGES_ZH_CN = Object.freeze({
   'live.act.read_board': '读取看板',
   'live.act.swarm_wait': '看板待命',
   'live.act.manage_task': '后台任务',
+  'live.act.background_task': '后台任务',
   'live.act.schedule': '定时任务',
+  'live.act.update_steps': '更新进度',
+  'live.act.update_focus': '更新状态',
   'live.act.ask_question': '等待用户选择',
   'live.act.search_marketplace': '查询插件',
   'live.act.generate_image': '生成图片',
@@ -3012,9 +3698,33 @@ const I18N_MESSAGES_ZH_TW = Object.freeze({
   "quota.remainingAndReset": "{reset} · 剩餘 {remaining}%",
   "quota.reservedTip": "預佔估算（實驗性）：約 {rsv}%（實際已用約 {actual}%），閒置約 10 分鐘後未用差額自動退還",
   "quota.reservedTipMulti": "預佔估算（實驗性）：約 {rsv}%（偵測到 {leases} 筆疊加租約，實際已用約 {actual}%），閒置約 10 分鐘後未用差額自動退還",
+  "quota.externalTip": "本機自用約 {self}% · 非自用（家庭群組 / 其他裝置）約 {ext}%",
+  "quota.externalReservedTip": "本機自用約 {self}% · 非自用約 {ext}% · 預佔約 {rsv}%（閒置約 10 分鐘後未用差額自動退還）",
+  "quota.externalReservedTipMulti": "本機自用約 {self}% · 非自用約 {ext}% · 預佔約 {rsv}%（{leases} 筆疊加租約，閒置約 10 分鐘後未用差額自動退還）",
   "quota.legendActual": "實佔",
   "quota.legendRemaining": "剩餘",
+  "quota.legendExternal": "非自用",
   "quota.legendReserved": "預佔",
+  "quota.safetyReviewTipSuffix": "含背景安全審查約 {pct}%",
+  "safety.cardTitle": "背景安全審查",
+  "safety.alert429Badge": "429 降級",
+  "safety.alertBurstBadge": "重型突發",
+  "safety.alertLimitBadge": "逼近水位",
+  "safety.alert429Advice": "偵測到預檢 429 觸發降級重型複審，建議暫緩高頻並發工具呼叫或另開新對話縮短軌跡。",
+  "safety.alertBurstAdvice": "近 15 分鐘頻繁觸發大軌跡重型複審，建議另開新對話縮短上下文以降低額度耗損。",
+  "safety.alertLimitAdvice": "5 小時內預檢次數逼近 4,400 水位，建議降低並發以避免觸發 429 降級複審。",
+  "safety.win5h": "5h",
+  "safety.win24h": "24h",
+  "safety.metricHiddenRatio": "隱藏請求佔比",
+  "safety.metricCallsSplit": "預檢 / 重型複審",
+  "safety.metricFlashLite": "一級預檢 (Flash Lite)",
+  "safety.metricHeavy": "二級重型複審 (Sonar)",
+  "safety.metric429Fallback": "429 / 降級複審",
+  "safety.metricEstTokens": "重型輸入估算",
+  "safety.falseAlarmSuffix": "誤報 {pct}%",
+  "safety.charsUnit": "字元",
+  "safety.disclaimer": "次數、佔比、字元量與阻塞時長為本機日誌實測（未計入可見對話帳本）；Token 區間依重型軌跡字元/4–字元/3 估算，不含審查系統提示詞與快取折扣。",
+  "safety.emptyWindow": "目前時間區間內尚未觀測到背景安全審查日誌紀錄。",
   "quota.cycle5hTitle": "目前 5h 週期累計 ({pool})：{tok} Tokens · {cost} · {calls} 次呼叫",
   "quota.cycleWkCustomTitle": "本自然週累計：{tok} Tokens · {cost} · {calls} 次呼叫",
   "quota.cycleWkPoolTitle": "目前週限週期累計 ({pool})：{tok} Tokens · {cost} · {calls} 次呼叫",
@@ -3059,6 +3769,10 @@ const I18N_MESSAGES_ZH_TW = Object.freeze({
   "live.swarmToggleIdle": "蜂群 ({total})",
   "live.subCollapseTitle": "點擊收合子代理清單",
   "live.subExpandTitle": "點擊展開檢視子代理狀態摘要",
+  "live.stepsProgress": "步驟 {done}/{total}",
+  "live.stepsExpandTitle": "點擊展開檢視任務步驟清單",
+  "live.stepsCollapseTitle": "點擊收合任務步驟清單",
+  "live.stepsAllDone": "全部步驟已完成",
   "cons.rangeCycle": "週期",
   "cons.cyclePoolAll": "全部池",
   "cons.cyclePoolAllShort": "全部",
@@ -3343,6 +4057,13 @@ const I18N_MESSAGES_ZH_TW = Object.freeze({
   "settings.smgr.clearSelShort": "清除",
   "settings.smgr.selectedCount": "已選 {n} 筆",
   "settings.smgr.deleteSelected": "刪除已選 ({n})",
+  "settings.smgr.totalSizeTitle": "共佔用本機儲存空間 {size}",
+  "settings.smgr.filteredSizeTitle": "目前篩選佔用 {filtered} / 全部共 {total}",
+  "settings.smgr.selectedSizeTitle": "已選工作階段共佔用 {size}",
+  "settings.smgr.sizeTooltipTotal": "佔用儲存空間：{size}",
+  "settings.smgr.sizePartDb": "對話資料庫 {size}",
+  "settings.smgr.sizePartBrain": "產物與附件 {size}",
+  "settings.smgr.sizePartSubagents": "含子代理 {size}",
   "settings.smgr.prefsTitle": "清理偏好設定",
   "settings.smgr.prefRedactLedger": "刪除時同步遮罩本外掛帳本",
   "settings.smgr.prefRedactLedgerDesc": "即時清除帳本中已刪工作階段的標題與提問內容，100% 保留 Token 與費用統計。",
@@ -3362,6 +4083,7 @@ const I18N_MESSAGES_ZH_TW = Object.freeze({
   "settings.smgr.deleteIndexOnlyOnlineTip": "用戶端執行中無法清理僅索引殘留，請先關閉該用戶端再進行離線深度清理",
   "settings.smgr.confirmTitle": "確認永久刪除",
   "settings.smgr.confirmSummary": "即將永久刪除 {n} 筆工作階段，此操作無法復原。",
+  "settings.smgr.confirmReclaimSize": "預計釋放本機儲存空間：約 {size}。",
   "settings.smgr.confirmOnlineMode": "將透過執行中用戶端的官方 API 線上刪除 {n} 筆工作階段（無須重啟用戶端）。",
   "settings.smgr.confirmOnlineMixed": "其中 {online} 筆將透過執行中用戶端官方 API 線上刪除，{offline} 筆將以離線深度清理處理。",
   "settings.smgr.confirmTargets": "目標工作階段：{titles}",
@@ -3439,6 +4161,7 @@ const I18N_MESSAGES_ZH_TW = Object.freeze({
   "settings.account.refresh6h": "6 小時",
   "settings.account.refresh12h": "12 小時",
   "settings.account.refresh24h": "24 小時",
+  "settings.account.refreshOff": "關閉",
   "settings.account.emptyCredentialQuota": "這個帳號尚無可顯示的額度池。",
   "settings.account.quota": "額度池剩餘",
   "settings.account.quota5h": "5 小時 {percent}%",
@@ -3514,13 +4237,6 @@ const I18N_MESSAGES_ZH_TW = Object.freeze({
   "settings.resetBtn": "恢復預設",
   "settings.gen.appearanceTitle": "介面與外觀",
   "settings.gen.language": "介面語言",
-  "settings.gen.langZh": "简体中文",
-  "settings.gen.langZhTw": "繁體中文",
-  "settings.gen.langEn": "English",
-  "settings.gen.langJa": "日本語",
-  "settings.gen.langKo": "한국어",
-  "settings.gen.langDe": "Deutsch",
-  "settings.gen.langFr": "Français",
   "settings.gen.langAuto": "跟隨系統",
   "settings.gen.currencyLabel": "參考貨幣",
   "settings.gen.currencyAuto": "跟隨介面語言（{code} {symbol}）",
@@ -3625,6 +4341,8 @@ const I18N_MESSAGES_ZH_TW = Object.freeze({
   "settings.str.mountDual": "雙重掛載 (標題列 + 側邊欄)",
   "settings.str.mountComposer": "輸入框掛載 (輸入框 + 側邊欄)",
   "settings.str.mountSidebar": "僅側邊欄",
+  "settings.str.mountVsCodeComposer": "輸入框",
+  "settings.str.mountVsCodeTopbar": "頂部列",
   "settings.bridge.restartTitle": "已自動補齊啟動參數，重新啟動一次即可啟用懸浮膠囊",
   "settings.bridge.ctxRestartTitle": "已自動補齊啟動參數，重新啟動一次即可啟用上下文覆寫",
   "settings.bridge.restartBody": "已自動為捷徑、開機自啟項目及通訊協定關聯寫入 --remote-debugging-port=0（後續透過一般捷徑開啟皆會自動生效）。點擊下方按鈕即可關閉背景處理程序並立即重新啟動。",
@@ -3657,7 +4375,7 @@ const I18N_MESSAGES_ZH_TW = Object.freeze({
   "settings.str.popoverWidthAuto": "自動調整",
   "settings.str.popoverWidthCustom": "自訂寬度",
   "settings.str.popoverWidthHint": "自動調整模式下會在呼叫明細等寬表格檢視時自動加寬以避免水平捲動；自訂寬度範圍為 440–1080 px",
-  "settings.str.multiToggle": "執行中工作階段入口",
+  "settings.str.multiToggle": "即時執行工作階段",
   "settings.str.contextAgentModeLabel": "膠囊與懸浮上下文",
   "settings.str.contextAgentMain": "鎖定主代理",
   "settings.str.contextAgentAuto": "跟隨目前活躍",
@@ -3675,6 +4393,7 @@ const I18N_MESSAGES_ZH_TW = Object.freeze({
   "settings.str.cliRestoringBtn": "套用中...",
   "settings.str.cliPreviewRunning": "{count} 執行中",
   "settings.str.show": "顯示",
+  "settings.str.runningOnly": "僅執行",
   "settings.str.hide": "隱藏",
   "settings.str.on": "開啟",
   "settings.str.off": "關閉",
@@ -3690,13 +4409,26 @@ const I18N_MESSAGES_ZH_TW = Object.freeze({
   "settings.str.hoverModulesLabel": "懸浮窗顯示模組",
   "settings.str.hoverEmptyHint": "已關閉懸浮速覽（點擊膠囊仍可開啟完整面板）",
   "settings.str.addHoverModule": "新增模組 ({count}/{max})",
-  "settings.str.hoverMetricStyleLabel": "即時指標尺寸",
-  "settings.str.hoverMetricStyleMedium": "中 · 精簡數值",
-  "settings.str.hoverMetricStyleLarge": "大 · 趨勢折線",
+  "settings.str.metricHeightLabel": "指標區高度",
+  "settings.str.metricRows1": "一層",
+  "settings.str.metricRows2": "兩層",
+  "settings.str.metricTextModeLabel": "卡片資訊",
+  "settings.str.metricTextBoth": "都有",
+  "settings.str.metricTextTitle": "僅標題",
+  "settings.str.metricTextSub": "僅副標",
+  "settings.str.metricTextNone": "僅數值",
+  "settings.str.metricSizeSm": "小",
+  "settings.str.metricSizeThird": "中",
+  "settings.str.metricSizeWide": "寬",
+  "settings.str.metricSizeNarrow": "豎",
+  "settings.str.metricSizeTall": "大",
+  "settings.str.metricResizeHandleAria": "調整指標卡片尺寸（小 / 中 / 寬 / 豎 / 大）",
+  "settings.str.metricResizeHandleHint": "拖曳切換 小 / 中 / 寬 / 豎 / 大 占格，點擊快速循環切換",
+  "settings.str.metricSizePillHint": "點擊切換卡片尺寸（小 1×1 / 中 1/3 / 寬 2×1 / 豎 1×2 / 大 2×2）",
   "settings.str.hoverSyncOverviewLabel": "與即時監控同步",
   "settings.str.hoverMetricsLabel": "即時指標",
   "settings.str.hoverMetricsInactiveHint": "目前懸浮窗已隱藏「即時指標」模組，於下方重新新增模組後即可顯示",
-  "settings.str.metricOverflowTag": "大尺寸隱藏",
+  "settings.str.metricOverflowTag": "超出網格",
   "settings.str.overviewSection": "即時監控版面",
   "settings.str.overviewBadge": "{modCount} 模組 · {metCount} 指標",
   "settings.str.overviewModulesLabel": "監控模組",
@@ -3737,6 +4469,8 @@ const I18N_MESSAGES_ZH_TW = Object.freeze({
   "settings.oth.autoLaunchDesc": "自動為 Antigravity Desktop 與 IDE 維護偵錯連接埠參數",
   "settings.oth.remoteSshLabel": "IDE Remote-SSH 遠端遙測",
   "settings.oth.remoteSshDesc": "自動辨識 IDE Remote-SSH 視窗",
+  "settings.oth.safetyMonitorLabel": "背景安全審查監測",
+  "settings.oth.safetyMonitorDesc": "唯讀掃描本機日誌中的背景安全審查請求，於用量統計頁顯示統計與異常提醒",
   "settings.oth.macWrapperLabel": "macOS 受管啟動器 (.app)",
   "settings.oth.macWrapperDesc": "目前已於 ~/Applications 下安裝受管偵錯連接埠啟動器，可隨時在此一鍵移除",
   "settings.oth.macRemoveWrapperBtn": "移除 macOS 啟動器",
@@ -3857,7 +4591,10 @@ const I18N_MESSAGES_ZH_TW = Object.freeze({
   "live.act.read_board": "讀取看板",
   "live.act.swarm_wait": "看板待命",
   "live.act.manage_task": "管理任務",
+  "live.act.background_task": "背景任務",
   "live.act.schedule": "排程任務",
+  "live.act.update_steps": "更新進度",
+  "live.act.update_focus": "更新狀態",
   "live.act.ask_question": "等待使用者選擇",
   "live.act.search_marketplace": "搜尋外掛程式",
   "live.act.generate_image": "生成圖片",
@@ -4268,9 +5005,33 @@ const I18N_MESSAGES_EN_US = Object.freeze({
   'quota.remainingAndReset': '{reset} · {remaining}% left',
   'quota.reservedTip': 'Estimated lease reservation (Experimental): ~{rsv}% (~{actual}% actual used); unused share refunds after ~10 min idle',
   'quota.reservedTipMulti': 'Estimated lease reservation (Experimental): ~{rsv}% ({leases} stacked leases, ~{actual}% actual used); unused share refunds after ~10 min idle',
+  'quota.externalTip': 'Local self ~{self}% · Non-self (family / other device) ~{ext}%',
+  'quota.externalReservedTip': 'Local self ~{self}% · Non-self ~{ext}% · Reserved ~{rsv}% (unused share refunds after ~10 min idle)',
+  'quota.externalReservedTipMulti': 'Local self ~{self}% · Non-self ~{ext}% · Reserved ~{rsv}% ({leases} stacked leases, unused share refunds after ~10 min idle)',
   'quota.legendActual': 'Actual',
   'quota.legendRemaining': 'Remaining',
+  'quota.legendExternal': 'Non-self',
   'quota.legendReserved': 'Reserved',
+  'quota.safetyReviewTipSuffix': 'incl. ~{pct}% safety reviews',
+  'safety.cardTitle': 'Background Safety Reviews',
+  'safety.alert429Badge': '429 Fallback',
+  'safety.alertBurstBadge': 'Heavy Burst',
+  'safety.alertLimitBadge': 'Near 5h Cap',
+  'safety.alert429Advice': 'Flash Lite 429 triggered heavy fallback reviews. Slow down concurrent tool calls or start a fresh conversation.',
+  'safety.alertBurstAdvice': 'Frequent large-trajectory heavy reviews in the last 15m. Start a fresh conversation to shorten context.',
+  'safety.alertLimitAdvice': '5h Flash Lite pre-checks are approaching the ~4,400 ceiling. Lower concurrency to avoid 429 fallback.',
+  'safety.win5h': '5h',
+  'safety.win24h': '24h',
+  'safety.metricHiddenRatio': 'Hidden Call Share',
+  'safety.metricCallsSplit': 'Pre-check / Heavy',
+  'safety.metricFlashLite': 'Pre-check (Flash Lite)',
+  'safety.metricHeavy': 'Heavy Review (Sonar)',
+  'safety.metric429Fallback': '429 / Fallbacks',
+  'safety.metricEstTokens': 'Est. Heavy Input',
+  'safety.falseAlarmSuffix': '{pct}% false',
+  'safety.charsUnit': 'chars',
+  'safety.disclaimer': 'Counts, share, chars, and blocked time are exact local log observations (excluded from visible ledger); token range is estimated as chars/4–chars/3 excluding monitor prompts and cache discounts.',
+  'safety.emptyWindow': 'No background safety review log entries observed in this window.',
   'quota.cycle5hTitle': 'Current 5h cycle ({pool}): {tok} Tokens · {cost} · {calls} calls',
   'quota.cycleWkCustomTitle': 'Current calendar week: {tok} Tokens · {cost} · {calls} calls',
   'quota.cycleWkPoolTitle': 'Current weekly cycle ({pool}): {tok} Tokens · {cost} · {calls} calls',
@@ -4316,6 +5077,10 @@ const I18N_MESSAGES_EN_US = Object.freeze({
   'live.swarmToggleIdle': 'Swarm ({total})',
   'live.subCollapseTitle': 'Collapse subagent list',
   'live.subExpandTitle': 'Expand subagent activity list',
+  'live.stepsProgress': 'Steps {done}/{total}',
+  'live.stepsExpandTitle': 'Expand task steps checklist',
+  'live.stepsCollapseTitle': 'Collapse task steps checklist',
+  'live.stepsAllDone': 'All steps completed',
 
   'cons.rangeCycle': 'Cycle',
   'cons.cyclePoolAll': 'All Pools',
@@ -4606,6 +5371,13 @@ const I18N_MESSAGES_EN_US = Object.freeze({
   'settings.smgr.clearSelShort': 'Clear',
   'settings.smgr.selectedCount': '{n} selected',
   'settings.smgr.deleteSelected': 'Delete ({n})',
+  'settings.smgr.totalSizeTitle': 'Total local storage used: {size}',
+  'settings.smgr.filteredSizeTitle': 'Matching filter: {filtered} / All sessions: {total}',
+  'settings.smgr.selectedSizeTitle': 'Selected sessions occupy {size}',
+  'settings.smgr.sizeTooltipTotal': 'Storage used: {size}',
+  'settings.smgr.sizePartDb': 'DB {size}',
+  'settings.smgr.sizePartBrain': 'Artifacts & media {size}',
+  'settings.smgr.sizePartSubagents': 'incl. subagents {size}',
   'settings.smgr.prefsTitle': 'Cleanup Preferences',
   'settings.smgr.prefRedactLedger': 'Redact plugin ledger on delete',
   'settings.smgr.prefRedactLedgerDesc': 'Scrubs deleted session titles and user prompts live while keeping 100% of token & cost totals.',
@@ -4625,6 +5397,7 @@ const I18N_MESSAGES_EN_US = Object.freeze({
   'settings.smgr.deleteIndexOnlyOnlineTip': 'Index-only residuals cannot be removed while the client is running; close it for offline cleanup',
   'settings.smgr.confirmTitle': 'Confirm Permanent Deletion',
   'settings.smgr.confirmSummary': 'Permanently delete {n} session(s). This action cannot be undone.',
+  'settings.smgr.confirmReclaimSize': 'Estimated storage to free: ~{size}.',
   'settings.smgr.confirmOnlineMode': '{n} session(s) will be deleted online via the running client API (no restart needed).',
   'settings.smgr.confirmOnlineMixed': '{online} session(s) will be deleted online via the running client API and {offline} via offline deep cleanup.',
   'settings.smgr.confirmTargets': 'Target(s): {titles}',
@@ -4702,6 +5475,7 @@ const I18N_MESSAGES_EN_US = Object.freeze({
   'settings.account.refresh6h': '6 hr',
   'settings.account.refresh12h': '12 hr',
   'settings.account.refresh24h': '24 hr',
+  'settings.account.refreshOff': 'Off',
   'settings.account.emptyCredentialQuota': 'There are no quota pools to display for this account.',
   'settings.account.quota': 'Quota remaining by pool',
   'settings.account.quota5h': '5 hours {percent}%',
@@ -4778,13 +5552,6 @@ const I18N_MESSAGES_EN_US = Object.freeze({
 
   'settings.gen.appearanceTitle': 'Interface & Appearance',
   'settings.gen.language': 'Language',
-  'settings.gen.langZh': '简体中文',
-  'settings.gen.langZhTw': '繁體中文',
-  'settings.gen.langEn': 'English',
-  'settings.gen.langJa': '日本語',
-  'settings.gen.langKo': '한국어',
-  'settings.gen.langDe': 'Deutsch',
-  'settings.gen.langFr': 'Français',
   'settings.gen.langAuto': 'Follow System',
   'settings.gen.currencyLabel': 'Display Currency',
   'settings.gen.currencyAuto': 'Follow UI Language ({code} {symbol})',
@@ -4891,6 +5658,8 @@ const I18N_MESSAGES_EN_US = Object.freeze({
   'settings.str.mountDual': 'Dual Mount (Titlebar + Sidebar)',
   'settings.str.mountComposer': 'Composer Mount (Input Box + Sidebar)',
   'settings.str.mountSidebar': 'Sidebar Only',
+  'settings.str.mountVsCodeComposer': 'Input Box',
+  'settings.str.mountVsCodeTopbar': 'Top Bar',
   'settings.bridge.restartTitle': 'Launch Flag Auto-Configured — Restart Once to Activate',
   'settings.bridge.ctxRestartTitle': 'Launch Flag Auto-Configured — Restart Once for Context Override',
   'settings.bridge.restartBody': 'Automatically added --remote-debugging-port=0 to your shortcuts, startup entries, and protocol handlers (subsequent shortcut launches mount automatically). Click below to close background processes and relaunch now.',
@@ -4923,7 +5692,7 @@ const I18N_MESSAGES_EN_US = Object.freeze({
   'settings.str.popoverWidthAuto': 'Auto Fit',
   'settings.str.popoverWidthCustom': 'Custom',
   'settings.str.popoverWidthHint': 'Auto Fit widens wide tables like Step Records to avoid horizontal scroll; Custom accepts 440–1080 px',
-  'settings.str.multiToggle': 'Active Sessions Pill',
+  'settings.str.multiToggle': 'Running sessions',
   'settings.str.contextAgentModeLabel': 'Capsule & Hover Context',
   'settings.str.contextAgentMain': 'Lock Main Agent',
   'settings.str.contextAgentAuto': 'Follow Active',
@@ -4941,6 +5710,7 @@ const I18N_MESSAGES_EN_US = Object.freeze({
   'settings.str.cliRestoringBtn': 'Applying...',
   'settings.str.cliPreviewRunning': '{count} active',
   'settings.str.show': 'Show',
+  'settings.str.runningOnly': 'Running only',
   'settings.str.hide': 'Hide',
   'settings.str.on': 'On',
   'settings.str.off': 'Off',
@@ -4956,13 +5726,26 @@ const I18N_MESSAGES_EN_US = Object.freeze({
   'settings.str.hoverModulesLabel': 'Hover Popup Modules',
   'settings.str.hoverEmptyHint': 'Hover quick-view disabled (click capsule to open full panel)',
   'settings.str.addHoverModule': 'Add Module ({count}/{max})',
-  'settings.str.hoverMetricStyleLabel': 'Live Metrics Size',
-  'settings.str.hoverMetricStyleMedium': 'Medium · Compact',
-  'settings.str.hoverMetricStyleLarge': 'Large · Sparkline',
+  'settings.str.metricHeightLabel': 'Metrics Height',
+  'settings.str.metricRows1': '1 Row',
+  'settings.str.metricRows2': '2 Rows',
+  'settings.str.metricTextModeLabel': 'Card Details',
+  'settings.str.metricTextBoth': 'Both',
+  'settings.str.metricTextTitle': 'Title',
+  'settings.str.metricTextSub': 'Note',
+  'settings.str.metricTextNone': 'Value',
+  'settings.str.metricSizeSm': 'S',
+  'settings.str.metricSizeThird': 'M',
+  'settings.str.metricSizeWide': 'W',
+  'settings.str.metricSizeNarrow': 'V',
+  'settings.str.metricSizeTall': 'L',
+  'settings.str.metricResizeHandleAria': 'Resize metric card (S / M / W / V / L)',
+  'settings.str.metricResizeHandleHint': 'Drag to snap between 1×1 / 1/3 / 2×1 / 1×2 / 2×2 grid sizes, or click to cycle',
+  'settings.str.metricSizePillHint': 'Click to cycle card size (1×1 / 1/3 / 2×1 / 1×2 / 2×2)',
   'settings.str.hoverSyncOverviewLabel': 'Sync with Live Overview',
   'settings.str.hoverMetricsLabel': 'Live Metrics',
   'settings.str.hoverMetricsInactiveHint': '"Live Metrics" is hidden in Hover modules; add it below to display',
-  'settings.str.metricOverflowTag': 'Hidden in Large',
+  'settings.str.metricOverflowTag': 'Grid overflow',
   'settings.str.overviewSection': 'Live Overview Layout',
   'settings.str.overviewBadge': '{modCount} mod · {metCount} cells',
   'settings.str.overviewModulesLabel': 'Overview Modules',
@@ -5004,6 +5787,8 @@ const I18N_MESSAGES_EN_US = Object.freeze({
   'settings.oth.autoLaunchDesc': 'Automatically maintain debug-port flags for Antigravity Desktop and IDE',
   'settings.oth.remoteSshLabel': 'IDE Remote-SSH Telemetry',
   'settings.oth.remoteSshDesc': 'Automatically detect IDE Remote-SSH windows',
+  'settings.oth.safetyMonitorLabel': 'Background Safety Review Monitor',
+  'settings.oth.safetyMonitorDesc': 'Read-only scan of local logs for hidden safety review calls shown in the Usage tab',
   'settings.oth.macWrapperLabel': 'Managed macOS Launcher (.app)',
   'settings.oth.macWrapperDesc': 'A managed debug-port launcher is currently installed in ~/Applications and can be removed anytime',
   'settings.oth.macRemoveWrapperBtn': 'Remove macOS Launcher',
@@ -5125,7 +5910,10 @@ const I18N_MESSAGES_EN_US = Object.freeze({
   'live.act.read_board': 'Read Board',
   'live.act.swarm_wait': 'Parked on Board',
   'live.act.manage_task': 'Manage Task',
+  'live.act.background_task': 'Background Task',
   'live.act.schedule': 'Schedule Task',
+  'live.act.update_steps': 'Update Steps',
+  'live.act.update_focus': 'Update Focus',
   'live.act.ask_question': 'Waiting for User Choice',
   'live.act.search_marketplace': 'Search Plugins',
   'live.act.generate_image': 'Generate Image',
@@ -5529,9 +6317,33 @@ const I18N_MESSAGES_JA_JP = Object.freeze({
   "quota.remainingAndReset": "{reset} · 残り {remaining}%",
   "quota.reservedTip": "予約リース推定（実験的）：約 {rsv}%（実使用約 {actual}%）。約10分のアイドル後に未使用分が返還されます",
   "quota.reservedTipMulti": "予約リース推定（実験的）：約 {rsv}%（重複リース {leases} 件、実使用約 {actual}%）。約10分のアイドル後に未使用分が返還されます",
+  "quota.externalTip": "この端末 約 {self}% · 他者利用（ファミリー / 他端末）約 {ext}%",
+  "quota.externalReservedTip": "この端末 約 {self}% · 他者利用 約 {ext}% · 予約 約 {rsv}%（約10分のアイドル後に未使用分が返還されます）",
+  "quota.externalReservedTipMulti": "この端末 約 {self}% · 他者利用 約 {ext}% · 予約 約 {rsv}%（重複リース {leases} 件、約10分のアイドル後に未使用分が返還されます）",
   "quota.legendActual": "実使用",
   "quota.legendRemaining": "残り",
+  "quota.legendExternal": "他者利用",
   "quota.legendReserved": "予約",
+  "quota.safetyReviewTipSuffix": "安全審査 約{pct}% 含む",
+  "safety.cardTitle": "背景安全審査",
+  "safety.alert429Badge": "429 フォールバック",
+  "safety.alertBurstBadge": "重審査急増",
+  "safety.alertLimitBadge": "5h 上限接近",
+  "safety.alert429Advice": "429 により重審査へフォールバックが発生しました。並列ツール実行を抑えるか新しい会話を開始してください。",
+  "safety.alertBurstAdvice": "直近 15 分で大コンテキストの重審査が多発しています。新しい会話で履歴を短縮してください。",
+  "safety.alertLimitAdvice": "5 時間の事前審査が約 4,400 回の上限に近づいています。429 回避のため並列数を下げてください。",
+  "safety.win5h": "5h",
+  "safety.win24h": "24h",
+  "safety.metricHiddenRatio": "隠しリクエスト比率",
+  "safety.metricCallsSplit": "事前 / 重審査",
+  "safety.metricFlashLite": "事前審査 (Flash Lite)",
+  "safety.metricHeavy": "重審査 (Sonar)",
+  "safety.metric429Fallback": "429 / フォールバック",
+  "safety.metricEstTokens": "重審査入力推定",
+  "safety.falseAlarmSuffix": "誤検知 {pct}%",
+  "safety.charsUnit": "文字",
+  "safety.disclaimer": "回数・比率・文字数・待機時間はローカルログ実測値です（可視会話台帳外）。トークン範囲は文字数/4〜文字数/3 の推定値（システムプロンプト・キャッシュ割引除く）。",
+  "safety.emptyWindow": "この期間内に背景安全審査のログは検出されていません。",
   "quota.cycle5hTitle": "現在の 5h サイクル ({pool})：{tok} トークン · {cost} · {calls} 回",
   "quota.cycleWkCustomTitle": "今週の暦週合計：{tok} トークン · {cost} · {calls} 回",
   "quota.cycleWkPoolTitle": "現在の週間サイクル ({pool})：{tok} トークン · {cost} · {calls} 回",
@@ -5576,6 +6388,10 @@ const I18N_MESSAGES_JA_JP = Object.freeze({
   "live.swarmToggleIdle": "スウォーム ({total})",
   "live.subCollapseTitle": "サブエージェント一覧を折りたたむ",
   "live.subExpandTitle": "サブエージェントの稼働状況を展開",
+  "live.stepsProgress": "手順 {done}/{total}",
+  "live.stepsExpandTitle": "タスク手順リストを展開",
+  "live.stepsCollapseTitle": "タスク手順リストを折りたたむ",
+  "live.stepsAllDone": "すべての手順が完了しました",
   "cons.rangeCycle": "サイクル",
   "cons.cyclePoolAll": "全プール",
   "cons.cyclePoolAllShort": "全て",
@@ -5860,6 +6676,13 @@ const I18N_MESSAGES_JA_JP = Object.freeze({
   "settings.smgr.clearSelShort": "解除",
   "settings.smgr.selectedCount": "{n} 件選択中",
   "settings.smgr.deleteSelected": "選択を削除 ({n})",
+  "settings.smgr.totalSizeTitle": "ローカルストレージ使用量合計: {size}",
+  "settings.smgr.filteredSizeTitle": "絞り込み結果: {filtered} / 全体合計: {total}",
+  "settings.smgr.selectedSizeTitle": "選択中のセッション使用量: {size}",
+  "settings.smgr.sizeTooltipTotal": "使用ストレージ: {size}",
+  "settings.smgr.sizePartDb": "会話DB {size}",
+  "settings.smgr.sizePartBrain": "成果物・添付 {size}",
+  "settings.smgr.sizePartSubagents": "サブエージェント含む {size}",
   "settings.smgr.prefsTitle": "クリーンアップ設定",
   "settings.smgr.prefRedactLedger": "削除時にプラグイン台帳を秘匿化",
   "settings.smgr.prefRedactLedgerDesc": "削除セッションのタイトルとプロンプト本文を消去し、トークンと費用の統計は 100% 保持します。",
@@ -5879,6 +6702,7 @@ const I18N_MESSAGES_JA_JP = Object.freeze({
   "settings.smgr.deleteIndexOnlyOnlineTip": "クライアント実行中はインデックス残留を削除できません。終了後にオフライン整理を行ってください",
   "settings.smgr.confirmTitle": "完全削除の確認",
   "settings.smgr.confirmSummary": "{n} 件のセッションを完全に削除します。この操作は取り消せません。",
+  "settings.smgr.confirmReclaimSize": "解放見込みストレージ容量: 約 {size}。",
   "settings.smgr.confirmOnlineMode": "{n} 件のセッションを実行中クライアントの公式 API でオンライン削除します（再起動不要）。",
   "settings.smgr.confirmOnlineMixed": "{online} 件は公式 API でオンライン削除し、{offline} 件はオフライン完全削除を実行します。",
   "settings.smgr.confirmTargets": "対象：{titles}",
@@ -5956,6 +6780,7 @@ const I18N_MESSAGES_JA_JP = Object.freeze({
   "settings.account.refresh6h": "6 時間",
   "settings.account.refresh12h": "12 時間",
   "settings.account.refresh24h": "24 時間",
+  "settings.account.refreshOff": "オフ",
   "settings.account.emptyCredentialQuota": "このアカウントに表示できるクォータプールはありません。",
   "settings.account.quota": "プール別の残余クォータ",
   "settings.account.quota5h": "5時間 {percent}%",
@@ -6031,13 +6856,6 @@ const I18N_MESSAGES_JA_JP = Object.freeze({
   "settings.resetBtn": "リセット",
   "settings.gen.appearanceTitle": "インターフェースと外観",
   "settings.gen.language": "言語",
-  "settings.gen.langZh": "简体中文",
-  "settings.gen.langZhTw": "繁體中文",
-  "settings.gen.langEn": "English",
-  "settings.gen.langJa": "日本語",
-  "settings.gen.langKo": "한국어",
-  "settings.gen.langDe": "Deutsch",
-  "settings.gen.langFr": "Français",
   "settings.gen.langAuto": "システムに合わせる",
   "settings.gen.currencyLabel": "参考通貨",
   "settings.gen.currencyAuto": "表示言語に合わせる（{code} {symbol}）",
@@ -6142,6 +6960,8 @@ const I18N_MESSAGES_JA_JP = Object.freeze({
   "settings.str.mountDual": "デュアル配置 (タイトルバー + サイドバー)",
   "settings.str.mountComposer": "入力欄配置 (入力欄 + サイドバー)",
   "settings.str.mountSidebar": "サイドバーのみ",
+  "settings.str.mountVsCodeComposer": "入力欄",
+  "settings.str.mountVsCodeTopbar": "トップバー",
   "settings.bridge.restartTitle": "起動引数を自動設定済み — 一度再起動すると有効化されます",
   "settings.bridge.ctxRestartTitle": "起動引数を自動設定済み — 一度再起動するとコンテキスト上書きが有効になります",
   "settings.bridge.restartBody": "ショートカット、自動起動項目、プロトコル関連付けに --remote-debugging-port=0 を自動追加しました（次回以降の通常起動から自動適用）。下ボタンでバックグラウンドプロセスを終了し今すぐ再起動します。",
@@ -6174,7 +6994,7 @@ const I18N_MESSAGES_JA_JP = Object.freeze({
   "settings.str.popoverWidthAuto": "自動フィット",
   "settings.str.popoverWidthCustom": "固定幅",
   "settings.str.popoverWidthHint": "自動フィット時はステップ一覧などの横広テーブルを自動拡張します。固定幅は 440〜1080 px を指定可能",
-  "settings.str.multiToggle": "実行中セッションバッジ",
+  "settings.str.multiToggle": "実行中のセッション",
   "settings.str.contextAgentModeLabel": "カプセル・ホバーのコンテキスト",
   "settings.str.contextAgentMain": "メイン固定",
   "settings.str.contextAgentAuto": "アクティブ追従",
@@ -6192,6 +7012,7 @@ const I18N_MESSAGES_JA_JP = Object.freeze({
   "settings.str.cliRestoringBtn": "適用中...",
   "settings.str.cliPreviewRunning": "{count} 実行中",
   "settings.str.show": "表示",
+  "settings.str.runningOnly": "実行中のみ",
   "settings.str.hide": "非表示",
   "settings.str.on": "オン",
   "settings.str.off": "オフ",
@@ -6207,13 +7028,26 @@ const I18N_MESSAGES_JA_JP = Object.freeze({
   "settings.str.hoverModulesLabel": "ホバー表示モジュール",
   "settings.str.hoverEmptyHint": "ホバークイック表示は無効です（カプセルクリックで全パネルを開けます）",
   "settings.str.addHoverModule": "モジュール追加 ({count}/{max})",
-  "settings.str.hoverMetricStyleLabel": "ライブ指標サイズ",
-  "settings.str.hoverMetricStyleMedium": "中 · コンパクト",
-  "settings.str.hoverMetricStyleLarge": "大 · スパークライン",
+  "settings.str.metricHeightLabel": "指標エリアの高さ",
+  "settings.str.metricRows1": "1 段",
+  "settings.str.metricRows2": "2 段",
+  "settings.str.metricTextModeLabel": "カード表示",
+  "settings.str.metricTextBoth": "すべて",
+  "settings.str.metricTextTitle": "見出し",
+  "settings.str.metricTextSub": "補足",
+  "settings.str.metricTextNone": "数値のみ",
+  "settings.str.metricSizeSm": "小",
+  "settings.str.metricSizeThird": "中",
+  "settings.str.metricSizeWide": "横長",
+  "settings.str.metricSizeNarrow": "縦長",
+  "settings.str.metricSizeTall": "大",
+  "settings.str.metricResizeHandleAria": "指標カードサイズを変更（小 / 中 / 横長 / 縦長 / 大）",
+  "settings.str.metricResizeHandleHint": "ドラッグで 1×1 / 1/3 / 2×1 / 1×2 / 2×2 にスナップ、クリックで順番に切替",
+  "settings.str.metricSizePillHint": "クリックでカードサイズを切替（1×1 / 1/3 / 2×1 / 1×2 / 2×2）",
   "settings.str.hoverSyncOverviewLabel": "ライブ配置と同期",
   "settings.str.hoverMetricsLabel": "ライブ指標",
   "settings.str.hoverMetricsInactiveHint": "「ライブ指標」はホバーモジュールから外れています。下から追加すると表示されます",
-  "settings.str.metricOverflowTag": "大サイズ時は非表示",
+  "settings.str.metricOverflowTag": "グリッド超過",
   "settings.str.overviewSection": "ライブ画面レイアウト",
   "settings.str.overviewBadge": "{modCount} モジュール · {metCount} 指標",
   "settings.str.overviewModulesLabel": "表示モジュール",
@@ -6254,6 +7088,8 @@ const I18N_MESSAGES_JA_JP = Object.freeze({
   "settings.oth.autoLaunchDesc": "Antigravity Desktop と IDE のデバッグポート引数を自動管理します",
   "settings.oth.remoteSshLabel": "IDE Remote-SSH リモート計測",
   "settings.oth.remoteSshDesc": "IDE Remote-SSH ウィンドウを自動検出します",
+  "settings.oth.safetyMonitorLabel": "背景安全審査モニター",
+  "settings.oth.safetyMonitorDesc": "ローカルログから背景安全審査リクエストを読み取り専用で監視し、使用量タブに集計と警告を表示します",
   "settings.oth.macWrapperLabel": "管理下の macOS ランチャー (.app)",
   "settings.oth.macWrapperDesc": "~/Applications にデバッグポート付きランチャーが作成済みです。いつでも削除できます",
   "settings.oth.macRemoveWrapperBtn": "macOS ランチャーを削除",
@@ -6374,7 +7210,10 @@ const I18N_MESSAGES_JA_JP = Object.freeze({
   "live.act.read_board": "ボード読取",
   "live.act.swarm_wait": "ボード待機",
   "live.act.manage_task": "タスク管理",
+  "live.act.background_task": "バックグラウンドタスク",
   "live.act.schedule": "スケジュール設定",
+  "live.act.update_steps": "手順を更新",
+  "live.act.update_focus": "フォーカス更新",
   "live.act.ask_question": "ユーザー選択待ち",
   "live.act.search_marketplace": "プラグイン検索",
   "live.act.generate_image": "画像生成",
@@ -6775,9 +7614,33 @@ const I18N_MESSAGES_KO_KR = Object.freeze({
   "quota.remainingAndReset": "{reset} · 잔여 {remaining}%",
   "quota.reservedTip": "예상 임대 예약 (실험적): 약 {rsv}% (실제 사용 약 {actual}%); 약 10분 유휴 시 미사용분 자동 반환",
   "quota.reservedTipMulti": "예상 임대 예약 (실험적): 약 {rsv}% (중첩 임대 {leases}건, 실제 사용 약 {actual}%); 약 10분 유휴 시 미사용분 자동 반환",
+  "quota.externalTip": "로컬 사용 약 {self}% · 외부 사용(가족 / 다른 기기) 약 {ext}%",
+  "quota.externalReservedTip": "로컬 사용 약 {self}% · 외부 사용 약 {ext}% · 예약 약 {rsv}% (약 10분 유휴 시 미사용분 자동 반환)",
+  "quota.externalReservedTipMulti": "로컬 사용 약 {self}% · 외부 사용 약 {ext}% · 예약 약 {rsv}% (중첩 임대 {leases}건, 약 10분 유휴 시 미사용분 자동 반환)",
   "quota.legendActual": "실사용",
   "quota.legendRemaining": "잔여",
+  "quota.legendExternal": "외부 사용",
   "quota.legendReserved": "예약",
+  "quota.safetyReviewTipSuffix": "안전 심사 약 {pct}% 포함",
+  "safety.cardTitle": "백그라운드 안전 심사",
+  "safety.alert429Badge": "429 폴백",
+  "safety.alertBurstBadge": "정밀 급증",
+  "safety.alertLimitBadge": "5h 한도 임박",
+  "safety.alert429Advice": "사전 심사 429로 인해 정밀 심사로 폴백되었습니다. 동시 도구 호출을 줄이거나 새 대화를 시작하세요.",
+  "safety.alertBurstAdvice": "최근 15분간 대용량 정밀 심사가 잦습니다. 컨텍스트를 줄이기 위해 새 대화를 권장합니다.",
+  "safety.alertLimitAdvice": "5시간 사전 심사가 약 4,400회 한도에 가까워지고 있습니다. 429 방지를 위해 동시 실행을 낮추세요.",
+  "safety.win5h": "5h",
+  "safety.win24h": "24h",
+  "safety.metricHiddenRatio": "숨겨진 요청 비율",
+  "safety.metricCallsSplit": "사전 / 정밀 심사",
+  "safety.metricFlashLite": "사전 심사 (Flash Lite)",
+  "safety.metricHeavy": "정밀 심사 (Sonar)",
+  "safety.metric429Fallback": "429 / 폴백",
+  "safety.metricEstTokens": "정밀 입력 추정",
+  "safety.falseAlarmSuffix": "오탐 {pct}%",
+  "safety.charsUnit": "자",
+  "safety.disclaimer": "횟수, 비율, 문자 수 및 지연 시간은 로컬 로그 실측값입니다(가시 대화 원장 미포함). 토큰 범위는 문자/4~문자/3 추정치이며 시스템 프롬프트와 캐시 할인은 제외됩니다.",
+  "safety.emptyWindow": "이 기간 내 백그라운드 안전 심사 로그가 감지되지 않았습니다.",
   "quota.cycle5hTitle": "현재 5시간 주기 ({pool}): {tok} 토큰 · {cost} · {calls}회 호출",
   "quota.cycleWkCustomTitle": "이번 주 (달력 기준): {tok} 토큰 · {cost} · {calls}회 호출",
   "quota.cycleWkPoolTitle": "현재 주간 주기 ({pool}): {tok} 토큰 · {cost} · {calls}회 호출",
@@ -6822,6 +7685,10 @@ const I18N_MESSAGES_KO_KR = Object.freeze({
   "live.swarmToggleIdle": "스웜 ({total})",
   "live.subCollapseTitle": "서브에이전트 목록 접기",
   "live.subExpandTitle": "서브에이전트 활동 목록 펼치기",
+  "live.stepsProgress": "단계 {done}/{total}",
+  "live.stepsExpandTitle": "작업 단계 목록 펼치기",
+  "live.stepsCollapseTitle": "작업 단계 목록 접기",
+  "live.stepsAllDone": "모든 단계 완료",
   "cons.rangeCycle": "주기",
   "cons.cyclePoolAll": "전체 풀",
   "cons.cyclePoolAllShort": "전체",
@@ -7106,6 +7973,13 @@ const I18N_MESSAGES_KO_KR = Object.freeze({
   "settings.smgr.clearSelShort": "해제",
   "settings.smgr.selectedCount": "{n}개 선택됨",
   "settings.smgr.deleteSelected": "삭제 ({n})",
+  "settings.smgr.totalSizeTitle": "총 로컬 저장 공간 사용량: {size}",
+  "settings.smgr.filteredSizeTitle": "필터 결과: {filtered} / 전체 합계: {total}",
+  "settings.smgr.selectedSizeTitle": "선택한 세션 저장 공간: {size}",
+  "settings.smgr.sizeTooltipTotal": "저장 공간 사용량: {size}",
+  "settings.smgr.sizePartDb": "대화 DB {size}",
+  "settings.smgr.sizePartBrain": "산출물·첨부 {size}",
+  "settings.smgr.sizePartSubagents": "하위 에이전트 포함 {size}",
   "settings.smgr.prefsTitle": "정리 설정",
   "settings.smgr.prefRedactLedger": "삭제 시 플러그인 원장 마스킹",
   "settings.smgr.prefRedactLedgerDesc": "토큰 및 비용 합계는 100% 유지하면서 삭제된 세션 제목과 사용자 프롬프트를 즉시 제거합니다.",
@@ -7125,6 +7999,7 @@ const I18N_MESSAGES_KO_KR = Object.freeze({
   "settings.smgr.deleteIndexOnlyOnlineTip": "클라이언트 실행 중에는 인덱스 전용 잔여 항목을 제거할 수 없습니다. 오프라인 정리를 위해 클라이언트를 종료하세요",
   "settings.smgr.confirmTitle": "영구 삭제 확인",
   "settings.smgr.confirmSummary": "{n}개 세션을 영구적으로 삭제합니다. 이 작업은 되돌릴 수 없습니다.",
+  "settings.smgr.confirmReclaimSize": "예상 확보 저장 공간: 약 {size}.",
   "settings.smgr.confirmOnlineMode": "{n}개 세션이 실행 중인 클라이언트 API를 통해 온라인으로 삭제됩니다(재시작 불필요).",
   "settings.smgr.confirmOnlineMixed": "{online}개 세션은 실행 중인 클라이언트 API를 통해 온라인으로 삭제되고, {offline}개는 오프라인 정밀 정리로 삭제됩니다.",
   "settings.smgr.confirmTargets": "대상: {titles}",
@@ -7202,6 +8077,7 @@ const I18N_MESSAGES_KO_KR = Object.freeze({
   "settings.account.refresh6h": "6시간",
   "settings.account.refresh12h": "12시간",
   "settings.account.refresh24h": "24시간",
+  "settings.account.refreshOff": "꺼짐",
   "settings.account.emptyCredentialQuota": "이 계정에 표시할 할당량 풀이 없습니다.",
   "settings.account.quota": "풀별 잔여 할당량",
   "settings.account.quota5h": "5시간 {percent}%",
@@ -7277,13 +8153,6 @@ const I18N_MESSAGES_KO_KR = Object.freeze({
   "settings.resetBtn": "기본값 복원",
   "settings.gen.appearanceTitle": "인터페이스 및 모양",
   "settings.gen.language": "언어",
-  "settings.gen.langZh": "简体中文",
-  "settings.gen.langZhTw": "繁體中文",
-  "settings.gen.langEn": "English",
-  "settings.gen.langJa": "日本語",
-  "settings.gen.langKo": "한국어",
-  "settings.gen.langDe": "Deutsch",
-  "settings.gen.langFr": "Français",
   "settings.gen.langAuto": "시스템 설정 따르기",
   "settings.gen.currencyLabel": "참고 통화",
   "settings.gen.currencyAuto": "인터페이스 언어 따르기 ({code} {symbol})",
@@ -7388,6 +8257,8 @@ const I18N_MESSAGES_KO_KR = Object.freeze({
   "settings.str.mountDual": "듀얼 마운트 (제목 표시줄 + 사이드바)",
   "settings.str.mountComposer": "입력창 마운트 (입력창 + 사이드바)",
   "settings.str.mountSidebar": "사이드바 전용",
+  "settings.str.mountVsCodeComposer": "입력창",
+  "settings.str.mountVsCodeTopbar": "상단 바",
   "settings.bridge.restartTitle": "실행 플래그 자동 설정 완료 — 한 번 재시작하여 활성화",
   "settings.bridge.ctxRestartTitle": "실행 플래그 자동 설정 완료 — 컨텍스트 재정의를 위해 한 번 재시작",
   "settings.bridge.restartBody": "바로가기, 시작 프로그램 및 프로토콜 핸들러에 --remote-debugging-port=0을 자동으로 추가했습니다(이후 바로가기 실행 시 자동 마운트). 아래 버튼을 클릭해 백그라운드 프로세스를 종료하고 지금 다시 실행하세요.",
@@ -7420,7 +8291,7 @@ const I18N_MESSAGES_KO_KR = Object.freeze({
   "settings.str.popoverWidthAuto": "자동 맞춤",
   "settings.str.popoverWidthCustom": "사용자 지정",
   "settings.str.popoverWidthHint": "자동 맞춤 모드에서는 스텝 내역 등 넓은 테이블의 가로 스크롤이 생기지 않도록 자동 확장됩니다. 사용자 지정 범위는 440~1080 px입니다",
-  "settings.str.multiToggle": "활성 세션 배지",
+  "settings.str.multiToggle": "실행 중인 세션",
   "settings.str.contextAgentModeLabel": "캡슐 및 호버 컨텍스트",
   "settings.str.contextAgentMain": "메인 에이전트 고정",
   "settings.str.contextAgentAuto": "활성 에이전트 추적",
@@ -7438,6 +8309,7 @@ const I18N_MESSAGES_KO_KR = Object.freeze({
   "settings.str.cliRestoringBtn": "적용 중...",
   "settings.str.cliPreviewRunning": "{count}개 실행 중",
   "settings.str.show": "표시",
+  "settings.str.runningOnly": "실행 시만",
   "settings.str.hide": "숨김",
   "settings.str.on": "켜짐",
   "settings.str.off": "꺼짐",
@@ -7453,13 +8325,26 @@ const I18N_MESSAGES_KO_KR = Object.freeze({
   "settings.str.hoverModulesLabel": "호버 팝업 모듈",
   "settings.str.hoverEmptyHint": "호버 빠른 보기가 비활성화되었습니다 (캡슐 클릭 시 전체 패널 열기)",
   "settings.str.addHoverModule": "모듈 추가 ({count}/{max})",
-  "settings.str.hoverMetricStyleLabel": "실시간 지표 크기",
-  "settings.str.hoverMetricStyleMedium": "중간 · 컴팩트",
-  "settings.str.hoverMetricStyleLarge": "크게 · 스파크라인",
+  "settings.str.metricHeightLabel": "지표 영역 높이",
+  "settings.str.metricRows1": "1단",
+  "settings.str.metricRows2": "2단",
+  "settings.str.metricTextModeLabel": "카드 정보",
+  "settings.str.metricTextBoth": "모두",
+  "settings.str.metricTextTitle": "제목만",
+  "settings.str.metricTextSub": "보조만",
+  "settings.str.metricTextNone": "수치만",
+  "settings.str.metricSizeSm": "소",
+  "settings.str.metricSizeThird": "중",
+  "settings.str.metricSizeWide": "와이드",
+  "settings.str.metricSizeNarrow": "세로",
+  "settings.str.metricSizeTall": "대",
+  "settings.str.metricResizeHandleAria": "지표 카드 크기 변경 (소 / 중 / 와이드 / 세로 / 대)",
+  "settings.str.metricResizeHandleHint": "드래그해 1×1 / 1/3 / 2×1 / 1×2 / 2×2 격자로 스냅, 클릭으로 순환 전환",
+  "settings.str.metricSizePillHint": "클릭해 카드 크기 전환 (1×1 / 1/3 / 2×1 / 1×2 / 2×2)",
   "settings.str.hoverSyncOverviewLabel": "실시간 개요와 동기화",
   "settings.str.hoverMetricsLabel": "실시간 지표",
   "settings.str.hoverMetricsInactiveHint": "호버 모듈에서 \"실시간 지표\"가 숨겨져 있습니다. 표시하려면 아래에서 추가하세요",
-  "settings.str.metricOverflowTag": "큰 크기에서 숨김",
+  "settings.str.metricOverflowTag": "그리드 초과",
   "settings.str.overviewSection": "실시간 개요 레이아웃",
   "settings.str.overviewBadge": "{modCount} 모듈 · {metCount} 지표",
   "settings.str.overviewModulesLabel": "개요 모듈",
@@ -7500,6 +8385,8 @@ const I18N_MESSAGES_KO_KR = Object.freeze({
   "settings.oth.autoLaunchDesc": "Antigravity Desktop 및 IDE의 디버그 포트 플래그를 자동 유지",
   "settings.oth.remoteSshLabel": "IDE Remote-SSH 원격 텔레메트리",
   "settings.oth.remoteSshDesc": "IDE Remote-SSH 창을 자동 감지",
+  "settings.oth.safetyMonitorLabel": "백그라운드 안전 심사 모니터",
+  "settings.oth.safetyMonitorDesc": "로컬 로그의 백그라운드 안전 심사 호출을 읽기 전용으로 스캔하여 사용량 탭에 통계와 경고를 표시",
   "settings.oth.macWrapperLabel": "macOS 관리형 런처 (.app)",
   "settings.oth.macWrapperDesc": "현재 ~/Applications에 디버그 포트 관리형 런처가 설치되어 있으며 언제든 제거할 수 있습니다",
   "settings.oth.macRemoveWrapperBtn": "macOS 런처 제거",
@@ -7620,7 +8507,10 @@ const I18N_MESSAGES_KO_KR = Object.freeze({
   "live.act.read_board": "보드 읽기",
   "live.act.swarm_wait": "보드 대기 중",
   "live.act.manage_task": "작업 관리",
+  "live.act.background_task": "백그라운드 작업",
   "live.act.schedule": "작업 예약",
+  "live.act.update_steps": "단계 업데이트",
+  "live.act.update_focus": "상태 업데이트",
   "live.act.ask_question": "사용자 선택 대기 중",
   "live.act.search_marketplace": "플러그인 검색",
   "live.act.generate_image": "이미지 생성",
@@ -8021,9 +8911,33 @@ const I18N_MESSAGES_DE_DE = Object.freeze({
   "quota.remainingAndReset": "{reset} · {remaining}% frei",
   "quota.reservedTip": "Geschätzte Lease-Reservierung (Experimentell): ~{rsv}% (~{actual}% real genutzt); ungenutzter Anteil wird nach ~10 Min. Leerlauf erstattet",
   "quota.reservedTipMulti": "Geschätzte Lease-Reservierung (Experimentell): ~{rsv}% ({leases} gestapelte Leases, ~{actual}% real genutzt); ungenutzter Anteil wird nach ~10 Min. Leerlauf erstattet",
+  "quota.externalTip": "Lokal ~{self}% · Fremdnutzung (Familie / anderes Gerät) ~{ext}%",
+  "quota.externalReservedTip": "Lokal ~{self}% · Fremdnutzung ~{ext}% · Reserviert ~{rsv}% (ungenutzter Anteil wird nach ~10 Min. Leerlauf erstattet)",
+  "quota.externalReservedTipMulti": "Lokal ~{self}% · Fremdnutzung ~{ext}% · Reserviert ~{rsv}% ({leases} gestapelte Leases, ungenutzter Anteil wird nach ~10 Min. Leerlauf erstattet)",
   "quota.legendActual": "Real",
   "quota.legendRemaining": "Verbleibend",
+  "quota.legendExternal": "Fremdnutzung",
   "quota.legendReserved": "Reserviert",
+  "quota.safetyReviewTipSuffix": "inkl. ~{pct}% Sicherheitsprüfungen",
+  "safety.cardTitle": "Hintergrund-Sicherheitsprüfungen",
+  "safety.alert429Badge": "429-Fallback",
+  "safety.alertBurstBadge": "Prüfungsspitze",
+  "safety.alertLimitBadge": "5h-Limit nah",
+  "safety.alert429Advice": "429 löste schwere Fallback-Prüfungen aus. Parallele Tool-Aufrufe reduzieren oder neue Sitzung starten.",
+  "safety.alertBurstAdvice": "Häufige schwere Prüfungen mit großem Kontext in 15 Min. Neue Sitzung zum Kürzen des Kontexts empfohlen.",
+  "safety.alertLimitAdvice": "5h-Vorprüfungen nähern sich ~4.400. Parallelität verringern, um 429-Fallback zu vermeiden.",
+  "safety.win5h": "5h",
+  "safety.win24h": "24h",
+  "safety.metricHiddenRatio": "Anteil versteckter Aufrufe",
+  "safety.metricCallsSplit": "Vor- / Schwerprüfung",
+  "safety.metricFlashLite": "Vorprüfung (Flash Lite)",
+  "safety.metricHeavy": "Schwere Prüfung (Sonar)",
+  "safety.metric429Fallback": "429 / Fallbacks",
+  "safety.metricEstTokens": "Gesch. Eingabe-Token",
+  "safety.falseAlarmSuffix": "{pct}% Fehlalarm",
+  "safety.charsUnit": "Zeichen",
+  "safety.disclaimer": "Anzahl, Anteil, Zeichen und Blockierzeit sind exakte Log-Messwerte (nicht im sichtbaren Verlauf); Token-Spanne geschätzt als Zeichen/4–Zeichen/3 ohne System-Prompts oder Cache-Rabatt.",
+  "safety.emptyWindow": "Keine Sicherheitsprüfungs-Logs in diesem Zeitraum gefunden.",
   "quota.cycle5hTitle": "Aktueller 5h-Zyklus ({pool}): {tok} Tokens · {cost} · {calls} Aufrufe",
   "quota.cycleWkCustomTitle": "Aktuelle Kalenderwoche: {tok} Tokens · {cost} · {calls} Aufrufe",
   "quota.cycleWkPoolTitle": "Aktueller Wochenzyklus ({pool}): {tok} Tokens · {cost} · {calls} Aufrufe",
@@ -8068,6 +8982,10 @@ const I18N_MESSAGES_DE_DE = Object.freeze({
   "live.swarmToggleIdle": "Schwarm ({total})",
   "live.subCollapseTitle": "Subagenten-Liste einklappen",
   "live.subExpandTitle": "Subagenten-Aktivitätsliste aufklappen",
+  "live.stepsProgress": "Schritte {done}/{total}",
+  "live.stepsExpandTitle": "Aufgabenschritte ausklappen",
+  "live.stepsCollapseTitle": "Aufgabenschritte einklappen",
+  "live.stepsAllDone": "Alle Schritte abgeschlossen",
   "cons.rangeCycle": "Zyklus",
   "cons.cyclePoolAll": "Alle Pools",
   "cons.cyclePoolAllShort": "Alle",
@@ -8352,6 +9270,13 @@ const I18N_MESSAGES_DE_DE = Object.freeze({
   "settings.smgr.clearSelShort": "Leeren",
   "settings.smgr.selectedCount": "{n} gewählt",
   "settings.smgr.deleteSelected": "Löschen ({n})",
+  "settings.smgr.totalSizeTitle": "Gesamter lokaler Speicherbedarf: {size}",
+  "settings.smgr.filteredSizeTitle": "Gefiltert: {filtered} / Alle Sitzungen: {total}",
+  "settings.smgr.selectedSizeTitle": "Ausgewählte Sitzungen belegen {size}",
+  "settings.smgr.sizeTooltipTotal": "Speicherbedarf: {size}",
+  "settings.smgr.sizePartDb": "DB {size}",
+  "settings.smgr.sizePartBrain": "Artefakte & Medien {size}",
+  "settings.smgr.sizePartSubagents": "inkl. Subagenten {size}",
   "settings.smgr.prefsTitle": "Bereinigungsoptionen",
   "settings.smgr.prefRedactLedger": "Plugin-Journal beim Löschen schwärzen",
   "settings.smgr.prefRedactLedgerDesc": "Entfernt Titel und Nutzer-Prompts gelöschter Sitzungen sofort, während 100 % der Token- und Kostensummen erhalten bleiben.",
@@ -8371,6 +9296,7 @@ const I18N_MESSAGES_DE_DE = Object.freeze({
   "settings.smgr.deleteIndexOnlyOnlineTip": "Nur-Index-Reste können bei laufendem Client nicht entfernt werden; schließen Sie ihn für die Offline-Bereinigung",
   "settings.smgr.confirmTitle": "Dauerhaftes Löschen bestätigen",
   "settings.smgr.confirmSummary": "{n} Sitzung(en) dauerhaft löschen. Dies kann nicht rückgängig gemacht werden.",
+  "settings.smgr.confirmReclaimSize": "Geschätzter freiwerdender Speicherplatz: ca. {size}.",
   "settings.smgr.confirmOnlineMode": "{n} Sitzung(en) werden online über die API des laufenden Clients gelöscht (kein Neustart nötig).",
   "settings.smgr.confirmOnlineMixed": "{online} Sitzung(en) werden online über die API des laufenden Clients gelöscht und {offline} per Offline-Tiefenbereinigung.",
   "settings.smgr.confirmTargets": "Ziel(e): {titles}",
@@ -8448,6 +9374,7 @@ const I18N_MESSAGES_DE_DE = Object.freeze({
   "settings.account.refresh6h": "6 Std.",
   "settings.account.refresh12h": "12 Std.",
   "settings.account.refresh24h": "24 Std.",
+  "settings.account.refreshOff": "Aus",
   "settings.account.emptyCredentialQuota": "Für dieses Konto sind keine Kontingent-Pools verfügbar.",
   "settings.account.quota": "Verbleibendes Kontingent nach Pool",
   "settings.account.quota5h": "5 Stunden {percent}%",
@@ -8523,13 +9450,6 @@ const I18N_MESSAGES_DE_DE = Object.freeze({
   "settings.resetBtn": "Zurücksetzen",
   "settings.gen.appearanceTitle": "Oberfläche & Darstellung",
   "settings.gen.language": "Sprache",
-  "settings.gen.langZh": "简体中文",
-  "settings.gen.langZhTw": "繁體中文",
-  "settings.gen.langEn": "English",
-  "settings.gen.langJa": "日本語",
-  "settings.gen.langKo": "한국어",
-  "settings.gen.langDe": "Deutsch",
-  "settings.gen.langFr": "Français",
   "settings.gen.langAuto": "System folgen",
   "settings.gen.currencyLabel": "Referenzwährung",
   "settings.gen.currencyAuto": "UI-Sprache folgen ({code} {symbol})",
@@ -8634,6 +9554,8 @@ const I18N_MESSAGES_DE_DE = Object.freeze({
   "settings.str.mountDual": "Dual (Titelleiste + Seitenleiste)",
   "settings.str.mountComposer": "Composer (Eingabefeld + Seitenleiste)",
   "settings.str.mountSidebar": "Nur Seitenleiste",
+  "settings.str.mountVsCodeComposer": "Eingabefeld",
+  "settings.str.mountVsCodeTopbar": "Obere Leiste",
   "settings.bridge.restartTitle": "Startflag eingerichtet — Einmal neu starten",
   "settings.bridge.ctxRestartTitle": "Startflag eingerichtet — Neustart für Kontext-Override",
   "settings.bridge.restartBody": "--remote-debugging-port=0 wurde zu Verknüpfungen, Autostart und Protokollhandlern hinzugefügt (künftige Starts docken automatisch an). Unten klicken, um Hintergrundprozesse zu beenden und neu zu starten.",
@@ -8666,7 +9588,7 @@ const I18N_MESSAGES_DE_DE = Object.freeze({
   "settings.str.popoverWidthAuto": "Automatisch",
   "settings.str.popoverWidthCustom": "Manuell",
   "settings.str.popoverWidthHint": "Automatisch verbreitert breite Tabellen wie Schritttabellen ohne horizontales Scrollen; Manuell erlaubt 440–1080 px",
-  "settings.str.multiToggle": "Aktive-Sitzungen-Pill",
+  "settings.str.multiToggle": "Aktive Sitzungen",
   "settings.str.contextAgentModeLabel": "Kapsel- & Hover-Kontext",
   "settings.str.contextAgentMain": "Hauptagent fixieren",
   "settings.str.contextAgentAuto": "Aktivem folgen",
@@ -8684,6 +9606,7 @@ const I18N_MESSAGES_DE_DE = Object.freeze({
   "settings.str.cliRestoringBtn": "Wird angewendet…",
   "settings.str.cliPreviewRunning": "{count} aktiv",
   "settings.str.show": "Anzeigen",
+  "settings.str.runningOnly": "Nur aktiv",
   "settings.str.hide": "Ausblenden",
   "settings.str.on": "Ein",
   "settings.str.off": "Aus",
@@ -8699,13 +9622,26 @@ const I18N_MESSAGES_DE_DE = Object.freeze({
   "settings.str.hoverModulesLabel": "Hover-Popup-Module",
   "settings.str.hoverEmptyHint": "Hover-Schnellansicht aus (Kapselklick öffnet Vollpanel)",
   "settings.str.addHoverModule": "Modul hinzufügen ({count}/{max})",
-  "settings.str.hoverMetricStyleLabel": "Live-Metrikgröße",
-  "settings.str.hoverMetricStyleMedium": "Mittel · Kompakt",
-  "settings.str.hoverMetricStyleLarge": "Groß · Sparkline",
+  "settings.str.metricHeightLabel": "Höhe des Metrikbereichs",
+  "settings.str.metricRows1": "1 Zeile",
+  "settings.str.metricRows2": "2 Zeilen",
+  "settings.str.metricTextModeLabel": "Kartendetails",
+  "settings.str.metricTextBoth": "Beide",
+  "settings.str.metricTextTitle": "Titel",
+  "settings.str.metricTextSub": "Info",
+  "settings.str.metricTextNone": "Wert",
+  "settings.str.metricSizeSm": "S",
+  "settings.str.metricSizeThird": "M",
+  "settings.str.metricSizeWide": "B",
+  "settings.str.metricSizeNarrow": "H",
+  "settings.str.metricSizeTall": "G",
+  "settings.str.metricResizeHandleAria": "Metrikkarten-Größe anpassen (1×1 / 1/3 / 2×1 / 1×2 / 2×2)",
+  "settings.str.metricResizeHandleHint": "Ziehen zum Einrasten (1×1 / 1/3 / 2×1 / 1×2 / 2×2) oder klicken zum Wechseln",
+  "settings.str.metricSizePillHint": "Klicken zum Wechseln der Kartengröße (1×1 / 1/3 / 2×1 / 1×2 / 2×2)",
   "settings.str.hoverSyncOverviewLabel": "Mit Live-Übersicht synchr.",
   "settings.str.hoverMetricsLabel": "Live-Metriken",
   "settings.str.hoverMetricsInactiveHint": "„Live-Metriken“ ist in Hover-Modulen ausgeblendet; unten zur Anzeige hinzufügen",
-  "settings.str.metricOverflowTag": "In Groß verborgen",
+  "settings.str.metricOverflowTag": "Rasterüberlauf",
   "settings.str.overviewSection": "Live-Übersichtslayout",
   "settings.str.overviewBadge": "{modCount} Mod. · {metCount} Felder",
   "settings.str.overviewModulesLabel": "Übersichtsmodule",
@@ -8746,6 +9682,8 @@ const I18N_MESSAGES_DE_DE = Object.freeze({
   "settings.oth.autoLaunchDesc": "Debug-Port-Flags für Antigravity Desktop und IDE automatisch pflegen",
   "settings.oth.remoteSshLabel": "IDE-Remote-SSH-Telemetrie",
   "settings.oth.remoteSshDesc": "IDE-Remote-SSH-Fenster automatisch erkennen",
+  "settings.oth.safetyMonitorLabel": "Sicherheitsprüfungs-Monitor",
+  "settings.oth.safetyMonitorDesc": "Lokale Logs schreibgeschützt nach versteckten Sicherheitsprüfungen scannen und im Verbrauchs-Tab anzeigen",
   "settings.oth.macWrapperLabel": "Verwalteter macOS-Launcher (.app)",
   "settings.oth.macWrapperDesc": "Ein verwalteter Debug-Port-Launcher ist derzeit in ~/Applications installiert und kann jederzeit entfernt werden",
   "settings.oth.macRemoveWrapperBtn": "macOS-Launcher entfernen",
@@ -8866,7 +9804,10 @@ const I18N_MESSAGES_DE_DE = Object.freeze({
   "live.act.read_board": "Board lesen",
   "live.act.swarm_wait": "Auf Board geparkt",
   "live.act.manage_task": "Aufgabe verwalten",
+  "live.act.background_task": "Hintergrundaufgabe",
   "live.act.schedule": "Aufgabe planen",
+  "live.act.update_steps": "Schritte aktualisieren",
+  "live.act.update_focus": "Fokus aktualisieren",
   "live.act.ask_question": "Wartet auf Auswahl",
   "live.act.search_marketplace": "Plugins suchen",
   "live.act.generate_image": "Bild generieren",
@@ -9267,9 +10208,33 @@ const I18N_MESSAGES_FR_FR = Object.freeze({
   "quota.remainingAndReset": "{reset} · {remaining}% restant",
   "quota.reservedTip": "Réservation de bail estimée (Expérimental) : ~{rsv}% (~{actual}% utilisé) ; le reste inutilisé est restitué après ~10 min d'inactivité",
   "quota.reservedTipMulti": "Réservation de bail estimée (Expérimental) : ~{rsv}% ({leases} baux cumulés, ~{actual}% utilisé) ; le reste inutilisé est restitué après ~10 min d'inactivité",
+  "quota.externalTip": "Local ~{self}% · Usage externe (famille / autre appareil) ~{ext}%",
+  "quota.externalReservedTip": "Local ~{self}% · Usage externe ~{ext}% · Réservé ~{rsv}% (reste inutilisé restitué après ~10 min d'inactivité)",
+  "quota.externalReservedTipMulti": "Local ~{self}% · Usage externe ~{ext}% · Réservé ~{rsv}% ({leases} baux cumulés, reste inutilisé restitué après ~10 min d'inactivité)",
   "quota.legendActual": "Réel",
   "quota.legendRemaining": "Restant",
+  "quota.legendExternal": "Usage externe",
   "quota.legendReserved": "Réservé",
+  "quota.safetyReviewTipSuffix": "dont ~{pct}% de contrôles",
+  "safety.cardTitle": "Contrôles de sécurité en arrière-plan",
+  "safety.alert429Badge": "Repli 429",
+  "safety.alertBurstBadge": "Pic lourd",
+  "safety.alertLimitBadge": "Seuil 5h proche",
+  "safety.alert429Advice": "Des erreurs 429 déclenchent des contrôles lourds de repli. Réduisez la concurrence ou ouvrez une nouvelle session.",
+  "safety.alertBurstAdvice": "Nombreux contrôles lourds sur contexte long en 15 min. Ouvrez une nouvelle session pour alléger le contexte.",
+  "safety.alertLimitAdvice": "Les pré-contrôles 5h approchent ~4 400. Réduisez la concurrence pour éviter le repli 429.",
+  "safety.win5h": "5h",
+  "safety.win24h": "24h",
+  "safety.metricHiddenRatio": "Part des appels cachés",
+  "safety.metricCallsSplit": "Pré-contrôle / Lourd",
+  "safety.metricFlashLite": "Pré-contrôle (Flash Lite)",
+  "safety.metricHeavy": "Contrôle lourd (Sonar)",
+  "safety.metric429Fallback": "429 / Replis",
+  "safety.metricEstTokens": "Entrée lourde estimée",
+  "safety.falseAlarmSuffix": "{pct}% faux positif",
+  "safety.charsUnit": "car.",
+  "safety.disclaimer": "Les comptes, parts, caractères et durées sont mesurés dans les journaux locaux (hors registre visible) ; la plage de tokens est estimée (car./4–car./3) hors prompts système et cache.",
+  "safety.emptyWindow": "Aucun journal de contrôle de sécurité observé sur cette fenêtre.",
   "quota.cycle5hTitle": "Cycle 5h actuel ({pool}) : {tok} Tokens · {cost} · {calls} appels",
   "quota.cycleWkCustomTitle": "Semaine civile en cours : {tok} Tokens · {cost} · {calls} appels",
   "quota.cycleWkPoolTitle": "Cycle hebdo actuel ({pool}) : {tok} Tokens · {cost} · {calls} appels",
@@ -9314,6 +10279,10 @@ const I18N_MESSAGES_FR_FR = Object.freeze({
   "live.swarmToggleIdle": "Essaim ({total})",
   "live.subCollapseTitle": "Replier la liste des sous-agents",
   "live.subExpandTitle": "Déplier l'activité des sous-agents",
+  "live.stepsProgress": "Étapes {done}/{total}",
+  "live.stepsExpandTitle": "Afficher la liste des étapes",
+  "live.stepsCollapseTitle": "Réduire la liste des étapes",
+  "live.stepsAllDone": "Toutes les étapes terminées",
   "cons.rangeCycle": "Cycle",
   "cons.cyclePoolAll": "Tous les pools",
   "cons.cyclePoolAllShort": "Tous",
@@ -9598,6 +10567,13 @@ const I18N_MESSAGES_FR_FR = Object.freeze({
   "settings.smgr.clearSelShort": "Effacer",
   "settings.smgr.selectedCount": "{n} sélectionnée(s)",
   "settings.smgr.deleteSelected": "Supprimer ({n})",
+  "settings.smgr.totalSizeTitle": "Espace de stockage local total : {size}",
+  "settings.smgr.filteredSizeTitle": "Filtre actuel : {filtered} / Total : {total}",
+  "settings.smgr.selectedSizeTitle": "Les sessions sélectionnées occupent {size}",
+  "settings.smgr.sizeTooltipTotal": "Stockage utilisé : {size}",
+  "settings.smgr.sizePartDb": "Base {size}",
+  "settings.smgr.sizePartBrain": "Artefacts et médias {size}",
+  "settings.smgr.sizePartSubagents": "sous-agents inclus {size}",
   "settings.smgr.prefsTitle": "Préférences de nettoyage",
   "settings.smgr.prefRedactLedger": "Anonymiser le registre à la suppression",
   "settings.smgr.prefRedactLedgerDesc": "Efface les titres et prompts supprimés tout en conservant 100 % des totaux de tokens et coûts.",
@@ -9617,6 +10593,7 @@ const I18N_MESSAGES_FR_FR = Object.freeze({
   "settings.smgr.deleteIndexOnlyOnlineTip": "Les résidus d'index seul ne peuvent pas être supprimés tant que le client est actif ; fermez-le pour un nettoyage hors ligne",
   "settings.smgr.confirmTitle": "Confirmer la suppression définitive",
   "settings.smgr.confirmSummary": "Supprimer définitivement {n} session(s). Cette action est irréversible.",
+  "settings.smgr.confirmReclaimSize": "Espace de stockage estimé libéré : env. {size}.",
   "settings.smgr.confirmOnlineMode": "{n} session(s) seront supprimées en ligne via l'API du client actif (sans redémarrage).",
   "settings.smgr.confirmOnlineMixed": "{online} session(s) seront supprimées en ligne via l'API client et {offline} via nettoyage hors ligne.",
   "settings.smgr.confirmTargets": "Cible(s) : {titles}",
@@ -9694,6 +10671,7 @@ const I18N_MESSAGES_FR_FR = Object.freeze({
   "settings.account.refresh6h": "6 h",
   "settings.account.refresh12h": "12 h",
   "settings.account.refresh24h": "24 h",
+  "settings.account.refreshOff": "Désactivé",
   "settings.account.emptyCredentialQuota": "Aucun pool de quota à afficher pour ce compte.",
   "settings.account.quota": "Quota restant par pool",
   "settings.account.quota5h": "5 heures {percent}%",
@@ -9769,13 +10747,6 @@ const I18N_MESSAGES_FR_FR = Object.freeze({
   "settings.resetBtn": "Réinitialiser",
   "settings.gen.appearanceTitle": "Interface et apparence",
   "settings.gen.language": "Langue",
-  "settings.gen.langZh": "简体中文",
-  "settings.gen.langZhTw": "繁體中文",
-  "settings.gen.langEn": "English",
-  "settings.gen.langJa": "日本語",
-  "settings.gen.langKo": "한국어",
-  "settings.gen.langDe": "Deutsch",
-  "settings.gen.langFr": "Français",
   "settings.gen.langAuto": "Système",
   "settings.gen.currencyLabel": "Devise de référence",
   "settings.gen.currencyAuto": "Suivre la langue ({code} {symbol})",
@@ -9880,6 +10851,8 @@ const I18N_MESSAGES_FR_FR = Object.freeze({
   "settings.str.mountDual": "Double ancrage (Barre de titre + Latérale)",
   "settings.str.mountComposer": "Ancrage saisie (Zone de saisie + Latérale)",
   "settings.str.mountSidebar": "Barre latérale seule",
+  "settings.str.mountVsCodeComposer": "Zone de saisie",
+  "settings.str.mountVsCodeTopbar": "Barre supérieure",
   "settings.bridge.restartTitle": "Option de lancement configurée — Redémarrez pour activer",
   "settings.bridge.ctxRestartTitle": "Option de lancement configurée — Redémarrez pour le contexte",
   "settings.bridge.restartBody": "--remote-debugging-port=0 ajouté automatiquement aux raccourcis, démarrages et protocoles (les prochains lancements monteront d’office). Cliquez ci-dessous pour fermer l’arrière-plan et relancer.",
@@ -9912,7 +10885,7 @@ const I18N_MESSAGES_FR_FR = Object.freeze({
   "settings.str.popoverWidthAuto": "Auto",
   "settings.str.popoverWidthCustom": "Personnalisée",
   "settings.str.popoverWidthHint": "Auto élargit les tables comme Étapes pour éviter le défilement horizontal ; Personnalisée accepte 440–1080 px",
-  "settings.str.multiToggle": "Pastille sessions actives",
+  "settings.str.multiToggle": "Sessions actives",
   "settings.str.contextAgentModeLabel": "Contexte capsule et survol",
   "settings.str.contextAgentMain": "Agent principal",
   "settings.str.contextAgentAuto": "Suivre l’actif",
@@ -9930,6 +10903,7 @@ const I18N_MESSAGES_FR_FR = Object.freeze({
   "settings.str.cliRestoringBtn": "Application…",
   "settings.str.cliPreviewRunning": "{count} actif(s)",
   "settings.str.show": "Afficher",
+  "settings.str.runningOnly": "Si actif",
   "settings.str.hide": "Masquer",
   "settings.str.on": "Activé",
   "settings.str.off": "Désactivé",
@@ -9945,13 +10919,26 @@ const I18N_MESSAGES_FR_FR = Object.freeze({
   "settings.str.hoverModulesLabel": "Modules du survol",
   "settings.str.hoverEmptyHint": "Aperçu au survol désactivé (cliquer la capsule ouvre le panneau)",
   "settings.str.addHoverModule": "Ajouter module ({count}/{max})",
-  "settings.str.hoverMetricStyleLabel": "Taille métriques temps réel",
-  "settings.str.hoverMetricStyleMedium": "Moyenne · Compact",
-  "settings.str.hoverMetricStyleLarge": "Grande · Courbe",
+  "settings.str.metricHeightLabel": "Hauteur de la zone métriques",
+  "settings.str.metricRows1": "1 ligne",
+  "settings.str.metricRows2": "2 lignes",
+  "settings.str.metricTextModeLabel": "Texte carte",
+  "settings.str.metricTextBoth": "Tout",
+  "settings.str.metricTextTitle": "Titre",
+  "settings.str.metricTextSub": "Note",
+  "settings.str.metricTextNone": "Valeur",
+  "settings.str.metricSizeSm": "S",
+  "settings.str.metricSizeThird": "M",
+  "settings.str.metricSizeWide": "L",
+  "settings.str.metricSizeNarrow": "V",
+  "settings.str.metricSizeTall": "XL",
+  "settings.str.metricResizeHandleAria": "Redimensionner la carte métrique (1×1 / 1/3 / 2×1 / 1×2 / 2×2)",
+  "settings.str.metricResizeHandleHint": "Glisser pour aimanter (1×1 / 1/3 / 2×1 / 1×2 / 2×2) ou cliquer pour alterner",
+  "settings.str.metricSizePillHint": "Cliquer pour changer la taille de carte (1×1 / 1/3 / 2×1 / 1×2 / 2×2)",
   "settings.str.hoverSyncOverviewLabel": "Synchro avec Vue globale",
   "settings.str.hoverMetricsLabel": "Métriques temps réel",
   "settings.str.hoverMetricsInactiveHint": "« Métriques temps réel » est masqué dans le survol ; ajoutez-le ci-dessous pour l’afficher",
-  "settings.str.metricOverflowTag": "Masqué en Grand",
+  "settings.str.metricOverflowTag": "Hors grille",
   "settings.str.overviewSection": "Disposition Vue globale",
   "settings.str.overviewBadge": "{modCount} mod · {metCount} ind.",
   "settings.str.overviewModulesLabel": "Modules",
@@ -9992,6 +10979,8 @@ const I18N_MESSAGES_FR_FR = Object.freeze({
   "settings.oth.autoLaunchDesc": "Maintient automatiquement les options de port de débogage pour Antigravity Desktop et l'IDE",
   "settings.oth.remoteSshLabel": "Télémétrie IDE Remote-SSH",
   "settings.oth.remoteSshDesc": "Détecte automatiquement les fenêtres IDE Remote-SSH",
+  "settings.oth.safetyMonitorLabel": "Suivi des contrôles de sécurité",
+  "settings.oth.safetyMonitorDesc": "Analyse en lecture seule des journaux locaux pour afficher les contrôles cachés dans l'onglet Consommation",
   "settings.oth.macWrapperLabel": "Lanceur macOS géré (.app)",
   "settings.oth.macWrapperDesc": "Un lanceur géré avec port de débogage est installé dans ~/Applications et peut être supprimé à tout moment",
   "settings.oth.macRemoveWrapperBtn": "Supprimer le lanceur macOS",
@@ -10112,7 +11101,10 @@ const I18N_MESSAGES_FR_FR = Object.freeze({
   "live.act.read_board": "Lire tableau",
   "live.act.swarm_wait": "En veille tableau",
   "live.act.manage_task": "Gérer tâche",
+  "live.act.background_task": "Tâche en arrière-plan",
   "live.act.schedule": "Planifier tâche",
+  "live.act.update_steps": "Maj étapes",
+  "live.act.update_focus": "Maj focus",
   "live.act.ask_question": "Attente choix utilisateur",
   "live.act.search_marketplace": "Chercher plugins",
   "live.act.generate_image": "Générer image",
@@ -10320,12 +11312,1335 @@ const I18N_MESSAGES_FR_FR = Object.freeze({
 return { I18N_MESSAGES_FR_FR };
 })();
 
+// --- src/i18n/vi-VN.js ---
+const { I18N_MESSAGES_VI_VN } = (() => {
+const I18N_MESSAGES_VI_VN = Object.freeze({
+
+  'app.title': 'Giám sát Dung lượng & Tốc độ',
+
+  'nav.ariaMain': 'Điều hướng chính',
+  'nav.overview': 'Trực tiếp',
+  'nav.consumption': 'Thống kê',
+  'nav.steps': 'Chi tiết',
+  'nav.settings': 'Cài đặt',
+
+  'header.followLatest': 'Theo dõi phiên mới nhất',
+  'header.followCurrentWindow': 'Theo dõi cửa sổ hiện tại',
+  'header.autoFollowBadge': 'Tự động',
+  'header.currentWindowNamed': 'Hiện tại ({title})',
+  'header.latestNamed': 'Mới nhất ({title})',
+  'header.lockedSession': 'Đã ghim phiên ({id})',
+  'header.lockedMeta': 'Đã ghim',
+  'header.convMetaWithSubs': 'Chính {main} · {subs} sub ({total} bước)',
+  'header.convMetaWithSwarm': 'Chính {main} · {swarm} swarm ({total} bước)',
+  'header.convMetaWithSwarmAndSubs': 'Chính {main} · {swarm} swarm · {subs} sub ({total} bước)',
+  'header.convCompactSubs': '{subs} sub · {total} bước',
+  'header.convCompactSwarm': '{swarm} swm · {total} bước',
+  'header.convCompactSwarmAndSubs': '{swarm} swm {subs} sub · {total} bước',
+  'header.convMetaSteps': '{count} bước',
+  'header.hasUpdate': 'Cập nhật',
+  'header.upgradeToVer': 'Cập nhật v{ver}',
+  'header.upgrading': 'Đang cập nhật…',
+  'header.ariaUpdate': 'Có phiên bản mới, bấm để cập nhật',
+  'header.ariaRefresh': 'Làm mới dữ liệu',
+  'header.statusSyncing': 'Đang đồng bộ',
+  'header.statusSynced': 'Đã đồng bộ',
+  'header.statusRetrying': 'Đang thử lại',
+  'header.statusGenerating': 'Đang chạy{suffix}',
+  'header.statusQuotaCached': 'Quota (Cache)',
+  'header.statusQuotaOffline': 'Quota ngoại tuyến',
+  'header.statusLive': 'Đang giám sát',
+  'header.scopeAll': 'Tất cả Agent',
+  'header.scopeAllShort': 'Tất cả',
+  'header.searchSessionPlaceholder': 'Tìm phiên, dự án hoặc ID…',
+  'select.searchPlaceholder': 'Lọc tùy chọn…',
+  'select.noMatches': 'Không có mục phù hợp',
+  'select.clearSearch': 'Xóa tìm kiếm',
+  'select.defaultUnit': 'mục',
+  'select.listSep': ', ',
+
+  'fmt.pending': 'N/A',
+  'fmt.speedIncomplete': 'Chưa đủ dữ liệu thời gian',
+  'fmt.speedCanceled': 'Đã hủy',
+  'fmt.speedError': 'Lỗi gọi',
+  'fmt.speedInterrupted': 'Bị gián đoạn',
+  'fmt.speedCompactionTimingUnavailable': 'Nén không đo thời gian',
+  'fmt.speedInvalidOutput': 'Không có đầu ra hợp lệ',
+  'fmt.speedInconsistent': 'Thời gian không hợp lệ',
+  'fmt.speedShort': 'Quá ngắn (<0.5s)',
+  'fmt.speedLegacy': 'Cache cũ',
+  'fmt.sampleSteps': '{valid}/{total} bước',
+  'fmt.resetUnknown': 'Chưa rõ thời gian đặt lại',
+  'fmt.resetSoon': 'Sắp đặt lại',
+  'fmt.resetUnder1m': 'Đặt lại sau <1p',
+  'fmt.resetDaysHours': 'Đặt lại sau {d}n {h}g',
+  'fmt.resetHoursMins': 'Đặt lại sau {h}g {m}p',
+  'fmt.resetMins': 'Đặt lại sau {m}p',
+  'fmt.selectTime': 'Chọn thời gian',
+  'fmt.unknownModel': 'Model không xác định',
+  'fmt.unknownPool': 'Không xác định',
+  'fmt.compactionSuffix': '·nén',
+  'fmt.mainAgent': 'Agent chính',
+  'fmt.mainBadge': 'Chính',
+  'fmt.subAgent': 'Subagent',
+  'fmt.subBadge': 'S{index}',
+  'fmt.subBadgeShort': 'Sub',
+  'fmt.swarmAgent': 'Swarm',
+  'fmt.swarmBadge': 'W{index}',
+  'fmt.swarmBadgeShort': 'Swarm',
+  'fmt.swarmMonitorHint': 'Giám sát',
+  'fmt.swarmNarratorHint': 'Điều phối',
+  'fmt.sideQuestion': 'Hỏi phụ',
+  'fmt.sideBadge': 'Q{index}',
+  'fmt.sideBadgeShort': 'Q',
+  'fmt.selectedCount': 'Đã chọn {count} {unit}',
+  'fmt.selectedListTitle': 'Đã chọn ({count}): {names}',
+  'fmt.selectPlaceholder': 'Chọn',
+  'fmt.ageJustNow': 'vừa xong',
+  'fmt.ageMins': '{n}p trước',
+  'fmt.ageHours': '{n}g trước',
+  'fmt.ageDays': '{n}n trước',
+  'fmt.activePool': 'Pool đang dùng',
+  'fmt.weekTag': 'Tuần',
+  'fmt.weekCompact': 't',
+  'fmt.weeklyQuota': 'Hàng tuần',
+  'fmt.quotaPrefix': 'Q',
+  'fmt.cliAvg': 'TB {val}',
+  'fmt.cliCache': 'cache {pct}%',
+  'fmt.cliQuotaAuto': '5g ',
+  'fmt.cliCtx': 'Ctx ',
+
+  'capsule.ariaMonitor': 'Giám sát Dung lượng & Tốc độ',
+  'capsule.ariaMulti': 'Tổng quan phiên đang chạy',
+  'capsule.multiZero': '0 đang chạy',
+  'capsule.multiRunning': '{count} đang chạy',
+  'capsule.multiRunningWithSubs': '{count} đang chạy · {subs} sub',
+  'capsule.multiRunningWithSwarm': '{count} đang chạy · {subs} swarm',
+  'capsule.tpsRunning': 'Đang chạy',
+  'capsule.tpsIdle': 'Chờ',
+  'capsule.quotaLeft': 'Còn {pct}%',
+  'capsule.quotaUnknown': 'Còn --%',
+  'capsule.newVersion': 'Cập nhật',
+  'capsule.updating': 'Đang cập nhật…',
+  'capsule.ariaUpdateTitle': 'Có phiên bản mới, bấm để cập nhật',
+  'capsule.hoverNewVer': 'Có bản cập nhật v{ver}',
+  'capsule.hoverNewVerGeneric': 'Có phiên bản mới',
+  'capsule.hoverUpdateHintTopbar': 'Bấm v{ver} trên thanh tiêu đề để cập nhật',
+  'capsule.hoverUpdateHintComposer': 'Bấm nhãn v{ver} để cập nhật',
+  'capsule.hoverUpdateHintTopbarGeneric': 'Bấm nhãn cập nhật trên thanh tiêu đề',
+  'capsule.hoverUpdateHintComposerGeneric': 'Bấm nhãn cập nhật để cài đặt',
+  'multi.title': 'Phiên đang hoạt động',
+  'multi.ariaDialog': 'Bảng phiên đang hoạt động',
+  'multi.pinned': 'Đã ghim',
+  'multi.loading': 'Đang tải...',
+  'multi.empty': 'Không có phiên nào đang chạy',
+  'multi.allIdle': 'Tất cả đang rảnh',
+  'multi.metaWithSubs': '{main} chính · {subs} subagent đang chạy',
+  'multi.metaWithSwarm': '{main} chính · {subs} swarm đang chạy',
+  'multi.metaMainOnly': '{main} phiên đang chạy',
+  'multi.hereTag': 'Tại đây',
+  'multi.inspectSessionTitle': 'Xem phiên trong trình giám sát: {title}',
+
+  'module.metrics': 'Chỉ số trực tiếp',
+  'module.context': 'Cửa sổ Context',
+  'module.quotas': 'Quota khả dụng',
+  'module.live_tasks': 'Tác vụ đang chạy',
+
+  'capMetric.context': 'Mức dùng Context (%)',
+  'capMetric.tps': 'Tốc độ sinh (TPS)',
+  'capMetric.ttft': 'Độ trễ token đầu (TTFT)',
+  'capMetric.avg_tps': 'Tốc độ TB (Avg TPS)',
+  'capMetric.cost': 'Chi phí bước ($)',
+  'capMetric.session_cost': 'Chi phí phiên ($)',
+  'capMetric.cache_hit': 'Tỉ lệ Cache Hit (%)',
+  'capMetric.session_tokens': 'Tổng Token phiên',
+  'capMetric.quota_auto': 'Quota sắp hết nhất',
+  'capMetric.gemini_5h': 'Quota Gemini 5 giờ',
+  'capMetric.gemini_weekly': 'Quota Gemini Tuần',
+  'capMetric.argon_weekly': 'Quota Argon Tuần',
+  'capMetric.claude_5h': 'Quota Claude 5 giờ',
+  'capMetric.claude_weekly': 'Quota Claude Tuần',
+
+  'ovMetric.tps': 'Tốc độ sinh',
+  'ovMetric.ttft': 'Token đầu',
+  'ovMetric.avg_tps': 'Tốc độ TB',
+  'ovMetric.step_cost': 'Chi phí bước',
+  'ovMetric.session_cost': 'Chi phí phiên',
+  'ovMetric.cache_hit': 'Cache Hit',
+  'ovMetric.session_tokens': 'Token phiên',
+  'ovMetric.context_usage': 'Dùng Context',
+  'ovMetric.quota_tightest': 'Quota thấp nhất',
+  'ovMetric.subAvgTtft': 'TB {val}',
+  'ovMetric.subAvgCache': 'TB {val}',
+  'ovMetric.subValidSamples': 'Hợp lệ {samples}',
+  'ovMetric.subTotalCost': 'Tổng {cost}',
+  'ovMetric.subStepCost': 'Bước {cost}',
+  'ovMetric.subInOutTokens': 'Vào {inTok} · Ra {outTok}',
+  'ovMetric.subCtxRatio': '{used} / {limit}',
+  'ovMetric.subQuotaPool': '{label}',
+  'ovMetric.subQuotaPending': 'Đang chờ đồng bộ quota',
+
+  'ctx.followActive': 'Theo Agent chạy ({badge})',
+  'ctx.followActiveTitle': 'Tự động theo dõi cửa sổ context của agent đang chạy',
+  'ctx.expandMore': '+{count} nữa',
+  'ctx.expandMoreTitle': 'Mở rộng toàn bộ {count} subagent',
+  'ctx.collapse': 'Thu gọn',
+  'ctx.collapseTitle': 'Thu gọn danh sách subagent',
+  'ctx.ch.assistant': 'Trợ lý',
+  'ctx.ch.assistantTitle': 'Suy luận, phản hồi của model và tham số gọi công cụ',
+  'ctx.ch.toolResults': 'Kết quả Tool',
+  'ctx.ch.toolResultsTitle': 'Nội dung đọc file, log terminal và kết quả thực thi tool',
+  'ctx.ch.userInput': 'Người dùng',
+  'ctx.ch.userInputTitle': 'Tin nhắn người dùng và tệp đính kèm',
+  'ctx.ch.subagent': 'Subagent',
+  'ctx.ch.subagentTitle': 'Báo cáo từ subagent và thông báo tác vụ nền',
+  'ctx.ch.checkpoint': 'Điểm nén',
+  'ctx.ch.checkpointTitle': 'Bản tóm tắt checkpoint sau khi nén hội thoại',
+  'ctx.ch.systemPrompt': 'System Prompt',
+  'ctx.ch.systemPromptTitle': 'Prompt hệ thống, sandbox, artifact và môi trường',
+  'ctx.ch.systemTools': 'System Tools',
+  'ctx.ch.systemToolsTitle': 'Khai báo schema các công cụ tích hợp sẵn',
+  'ctx.ch.mcpTools': 'MCP Tools',
+  'ctx.ch.mcpToolsTitle': 'Schema công cụ và tài nguyên từ máy chủ MCP ngoài',
+  'ctx.ch.skills': 'Skills',
+  'ctx.ch.skillsTitle': 'Danh mục và hướng dẫn các Skills đã cài',
+  'ctx.ch.userRules': 'User Rules',
+  'ctx.ch.userRulesTitle': 'Quy tắc user_rules toàn cục và theo workspace',
+
+  'quota.weeklyShort': 'Tuần',
+  'quota.weeklyPool': 'Tuần ({pool})',
+  'quota.loading': 'Đang tải...',
+  'quota.failed': 'Không khả dụng (--%)',
+  'quota.usedAndLeft': '{reset} · Đã dùng {used}%',
+  'quota.remainingAndReset': '{reset} · Còn {remaining}%',
+  'quota.reservedTip': 'Ước tính phần giữ chỗ (Thử nghiệm): ~{rsv}% (thực dùng ~{actual}%); phần dư hoàn lại sau ~10 phút rảnh',
+  'quota.reservedTipMulti': 'Ước tính phần giữ chỗ (Thử nghiệm): ~{rsv}% ({leases} phiên xếp chồng, thực dùng ~{actual}%); phần dư hoàn lại sau ~10 phút rảnh',
+  'quota.externalTip': 'Cục bộ ~{self}% · Không phải tự dùng (nhóm gia đình / thiết bị khác) ~{ext}%',
+  'quota.externalReservedTip': 'Cục bộ ~{self}% · Ngoài máy ~{ext}% · Giữ chỗ ~{rsv}% (phần dư hoàn lại sau ~10 phút rảnh)',
+  'quota.externalReservedTipMulti': 'Cục bộ ~{self}% · Ngoài máy ~{ext}% · Giữ chỗ ~{rsv}% ({leases} phiên xếp chồng, phần dư hoàn lại sau ~10 phút rảnh)',
+  'quota.legendActual': 'Thực dùng',
+  'quota.legendRemaining': 'Còn lại',
+  'quota.legendExternal': 'Ngoài máy',
+  'quota.legendReserved': 'Giữ chỗ',
+  'quota.safetyReviewTipSuffix': 'gồm ~{pct}% kiểm tra an toàn',
+  'safety.cardTitle': 'Kiểm tra an toàn nền',
+  'safety.alert429Badge': 'Dự phòng 429',
+  'safety.alertBurstBadge': 'Tăng vọt nặng',
+  'safety.alertLimitBadge': 'Cận ngưỡng 5h',
+  'safety.alert429Advice': 'Lỗi 429 kích hoạt kiểm tra chuyên sâu dự phòng. Hãy giảm gọi công cụ đồng thời hoặc mở phiên mới.',
+  'safety.alertBurstAdvice': 'Kiểm tra chuyên sâu ngữ cảnh lớn xuất hiện dày trong 15 phút qua. Nên mở phiên mới để rút gọn ngữ cảnh.',
+  'safety.alertLimitAdvice': 'Kiểm tra sơ bộ 5h sắp chạm ngưỡng ~4.400. Nên giảm mức chạy song song để tránh dự phòng 429.',
+  'safety.win5h': '5h',
+  'safety.win24h': '24h',
+  'safety.metricHiddenRatio': 'Tỷ lệ yêu cầu ẩn',
+  'safety.metricCallsSplit': 'Sơ bộ / Chuyên sâu',
+  'safety.metricFlashLite': 'Kiểm tra sơ bộ (Flash Lite)',
+  'safety.metricHeavy': 'Kiểm tra chuyên sâu (Sonar)',
+  'safety.metric429Fallback': '429 / Dự phòng',
+  'safety.metricEstTokens': 'Ước tính đầu vào nặng',
+  'safety.falseAlarmSuffix': 'báo nhầm {pct}%',
+  'safety.charsUnit': 'ký tự',
+  'safety.disclaimer': 'Số lượt, tỷ lệ, ký tự và độ trễ là số liệu đo từ nhật ký cục bộ (không ghi vào sổ hội thoại); khoảng token ước tính theo ký tự/4–ký tự/3, chưa gồm prompt hệ thống và giảm trừ bộ nhớ đệm.',
+  'safety.emptyWindow': 'Chưa ghi nhận nhật ký kiểm tra an toàn nền trong khoảng thời gian này.',
+  'quota.cycle5hTitle': 'Chu kỳ 5g hiện tại ({pool}): {tok} Token · {cost} · {calls} lượt gọi',
+  'quota.cycleWkCustomTitle': 'Tuần dương lịch hiện tại: {tok} Token · {cost} · {calls} lượt gọi',
+  'quota.cycleWkPoolTitle': 'Chu kỳ tuần hiện tại ({pool}): {tok} Token · {cost} · {calls} lượt gọi',
+  'quota.cycleFullSuffix': 'Đầy ~{full}',
+  'quota.footTokensCustom': 'Tổng tuần: {tok} ({cost})',
+  'quota.footTokensCycle': 'Tổng chu kỳ: {tok} ({cost})',
+  'quota.footCredits': 'AI Credits: {credits}',
+  'quota.footCallsCustom': 'Lượt tuần: {calls}',
+  'quota.footCallsCycle': 'Lượt chu kỳ: {calls}',
+  'quota.footTipCustom': 'Tính từ 00:00 thứ Hai giờ địa phương',
+  'quota.footTipCycle': 'Tổng hợp theo khung đặt lại hàng tuần của từng pool quota',
+  'quota.rateHelpAria': 'Xem ước tính tốc độ tiêu hao quota thực tế cho tài khoản này',
+  'quota.ratePopTitle': 'Ước tính tốc độ tiêu hao',
+  'quota.ratePopAccountScope': '{account}',
+  'quota.ratePopAccountCurrent': 'Tài khoản hiện tại',
+  'quota.ratePopPoolFallback': 'Trung bình Pool',
+  'quota.ratePopEq5hLabel': '5g',
+  'quota.ratePopEqWkLabel': 'Tuần',
+  'quota.ratePopPerUsd': '{win} {rate}%/$',
+  'quota.ratePopSamples': '{n} mẫu',
+  'quota.ratePopPrelimSlope': 'ước tính độ dốc',
+  'quota.ratePopPrelimCycle': 'ước tính chu kỳ',
+  'quota.ratePopEmpty': 'Chưa đủ mẫu sạch (mở khóa khi tiêu hao 2% tuần hoặc có 3 bước đơn model sạch).',
+  'quota.ratePopSharedBadge': 'Đang dùng chung',
+  'quota.ratePopSharedBadgeTip': 'Phát hiện sử dụng pool từ bên ngoài trong 15 phút qua; phần giữ chỗ mới hiển thị sau khi xác minh',
+  'quota.ratePopExternalDetail': 'Phát hiện nhóm gia đình / thiết bị khác sử dụng',
+  'quota.ratePopExternalBaseline': 'Phát hiện sử dụng từ nhóm gia đình / thiết bị khác trong chu kỳ này; giữ chỗ & tốc độ chỉ hiệu chuẩn theo bước cục bộ',
+
+  'live.currentSession': 'Phiên hiện tại',
+  'live.switchSessionTitle': 'Chuyển giám sát sang phiên: {title}',
+  'live.thinking': 'Đang suy luận',
+  'live.generating': 'Đang tạo',
+  'live.running': 'Đang chạy',
+  'live.waiting': 'Đang chờ',
+  'live.killed': 'Đã dừng',
+  'live.done': 'Xong',
+  'live.doneWithSteps': 'Xong ({steps} bước)',
+  'live.waitingWithSteps': 'Đang chờ ({steps} bước)',
+  'live.killedWithSteps': 'Đã dừng ({steps} bước)',
+  'live.subToggleRunning': 'Subagents {run}/{total}',
+  'live.subToggleIdle': 'Subagents ({total})',
+  'live.swarmToggleRunning': 'Swarm {run}/{total}',
+  'live.swarmToggleIdle': 'Swarm ({total})',
+  'live.subCollapseTitle': 'Thu gọn danh sách subagent',
+  'live.subExpandTitle': 'Mở rộng danh sách subagent',
+  'live.stepsProgress': 'Bước {done}/{total}',
+  'live.stepsExpandTitle': 'Mở rộng danh sách bước tác vụ',
+  'live.stepsCollapseTitle': 'Thu gọn danh sách bước tác vụ',
+  'live.stepsAllDone': 'Đã hoàn thành tất cả bước',
+
+  'cons.rangeCycle': 'Chu kỳ',
+  'cons.cyclePoolAll': 'Mọi Pool',
+  'cons.cyclePoolAllShort': 'Tất cả',
+  'cons.cyclePoolAria': 'Lọc chu kỳ hiện tại theo pool quota',
+  'cons.cyclePoolRemMeta': 'Còn {pct}',
+  'cons.currentCycle': 'Chu kỳ hiện tại',
+  'cons.cycleFallbackWeek': 'Tuần này',
+  'cons.cycleFallbackWeekTip': 'Chưa có thời gian đặt lại chính thức; dùng tuần dương lịch từ thứ Hai',
+  'cons.rangeToday': 'Hôm nay',
+  'cons.range24h': '24g',
+  'cons.range7d': '7 ngày',
+  'cons.range14d': '14 ngày',
+  'cons.range30d': '30 ngày',
+  'cons.rangeAll': 'Tất cả',
+  'cons.rangeCustom': 'Tùy chọn',
+  'cons.rangeAria': 'Khoảng thời gian thống kê',
+  'cons.applyFilter': 'Áp dụng',
+  'cons.rangeTo': 'đến',
+  'cons.overviewTitle': 'Tổng quan sử dụng',
+  'cons.totalTokens': 'Tổng Token',
+  'cons.estCost': 'Chi phí ước tính',
+  'cons.cacheHitRate': 'Tỉ lệ Cache Hit',
+  'cons.callsCount': '{calls} lượt gọi',
+  'cons.cacheHitTokens': 'Trúng {tokens}',
+  'cons.newInput': 'Đầu vào mới',
+  'cons.uncachedInput': 'Đầu vào chưa cache',
+  'cons.cacheRead': 'Đọc từ Cache',
+  'cons.savedCost': 'Tiết kiệm {cost}',
+  'cons.outputUsage': 'Đầu ra',
+  'cons.replyAndThink': 'Suy luận {think} · Trả lời {resp}',
+  'cons.trendTitle': 'Xu hướng sử dụng',
+  'cons.allTime': 'Toàn thời gian',
+  'cons.hmModeAria': 'Chế độ xem bản đồ nhiệt',
+  'cons.hmModeDay': 'Ngày',
+  'cons.hmModeWeek': 'Tuần',
+  'cons.hmModeMonth': 'Tháng',
+  'cons.hmModeAll': 'Tổng',
+  'cons.trendPointsHintMinute': '{minutes}p ({points} điểm) · Di chuột để xem chi tiết',
+  'cons.trendPointsHintHourly': 'Theo giờ ({points} điểm) · Di chuột để xem chi tiết',
+  'cons.trendPointsHintDaily': 'Theo ngày ({points} điểm) · Di chuột để xem chi tiết',
+  'cons.topModels': 'Top Model',
+  'cons.clientSources': 'Nguồn Client',
+  'cons.monthlyTitle': 'Phân bổ theo tháng',
+  'cons.monthLabel': 'T{m}',
+  'cons.monthFullLabel': 'T{m}/{year}',
+  'cons.hoverModelsHint': 'Di chuột xem model',
+  'cons.otherModelsCount': 'Khác ({count})',
+  'cons.legInput': 'Đầu vào',
+  'cons.legCache': 'Cache',
+  'cons.legOutput': 'Đầu ra',
+  'cons.legThinking': 'Suy luận',
+  'cons.footInput': 'Vào ',
+  'cons.footCache': 'Cache ',
+  'cons.footOutput': 'Ra ',
+  'cons.footThinking': 'Suy luận ',
+  'cons.footCalls': 'Lượt ',
+  'cons.rankTabAria': 'Chuyển chế độ xếp hạng',
+  'cons.rankTabModelsCount': 'Model ({count})',
+  'cons.rankTabSessions': 'Phiên',
+  'cons.rankTabSessionsCount': 'Phiên ({count})',
+  'cons.rankTabWorkspaces': 'Dự án',
+  'cons.rankTabWorkspacesCount': 'Dự án ({count})',
+  'cons.workspaceUnbound': 'Chưa gắn Workspace',
+  'cons.workspaceSessions': '{count} phiên',
+  'cons.exportMenuAria': 'Xuất dữ liệu và báo cáo',
+  'cons.exportXlsx': 'Xuất Excel (.xlsx)',
+  'cons.exportXlsxTip': 'Xuất file Excel nhiều sheet có định dạng, tự căn độ rộng cột',
+  'cons.exportCsv': 'Xuất CSV',
+  'cons.exportCsvTip': 'Xuất thống kê khoảng thời gian hiện tại ra CSV',
+  'cons.exportCsvDone': 'Đã xuất',
+  'cons.exportMd': 'Sao chép báo cáo Markdown',
+  'cons.exportMdTip': 'Sao chép báo cáo tóm tắt Markdown cho khoảng thời gian hiện tại',
+  'cons.exportMdDone': 'Đã sao chép báo cáo Markdown',
+  'cons.topConvsEmpty': 'Không có dữ liệu phiên trong khoảng này',
+  'cons.topConvsSortAria': 'Sắp xếp xếp hạng phiên',
+  'cons.topConvsSortCost': 'Chi phí',
+  'cons.topConvsSortTokens': 'Token',
+  'cons.topConvCacheMeta': 'Cache {pct}%',
+  'cons.topConvJumpTip': 'Bấm để kiểm tra phiên này trong mục Chi tiết',
+  'cons.modelsSortAria': 'Sắp xếp xếp hạng model',
+  'cons.modelsSortTokens': 'Token',
+  'cons.modelsSortCost': 'Chi phí',
+  'cons.modelsSortSpeed': 'Tốc độ',
+  'cons.modelsSortCalls': 'Lượt gọi',
+  'cons.modelUnitCost': 'TB {cost}/1M',
+  'cons.speedRelTip': 'Tốc độ tương đối so với model nhanh nhất trong khoảng này',
+  'cons.focusTtft': 'TTFT {ttft}',
+  'cons.focusSpeedMeta': 'TTFT {ttft} · Cache {cache}% · Ra {out}',
+  'cons.focusCallsMeta': 'TB {avgTok}/lượt · Chi phí {cost}',
+
+  'steps.title': 'Nhật ký bước gọi',
+  'steps.tabSteps': 'Các bước ({count})',
+  'steps.tabStepsFiltered': 'Các bước ({filtered}/{total})',
+  'steps.tabModels': 'Phân tích',
+  'steps.allAgents': 'Tất cả Agent',
+  'steps.allModels': 'Tất cả Model',
+  'steps.selectModel': 'Chọn Model',
+  'steps.unitAgent': 'agent',
+  'steps.unitModel': 'model',
+  'steps.lineTitle': 'Dòng thời gian phiên',
+  'steps.fitTitle': 'Đường xu hướng',
+  'steps.modelsTitle': 'Tổng hợp Model',
+  'steps.modelsEmpty': 'Không có lượt gọi model trong phạm vi hiện tại',
+  'steps.metricTotalTokens': 'Token',
+  'steps.metricContext': 'Context',
+  'steps.metricTps': 'TPS',
+  'steps.metricTtft': 'TTFT',
+  'steps.metricCache': 'Cache',
+  'steps.metricCost': 'Chi phí',
+  'steps.badgeBackAll': 'Bấm để quay lại Tất cả Agent',
+  'steps.badgeFilterAgent': 'Bấm để lọc {agent} (Ctrl/Shift-click để chọn nhiều)',
+  'steps.ctxTitle': 'Context {ctx} · Suy luận {think} · Trả lời {resp}',
+  'steps.ioCacheTitle': 'Vào mới {inPart} · Ra {outPart} · Đọc Cache {cachePart}',
+  'steps.tokSeg.context.th': 'Ctx',
+  'steps.tokSeg.context.tip': 'Context',
+  'steps.tokSeg.in.th': 'Vào',
+  'steps.tokSeg.in.tip': 'Đầu vào mới',
+  'steps.tokSeg.out.th': 'Ra',
+  'steps.tokSeg.out.tip': 'Đầu ra',
+  'steps.tokSeg.cache.th': 'Cache',
+  'steps.tokSeg.cache.tip': 'Đọc Cache',
+  'steps.tokSeg.think.th': 'Nghĩ',
+  'steps.tokSeg.think.tip': 'Suy luận',
+  'steps.tokSeg.reply.th': 'Đáp',
+  'steps.tokSeg.reply.tip': 'Trả lời',
+  'steps.tokSeg.total.th': 'Tổng',
+  'steps.tokSeg.total.tip': 'Tổng cộng',
+  'steps.modelCallsShare': '{calls} lượt · {pct}%',
+  'steps.modelCallsOnly': '{calls} lượt',
+  'steps.modelsSummaryPrefix': '{count} model · ',
+  'steps.modelPerfFoot': 'TB {tps} · TTFT {ttft} · Cache {cache}%',
+  'steps.modelSplitFoot': 'Vào {inTok} · Cache {cacheTok} · Nghĩ {thinkTok} · Ra {respTok}',
+  'steps.fitActiveCardTitle': '{title} (Đang hiện trên biểu đồ; Ctrl/Shift-click để so sánh)',
+  'steps.fitInactiveCardTitle': 'Bấm để xem {text} trên biểu đồ (Ctrl/Shift-click để so sánh)',
+  'steps.turnMediaOnly': '[Đính kèm Media]',
+  'steps.turnMediaSuffix': '[Media]',
+  'steps.anomalyTag.timeout': 'TO{n}',
+  'steps.anomalyTag.rate_limit': '429×{n}',
+  'steps.anomalyTag.capacity': '503×{n}',
+  'steps.anomalyTag.capacitySingle': '503',
+  'steps.anomalyTag.disconnect': 'Drop{n}',
+  'steps.anomalyTag.upstream': '500×{n}',
+  'steps.anomalyTag.upstreamSingle': '500',
+  'steps.anomalyTag.model_output': 'Fix{n}',
+  'steps.anomalyTag.safety': 'Safe{n}',
+  'steps.anomalyTag.auth_or_model': 'Err{n}',
+  'steps.anomalyTag.error': 'Err{n}',
+  'steps.anomalyTag.mixed': 'Warn{n}',
+  'steps.anomalyKind.timeout': 'Hết thời gian chờ kết nối / luồng',
+  'steps.anomalyKind.rate_limit': '429 Giới hạn tốc độ / Hết quota',
+  'steps.anomalyKind.capacity': '503 Hết tài nguyên máy chủ',
+  'steps.anomalyKind.disconnect': 'Đứt kết nối / Luồng bị ngắt',
+  'steps.anomalyKind.upstream': 'Lỗi nội bộ máy chủ 5xx',
+  'steps.anomalyKind.model_output': 'Đầu ra model / Tool call không hợp lệ',
+  'steps.anomalyKind.safety': 'Bộ lọc an toàn nội dung',
+  'steps.anomalyKind.auth_or_model': 'Yêu cầu / Model bị từ chối',
+  'steps.anomalyKind.error': 'Lỗi gọi API',
+  'steps.anomalyKind.canceled': 'Người dùng đã hủy',
+  'steps.anomalyStepTitle': '#{step} · {count} Lần thử lại / Lỗi',
+  'steps.anomalyDelayPart': 'Chờ {sec}s',
+  'steps.compactionStepTitle': '#{step} · Tự động nén Context',
+  'steps.compactionSummaryRow': 'Đầu vào {input} → Tóm tắt {output}',
+  'steps.compactionDetailHint': 'Bước tự động nén ngữ cảnh hội thoại',
+  'steps.compactionAnomalyHint': 'Bước này đồng thời là bước tự động nén',
+  'steps.revertedStepTitle': '#{step} · Đã hoàn tác',
+  'steps.revertedDetailHint': 'Đã hoàn tác trong hội thoại; token và chi phí đã tiêu thụ vẫn tính vào tổng',
+  'steps.revertedAlsoHint': 'Bước này đã được hoàn tác (vẫn giữ số liệu trong tổng)',
+  'steps.timingStepTitle': '#{step} · Chi tiết thời gian',
+  'steps.timingTotalSub': 'Tổng {sec}',
+  'steps.timingTtftLabel': 'Token đầu (TTFT)',
+  'steps.timingStreamLabel': 'Truyền luồng',
+  'steps.timingAfterTtftLabel': 'Sau token đầu',
+  'steps.timingThinkLabel': 'Suy luận gốc',
+  'steps.timingTotalLabel': 'Tổng thời lượng',
+  'steps.timingToolBufferedHint': 'Bước gọi tool (trả về theo khối nên luồng ngắn)',
+  'steps.timingAnomalyHint': '{count} lần thử lại/lỗi',
+  'steps.timingAnomalyDelayHint': '{count} lần thử lại/lỗi · chờ {sec}s',
+  'steps.anomalyTerminalTag': 'Đã dừng',
+  'steps.anomalyModelTitle': '{model} · {count} Lần thử lại / Lỗi',
+  'steps.anomalyModelSub': '{steps} bước bị ảnh hưởng',
+  'steps.anomalyModelKindRow': '{kind}: {count}',
+  'steps.anomalyModelClickHint': 'Bấm để lọc các bước bất thường',
+  'steps.anomalySummaryMeta': '{count} lần thử lại/lỗi ({steps} bước)',
+  'steps.anomalyFilterLabel': 'Chỉ bất thường ({count})',
+  'steps.anomalyFilterAll': 'Hiện tất cả bước',
+  'steps.sortClickTip': 'Bấm để sắp xếp theo {col}',
+  'steps.searchPlaceholder': 'Lọc #bước, model, prompt hoặc lỗi…',
+  'steps.searchClearAria': 'Xóa bộ lọc bước',
+  'steps.quickFilterAria': 'Bộ lọc chẩn đoán nhanh',
+  'steps.chipAll': 'Tất cả',
+  'steps.chipAnomaly': 'Bất thường {count}',
+  'steps.chipCompaction': 'Nén {count}',
+  'steps.chipLowCache': 'Cache thấp {count}',
+  'steps.chipLowCacheTip': 'Lọc các bước có tỉ lệ cache hit dưới 50%',
+  'steps.chipSlowTtft': 'TTFT chậm {count}',
+  'steps.chipSlowTtftTip': 'Lọc các bước trễ nặng có TTFT >= 30s',
+  'steps.exportMenuAria': 'Xuất dữ liệu và báo cáo',
+  'steps.exportXlsx': 'Xuất Excel (.xlsx)',
+  'steps.exportXlsxTip': 'Xuất file Excel nhiều sheet cho các bước và tổng hợp model',
+  'steps.exportCsv': 'Xuất CSV',
+  'steps.exportCsvTip': 'Xuất bảng bước hiện tại ra CSV',
+  'steps.exportCsvDone': 'Đã xuất',
+  'steps.exportMd': 'Sao chép báo cáo Markdown',
+  'steps.exportMdTip': 'Sao chép báo cáo chẩn đoán Markdown cho các bước hiện tại',
+  'steps.exportMdDone': 'Đã sao chép báo cáo bước Markdown',
+
+  'export.savedLocal': 'Đã xuất {file}',
+  'export.savedPicked': 'Đã lưu {file}',
+  'export.savedBrowser': 'Đã tải xuống {file}',
+  'export.savedBrowserHint': 'Đã lưu qua thư mục Downloads mặc định của trình duyệt',
+  'export.openFolder': 'Mở thư mục',
+  'export.failed': 'Xuất thất bại, vui lòng thử lại',
+  'export.hostUnavailable': 'Kênh xuất cục bộ chưa sẵn sàng; hãy khởi động lại Antigravity và thử lại',
+  'export.copied': 'Đã sao chép vào clipboard',
+  'export.copyFailed': 'Sao chép thất bại, kiểm tra quyền clipboard',
+  'export.closeToast': 'Đóng thông báo',
+
+  'stepCol.step.th': 'Bước',
+  'stepCol.step.opt': 'Số bước (#)',
+  'stepCol.time.th': 'Giờ',
+  'stepCol.time.opt': 'Dấu thời gian (HH:mm:ss)',
+  'stepCol.model.th': 'Model',
+  'stepCol.model.opt': 'Model',
+  'stepCol.tps.th': 'Tốc độ',
+  'stepCol.tps.opt': 'Tốc độ sinh (TPS)',
+  'stepCol.ttft.th': 'TTFT',
+  'stepCol.ttft.opt': 'Token đầu (TTFT)',
+  'stepCol.duration.th': 'TG(s)',
+  'stepCol.duration.opt': 'Tổng thời lượng (s)',
+  'stepCol.tokens_combo.th': 'Ctx / Nghĩ / Đáp',
+  'stepCol.tokens_combo.opt': 'Ctx / Nghĩ / Đáp (Gộp)',
+  'stepCol.tokens_io_cache.th': 'Vào / Ra / Cache',
+  'stepCol.tokens_io_cache.opt': 'Vào / Ra / Cache (Gộp)',
+  'stepCol.tokens_custom.opt': 'Tùy chỉnh ({fmt})',
+  'stepCol.input_tokens.th': 'Vào',
+  'stepCol.input_tokens.opt': 'Token đầu vào mới',
+  'stepCol.cache_tokens.th': 'CacheTok',
+  'stepCol.cache_tokens.opt': 'Token đọc từ Cache',
+  'stepCol.output_tokens.th': 'Ra',
+  'stepCol.output_tokens.opt': 'Tổng Token đầu ra',
+  'stepCol.cache.th': 'Cache',
+  'stepCol.cache.opt': 'Tỉ lệ Cache Hit (%)',
+  'stepCol.cost.th': 'Chi phí',
+  'stepCol.cost.opt': 'Chi phí bước ($)',
+
+  'settings.subTab.general': 'Chung',
+  'settings.subTab.structure': 'Bố cục',
+  'settings.subTab.sessions': 'Phiên',
+  'settings.subTab.account': 'Tài khoản',
+  'settings.subTab.other': 'Khác',
+  'settings.sessions.loading': 'Đang quét thư mục phiên của các client cục bộ…',
+  'settings.sessions.unavailableDesc': 'Chỉ phát hiện một thư mục client Antigravity. Khi cài đặt nhiều client (Antigravity 2.0, IDE hoặc CLI), bạn có thể di chuyển hoặc nhân bản phiên tại đây.',
+  'settings.sessions.rescanBtn': 'Quét lại',
+  'settings.sessions.modeAria': 'Chuyển chế độ quản lý phiên',
+  'settings.sessions.modeManage': 'Phiên',
+  'settings.sessions.modeMigrate': 'Di chuyển',
+
+  'settings.smgr.title': 'Quản lý phiên cục bộ',
+  'settings.smgr.refresh': 'Làm mới',
+  'settings.smgr.moreAria': 'Thêm thao tác quản lý phiên',
+  'settings.smgr.sweepLedger': 'Quét & ẩn thông tin các mục sổ đã xóa',
+  'settings.smgr.togglePrefsShow': 'Hiện tùy chọn dọn dẹp',
+  'settings.smgr.togglePrefsHide': 'Ẩn tùy chọn dọn dẹp',
+  'settings.smgr.sourceAria': 'Lọc phiên theo client',
+  'settings.smgr.sourceAll': 'Tất cả',
+  'settings.smgr.sourceDesktop': 'Desktop',
+  'settings.smgr.sourceCli': 'CLI',
+  'settings.smgr.sourceIde': 'IDE cũ',
+  'settings.smgr.runningDotTitle': 'Client đang chạy (chỉ đọc cho đến khi đóng)',
+  'settings.smgr.runningDotOnlineTitle': 'Client đang chạy và hỗ trợ xóa trực tuyến qua API chính thức cho phiên thường',
+  'settings.smgr.guardNotice': 'Các client đang chạy ({clients}) ở chế độ chỉ đọc. Để xóa phiên Desktop App, hãy thoát app và mở chế độ Web độc lập.',
+  'settings.smgr.guardCheckFailed': 'Không thể kiểm tra tiến trình đang chạy; tạm khóa xóa để đảm bảo an toàn.',
+  'settings.smgr.remoteUnsupported': 'Quản lý phiên cục bộ chỉ khả dụng trên máy cục bộ, không hỗ trợ qua SSH từ xa.',
+  'settings.smgr.searchPlaceholder': 'Tìm tiêu đề, nội dung xem trước, workspace hoặc UUID…',
+  'settings.smgr.searchAria': 'Tìm phiên cục bộ',
+  'settings.smgr.clearSearchAria': 'Xóa tìm kiếm phiên',
+  'settings.smgr.sortAria': 'Sắp xếp phiên theo',
+  'settings.smgr.sortTimeDesc': 'Mới nhất',
+  'settings.smgr.sortTimeAsc': 'Cũ nhất',
+  'settings.smgr.sortSizeDesc': 'Dung lượng lớn nhất',
+  'settings.smgr.sortCostDesc': 'Chi phí cao nhất',
+  'settings.smgr.sortTokensDesc': 'Nhiều token nhất',
+  'settings.smgr.hideIndexOnly': 'Ẩn mục chỉ có chỉ mục',
+  'settings.smgr.hideIndexOnlyTitle': 'Ẩn các bản ghi cũ chỉ còn chỉ mục mà không có file cục bộ (tìm đúng UUID vẫn hiện)',
+  'settings.smgr.selectAll': 'Chọn mục xóa được',
+  'settings.smgr.clearSel': 'Bỏ chọn',
+  'settings.smgr.clearSelShort': 'Bỏ',
+  'settings.smgr.selectedCount': 'Đã chọn {n}',
+  'settings.smgr.deleteSelected': 'Xóa ({n})',
+  'settings.smgr.totalSizeTitle': 'Tổng dung lượng lưu trữ cục bộ đã dùng: {size}',
+  'settings.smgr.filteredSizeTitle': 'Khớp bộ lọc: {filtered} / Tất cả phiên: {total}',
+  'settings.smgr.selectedSizeTitle': 'Các phiên đã chọn chiếm {size}',
+  'settings.smgr.sizeTooltipTotal': 'Dung lượng đã dùng: {size}',
+  'settings.smgr.sizePartDb': 'DB {size}',
+  'settings.smgr.sizePartBrain': 'Artifact & media {size}',
+  'settings.smgr.sizePartSubagents': 'gồm subagent {size}',
+  'settings.smgr.prefsTitle': 'Tùy chọn dọn dẹp',
+  'settings.smgr.prefRedactLedger': 'Ẩn nội dung trong sổ plugin khi xóa',
+  'settings.smgr.prefRedactLedgerDesc': 'Xóa tiêu đề phiên và prompt người dùng khỏi sổ ghi nhưng giữ nguyên 100% tổng token và chi phí.',
+  'settings.smgr.prefClearCache': 'Xóa bộ nhớ đệm trình duyệt Desktop App',
+  'settings.smgr.prefClearCacheDesc': 'Xóa cả Electron Cache và Code Cache (chỉ khi Desktop App không chạy).',
+  'settings.smgr.emptyLoading': 'Đang quét kho lưu trữ Antigravity cục bộ…',
+  'settings.smgr.emptyNone': 'Không tìm thấy phiên cục bộ phù hợp.',
+  'settings.smgr.loadMore': 'Tải thêm (còn {n})',
+  'settings.smgr.tagIndexOnly': 'Chỉ có chỉ mục',
+  'settings.smgr.tagFork': 'Fork',
+  'settings.smgr.tagSubagents': '{n} subagent',
+  'settings.smgr.tagRunning': 'Đang chạy',
+  'settings.smgr.tagGenerating': 'Đang tạo',
+  'settings.smgr.tagProtected': 'Được bảo vệ',
+  'settings.smgr.deleteRunningTip': 'Đóng client này trước khi xóa phiên',
+  'settings.smgr.deleteSessionRunningTip': 'Phiên này đang tạo phản hồi; đợi rảnh rồi mới xóa trực tuyến',
+  'settings.smgr.deleteIndexOnlyOnlineTip': 'Không thể xóa mục chỉ có chỉ mục khi client đang chạy; hãy đóng client để dọn ngoại tuyến',
+  'settings.smgr.confirmTitle': 'Xác nhận xóa vĩnh viễn',
+  'settings.smgr.confirmSummary': 'Xóa vĩnh viễn {n} phiên. Hành động này không thể hoàn tác.',
+  'settings.smgr.confirmReclaimSize': 'Dung lượng dự kiến giải phóng: ~{size}.',
+  'settings.smgr.confirmOnlineMode': '{n} phiên sẽ được xóa trực tuyến qua API của client đang chạy (không cần khởi động lại).',
+  'settings.smgr.confirmOnlineMixed': '{online} phiên sẽ được xóa trực tuyến qua API và {offline} phiên qua dọn dẹp sâu ngoại tuyến.',
+  'settings.smgr.confirmTargets': 'Mục tiêu: {titles}',
+  'settings.smgr.confirmCascade': 'Cũng sẽ xóa dây chuyền {n} phiên subagent lồng nhau (các phiên /fork được giữ lại).',
+  'settings.smgr.confirmCrossIndex': 'Cũng sẽ gỡ {n} mục chỉ mục tương ứng từ các client đang rảnh khác.',
+  'settings.smgr.confirmOrphanToggle': 'Đồng thời dọn {n} mục chỉ mục mồ côi cũ trên các client đang rảnh',
+  'settings.smgr.confirmProtected': '{n} phiên được bảo vệ bởi bản lưu trữ di chuyển; tệp đính kèm gốc sẽ được giữ lại theo mặc định.',
+  'settings.smgr.confirmProtectedOnline': '{n} mục trực tuyến được bảo vệ bởi bản lưu trữ di chuyển: API trực tuyến xóa cả tệp gốc, nên sẽ được bỏ qua trừ khi bạn chọn bên dưới.',
+  'settings.smgr.confirmPurgeProtectedToggle': 'Đồng thời xóa vĩnh viễn tệp đính kèm gốc đang được bảo vệ',
+  'settings.smgr.confirmBlocked': '{n} phiên sẽ bị bỏ qua (đang tạo, chỉ có chỉ mục khi đang chạy, hoặc client chỉ đọc).',
+  'settings.smgr.confirmOptions': 'Thao tác bổ sung: {opts}',
+  'settings.smgr.confirmOptRedact': 'Ẩn thông tin sổ ghi',
+  'settings.smgr.confirmOptCache': 'Xóa cache trình duyệt Desktop',
+  'settings.smgr.confirmExec': 'Xóa vĩnh viễn',
+  'settings.smgr.confirmRunning': 'Đang xóa…',
+  'settings.smgr.confirmCancel': 'Hủy',
+  'settings.smgr.resultDeleted': 'Đã xóa vĩnh viễn {n} phiên',
+  'settings.smgr.resultCascade': '{n} subagent',
+  'settings.smgr.resultOrphan': '{n} chỉ mục dư',
+  'settings.smgr.resultRedacted': 'đã ẩn {n} sổ ghi',
+  'settings.smgr.resultFailed': '{n} thất bại',
+  'settings.smgr.resultWarnings': 'Lưu ý sau dọn dẹp: {msg}',
+  'settings.smgr.sweepDone': 'Đã quét ẩn thông tin sổ ghi: xử lý {convs} phiên đã xóa ({steps} bước prompt); giữ nguyên tổng token và chi phí.',
+  'settings.smgr.sweepNone': 'Tất cả các phiên cục bộ đã xóa trong sổ ghi đều đã được ẩn thông tin.',
+  'settings.smgr.sweepFailed': 'Quét ẩn thông tin sổ ghi thất bại: {error}',
+  'settings.account.current': 'Tài khoản hiện tại',
+  'settings.account.signedOut': 'Đã đăng xuất',
+  'settings.account.unknown': 'Không rõ trạng thái tài khoản',
+  'settings.account.email': 'Email tài khoản',
+  'settings.account.googleLogin': 'Đăng nhập bằng Google',
+  'settings.account.loginHint': 'Đăng nhập Google trên trình duyệt. Tài khoản sẽ tự động xuất hiện trong danh sách này.',
+  'settings.account.loginWaiting': 'Chọn tài khoản Google và hoàn tất cấp quyền trên trình duyệt. Danh sách sẽ tự cập nhật.',
+  'settings.account.loginFinishing': 'Đã nhận cấp quyền. Đang lưu tài khoản…',
+  'settings.account.loginSuccess': 'Đã đăng nhập. Tài khoản đã được thêm.',
+  'settings.account.loginCancelled': 'Đã hủy đăng nhập.',
+  'settings.account.loginExpired': 'Hết hạn đăng nhập. Bấm Đăng nhập bằng Google để thử lại.',
+  'settings.account.loginDenied': 'Đã hủy cấp quyền Google. Vui lòng thử đăng nhập lại.',
+  'settings.account.loginStartFailed': 'Không thể bắt đầu đăng nhập. Thử lại.',
+  'settings.account.loginExchangeFailed': 'Không thể hoàn tất đăng nhập. Kiểm tra kết nối và cấp quyền lại.',
+  'settings.account.openLoginPage': 'Mở lại trang cấp quyền Google',
+  'settings.account.cancelLogin': 'Hủy đăng nhập',
+  'settings.account.importExisting': 'Nhập thông tin đăng nhập có sẵn',
+  'settings.account.credential': 'Thông tin OAuth',
+  'settings.account.credentialPlaceholder': 'Dán 1// refresh token hoặc OAuth JSON…',
+  'settings.account.importHint': 'Dán refresh token Antigravity hoặc OAuth JSON chứa refresh_token. Email tài khoản sẽ được xác minh và mã hóa trên thiết bị này.',
+  'settings.account.save': 'Nhập thông tin',
+  'settings.account.capture': 'Lưu tài khoản hiện tại',
+  'settings.account.reload': 'Làm mới danh sách',
+  'settings.account.switch': 'Chuyển & khởi động lại',
+  'settings.account.switchHint': 'Chuyển tài khoản sẽ đóng và mở lại Antigravity App cùng IDE dùng chung phiên đăng nhập. Hãy lưu công việc trước.',
+  'settings.account.restarting': 'Đang khởi động lại Antigravity với tài khoản đã chọn…',
+  'settings.account.switchStartFailed': 'Không thể bắt đầu chuyển tài khoản. Làm mới danh sách và thử lại.',
+  'settings.account.clientCloseFailed': 'Antigravity chưa thoát hoàn toàn. Quá trình chuyển chưa xong.',
+  'settings.account.clientRestartFailed': 'Đã cập nhật thông tin đăng nhập. Hãy tự mở lại Antigravity để hoàn tất.',
+  'settings.account.remove': 'Gỡ bỏ',
+  'settings.account.active': 'Đang dùng',
+  'settings.account.savedBadge': 'Đã sao lưu',
+  'settings.account.written': 'Đã ghi thông tin đăng nhập',
+  'settings.account.pending': 'Đã ghi thông tin cho {email}. Nếu Antigravity vẫn ở tài khoản cũ, hãy mở lại app.',
+  'settings.account.savedCredentials': 'Tài khoản đã lưu',
+  'settings.account.empty': 'Chưa có tài khoản nào được lưu.',
+  'settings.account.loading': 'Đang tải danh sách tài khoản…',
+  'settings.account.saved': 'Đã lưu thông tin đăng nhập.',
+  'settings.account.removed': 'Đã gỡ thông tin đăng nhập.',
+  'settings.account.switched': 'Đã chuyển tài khoản. Đang làm mới quota hiện tại.',
+  'settings.account.switching': 'Đang xác minh thông tin và chuẩn bị khởi động lại…',
+  'settings.account.verifying': 'Đang xác minh chủ sở hữu tài khoản…',
+  'settings.account.loadQuota': 'Kiểm tra quota',
+  'settings.account.loadingQuota': 'Đang kiểm tra…',
+  'settings.account.refreshFreqAria': 'Tần suất làm mới quota tài khoản nền',
+  'settings.account.refresh10m': '10 phút',
+  'settings.account.refresh30m': '30 phút',
+  'settings.account.refresh1h': '1 giờ',
+  'settings.account.refresh3h': '3 giờ',
+  'settings.account.refresh6h': '6 giờ',
+  'settings.account.refresh12h': '12 giờ',
+  'settings.account.refresh24h': '24 giờ',
+  'settings.account.refreshOff': 'Tắt',
+  'settings.account.emptyCredentialQuota': 'Không có pool quota nào để hiển thị cho tài khoản này.',
+  'settings.account.quota': 'Quota còn lại theo pool',
+  'settings.account.quota5h': '5 giờ {percent}%',
+  'settings.account.quotaWeekly': 'Tuần {percent}%',
+  'settings.account.noQuota': 'Không thể lấy pool quota cho tài khoản hiện tại.',
+  'settings.account.quotaStale': 'Làm mới quota thất bại. Đang hiển thị dữ liệu cũ nhất của tài khoản hiện tại.',
+  'settings.account.unsupported': 'Chuyển tài khoản cục bộ không khả dụng trong môi trường này (ví dụ phiên SSH từ xa).',
+  'settings.account.invalidEmail': 'Hãy chọn một tài khoản đã lưu trước.',
+  'settings.account.invalidCredential': 'Nhập thông tin OAuth Antigravity hợp lệ cho tài khoản cá nhân.',
+  'settings.account.credentialTooLarge': 'Thông tin đăng nhập vượt quá giới hạn dung lượng keyring hệ điều hành (2560 bytes).',
+  'settings.account.notFound': 'Thông tin đăng nhập này đã bị gỡ. Hãy làm mới danh sách.',
+  'settings.account.noCurrentCredential': 'Không tìm thấy thông tin đăng nhập dùng chung cho tài khoản hiện tại.',
+  'settings.account.busy': 'Một cửa sổ khác đang cập nhật thông tin đăng nhập. Thử lại sau giây lát.',
+  'settings.account.storeFailed': 'Thao tác lưu trữ thông tin thất bại. Thử lại.',
+  'settings.account.rollbackFailed': 'Ghi và khôi phục thông tin đều thất bại. Kiểm tra tài khoản đang đăng nhập trong Antigravity trước khi tiếp tục.',
+  'settings.account.credentialAccessDenied': 'Bị từ chối truy cập keyring hệ điều hành. Mở khóa keyring phiên làm việc và thử lại.',
+  'settings.account.credentialChanged': 'Thông tin này đã được cập nhật ở cửa sổ khác. Làm mới danh sách và thử lại.',
+  'settings.account.credentialRejected': 'Google từ chối thông tin này. Kiểm tra lại Antigravity refresh token còn hiệu lực không.',
+  'settings.account.identityMismatch': 'Thông tin này thuộc về một tài khoản khác. Hãy nhập lại.',
+  'settings.account.oauthClientUnavailable': 'Không thể đọc cấu hình OAuth client Antigravity cục bộ.',
+  'settings.account.oauthUnavailable': 'Không thể xác minh Google OAuth. Kiểm tra mạng và thử lại.',
+  'settings.account.quotaUnavailable': 'Quota cho tài khoản này hiện không khả dụng. Thử lại sau.',
+  'settings.account.switchConfirm': 'Xác nhận chuyển',
+  'settings.account.removeConfirm': 'Xác nhận gỡ',
+  'settings.account.pwdBtnSet': 'Mật khẩu bảo vệ',
+  'settings.account.pwdBtnManage': 'Mật khẩu bảo vệ',
+  'settings.account.lockNow': 'Khóa',
+  'settings.account.lockNowTip': 'Khóa kho lưu trữ ngay',
+  'settings.account.unlockBtn': 'Mở khóa',
+  'settings.account.unlockPlaceholder': 'Nhập mật khẩu để mở khóa…',
+  'settings.account.vaultLockedHint': 'Kho lưu trữ đang bị khóa. Nhập mật khẩu để chuyển tài khoản, quản lý thông tin hoặc làm mới quota.',
+  'settings.account.forgotPwdToggle': 'Quên mật khẩu?',
+  'settings.account.resetVaultHint': 'Bản sao lưu đã mã hóa không thể khôi phục nếu thiếu mật khẩu (phiên đăng nhập IDE hiện tại không bị ảnh hưởng). Bạn có thể xóa và đặt lại kho.',
+  'settings.account.resetVaultBtn': 'Đặt lại kho',
+  'settings.account.resetVaultConfirm': 'Xác nhận đặt lại',
+  'settings.account.pwdTabChange': 'Đổi mật khẩu',
+  'settings.account.pwdTabDisable': 'Gỡ mật khẩu',
+  'settings.account.pwdCurrentPlaceholder': 'Mật khẩu hiện tại…',
+  'settings.account.pwdNewPlaceholder': 'Mật khẩu mới (4–128 ký tự)…',
+  'settings.account.pwdConfirmPlaceholder': 'Xác nhận mật khẩu…',
+  'settings.account.pwdEnableSubmit': 'Bật',
+  'settings.account.pwdChangeSubmit': 'Cập nhật',
+  'settings.account.pwdDisableSubmit': 'Tắt',
+  'settings.account.pwdSetHint': 'Thêm lớp mã hóa mật khẩu cho mọi refresh token đã lưu. Hỏi một lần mỗi phiên khi quản lý tài khoản; không thể khôi phục nếu quên.',
+  'settings.account.pwdManageHint': 'Xác minh mật khẩu hiện tại để đặt mật khẩu mới hoặc quay lại mã hóa mặc định của hệ điều hành.',
+  'settings.account.pwdEnabledToast': 'Đã bật mã hóa mật khẩu.',
+  'settings.account.pwdChangedToast': 'Đã cập nhật mật khẩu.',
+  'settings.account.pwdDisabledToast': 'Đã tắt bảo vệ bằng mật khẩu.',
+  'settings.account.vaultUnlockedToast': 'Đã mở khóa kho lưu trữ.',
+  'settings.account.vaultLockedToast': 'Đã khóa kho lưu trữ.',
+  'settings.account.vaultResetToast': 'Đã xóa và đặt lại kho lưu trữ.',
+  'settings.account.vaultLocked': 'Hãy nhập mật khẩu để mở khóa kho trước.',
+  'settings.account.wrongPassword': 'Mật khẩu không đúng. Thử lại.',
+  'settings.account.invalidPassword': 'Mật khẩu phải dài 4–128 ký tự và không được để trống.',
+  'settings.account.passwordMismatch': 'Mật khẩu xác nhận không khớp.',
+  'settings.account.passwordRateLimited': 'Quá nhiều lần nhập sai. Đợi một lát rồi thử lại.',
+  'settings.account.vaultDecryptFailed': 'Kiểm tra giải mã kho lưu trữ thất bại.',
+  'settings.account.passphraseRequired': 'Không phát hiện keyring hệ điều hành (secret-tool). Hãy đặt mật khẩu bảo vệ trước để mã hóa cục bộ, hoặc cài libsecret-tools.',
+  'settings.account.keyringUnavailable': 'Không thể tắt bảo vệ bằng mật khẩu khi không có keyring hệ điều hành.',
+  'settings.account.invalidActionNonce': 'Mã bảo mật đã hết hạn. Vui lòng thử lại.',
+  'settings.account.riskNotAccepted': 'Vui lòng xác nhận cảnh báo rủi ro tính năng không chính thức trước.',
+  'settings.account.riskBody': 'Google không cấp phép nhập, lưu trữ hoặc chuyển đổi thông tin đăng nhập Antigravity hay truy vấn quota nhiều tài khoản trong Antigravity App / IDE. Bật quản lý nhiều tài khoản có thể khiến quyền truy cập Antigravity, dịch vụ GCP hoặc tài khoản Google bị vô hiệu hóa hoặc khóa; bật tính năng này đồng nghĩa bạn tự chịu mọi rủi ro liên quan.',
+  'settings.account.trendTitle': 'Xu hướng Quota',
+  'settings.account.trendWinAria': 'Chọn khung thời gian quota',
+  'settings.account.win5h': '5 Giờ',
+  'settings.account.winWeekly': 'Hàng tuần',
+  'settings.account.trendEmpty': 'Chưa có lịch sử quota trong khoảng thời gian đã chọn.',
+  'settings.subTab.aria': 'Các tab trung tâm điều khiển',
+  'settings.saving': 'Đang lưu…',
+  'settings.saved': 'Đã lưu',
+  'settings.saveFailed': 'Lưu thất bại',
+  'settings.resetDone': 'Đã khôi phục mặc định',
+  'settings.resetBtn': 'Đặt lại',
+
+  'settings.gen.appearanceTitle': 'Giao diện & Hiển thị',
+  'settings.gen.language': 'Ngôn ngữ',
+  'settings.gen.langAuto': 'Theo hệ thống',
+  'settings.gen.currencyLabel': 'Tiền tệ hiển thị',
+  'settings.gen.currencyAuto': 'Theo ngôn ngữ ({code} {symbol})',
+  'settings.gen.currencyAutoUsd': 'Theo ngôn ngữ (Chỉ USD)',
+  'settings.gen.currencyUsdOnly': 'Chỉ USD (Ẩn quy đổi)',
+  'settings.gen.currencyUsdOnlyHint': 'Tổng chính đã là USD; đã ẩn ước tính quy đổi phụ',
+  'settings.gen.currencyRateMeta': '1 USD ≈ {rate} {code} ({meta})',
+  'settings.gen.currencySrcBuiltin': 'Tỉ giá dự phòng tích hợp',
+  'settings.gen.currencyRefreshBtn': 'Cập nhật tỉ giá',
+  'settings.gen.currencyRefreshingBtn': 'Đang cập nhật…',
+  'settings.gen.currencyRefreshTip': 'Đồng bộ tỉ giá hối đoái trực tiếp mới nhất',
+  'settings.gen.currencySyncingMsg': 'Đang đồng bộ tỉ giá…',
+  'settings.gen.currencySyncedMsg': 'Đã cập nhật tỉ giá',
+  'settings.gen.currencySyncFallbackMsg': 'Đồng bộ tỉ giá thất bại; dùng tỉ giá lưu sẵn',
+  'settings.gen.themeAccent': 'Màu nhấn',
+  'settings.gen.accentHost': 'Theo App',
+  'settings.gen.accentBlue': 'Xanh dương',
+  'settings.gen.accentEmerald': 'Ngọc lục',
+  'settings.gen.accentAmber': 'Hổ phách',
+  'settings.gen.accentViolet': 'Tím',
+  'settings.gen.accentCyan': 'Xanh lơ',
+  'settings.gen.accentRose': 'Hồng',
+  'settings.gen.fontScale': 'Cỡ chữ',
+  'settings.gen.fontSm': 'Nhỏ',
+  'settings.gen.fontMd': 'Mặc định',
+  'settings.gen.fontLg': 'Lớn',
+  'settings.gen.fontXl': 'Rất lớn',
+  'settings.gen.modernUi': 'Giao diện hiện đại',
+  'settings.gen.modernUiOff': 'Tắt',
+  'settings.gen.modernUiOn': 'Bật',
+  'settings.gen.updateTitle': 'Cập nhật & Bảng giá',
+  'settings.gen.updateMode': 'Chính sách cập nhật',
+  'settings.gen.updateManual': 'Chỉ thông báo, tự cập nhật',
+  'settings.gen.updateAuto': 'Tự động cập nhật',
+  'settings.gen.updateOff': 'Tắt cập nhật',
+  'settings.gen.pricingLabel': 'Bảng giá Model',
+  'settings.gen.versionLabel': 'Phiên bản hiện tại',
+  'settings.gen.modelCount': '{count} model',
+  'settings.gen.srcRemote': 'Đồng bộ đám mây',
+  'settings.gen.srcLocal': 'Tệp cục bộ',
+  'settings.gen.srcDefault': 'Tích hợp sẵn',
+  'settings.gen.syncAt': 'Đồng bộ {time}',
+  'settings.gen.pubAt': 'Phát hành {date}',
+  'settings.gen.defaultPricing': 'Bảng giá mặc định',
+  'settings.gen.syncBtn': 'Đồng bộ giá',
+  'settings.gen.syncingBtn': 'Đang đồng bộ…',
+  'settings.gen.syncingMsg': 'Đang đồng bộ bảng giá…',
+  'settings.gen.syncedMsg': 'Đã cập nhật bảng giá ({count} model)',
+  'settings.gen.syncFallbackMsg': 'Hết thời gian chờ, dùng bảng giá cục bộ',
+  'settings.gen.checkUpdateBtn': 'Kiểm tra cập nhật',
+  'settings.gen.checkingBtn': 'Đang kiểm tra…',
+  'settings.gen.checkingMsg': 'Đang kiểm tra bản cập nhật…',
+  'settings.gen.checkFailedMsg': 'Kiểm tra thất bại: {err}',
+  'settings.gen.upToDateMsg': 'Đang ở phiên bản mới nhất (v{ver})',
+  'settings.gen.downloadingMsg': 'Đang tải bản cập nhật…',
+  'settings.gen.updatedRestartMsg': 'Cập nhật hoàn tất, đang khởi động lại bảng…',
+  'settings.gen.updateSkippedMsg': 'Chưa áp dụng bản cập nhật',
+  'settings.gen.updateFailedMsg': 'Cập nhật thất bại',
+  'settings.gen.canUpgradeSub': 'Có bản v{ver} ({mode})',
+  'settings.gen.upgradeToBtn': 'Nâng cấp lên v{ver}',
+  'settings.gen.manualUpgradeBtn': 'Nâng cấp v{ver}',
+  'settings.gen.updateOffSub': 'Đã tắt thông báo ({mode})',
+  'settings.gen.latestSub': 'Mới nhất ({mode})',
+
+  'settings.hostI18n.title': 'Ngôn ngữ giao diện Antigravity',
+  'settings.hostI18n.langLabel': 'Ngôn ngữ Host',
+  'settings.hostI18n.langOff': 'Nguyên bản (Tắt)',
+  'settings.hostI18n.optInstalled': 'Đã cài v{ver}',
+  'settings.hostI18n.optRemote': 'Tải về · {size}',
+  'settings.hostI18n.depthLabel': 'Mức độ dịch',
+  'settings.hostI18n.depthLight': 'Nhẹ',
+  'settings.hostI18n.depthDeep': 'Sâu',
+  'settings.hostI18n.depthLightHint': 'Chế độ Nhẹ giữ nguyên các thuật ngữ kỹ thuật tiếng Anh phổ biến (MCP, Skill, Subagent, Swarm, Diff, Terminal, Low/High) và tên model',
+  'settings.hostI18n.depthDeepHint': 'Chế độ Sâu dịch cả thuật ngữ kỹ thuật và nhãn mức độ cùng giao diện chung, vẫn giữ nguyên tên model và lệnh slash',
+  'settings.hostI18n.downloadingMsg': 'Đang tải gói {locale}…',
+  'settings.hostI18n.checkingUpdateMsg': 'Đang kiểm tra cập nhật gói ngôn ngữ…',
+  'settings.hostI18n.downloadedAndAppliedMsg': 'Đã xác minh và áp dụng gói',
+  'settings.hostI18n.appliedMsg': 'Đã áp dụng ngôn ngữ trực tiếp',
+  'settings.hostI18n.disabledMsg': 'Đã tắt dịch và khôi phục giao diện gốc',
+  'settings.hostI18n.depthSwitchedMsg': 'Đã đổi mức độ dịch',
+  'settings.hostI18n.packUpdatedMsg': 'Đã cập nhật và áp dụng lại gói ngôn ngữ',
+  'settings.hostI18n.alreadyLatestMsg': 'Gói ngôn ngữ đã là bản mới nhất',
+  'settings.hostI18n.alreadyLatestVerMsg': 'Gói ngôn ngữ đã là bản mới nhất (v{ver})',
+  'settings.hostI18n.actionFailed': 'Thao tác gói ngôn ngữ thất bại',
+  'settings.hostI18n.updatePackBtn': 'Cập nhật lên v{ver}',
+  'settings.hostI18n.redownloadBtn': 'Kiểm tra cập nhật',
+  'settings.hostI18n.collectBtn': 'Thu thập chuỗi còn thiếu',
+  'settings.hostI18n.collectingBtn': 'Đang thu thập…',
+  'settings.hostI18n.collectedResult': 'Đã thu thập {count} chuỗi giao diện chưa dịch trên {targets} cửa sổ',
+  'settings.hostI18n.collectedEmpty': 'Không phát hiện chuỗi tiếng Anh nào chưa dịch trên các trang đang mở',
+  'settings.hostI18n.collectFailed': 'Thu thập thất bại — kiểm tra cầu nối remote debugging đã bật chưa',
+  'settings.hostI18n.copyJsonBtn': 'Sao chép JSON',
+  'settings.hostI18n.exportJsonBtn': 'Xuất JSON',
+
+  'settings.str.thirdTabAria': 'Các mục cấu trúc',
+  'settings.str.tabMount': 'Vị trí & Thanh',
+  'settings.str.tabHover': 'Di chuột',
+  'settings.str.tabOverview': 'Tổng quan',
+  'settings.str.tabSteps': 'Bảng bước',
+  'settings.str.previewMountSidebarHint': 'Thanh capsule cửa sổ bị tắt ở chế độ Chỉ Sidebar; chuyển lại Thanh tiêu đề hoặc Khung nhập để bật capsule',
+  'settings.str.mountSection': 'Capsule App / IDE',
+  'settings.str.mountBadge': '{count}/5 ô',
+  'settings.str.mountMode': 'Vị trí gắn bảng',
+  'settings.str.mountDual': 'Gắn đôi (Thanh tiêu đề + Sidebar)',
+  'settings.str.mountComposer': 'Gắn khung nhập (Ô nhập liệu + Sidebar)',
+  'settings.str.mountSidebar': 'Chỉ Sidebar',
+  'settings.str.mountVsCodeComposer': 'Ô nhập liệu',
+  'settings.str.mountVsCodeTopbar': 'Thanh trên',
+  'settings.bridge.restartTitle': 'Đã tự cấu hình cờ khởi chạy — Khởi động lại 1 lần để kích hoạt',
+  'settings.bridge.ctxRestartTitle': 'Đã tự cấu hình cờ khởi chạy — Khởi động lại 1 lần cho giới hạn Context',
+  'settings.bridge.restartBody': 'Đã tự động thêm --remote-debugging-port=0 vào shortcut, mục khởi động và protocol handler (các lần mở sau sẽ tự gắn). Bấm bên dưới để đóng tiến trình nền và mở lại ngay.',
+  'settings.bridge.readOnlyTitle': 'Shortcut hệ thống được bảo vệ — Cấp quyền & mở lại để kích hoạt',
+  'settings.bridge.ctxReadOnlyTitle': 'Shortcut hệ thống được bảo vệ — Cấp quyền & mở lại cho giới hạn Context',
+  'settings.bridge.readOnlyBody': 'Mục khởi chạy cá nhân đã được cấu hình, nhưng shortcut công cộng cần quyền quản trị viên. Bấm bên dưới và đồng ý hộp thoại hệ thống để vá 1 lần và mở lại.',
+  'settings.bridge.macTitle': 'Cổng Debug chưa bật — Mở lại 1 chạm để gắn bảng',
+  'settings.bridge.ctxMacTitle': 'Cổng Debug chưa bật — Mở lại 1 chạm cho giới hạn Context',
+  'settings.bridge.noPortTitle': 'Thiếu cổng Debug cục bộ — Chưa gắn được lên cửa sổ',
+  'settings.bridge.stalePortTitle': 'Phát hiện cổng Debug cũ — Mở lại để khôi phục',
+  'settings.bridge.unreachableTitle': 'Cổng Debug cục bộ chưa sẵn sàng — Chưa gắn được lên cửa sổ',
+  'settings.bridge.ctxTitle': 'Cổng Debug cục bộ chưa bật — Đang chờ áp dụng giới hạn Context',
+  'settings.bridge.guideWin': 'Antigravity 2.33.0+ mặc định không mở cổng debug. Bấm "Mở lại & Bật gắn" để tự cấu hình shortcut, tắt tiến trình khay hệ thống và mở lại.',
+  'settings.bridge.guideMac': 'Do ký số ứng dụng macOS, mở trực tiếp từ Dock sẽ bỏ qua cờ cổng debug. Bấm bên dưới để mở lại ngay, hoặc tạo trình khởi chạy tùy chọn trong ~/Applications.',
+  'settings.bridge.guideLinux': 'Antigravity 2.33.0+ mặc định không mở cổng debug. Bấm "Mở lại & Bật gắn" để cập nhật tệp .desktop và mở lại.',
+  'settings.bridge.relaunchBtn': 'Mở lại & Bật gắn',
+  'settings.bridge.relaunchIdeBtn': 'Mở lại IDE & Bật gắn',
+  'settings.bridge.relaunchAuthBtn': 'Cấp quyền & Mở lại',
+  'settings.bridge.relaunchingBtn': 'Đang mở lại…',
+  'settings.bridge.relaunchFailed': 'Tự mở lại thất bại — hãy thoát từ khay hệ thống và thử lại',
+  'settings.bridge.macCreateWrapperBtn': 'Tạo trình khởi chạy trong ~/Applications',
+  'settings.bridge.macRemoveWrapperBtn': 'Gỡ trình khởi chạy macOS',
+  'settings.bridge.macWrapperCreatedBtn': 'Đã tạo trình khởi chạy (.app)',
+  'settings.bridge.macWrapperRemovedBtn': 'Đã gỡ trình khởi chạy',
+  'settings.bridge.macWrapperFailedBtn': 'Thao tác thất bại',
+  'settings.bridge.dismissAria': 'Tạm ẩn thông báo',
+  'settings.bridge.copyFlagBtn': 'Sao chép {cmd}',
+  'settings.bridge.copiedBtn': 'Đã sao chép',
+  'settings.str.popoverWidthLabel': 'Độ rộng Popover',
+  'settings.str.popoverWidthAuto': 'Tự vừa khung',
+  'settings.str.popoverWidthCustom': 'Tùy chỉnh',
+  'settings.str.popoverWidthHint': 'Tự vừa khung sẽ tự nới rộng bảng nhiều cột như Nhật ký bước để tránh cuộn ngang; Tùy chỉnh nhận 440–1080 px',
+  'settings.str.multiToggle': 'Phiên đang chạy',
+  'settings.str.contextAgentModeLabel': 'Context trên Capsule & Di chuột',
+  'settings.str.contextAgentMain': 'Khóa Agent chính',
+  'settings.str.contextAgentAuto': 'Theo Agent chạy',
+  'settings.str.cliSection': 'Thanh Capsule dưới CLI',
+  'settings.str.cliBadge': '{count}/6 ô',
+  'settings.str.cliBadgeOff': 'Tắt',
+  'settings.str.cliCapsuleToggle': 'Bật Status Line',
+  'settings.str.addCliSlot': 'Thêm ô CLI ({count}/{max})',
+  'settings.str.cliCustomCmdHint': 'Phát hiện lệnh statusLine tùy chỉnh; tự động giữ nguyên trừ khi bạn tiếp quản',
+  'settings.str.cliPausedHint': 'CLI statusLine hiện đang tạm dừng hoặc chưa cấu hình',
+  'settings.str.cliFlagsOverrideHint': 'Phát hiện cờ khởi chạy CLI (--slots / --preset) đang ghi đè các ô này',
+  'settings.str.cliRestoreBtn': 'Tiếp quản & Khôi phục',
+  'settings.str.cliEnableBtn': 'Bật lại trong CLI',
+  'settings.str.cliClearFlagsBtn': 'Xóa cờ ghi đè',
+  'settings.str.cliRestoringBtn': 'Đang áp dụng...',
+  'settings.str.cliPreviewRunning': '{count} đang chạy',
+  'settings.str.show': 'Hiện',
+  'settings.str.runningOnly': 'Chỉ khi chạy',
+  'settings.str.hide': 'Ẩn',
+  'settings.str.on': 'Bật',
+  'settings.str.off': 'Tắt',
+  'settings.str.capsuleDragHint': 'Kéo trái hoặc phải để sắp xếp',
+  'settings.str.moduleDragHint': 'Kéo lên hoặc xuống để sắp xếp khối',
+  'settings.str.metricDragHint': 'Kéo để sắp xếp chỉ số',
+  'settings.str.metricOrModuleDragHint': 'Kéo trái/phải đổi vị trí chỉ số, lên/xuống đổi vị trí khối',
+  'settings.str.stepColDragHint': 'Kéo tiêu đề cột trái hoặc phải để sắp xếp',
+  'settings.str.addCapsuleSlot': 'Thêm ô ({count}/{max})',
+  'settings.str.hoverSection': 'Xem nhanh khi di chuột',
+  'settings.str.hoverBadgeOff': 'Tắt',
+  'settings.str.hoverBadgeCount': '{count} khối',
+  'settings.str.hoverModulesLabel': 'Các khối khi di chuột',
+  'settings.str.hoverEmptyHint': 'Đã tắt xem nhanh khi di chuột (bấm capsule để mở bảng đầy đủ)',
+  'settings.str.addHoverModule': 'Thêm khối ({count}/{max})',
+  'settings.str.metricHeightLabel': 'Chiều cao chỉ số',
+  'settings.str.metricRows1': '1 hàng',
+  'settings.str.metricRows2': '2 hàng',
+  'settings.str.metricTextModeLabel': 'Chi tiết thẻ',
+  'settings.str.metricTextBoth': 'Đầy đủ',
+  'settings.str.metricTextTitle': 'Tiêu đề',
+  'settings.str.metricTextSub': 'Ghi chú',
+  'settings.str.metricTextNone': 'Chỉ số',
+  'settings.str.metricSizeSm': 'S',
+  'settings.str.metricSizeThird': 'M',
+  'settings.str.metricSizeWide': 'W',
+  'settings.str.metricSizeNarrow': 'V',
+  'settings.str.metricSizeTall': 'L',
+  'settings.str.metricResizeHandleAria': 'Đổi kích thước thẻ chỉ số (S / M / W / V / L)',
+  'settings.str.metricResizeHandleHint': 'Kéo để bắt dính giữa kích thước lưới 1×1 / 1/3 / 2×1 / 1×2 / 2×2, hoặc bấm để xoay vòng',
+  'settings.str.metricSizePillHint': 'Bấm để xoay vòng kích thước thẻ (1×1 / 1/3 / 2×1 / 1×2 / 2×2)',
+  'settings.str.hoverSyncOverviewLabel': 'Đồng bộ với Tổng quan',
+  'settings.str.hoverMetricsLabel': 'Chỉ số trực tiếp',
+  'settings.str.hoverMetricsInactiveHint': '"Chỉ số trực tiếp" đang ẩn trong khối Di chuột; thêm lại bên dưới để hiện',
+  'settings.str.metricOverflowTag': 'Tràn lưới',
+  'settings.str.overviewSection': 'Bố cục Tổng quan',
+  'settings.str.overviewBadge': '{modCount} khối · {metCount} ô',
+  'settings.str.overviewModulesLabel': 'Các khối Tổng quan',
+  'settings.str.addOverviewModule': 'Thêm khối ({count}/{max})',
+  'settings.str.overviewMetricsLabel': 'Chỉ số trực tiếp',
+  'settings.str.overviewMetricsInactiveHint': '"Chỉ số trực tiếp" đang ẩn ở đây; các ô này vẫn dùng cho Xem nhanh khi di chuột hoặc khi bật lại',
+  'settings.str.addOverviewMetric': 'Thêm chỉ số ({count}/{max})',
+  'settings.str.quotaDisplayModeLabel': 'Hiển thị Quota',
+  'settings.str.quotaDisplayUsed': 'Đã dùng',
+  'settings.str.quotaDisplayRemaining': 'Còn lại',
+  'settings.str.stepsSection': 'Cột bảng Bước gọi',
+  'settings.str.stepsBadge': '{count} cột',
+  'settings.str.stepTurnRailToggle': 'Thanh lượt & Xem trước',
+  'settings.str.stepAgentBadgeToggle': 'Nhãn Agent chính/phụ',
+  'settings.str.stepSpeedColorToggle': 'Tô màu tốc độ',
+  'settings.str.stepFilterToolbarToggle': 'Thanh tìm kiếm & lọc',
+  'settings.str.stepTokenComboLabel': 'Định dạng gộp Token tùy chỉnh',
+  'settings.str.stepTokenComboPlaceholder': 'vd: context:new:cache hoặc in:out:cache',
+  'settings.str.stepTokenComboHint': 'Các từ khóa: context, in/new, out, cache, think, reply, total — ngăn cách bằng : hoặc / (1–4 mục)',
+  'settings.str.stepsColsLabel': 'Cột hiển thị ở "Chi tiết" (Trái → Phải, tối thiểu 2, kéo thả được)',
+  'settings.str.addStepCol': 'Thêm cột ({count}/{max})',
+  'settings.slot.dragHint': 'Kéo lên hoặc xuống để sắp xếp',
+  'settings.slot.moveUp': 'Đưa lên trước',
+  'settings.slot.moveDown': 'Đưa xuống sau',
+  'settings.slot.remove': 'Gỡ mục',
+  'settings.slot.minReached': 'Giữ ít nhất {min}',
+  'settings.slot.alreadyAdded': 'Đã thêm',
+  'settings.mock.sessionTitle': 'Tái cấu trúc Auth Middleware & Session Cache',
+  'settings.mock.subRole': 'Kiểm tra API',
+  'settings.mock.turnPromptLatest': 'Sửa lỗi tranh chấp làm mới token khi có nhiều yêu cầu đồng thời và viết test',
+  'settings.mock.turnPromptPrev': 'Kiểm tra route guard và logic dọn phiên hết hạn',
+
+  'settings.oth.modelTitle': 'Hiển thị tên Model',
+  'settings.oth.modelShort': 'Tên rút gọn (vd: argon-4-high)',
+  'settings.oth.modelUpstream': 'ID gốc đầy đủ (vd: gemini-3.8-flash-n)',
+  'settings.oth.modelUpstreamCompact': 'ID gốc rút gọn (ẩn gemini- / claude- / gpt-)',
+  'settings.oth.hostTitle': 'Khởi chạy Host & Remote SSH',
+  'settings.oth.autoLaunchLabel': 'Tự động duy trì cờ khởi chạy Host',
+  'settings.oth.autoLaunchDesc': 'Tự động duy trì cờ debug-port cho Antigravity Desktop và IDE',
+  'settings.oth.remoteSshLabel': 'Đo lường IDE Remote-SSH',
+  'settings.oth.remoteSshDesc': 'Tự động phát hiện các cửa sổ IDE Remote-SSH',
+  'settings.oth.safetyMonitorLabel': 'Giám sát kiểm tra an toàn nền',
+  'settings.oth.safetyMonitorDesc': 'Quét chỉ đọc nhật ký cục bộ để thống kê và cảnh báo các yêu cầu kiểm tra an toàn nền tại tab Thống kê sử dụng',
+  'settings.oth.macWrapperLabel': 'Trình khởi chạy macOS (.app)',
+  'settings.oth.macWrapperDesc': 'Trình khởi chạy có cờ debug-port hiện đang cài trong ~/Applications và có thể gỡ bất kỳ lúc nào',
+  'settings.oth.macRemoveWrapperBtn': 'Gỡ trình khởi chạy macOS',
+  'settings.oth.macWrapperRemovedDone': 'Đã gỡ trình khởi chạy khỏi ~/Applications',
+  'settings.oth.expTitle': 'Thử nghiệm',
+  'settings.oth.expBadge': 'Thử nghiệm',
+  'settings.oth.quotaReserveLabel': 'Ước tính giữ chỗ Quota',
+  'settings.oth.quotaReserveDesc': 'Ước tính mức giữ chỗ 0.5% / 1% cho chu kỳ 5g & tuần trong Quota khả dụng và tô tím phần giữ chỗ',
+  'settings.oth.quotaReserveLogLabel': 'Nhật ký quan sát giữ chỗ',
+  'settings.oth.quotaReserveLogDesc': 'Sao chép nhật ký biến động & hoàn trả quota vào clipboard (lưu qua các lần khởi động lại)',
+  'settings.oth.exportReserveLogBtn': 'Xuất nhật ký giữ chỗ',
+  'settings.oth.exportReserveLogCopied': 'Đã sao chép {count} dòng nhật ký vào clipboard',
+  'settings.oth.exportReserveLogEmpty': 'Chưa có sự kiện nào; đã sao chép tóm tắt hiện tại vào clipboard',
+  'settings.oth.exportReserveLogFailed': 'Sao chép nhật ký giữ chỗ thất bại',
+  'settings.oth.devTitle': 'Tùy chọn nhà phát triển',
+  'settings.oth.devModeLabel': 'Chế độ nhà phát triển',
+  'settings.oth.riskyFeaturesLabel': 'Tính năng rủi ro cao',
+  'settings.oth.riskyFeaturesDesc': 'Hiện mục Tài khoản & Cài đặt Context Model (mỗi mục vẫn yêu cầu xác nhận rủi ro); tắt đi sẽ khóa và ẩn lại',
+  'settings.oth.baselineTitle': 'Cài đặt Context Model',
+  'settings.oth.ctxRiskTitle': 'Cảnh báo rủi ro ghi đè không chính thức',
+  'settings.oth.ctxRiskBody': 'Google không cấp phép chỉnh sửa giới hạn context của model trong Antigravity App / IDE. Thay đổi giới hạn context có thể khiến quyền truy cập Antigravity, dịch vụ GCP hoặc tài khoản Google bị vô hiệu hóa hoặc khóa; bật tính năng này đồng nghĩa bạn tự chịu mọi rủi ro.',
+  'settings.oth.ctxRiskAcceptBtn': 'Tôi hiểu rủi ro, Mở khóa',
+  'settings.oth.ctxModel': 'Model',
+  'settings.oth.ctxMainLabel': 'Agent chính',
+  'settings.oth.ctxSwarmLabel': 'Subagents & Swarm',
+  'settings.oth.ctxSwarmError': 'Đồng bộ cục bộ thất bại: {error}',
+  'settings.oth.ctxBaselineLabel': 'Giới hạn cửa sổ Context',
+  'settings.oth.ctxChooseModel': 'Chọn một model',
+  'settings.oth.ctxDefault': 'Theo cài đặt Host',
+  'settings.oth.ctxExpensive': '{name} (tốn nhiều quota hơn)',
+  'settings.oth.ctxTokens': '{count} token',
+  'settings.oth.ctxUnavailable': '{name} (hiện không khả dụng)',
+  'settings.oth.ctxConfigured': '{name} · Đã đặt',
+  'settings.oth.ctxConfiguredReported': '{name} · Đã đặt / Lần cuối thấy {reported}',
+  'settings.oth.ctxPendingBridge': '{name} · Chờ khởi động lại',
+  'settings.oth.ctxDefaultReported': 'Mặc định · Lần cuối thấy {name}',
+  'settings.oth.ctxReported': 'Host đã báo cáo {name} ở yêu cầu gần nhất.',
+  'settings.oth.ctxMixed': 'Khác nhau theo mức độ suy luận',
+  'settings.oth.ctxMixedHint': 'Các mức suy luận của model này đang lưu giới hạn khác nhau. Chọn một giới hạn để áp dụng chung cho tất cả mức.',
+  'settings.oth.ctxBaselineHint': 'Các mức suy luận của cùng một model dùng chung một giới hạn. Giới hạn đã lưu sẽ tự áp dụng lại khi mở plugin.',
+  'settings.oth.ctxNoModels': 'Host chưa trả về danh sách model khả dụng.',
+  'settings.oth.ctxNoOptions': 'Host chưa cung cấp tùy chọn context hoặc dung lượng cho model này. Chỉ có thể chọn Theo cài đặt Host.',
+  'settings.oth.maintTitle': 'Cache & Đặt lại',
+  'settings.oth.cacheLabel': 'Cache lịch sử cục bộ',
+  'settings.oth.cacheDesc': 'Xóa cache các bước đã lưu và quét lại toàn bộ nhật ký hội thoại ngay lập tức',
+  'settings.oth.rebuildBtn': 'Tạo lại Cache lịch sử',
+  'settings.oth.rebuildingBtn': 'Đang tạo lại…',
+  'settings.oth.rebuildingProgress': 'Đang tạo lại ({completed}/{total})…',
+  'settings.oth.rebuildDone': 'Đã tạo lại cache lịch sử',
+  'settings.oth.rebuildFailed': 'Tạo lại cache thất bại',
+  'settings.oth.resetLabel': 'Khôi phục mặc định',
+  'settings.oth.resetDesc': 'Đưa toàn bộ tùy chọn ở các tab Chung, Bố cục và Khác về mặc định',
+  'settings.oth.resetAllBtn': 'Đặt lại tất cả mặc định',
+  'settings.oth.resetConfirmBtn': 'Bấm lần nữa để xác nhận',
+  'settings.oth.resettingBtn': 'Đang đặt lại…',
+  'settings.oth.resetAllDone': 'Đã khôi phục toàn bộ cài đặt về mặc định',
+  'settings.oth.backupLabel': 'Sao lưu & Khôi phục cài đặt',
+  'settings.oth.backupDesc': 'Xuất hoặc nhập cấu hình giao diện, capsule và bảng dưới dạng JSON',
+  'settings.oth.exportJsonBtn': 'Xuất JSON',
+  'settings.oth.importJsonBtn': 'Nhập JSON',
+  'settings.oth.exportDone': 'Đã xuất cấu hình JSON',
+  'settings.oth.importDone': 'Đã khôi phục {count} mục cài đặt',
+  'settings.oth.importInvalid': 'Nhập thất bại: JSON không hợp lệ hoặc không có cài đặt phù hợp',
+  'settings.oth.migTitle': 'Di chuyển phiên giữa các Client',
+  'settings.oth.migDesc': 'Di chuyển các phiên đã chọn theo nhu cầu kèm tự động sao lưu nguồn và tóm tắt',
+  'settings.oth.migRefreshBtn': 'Làm mới',
+  'settings.oth.migSourceLabel': 'Client nguồn',
+  'settings.oth.migTargetLabel': 'Client đích',
+  'settings.oth.migModeLabel': 'Chế độ di chuyển',
+  'settings.oth.migModeMove': 'Di chuyển hẳn (Khuyên dùng)',
+  'settings.oth.migModeClone': 'Nhân bản',
+  'settings.oth.migModeMoveHint': 'Cấp ID đích riêng trong khi giữ nguyên toàn bộ bước/chi tiết lịch sử; lưu trữ bản sao lưu nguồn trước khi chuyển',
+  'settings.oth.migModeCloneHint': 'Giữ nguyên bản nguồn với UUID mới; chỉ đếm các bước mới phát sinh sau khi nhân bản',
+  'settings.oth.migProjectLabel': 'Dự án đích',
+  'settings.oth.migProjectOutside': 'Độc lập (Không thuộc dự án)',
+  'settings.oth.migClientDesktop': 'Desktop App / IDE mới',
+  'settings.oth.migClientCli': 'Antigravity CLI',
+  'settings.oth.migClientIdeLegacy': 'IDE cũ (.db)',
+  'settings.oth.migSearchPlaceholder': 'Lọc phiên theo tiêu đề hoặc workspace…',
+  'settings.oth.migSelectAll': 'Chọn tất cả',
+  'settings.oth.migClearSel': 'Bỏ chọn',
+  'settings.oth.migSelectedCount': 'Đã chọn {selected} / {total}',
+  'settings.oth.migRunningTag': 'Đang chạy',
+  'settings.oth.migStepsUnit': '{count} bước',
+  'settings.oth.migEmpty': 'Không có phiên nào di chuyển được từ client nguồn này',
+  'settings.oth.migNoMatch': 'Không có phiên phù hợp',
+  'settings.oth.migLoadMore': 'Tải thêm ({shown} / {total})',
+  'settings.oth.migActionBtn': 'Di chuyển đã chọn ({count})',
+  'settings.oth.migRunningBtn': 'Đang di chuyển…',
+  'settings.oth.migDoneDesktop': 'Đã di chuyển {count} phiên sang "{project}". Nhấn Ctrl+R trong Desktop App để làm mới sidebar',
+  'settings.oth.migDoneCli': 'Đã di chuyển {count} phiên sang CLI. Dùng lệnh bên dưới để tiếp tục',
+  'settings.oth.migPartialWarn': ' ({failed} bị bỏ qua hoặc lỗi)',
+  'settings.oth.migReloadBtn': 'Tải lại cửa sổ',
+  'settings.oth.migCopyCmd': 'Sao chép',
+  'settings.oth.migCopied': 'Đã sao chép',
+  'settings.oth.migErrLocked': 'Cơ sở dữ liệu nguồn đang bị khóa bởi client đang mở. Hãy đóng cửa sổ/terminal đó trước, hoặc chuyển sang Nhân bản',
+  'settings.oth.migErrExists': 'Phiên cùng ID đã tồn tại ở đích (chuyển sang Nhân bản nếu muốn tạo bản sao)',
+  'settings.oth.migErrRunning': 'Phiên đang chạy; đợi rảnh rồi mới di chuyển',
+  'settings.oth.migFailed': 'Di chuyển thất bại: {reason}',
+
+  'live.act.run_command': 'Chạy lệnh',
+  'live.act.read_file': 'Đọc tệp',
+  'live.act.edit_file': 'Sửa tệp',
+  'live.act.write_file': 'Ghi tệp',
+  'live.act.grep_search': 'Tìm trong mã',
+  'live.act.find_file': 'Tìm tệp',
+  'live.act.read_url': 'Đọc trang web',
+  'live.act.search_web': 'Tìm trên web',
+  'live.act.invoke_subagent': 'Gọi Subagent',
+  'live.act.send_message': 'Nhắn Subagent',
+  'live.act.manage_subagents': 'Quản lý Subagent',
+  'live.act.swarm_add': 'Tạo Worker',
+  'live.act.swarm_title': 'Đặt tên Swarm',
+  'live.act.swarm_kill': 'Dừng Worker',
+  'live.act.swarm_model': 'Đổi Model Worker',
+  'live.act.swarm_channel': 'Kênh Swarm',
+  'live.act.swarm_status': 'Kiểm tra Swarm',
+  'live.act.post_message': 'Đăng lên bảng',
+  'live.act.read_board': 'Đọc bảng tin',
+  'live.act.swarm_wait': 'Đang chờ trên bảng',
+  'live.act.manage_task': 'Quản lý tác vụ',
+  'live.act.background_task': 'Tác vụ nền',
+  'live.act.schedule': 'Lên lịch tác vụ',
+  'live.act.update_steps': 'Cập nhật bước',
+  'live.act.update_focus': 'Cập nhật trọng tâm',
+  'live.act.ask_question': 'Chờ người dùng chọn',
+  'live.act.search_marketplace': 'Tìm Plugin',
+  'live.act.generate_image': 'Tạo hình ảnh',
+  'live.act.mcp_tool': 'Gọi MCP Tool',
+  'live.act.tool_call': 'Gọi Tool',
+  'live.act.thinking': 'Đang suy luận',
+  'live.act.compacting': 'Đang nén Context',
+  'live.act.responding': 'Đang phản hồi',
+  'live.act.waiting_subagent': 'Đang chờ Subagent',
+  'live.act.waiting_swarm': 'Đang chờ Swarm',
+  'live.act.swarm_waiting': 'Đang chờ',
+  'live.act.swarm_killed': 'Đã dừng',
+  'live.act.starting': 'Đang bắt đầu',
+  'live.act.done': 'Hoàn thành',
+  'live.act.awaitingApproval': 'Chờ phê duyệt · {label}',
+  'live.act.compactionResuming': 'Nén xong, tiếp tục suy luận',
+
+  'chart.step.empty': 'Không có bước nào để vẽ trong phạm vi hiện tại',
+  'chart.step.excluded': 'Đã loại trừ',
+  'chart.step.zeroSteps': '0 bước',
+  'chart.step.stepAdd': 'Bước +{tokens}',
+  'chart.step.ioSplit': 'Vào {inTok} · Cache {cacheTok} · Ra {outTok}',
+  'chart.step.cacheShort': 'Cache {pct}%',
+  'chart.step.compactionCheckpoint': 'Điểm tự động nén',
+  'chart.step.cacheHitOut': 'Cache hit {pct}% · Ra +{outTok}',
+  'chart.step.ttftShort': 'TTFT {sec}s',
+  'chart.step.outAndCtx': 'Ra {outTok} · Context {ctxTok}',
+  'chart.step.compactionStep': 'Bước nén',
+  'chart.step.noSpeedSample': 'Không có mẫu tốc độ',
+  'chart.step.ctxAndCache': 'Context {ctxTok} · Cache {pct}%',
+  'chart.step.noTtftSample': 'Không có mẫu TTFT',
+  'chart.step.cumCost': 'Tổng {cost}',
+  'chart.step.cacheAndStepTok': 'Cache {pct}% · Bước {tokens}',
+  'chart.step.noSamples': 'Không có mẫu',
+  'chart.step.peakShort': 'Đỉnh {val}',
+  'chart.step.peakPill': 'Đỉnh {tag} · {val}',
+  'chart.step.stepsCount': '{count} bước',
+  'chart.step.multiPrefix': '{count} model · ',
+  'chart.step.sumTokens': '{prefix}Tổng {tokens}',
+  'chart.step.peakTokens': '{prefix}Đỉnh {tokens}',
+  'chart.step.currentCtx': 'Hiện tại {tokens}',
+  'chart.step.meanTps': '{prefix}TB {val} tok/s',
+  'chart.step.meanSec': '{prefix}TB {val}s',
+  'chart.step.noValidSamples': 'Không có mẫu hợp lệ',
+  'chart.step.sumCost': '{prefix}Tổng {cost}',
+  'chart.fit.empty': 'Không có mẫu hồi quy hợp lệ cho model này',
+  'chart.fit.loess': 'Khớp LOESS',
+  'chart.fit.olsLinear': 'Tuyến tính OLS',
+  'chart.fit.olsReg': 'Hồi quy OLS',
+  'chart.fit.observed': 'Thực tế',
+  'chart.fit.tipFit': 'Khớp {val}',
+  'chart.fit.tipObs': 'Thực tế {val}',
+  'chart.fit.zeroSamples': '0 mẫu',
+  'chart.fit.peerMean': '{label} TB {val}',
+  'chart.fit.peerCompare': 'So sánh: {peers}',
+  'chart.fit.curvesCount': '{count} đường khớp',
+  'chart.fit.multiBadge': '{steps} bước · {models} model',
+  'chart.fit.singleBadge': '{steps} bước · TB {mean}',
+  'chart.fit.olsTitle': 'OLS: y = {slope}x + {intercept} · SD mẫu = ±{sd}',
+  'chart.trend.hmMonthYear': 'T{month}/{yy}',
+  'chart.trend.hmMonthOnly': 'T{month}',
+  'chart.trend.wdayMon': 'T2',
+  'chart.trend.wdayWed': 'T4',
+  'chart.trend.wdayFri': 'T6',
+  'chart.trend.wdaySun': 'CN',
+  'chart.trend.hmAria': 'Bản đồ nhiệt sử dụng theo ngày',
+  'chart.trend.hmLess': 'Ít',
+  'chart.trend.hmMore': 'Nhiều',
+  'chart.trend.hmActivePeak': 'Hoạt động {active}/{total}n · Đỉnh {label} · {tokens}',
+  'chart.trend.hmActiveZero': 'Hoạt động 0/{total}n',
+  'chart.trend.hmWeekPeak': 'Hoạt động {active}/{total}t · Đỉnh {label} · {tokens}',
+  'chart.trend.hmWeekZero': 'Hoạt động 0/{total}t',
+  'chart.trend.hmMonthPeak': 'Hoạt động {active}/{total}th · Đỉnh {label} · {tokens}',
+  'chart.trend.hmMonthZero': 'Hoạt động 0/{total}th',
+  'chart.trend.hmCumSummary': 'Tích lũy {days}n · Tổng {tokens} · {cost}',
+  'chart.trend.hmCumThrough': 'Tích lũy đến {date}',
+  'chart.trend.peakPill': 'Đỉnh {label} · {tokens}',
+
+  'ui.dt.wdayMon': 'T2',
+  'ui.dt.wdayTue': 'T3',
+  'ui.dt.wdayWed': 'T4',
+  'ui.dt.wdayThu': 'T5',
+  'ui.dt.wdayFri': 'T6',
+  'ui.dt.wdaySat': 'T7',
+  'ui.dt.wdaySun': 'CN',
+  'ui.dt.prevMonth': 'Tháng trước',
+  'ui.dt.nextMonth': 'Tháng sau',
+  'ui.dt.hourMinute': 'Giờ / Phút',
+  'ui.num.decrease': 'Giảm giá trị',
+  'ui.num.increase': 'Tăng giá trị',
+  'ui.seg.defaultAria': 'Bộ chuyển phân đoạn',
+
+  'report.fileUsage': 'usage-{range}',
+  'report.fileSteps': 'steps-{name}',
+  'report.currentSession': 'phien',
+  'report.range.5h': '5 Giờ Qua',
+  'report.range.today': 'Hôm Nay',
+  'report.range.24h': '24 Giờ Qua',
+  'report.range.week': 'Tuần Này',
+  'report.range.7d': '7 Ngày Qua',
+  'report.range.14d': '14 Ngày Qua',
+  'report.range.30d': '30 Ngày Qua',
+  'report.range.all': 'Toàn Thời Gian',
+  'report.range.cycle': 'Chu Kỳ Hiện Tại',
+  'report.range.custom': 'Khoảng Tùy Chọn',
+  'report.stepTypeCompaction': 'Nén Context',
+  'report.stepTypeImage': 'Tạo ảnh',
+  'report.stepTypeNormal': 'Bình thường',
+  'report.agentMain': 'Chính',
+  'report.total': 'Tổng',
+  'report.totalSteps': 'Tổng ({count} bước)',
+  'report.compactCount': '{count} nén',
+  'report.anomCount': '{total} sự kiện ({steps} bước)',
+  'report.anomSep': '; ',
+  'report.sheetSteps': 'Các bước',
+  'report.sheetModelSummary': 'Tổng hợp Model',
+  'report.sheetOverview': 'Tổng quan',
+  'report.sheetModels': 'Model',
+  'report.sheetProjects': 'Dự án',
+  'report.sheetSessions': 'Phiên',
+  'report.sheetTrend': 'Xu hướng',
+  'report.sheetSources': 'Nguồn Client',
+  'report.colStep': 'Bước',
+  'report.colTime': 'Thời gian',
+  'report.colAgent': 'Agent',
+  'report.colModel': 'Model',
+  'report.colType': 'Loại',
+  'report.colSpeed': 'Tốc độ (tok/s)',
+  'report.colTtft': 'TTFT (s)',
+  'report.colDuration': 'Thời lượng (s)',
+  'report.colFreshInput': 'Đầu vào mới',
+  'report.colCacheRead': 'Đọc Cache',
+  'report.colThinking': 'Suy luận',
+  'report.colReply': 'Trả lời',
+  'report.colOutput': 'Đầu ra',
+  'report.colOutputShort': 'Đầu ra',
+  'report.colContext': 'Context',
+  'report.colCacheHitPct': 'Cache Hit %',
+  'report.colCostUsd': 'Chi phí (USD)',
+  'report.colEstCostUsd': 'Chi phí ước tính (USD)',
+  'report.colAnomalies': 'Bất thường',
+  'report.colTurnPrompt': 'Prompt lượt',
+  'report.colSteps': 'Số bước',
+  'report.colTotalTokens': 'Tổng Token',
+  'report.colAvgSpeed': 'Tốc độ TB (tok/s)',
+  'report.colAvgTtft': 'TTFT TB (s)',
+  'report.colMetric': 'Chỉ số',
+  'report.colValue': 'Giá trị',
+  'report.colNotes': 'Ghi chú',
+  'report.colRank': 'Hạng',
+  'report.colCalls': 'Lượt gọi',
+  'report.colProject': 'Dự án',
+  'report.colWorkspacePath': 'Đường dẫn Workspace',
+  'report.colSessions': 'Số phiên',
+  'report.colSessionTitle': 'Tiêu đề phiên',
+  'report.colClientSource': 'Nguồn Client',
+  'report.colTimeWindow': 'Khung thời gian',
+  'report.colGranularity': 'Độ chi tiết',
+  'report.ovTimeRange': 'Khoảng thời gian',
+  'report.ovExportedAt': 'Xuất lúc',
+  'report.ovTotalCalls': 'Tổng lượt gọi',
+  'report.ovTotalCallsNote': 'Các yêu cầu model đã hoàn tất',
+  'report.ovTotalTokensNote': 'Đầu vào mới + Đọc Cache + Đầu ra',
+  'report.ovFreshInputTokens': 'Token đầu vào mới',
+  'report.ovFreshInputNote': 'Token prompt chưa cache',
+  'report.ovCacheReadTokens': 'Token đọc Cache',
+  'report.ovCacheReadNote': 'Token prompt trúng cache',
+  'report.ovTotalOutputTokens': 'Tổng Token đầu ra',
+  'report.ovOutputSplitNote': 'Suy luận {think} / Trả lời {reply}',
+  'report.ovOutputNote': 'Token phản hồi được tạo',
+  'report.ovThinkingTokens': 'Token suy luận',
+  'report.ovThinkingNote': 'Token đầu ra phần suy luận',
+  'report.ovReplyTokens': 'Token trả lời',
+  'report.ovReplyNote': 'Token phản hồi hiển thị',
+  'report.ovCacheHitRate': 'Tỉ lệ Cache Hit',
+  'report.ovCacheHitNote': 'Đọc Cache / (Đầu vào mới + Đọc Cache)',
+  'report.ovCacheSaved': 'Tiết kiệm Cache (USD)',
+  'report.ovCacheSavedNote': 'Ước tính tiết kiệm nhờ prompt caching',
+  'report.ovEstCostNote': 'Ước tính theo bảng giá niêm yết chính thức',
+  'report.unbound': 'Chưa gắn',
+  'report.granMinute': '{mins}p',
+  'report.granHourly': 'Theo giờ',
+  'report.granDaily': 'Theo ngày',
+  'report.mdStepsTitle': '# Báo cáo Telemetry Phiên',
+  'report.mdSessionId': '- **ID Phiên**: `{id}`',
+  'report.mdScope': '- **Phạm vi**: {scope}',
+  'report.mdStepsLine': '- **Số bước**: {count}{compactPart}{anomPart}',
+  'report.mdCompactPart': ' ({count} lần nén)',
+  'report.mdAnomPart': ' · **Bất thường**: {total} qua {steps} bước',
+  'report.mdTokensLine': '- **Tổng Token**: {total} (Vào {inTok} / Cache {cacheTok} · {cachePct}% / Ra {outTok})',
+  'report.mdCostSpeedLine': '- **Chi phí ước tính**: {cost} · **Tốc độ TB**: {speed} · **TTFT TB**: {ttft}',
+  'report.mdModelBreakdown': '## Chi tiết theo Model',
+  'report.mdTopCostly': '## Top bước tốn chi phí nhất',
+  'report.mdAnomSummary': '**Tóm tắt bất thường**: {summary}',
+  'report.mdUsageTitle': '# Báo cáo Sử dụng · {range}',
+  'report.mdUsageTokensLine': '- **Tổng Token**: {total} ({calls} lượt gọi)',
+  'report.mdUsageCostLine': '- **Chi phí ước tính**: {cost} (Tiết kiệm Cache {saved})',
+  'report.mdUsageCacheLine': '- **Tỉ lệ Cache Hit**: {pct} (Vào {inTok} / Cache {cacheTok} / Ra {outTok})',
+  'report.mdModelsTitle': '## Model',
+  'report.mdProjectsTitle': '## Dự án',
+  'report.mdTopSessionsTitle': '## Top Phiên',
+  'report.mdHeaderModel': '| Model | Lượt gọi | Tổng Token | Cache Hit | Tốc độ TB | Chi phí ước tính |',
+  'report.mdHeaderUsageModel': '| Model | Lượt gọi | Token | Cache Hit | Tốc độ TB | Chi phí ước tính |',
+  'report.mdHeaderTopSteps': '| Bước | Thời gian | Model | Tốc độ | TTFT | Context | Chi phí |',
+  'report.mdHeaderProjects': '| Dự án | Số phiên | Lượt gọi | Token | Cache Hit | Chi phí ước tính |',
+  'report.mdHeaderSessions': '| Phiên | Lượt gọi | Token | Cache Hit | Chi phí ước tính |',
+});
+return { I18N_MESSAGES_VI_VN };
+})();
+
 // --- src/i18n/index.js ---
 const { I18N_DICTIONARIES, normalizeI18nLanguage, detectHostSystemLocale, i18nStore, setI18nLanguage, getEffectiveLocale, isEnglishLocale, syncDocumentLocale, tForLocale, t } = (() => {
 const I18N_DICTIONARIES = Object.freeze({
   'zh-CN': I18N_MESSAGES_ZH_CN,
   'zh-TW': I18N_MESSAGES_ZH_TW,
   'en-US': I18N_MESSAGES_EN_US,
+  'vi-VN': I18N_MESSAGES_VI_VN,
   'ja-JP': I18N_MESSAGES_JA_JP,
   'ko-KR': I18N_MESSAGES_KO_KR,
   'de-DE': I18N_MESSAGES_DE_DE,
@@ -11090,9 +13405,9 @@ function syncHostThemeFallback(
 
   const syncBridgedTypography = (normalizedSnap) => {
     const body = doc?.body || null;
-    for (const [cssVar, hostVar] of [
-      ['--font-sans', '--host-font-sans'],
-      ['--font-mono', '--host-font-mono'],
+    for (const [cssVar, hostVar, fallbackVar] of [
+      ['--font-sans', '--host-font-sans', '--font-family'],
+      ['--font-mono', '--host-font-mono', '--editor-font-family'],
     ]) {
       const hasNativeInlineFont = Boolean(
         readInlineStyleVar(root, cssVar) || readInlineStyleVar(body, cssVar)
@@ -11103,6 +13418,9 @@ function syncHostThemeFallback(
       }
       const bridgedVal =
         String(normalizedSnap?.vars?.[cssVar] || '').trim() ||
+        String(normalizedSnap?.vars?.[fallbackVar] || '').trim() ||
+        readInlineStyleVar(root, fallbackVar) ||
+        readInlineStyleVar(body, fallbackVar) ||
         String(ssrFallbackFonts?.[cssVar] || '').trim();
       if (bridgedVal) {
         setOrClearStyleVar(root, hostVar, bridgedVal);
@@ -11809,7 +14127,7 @@ function findScrollableAncestor(el) {
 }
 
 const INTERACTIVE_DRAG_TAGS = new Set(['BUTTON', 'INPUT', 'SELECT', 'TEXTAREA', 'A', 'LABEL']);
-const INTERACTIVE_DRAG_ROLES = new Set(['button', 'combobox', 'listbox', 'option', 'switch', 'tab']);
+const INTERACTIVE_DRAG_ROLES = new Set(['button', 'combobox', 'listbox', 'option', 'separator', 'switch', 'tab']);
 
 function isInteractiveDragTarget(target, boundaryEl = null) {
   let cur = target;
@@ -12261,9 +14579,10 @@ return { defineComponent };
 })();
 
 // --- src/core/formatters.js ---
-const { formatMetric, formatSpeedMetric, formatCachePct, formatPctNumber, getSpeedToneClass, getCacheToneClass, getStepCostToneClass, getTtftToneClass, formatTokens, formatTokensPrecise, formatCnyApprox, formatSecondaryCostApprox, formatFxRateCaption, formatDateSpanBadge, formatTrendSlotFullLabel, formatUsd, speedReasonText, formatAnomalyKindLabel, formatAnomalyTagText, resolveModelAnomalySummary, formatStepAnomalyInlineSummary, buildStepAnomalyDiagnostic, buildStepCompactionDiagnostic, buildStepRevertedDiagnostic, formatTimingDetailSec, hasStepTimingData, buildStepTimingDiagnostic, buildModelAnomalyDiagnostic, sampleSummary, formatCountdown, formatCompactDateTime, formatElapsedSec, stripVendorModelPrefix, resolveModelDisplayInfo, mergeModelsByDisplayName, getAgentBadgeClass, formatQuotaPoolLabel, formatAgentBadgeText, formatAgentLabel, formatConversationMeta, formatLiveActivityLabel, formatLiveActivityDetail, getCanonicalModelColorSeed, resolveDeterministicModelColor, buildDeterministicModelColorMap } = (() => {
+const { formatShortMonthName, formatShortWeekdayName, formatMetric, formatSpeedMetric, formatCachePct, formatPctNumber, getSpeedToneClass, getCacheToneClass, getStepCostToneClass, getTtftToneClass, formatTokens, formatTokensPrecise, formatCompactBytes, formatCnyApprox, formatSecondaryCostApprox, formatFxRateCaption, formatDateSpanBadge, formatTrendSlotFullLabel, formatUsd, speedReasonText, formatAnomalyKindLabel, formatAnomalyTagText, resolveModelAnomalySummary, formatStepAnomalyInlineSummary, buildStepAnomalyDiagnostic, buildStepCompactionDiagnostic, buildStepRevertedDiagnostic, formatTimingDetailSec, hasStepTimingData, buildStepTimingDiagnostic, buildModelAnomalyDiagnostic, sampleSummary, formatCountdown, formatCompactDateTime, formatElapsedSec, stripVendorModelPrefix, resolveModelDisplayInfo, mergeModelsByDisplayName, getAgentBadgeClass, formatQuotaPoolLabel, formatAgentBadgeText, formatAgentLabel, formatConversationMeta, formatLiveActivityLabel, formatLiveActivityDetail, getTaskStepsSignature, formatLiveTaskStepsProgress, getCanonicalModelColorSeed, resolveDeterministicModelColor, buildDeterministicModelColorMap } = (() => {
 const LOCALE_MONTH_SHORT = Object.freeze({
   'en-US': Object.freeze(['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']),
+  'vi-VN': Object.freeze(['Th1', 'Th2', 'Th3', 'Th4', 'Th5', 'Th6', 'Th7', 'Th8', 'Th9', 'Th10', 'Th11', 'Th12']),
   'de-DE': Object.freeze(['Jan.', 'Feb.', 'Mär.', 'Apr.', 'Mai', 'Jun.', 'Jul.', 'Aug.', 'Sep.', 'Okt.', 'Nov.', 'Dez.']),
   'fr-FR': Object.freeze(['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.']),
 });
@@ -12272,11 +14591,70 @@ const LOCALE_WEEKDAY_SHORT = Object.freeze({
   'zh-CN': Object.freeze(['周日', '周一', '周二', '周三', '周四', '周五', '周六']),
   'zh-TW': Object.freeze(['週日', '週一', '週二', '週三', '週四', '週五', '週六']),
   'en-US': Object.freeze(['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']),
+  'vi-VN': Object.freeze(['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7']),
   'ja-JP': Object.freeze(['日', '月', '火', '水', '木', '金', '土']),
   'ko-KR': Object.freeze(['일', '월', '화', '수', '목', '금', '토']),
   'de-DE': Object.freeze(['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa']),
   'fr-FR': Object.freeze(['dim.', 'lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.']),
 });
+
+const MAX_INTL_LOCALE_CACHE = 64;
+const INTL_SHORT_MONTHS_CACHE = new Map();
+const INTL_SHORT_WEEKDAYS_CACHE = new Map();
+
+function getLocaleShortMonths(locale) {
+  if (LOCALE_MONTH_SHORT[locale]) return LOCALE_MONTH_SHORT[locale];
+  if (INTL_SHORT_MONTHS_CACHE.has(locale)) return INTL_SHORT_MONTHS_CACHE.get(locale);
+  let resolved = LOCALE_MONTH_SHORT['en-US'];
+  try {
+    if (typeof Intl !== 'undefined' && typeof Intl.DateTimeFormat === 'function') {
+      const fmt = new Intl.DateTimeFormat(locale, { month: 'short', timeZone: 'UTC' });
+      const list = Array.from({ length: 12 }, (_, m) => fmt.format(new Date(Date.UTC(2024, m, 15))));
+      if (list.every((s) => typeof s === 'string' && s.trim().length > 0)) {
+        resolved = Object.freeze(list);
+      }
+    }
+  } catch {
+
+  }
+  if (INTL_SHORT_MONTHS_CACHE.size < MAX_INTL_LOCALE_CACHE) {
+    INTL_SHORT_MONTHS_CACHE.set(locale, resolved);
+  }
+  return resolved;
+}
+
+function getLocaleShortWeekdays(locale) {
+  if (LOCALE_WEEKDAY_SHORT[locale]) return LOCALE_WEEKDAY_SHORT[locale];
+  if (INTL_SHORT_WEEKDAYS_CACHE.has(locale)) return INTL_SHORT_WEEKDAYS_CACHE.get(locale);
+  let resolved = LOCALE_WEEKDAY_SHORT['en-US'];
+  try {
+    if (typeof Intl !== 'undefined' && typeof Intl.DateTimeFormat === 'function') {
+      const fmt = new Intl.DateTimeFormat(locale, { weekday: 'short', timeZone: 'UTC' });
+
+      const list = Array.from({ length: 7 }, (_, d) => fmt.format(new Date(Date.UTC(2024, 0, 7 + d))));
+      if (list.every((s) => typeof s === 'string' && s.trim().length > 0)) {
+        resolved = Object.freeze(list);
+      }
+    }
+  } catch {
+
+  }
+  if (INTL_SHORT_WEEKDAYS_CACHE.size < MAX_INTL_LOCALE_CACHE) {
+    INTL_SHORT_WEEKDAYS_CACHE.set(locale, resolved);
+  }
+  return resolved;
+}
+
+function formatShortMonthName(monthIndex, locale, { stripTrailingDot = false } = {}) {
+  const loc = resolveFormatterLocale(locale);
+  const raw = getLocaleShortMonths(loc)[monthIndex] || '';
+  return stripTrailingDot ? raw.replace(/\.$/, '') : raw;
+}
+
+function formatShortWeekdayName(dayIndex, locale) {
+  const loc = resolveFormatterLocale(locale);
+  return getLocaleShortWeekdays(loc)[dayIndex] || '';
+}
 
 function resolveFormatterLocale(explicitLocale) {
   if (typeof explicitLocale === 'string' && explicitLocale.trim()) {
@@ -12343,6 +14721,22 @@ function formatTokensPrecise(num) {
   return String(Math.round(n));
 }
 
+function formatCompactBytes(bytes) {
+  const n = Number(bytes);
+  if (!Number.isFinite(n) || n <= 0) return '0 B';
+  if (n < 1024) return `${Math.round(n)} B`;
+  const kb = n / 1024;
+  if (kb < 1023.5) {
+    return kb < 10 ? `${Number(kb.toFixed(1))} KB` : `${Math.round(kb)} KB`;
+  }
+  const mb = n / (1024 * 1024);
+  if (mb < 1023.95) {
+    return `${mb.toFixed(1)} MB`;
+  }
+  const gb = n / (1024 * 1024 * 1024);
+  return gb >= 10 ? `${gb.toFixed(1)} GB` : `${gb.toFixed(2)} GB`;
+}
+
 function formatCnyApprox(usdAmount, rate = 7.2) {
   return formatConvertedApprox(usdAmount, {
     displayCurrency: 'CNY',
@@ -12399,11 +14793,11 @@ function formatLocalizedDayDate(dateObj, locale, includeYear) {
   if (locale === 'ko-KR') {
     return includeYear ? `${y}년 ${m}월 ${d}일` : `${m}월 ${d}일`;
   }
-  const mon = (LOCALE_MONTH_SHORT[locale] || LOCALE_MONTH_SHORT['en-US'])[dateObj.getMonth()] || '';
+  const mon = formatShortMonthName(dateObj.getMonth(), locale);
   if (locale === 'de-DE') {
     return includeYear ? `${d}. ${mon} ${y}` : `${d}. ${mon}`;
   }
-  if (locale === 'fr-FR') {
+  if (locale === 'fr-FR' || locale === 'vi-VN') {
     return includeYear ? `${d} ${mon} ${y}` : `${d} ${mon}`;
   }
   return includeYear ? `${mon} ${d}, ${y}` : `${mon} ${d}`;
@@ -12465,7 +14859,7 @@ function formatTrendSlotFullLabel(slot, { locale, showFullYear = false } = {}) {
       return `${datePart}${sep}${hh} - ${endHh}`;
     }
 
-    const wday = (LOCALE_WEEKDAY_SHORT[loc] || LOCALE_WEEKDAY_SHORT['en-US'])[sd.getDay()] || '';
+    const wday = formatShortWeekdayName(sd.getDay(), loc);
     return `${datePart} (${wday})`;
   }
 
@@ -13544,6 +15938,25 @@ function formatLiveActivityDetail(act) {
   return String(act.detail || '');
 }
 
+function getTaskStepsSignature(taskSteps) {
+  if (!taskSteps || typeof taskSteps !== 'object' || !(Number(taskSteps.total) > 0)) {
+    return '';
+  }
+  const items = Array.isArray(taskSteps.items) ? taskSteps.items : [];
+  const itemsPart = items
+    .map((it) => `${String(it?.status || 'pending')[0] || 'p'}:${String(it?.title || '')}`)
+    .join('|');
+  return `${Number(taskSteps.done || 0)}/${Number(taskSteps.total || 0)}:${Number(taskSteps.inProgress || 0)}:${Number(taskSteps.failed || 0)}:${Number(taskSteps.skipped || 0)}:${String(taskSteps.currentTitle || '')}:${itemsPart}`;
+}
+
+function formatLiveTaskStepsProgress(taskSteps) {
+  if (!taskSteps || !(Number(taskSteps.total) > 0)) return '';
+  return t('live.stepsProgress', {
+    done: Math.max(0, Number(taskSteps.done || 0)),
+    total: Math.max(1, Number(taskSteps.total || 0)),
+  });
+}
+
 const PERCEPTUAL_MODEL_COLOR_RING = [
   [217, 82, 53],
   [14, 80, 52],
@@ -13675,7 +16088,7 @@ function buildDeterministicModelColorMap(models = []) {
 
   return colorMap;
 }
-return { formatMetric, formatSpeedMetric, formatCachePct, formatPctNumber, getSpeedToneClass, getCacheToneClass, getStepCostToneClass, getTtftToneClass, formatTokens, formatTokensPrecise, formatCnyApprox, formatSecondaryCostApprox, formatFxRateCaption, formatDateSpanBadge, formatTrendSlotFullLabel, formatUsd, speedReasonText, formatAnomalyKindLabel, formatAnomalyTagText, resolveModelAnomalySummary, formatStepAnomalyInlineSummary, buildStepAnomalyDiagnostic, buildStepCompactionDiagnostic, buildStepRevertedDiagnostic, formatTimingDetailSec, hasStepTimingData, buildStepTimingDiagnostic, buildModelAnomalyDiagnostic, sampleSummary, formatCountdown, formatCompactDateTime, formatElapsedSec, stripVendorModelPrefix, resolveModelDisplayInfo, mergeModelsByDisplayName, getAgentBadgeClass, formatQuotaPoolLabel, formatAgentBadgeText, formatAgentLabel, formatConversationMeta, formatLiveActivityLabel, formatLiveActivityDetail, getCanonicalModelColorSeed, resolveDeterministicModelColor, buildDeterministicModelColorMap };
+return { formatShortMonthName, formatShortWeekdayName, formatMetric, formatSpeedMetric, formatCachePct, formatPctNumber, getSpeedToneClass, getCacheToneClass, getStepCostToneClass, getTtftToneClass, formatTokens, formatTokensPrecise, formatCompactBytes, formatCnyApprox, formatSecondaryCostApprox, formatFxRateCaption, formatDateSpanBadge, formatTrendSlotFullLabel, formatUsd, speedReasonText, formatAnomalyKindLabel, formatAnomalyTagText, resolveModelAnomalySummary, formatStepAnomalyInlineSummary, buildStepAnomalyDiagnostic, buildStepCompactionDiagnostic, buildStepRevertedDiagnostic, formatTimingDetailSec, hasStepTimingData, buildStepTimingDiagnostic, buildModelAnomalyDiagnostic, sampleSummary, formatCountdown, formatCompactDateTime, formatElapsedSec, stripVendorModelPrefix, resolveModelDisplayInfo, mergeModelsByDisplayName, getAgentBadgeClass, formatQuotaPoolLabel, formatAgentBadgeText, formatAgentLabel, formatConversationMeta, formatLiveActivityLabel, formatLiveActivityDetail, getTaskStepsSignature, formatLiveTaskStepsProgress, getCanonicalModelColorSeed, resolveDeterministicModelColor, buildDeterministicModelColorMap };
 })();
 
 // --- src/core/stepInspector.js ---
@@ -14179,6 +16592,7 @@ const PORTABLE_SETTING_DESCRIPTORS = Object.freeze([
       }
     },
   },
+  normField('vsCodeMountMode', normalizeVsCodeMountMode),
   normField('popoverWidthMode', normalizePopoverWidthMode),
   normField('popoverWidth', normalizePopoverWidth),
   boolField('enableCliStatusLine', true),
@@ -14186,16 +16600,152 @@ const PORTABLE_SETTING_DESCRIPTORS = Object.freeze([
   normField('standalonePort', normalizeStandalonePort),
   normField('autoConfigureLaunch', normalizeAutoConfigureLaunch),
   normField('enableRemoteSshTelemetry', normalizeEnableRemoteSshTelemetry),
-  boolField('showTopbarMultiSession', true),
+  normField('enableSafetyMonitor', normalizeEnableSafetyMonitor),
+  {
+    exportTo: (src, out) => {
+      const mode = normalizeTopbarMultiSessionMode(
+        src.topbarMultiSessionMode,
+        src.showTopbarMultiSession
+      );
+      out.topbarMultiSessionMode = mode;
+      out.showTopbarMultiSession = mode !== 'hide';
+    },
+    importTo: (src, hasKey, patch) => {
+      if (hasKey('topbarMultiSessionMode') || hasKey('showTopbarMultiSession')) {
+        const mode = normalizeTopbarMultiSessionMode(
+          src.topbarMultiSessionMode,
+          src.showTopbarMultiSession
+        );
+        patch.topbarMultiSessionMode = mode;
+        patch.showTopbarMultiSession = mode !== 'hide';
+      }
+    },
+  },
   normField('contextAgentMode', normalizeContextAgentMode),
   arrayField('topbarCapsuleSlots', normalizeTopbarCapsuleSlots),
   arrayField('hoverModules', normalizeHoverModules),
   boolField('hoverSyncOverviewMetrics', true),
-  normField('hoverMetricStyle', normalizeHoverMetricStyle),
-  arrayField('hoverMetrics', normalizeHoverMetrics),
+  {
+    exportTo: (src, out) => {
+      const metrics = normalizeHoverMetrics(src.hoverMetrics);
+      const hasExplicit =
+        src.hoverMetricRows !== undefined || src.hoverMetricSizes !== undefined;
+      const rows = normalizeHoverMetricRows(
+        src.hoverMetricRows,
+        hasExplicit ? undefined : src.hoverMetricStyle
+      );
+      const sizes = normalizeHoverMetricSizes(
+        src.hoverMetricSizes,
+        metrics,
+        hasExplicit ? undefined : src.hoverMetricStyle
+      );
+      out.hoverMetricStyle = deriveMetricCardStyleFromLayout(rows, metrics, sizes);
+      out.hoverMetricRows = rows;
+      out.hoverMetricSizes = sizes;
+      out.hoverMetricTextMode = normalizeHoverMetricTextMode(src.hoverMetricTextMode);
+      out.hoverMetrics = metrics;
+    },
+    importTo: (src, hasKey, patch) => {
+      const hasMetrics = hasKey('hoverMetrics') && Array.isArray(src.hoverMetrics);
+      const hasRows = hasKey('hoverMetricRows');
+      const hasSizes =
+        hasKey('hoverMetricSizes') &&
+        src.hoverMetricSizes &&
+        typeof src.hoverMetricSizes === 'object' &&
+        !Array.isArray(src.hoverMetricSizes);
+      const hasStyle = hasKey('hoverMetricStyle');
+      if (hasKey('hoverMetricTextMode')) {
+        patch.hoverMetricTextMode = normalizeHoverMetricTextMode(src.hoverMetricTextMode);
+      }
+      if (hasMetrics) {
+        patch.hoverMetrics = normalizeHoverMetrics(src.hoverMetrics);
+      }
+      if (hasRows || hasSizes) {
+        const rows = hasRows
+          ? normalizeHoverMetricRows(src.hoverMetricRows)
+          : undefined;
+        const sizes = hasSizes
+          ? normalizeHoverMetricSizes(src.hoverMetricSizes)
+          : undefined;
+        if (rows !== undefined) patch.hoverMetricRows = rows;
+        if (sizes !== undefined) patch.hoverMetricSizes = sizes;
+        if (rows !== undefined && sizes !== undefined) {
+          patch.hoverMetricStyle = deriveMetricCardStyleFromLayout(
+            rows,
+            patch.hoverMetrics || normalizeHoverMetrics(src.hoverMetrics),
+            sizes
+          );
+        }
+      } else if (hasStyle) {
+        const style = normalizeHoverMetricStyle(src.hoverMetricStyle);
+        const metrics = patch.hoverMetrics || normalizeHoverMetrics(src.hoverMetrics);
+        patch.hoverMetricStyle = style;
+        patch.hoverMetricRows = normalizeHoverMetricRows(undefined, style);
+        patch.hoverMetricSizes = normalizeHoverMetricSizes(undefined, metrics, style);
+      }
+    },
+  },
   arrayField('overviewModules', normalizeOverviewModules),
-  normField('overviewMetricStyle', normalizeOverviewMetricStyle),
-  arrayField('overviewMetrics', normalizeOverviewMetrics),
+  {
+    exportTo: (src, out) => {
+      const metrics = normalizeOverviewMetrics(src.overviewMetrics);
+      const hasExplicit =
+        src.overviewMetricRows !== undefined || src.overviewMetricSizes !== undefined;
+      const rows = normalizeOverviewMetricRows(
+        src.overviewMetricRows,
+        hasExplicit ? undefined : src.overviewMetricStyle
+      );
+      const sizes = normalizeOverviewMetricSizes(
+        src.overviewMetricSizes,
+        metrics,
+        hasExplicit ? undefined : src.overviewMetricStyle
+      );
+      out.overviewMetricStyle = deriveMetricCardStyleFromLayout(rows, metrics, sizes);
+      out.overviewMetricRows = rows;
+      out.overviewMetricSizes = sizes;
+      out.overviewMetricTextMode = normalizeOverviewMetricTextMode(src.overviewMetricTextMode);
+      out.overviewMetrics = metrics;
+    },
+    importTo: (src, hasKey, patch) => {
+      const hasMetrics = hasKey('overviewMetrics') && Array.isArray(src.overviewMetrics);
+      const hasRows = hasKey('overviewMetricRows');
+      const hasSizes =
+        hasKey('overviewMetricSizes') &&
+        src.overviewMetricSizes &&
+        typeof src.overviewMetricSizes === 'object' &&
+        !Array.isArray(src.overviewMetricSizes);
+      const hasStyle = hasKey('overviewMetricStyle');
+      if (hasKey('overviewMetricTextMode')) {
+        patch.overviewMetricTextMode = normalizeOverviewMetricTextMode(src.overviewMetricTextMode);
+      }
+      if (hasMetrics) {
+        patch.overviewMetrics = normalizeOverviewMetrics(src.overviewMetrics);
+      }
+      if (hasRows || hasSizes) {
+        const rows = hasRows
+          ? normalizeOverviewMetricRows(src.overviewMetricRows)
+          : undefined;
+        const sizes = hasSizes
+          ? normalizeOverviewMetricSizes(src.overviewMetricSizes)
+          : undefined;
+        if (rows !== undefined) patch.overviewMetricRows = rows;
+        if (sizes !== undefined) patch.overviewMetricSizes = sizes;
+        if (rows !== undefined && sizes !== undefined) {
+          patch.overviewMetricStyle = deriveMetricCardStyleFromLayout(
+            rows,
+            patch.overviewMetrics || normalizeOverviewMetrics(src.overviewMetrics),
+            sizes
+          );
+        }
+      } else if (hasStyle) {
+        const style = normalizeOverviewMetricStyle(src.overviewMetricStyle);
+        const metrics = patch.overviewMetrics || normalizeOverviewMetrics(src.overviewMetrics);
+        patch.overviewMetricStyle = style;
+        patch.overviewMetricRows = normalizeOverviewMetricRows(undefined, style);
+        patch.overviewMetricSizes = normalizeOverviewMetricSizes(undefined, metrics, style);
+      }
+    },
+  },
   normField('quotaDisplayMode', normalizeQuotaDisplayMode),
   boolField('showStepTurnRail', false),
   boolField('showStepAgentBadge', true),
@@ -16924,68 +19474,76 @@ return { fetchHostI18nStatus, refreshHostI18nManifest, selectHostI18nLanguage, u
 })();
 
 // --- src/store/telemetryStore.js ---
-const { extractHostRouteCascadeId, telemetryStore, clearConsumptionRangeCache, clearConversationViewCache, CLIENT_TOPBAR_SLOT_KEYS, DEFAULT_CLIENT_TOPBAR_SLOTS, DEFAULT_CLIENT_CONTEXT_AGENT_MODE, CLIENT_CLI_STATUSLINE_PRESETS, DEFAULT_CLIENT_CLI_STATUSLINE_SLOTS, CLIENT_OVERVIEW_MODULE_KEYS, DEFAULT_CLIENT_OVERVIEW_MODULES, DEFAULT_CLIENT_HOVER_MODULES, DEFAULT_CLIENT_HOVER_SYNC_OVERVIEW_METRICS, DEFAULT_CLIENT_HOVER_METRIC_STYLE, DEFAULT_CLIENT_HOVER_METRICS, DEFAULT_CLIENT_OVERVIEW_METRIC_STYLE, MAX_CLIENT_LARGE_METRIC_SLOTS, CLIENT_OVERVIEW_METRIC_KEYS, DEFAULT_CLIENT_OVERVIEW_METRICS, CLIENT_STEP_COLUMN_KEYS, DEFAULT_CLIENT_STEP_COLUMNS, DEFAULT_CLIENT_STEP_TOKEN_COMBO_FORMAT, MIN_CLIENT_POPOVER_WIDTH, MAX_CLIENT_POPOVER_WIDTH, DEFAULT_CLIENT_POPOVER_WIDTH, DEFAULT_CLIENT_QUOTA_DISPLAY_MODE, parseClientStepTokenComboSegments, normalizeClientStepTokenComboFormat, normalizeClientPopoverWidthMode, normalizeClientPopoverWidth, normalizeClientModelDisplayMode, normalizeClientTopbarSlots, normalizeClientContextAgentMode, normalizeClientQuotaDisplayMode, normalizeClientExperimentalQuotaReservation, normalizeClientAccountQuotaRefreshMinutes, normalizeClientCliStatusLineSlots, getDefaultCtxInspectorAgentId, resolveOverlayCtxInspectorAgentId, resolveEffectiveClientCliStatusLineSlots, normalizeClientHoverModules, normalizeClientHoverSyncOverviewMetrics, normalizeClientHoverMetricStyle, normalizeClientHoverMetrics, normalizeClientOverviewModules, normalizeClientOverviewMetricStyle, normalizeClientOverviewMetrics, resolveEffectiveClientMetricMatrixConfig, normalizeClientStepColumns, normalizeClientUpdateMode, normalizeClientWindowMountMode, normalizeClientDisplayCurrency, isEquivalentTelemetry, resetTelemetryForEndpointSwitch, fetchTelemetry, selectConversation, selectConsumptionTimeRange, selectConsumptionCyclePool, prefetchConsumptionPresets, saveSettingsPatch, saveModelContextWindow, resetAllSettings, rebuildTrajectoryCache, triggerCloudSync, triggerFxSync, normalizeClientAutoConfigureLaunch, normalizeClientEnableRemoteSshTelemetry, triggerBridgeHostRelaunch, triggerCliStatusLineAction, fetchSessionMigrationCatalog, fetchQuotaReservationLog, executeSessionMigration, fetchLocalSessionsList, fetchSessionCleanupPreview, deleteLocalSessionsAction, redactLocalLedgerPrivacy, revealLocalSessionPathAction, triggerPluginUpdate, startAsyncTelemetryLoop, stopAsyncTelemetryLoop, resolveHostRouteMatch, resolveScopedConversation, isMacHostPlatform } = (() => {
+const { extractHostRouteCascadeId, telemetryStore, clearConsumptionRangeCache, clearConversationViewCache, CLIENT_TOPBAR_SLOT_KEYS, DEFAULT_CLIENT_TOPBAR_SLOTS, CLIENT_TOPBAR_MULTI_SESSION_MODES, DEFAULT_CLIENT_TOPBAR_MULTI_SESSION_MODE, DEFAULT_CLIENT_CONTEXT_AGENT_MODE, CLIENT_CLI_STATUSLINE_PRESETS, DEFAULT_CLIENT_CLI_STATUSLINE_SLOTS, CLIENT_OVERVIEW_MODULE_KEYS, DEFAULT_CLIENT_OVERVIEW_MODULES, DEFAULT_CLIENT_HOVER_MODULES, DEFAULT_CLIENT_HOVER_SYNC_OVERVIEW_METRICS, DEFAULT_CLIENT_HOVER_METRIC_STYLE, DEFAULT_CLIENT_HOVER_METRIC_ROWS, DEFAULT_CLIENT_HOVER_METRIC_SIZES, DEFAULT_CLIENT_HOVER_METRIC_TEXT_MODE, DEFAULT_CLIENT_HOVER_METRICS, DEFAULT_CLIENT_OVERVIEW_METRIC_STYLE, DEFAULT_CLIENT_OVERVIEW_METRIC_ROWS, DEFAULT_CLIENT_OVERVIEW_METRIC_SIZES, DEFAULT_CLIENT_OVERVIEW_METRIC_TEXT_MODE, DEFAULT_CLIENT_METRIC_ROWS, DEFAULT_CLIENT_METRIC_TEXT_MODE, CLIENT_METRIC_GRID_COLS, CLIENT_METRIC_GRID_ROWS, CLIENT_METRIC_CARD_SIZES, CLIENT_METRIC_TEXT_MODES, MAX_CLIENT_OVERVIEW_METRICS, MAX_CLIENT_LARGE_METRIC_SLOTS, CLIENT_OVERVIEW_METRIC_KEYS, DEFAULT_CLIENT_OVERVIEW_METRICS, CLIENT_STEP_COLUMN_KEYS, DEFAULT_CLIENT_STEP_COLUMNS, DEFAULT_CLIENT_STEP_TOKEN_COMBO_FORMAT, MIN_CLIENT_POPOVER_WIDTH, MAX_CLIENT_POPOVER_WIDTH, DEFAULT_CLIENT_POPOVER_WIDTH, DEFAULT_CLIENT_QUOTA_DISPLAY_MODE, parseClientStepTokenComboSegments, normalizeClientStepTokenComboFormat, normalizeClientPopoverWidthMode, normalizeClientPopoverWidth, normalizeClientModelDisplayMode, normalizeClientTopbarSlots, normalizeClientTopbarMultiSessionMode, isClientTopbarMultiSessionVisible, normalizeClientContextAgentMode, normalizeClientQuotaDisplayMode, normalizeClientExperimentalQuotaReservation, normalizeClientAccountQuotaRefreshMinutes, normalizeClientCliStatusLineSlots, getDefaultCtxInspectorAgentId, resolveOverlayCtxInspectorAgentId, resolveEffectiveClientCliStatusLineSlots, normalizeClientHoverModules, normalizeClientHoverSyncOverviewMetrics, normalizeClientHoverMetricStyle, normalizeClientHoverMetricRows, normalizeClientHoverMetricSizes, normalizeClientHoverMetricTextMode, normalizeClientHoverMetrics, normalizeClientOverviewModules, normalizeClientOverviewMetricStyle, normalizeClientOverviewMetricRows, normalizeClientOverviewMetricSizes, normalizeClientOverviewMetricTextMode, normalizeClientOverviewMetrics, normalizeClientMetricCardSize, normalizeClientMetricCardSizes, normalizeClientMetricGridRows, normalizeClientMetricTextMode, deriveClientMetricCardStyle, packClientMetricBentoLayout, resolveEffectiveClientMetricMatrixConfig, normalizeClientStepColumns, normalizeClientUpdateMode, normalizeClientWindowMountMode, normalizeClientVsCodeMountMode, normalizeClientDisplayCurrency, isEquivalentTelemetry, resetTelemetryForEndpointSwitch, fetchTelemetry, selectConversation, selectConsumptionTimeRange, selectConsumptionCyclePool, prefetchConsumptionPresets, saveSettingsPatch, saveModelContextWindow, resetAllSettings, rebuildTrajectoryCache, triggerCloudSync, triggerFxSync, normalizeClientAutoConfigureLaunch, normalizeClientEnableRemoteSshTelemetry, normalizeClientEnableSafetyMonitor, triggerBridgeHostRelaunch, triggerCliStatusLineAction, fetchSessionMigrationCatalog, fetchQuotaReservationLog, executeSessionMigration, fetchLocalSessionsList, fetchSessionCleanupPreview, deleteLocalSessionsAction, redactLocalLedgerPrivacy, revealLocalSessionPathAction, triggerPluginUpdate, startAsyncTelemetryLoop, stopAsyncTelemetryLoop, resolveHostRouteMatch, resolveScopedConversation, isMacHostPlatform } = (() => {
 const CASCADE_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function extractHostRouteCascadeId() {
   if (typeof window === 'undefined' || !isWindowOverlayMode()) return '';
+  const bridge = readInjectedWindowBridge();
+  const isExtView =
+    bridge?.isIdeChatFrame === true ||
+    /[?&]extension(?:View|Variant)=/i.test(String(window.location?.search || ''));
   const pathname = String(window.location?.pathname || '');
   const m = pathname.match(/^\/c\/([a-f0-9-]{36})(?:\/|$)/i);
-  if (m && CASCADE_UUID_RE.test(m[1])) {
-    return m[1];
+  const pathId = m && CASCADE_UUID_RE.test(m[1]) ? m[1] : '';
+  if (!isExtView && pathId) {
+    return pathId;
   }
-  const extBridgeRouteId = String(readInjectedWindowBridge()?.[WINDOW_BRIDGE_ROUTE_KEY] || '').trim();
-  if (extBridgeRouteId && CASCADE_UUID_RE.test(extBridgeRouteId)) {
+  const extBridgeRouteId = String(bridge?.[WINDOW_BRIDGE_ROUTE_KEY] || '').trim();
+  if (!isExtView && extBridgeRouteId && CASCADE_UUID_RE.test(extBridgeRouteId)) {
     return extBridgeRouteId;
   }
   try {
-    if (typeof document === 'undefined' || typeof document.querySelector !== 'function') {
-      return '';
-    }
-    const selectedRow = document.querySelector(
-      '[data-testid^="conversation-row-"][data-selected="true"][data-cascade-id]'
-    );
-    const selectedRowId = String(selectedRow?.getAttribute?.('data-cascade-id') || '').trim();
+    if (typeof document !== 'undefined' && typeof document.querySelector === 'function') {
+      const selectedRow = document.querySelector(
+        '[data-testid^="conversation-row-"][data-selected="true"][data-cascade-id]'
+      );
+      const selectedRowId = String(selectedRow?.getAttribute?.('data-cascade-id') || '').trim();
 
-    if (typeof document.querySelectorAll === 'function') {
-      const views = document.querySelectorAll('[data-testid="conversation-view"][data-cascade-id]');
-      const visibleIds = [];
-      let focusedId = '';
-      const activeEl = document.activeElement || null;
-      for (const viewEl of views) {
-        const cid = String(viewEl?.getAttribute?.('data-cascade-id') || '').trim();
-        if (!CASCADE_UUID_RE.test(cid)) continue;
-        if (viewEl.hasAttribute?.('hidden')) continue;
-        if (viewEl.getBoundingClientRect) {
-          const r = viewEl.getBoundingClientRect();
-          if (r.width <= 0 && r.height <= 0) continue;
+      if (typeof document.querySelectorAll === 'function') {
+        const views = document.querySelectorAll('[data-testid="conversation-view"][data-cascade-id]');
+        const visibleIds = [];
+        let focusedId = '';
+        const activeEl = document.activeElement || null;
+        for (const viewEl of views) {
+          const cid = String(viewEl?.getAttribute?.('data-cascade-id') || '').trim();
+          if (!CASCADE_UUID_RE.test(cid)) continue;
+          if (viewEl.hasAttribute?.('hidden')) continue;
+          if (viewEl.getBoundingClientRect) {
+            const r = viewEl.getBoundingClientRect();
+            if (r.width <= 0 && r.height <= 0) continue;
+          }
+          visibleIds.push(cid);
+          if (activeEl && viewEl.contains?.(activeEl)) {
+            focusedId = cid;
+          }
         }
-        visibleIds.push(cid);
-        if (activeEl && viewEl.contains?.(activeEl)) {
-          focusedId = cid;
+        if (focusedId) return focusedId;
+        if (
+          selectedRowId &&
+          CASCADE_UUID_RE.test(selectedRowId) &&
+          visibleIds.some((id) => id.toLowerCase() === selectedRowId.toLowerCase())
+        ) {
+          return selectedRowId;
         }
+        if (visibleIds.length > 0) return visibleIds[0];
       }
-      if (focusedId) return focusedId;
-      if (
-        selectedRowId &&
-        CASCADE_UUID_RE.test(selectedRowId) &&
-        visibleIds.some((id) => id.toLowerCase() === selectedRowId.toLowerCase())
-      ) {
+
+      const singleView = document.querySelector('[data-testid="conversation-view"][data-cascade-id]');
+      const singleViewId = String(singleView?.getAttribute?.('data-cascade-id') || '').trim();
+      if (CASCADE_UUID_RE.test(singleViewId)) {
+        return singleViewId;
+      }
+      if (CASCADE_UUID_RE.test(selectedRowId)) {
         return selectedRowId;
       }
-      if (visibleIds.length > 0) return visibleIds[0];
-    }
-
-    const singleView = document.querySelector('[data-testid="conversation-view"][data-cascade-id]');
-    const singleViewId = String(singleView?.getAttribute?.('data-cascade-id') || '').trim();
-    if (CASCADE_UUID_RE.test(singleViewId)) {
-      return singleViewId;
-    }
-    if (CASCADE_UUID_RE.test(selectedRowId)) {
-      return selectedRowId;
     }
   } catch {
 
+  }
+  if (pathId) return pathId;
+  if (extBridgeRouteId && CASCADE_UUID_RE.test(extBridgeRouteId)) {
+    return extBridgeRouteId;
   }
   return '';
 }
@@ -17021,6 +19579,7 @@ let lastPrefetchedUsageRevision = 0;
 let consumptionCacheScopeSig = '';
 const MAX_CONSUMPTION_RANGE_CACHE = 24;
 const MAX_CONVERSATION_VIEW_CACHE = 12;
+const MAX_CONVERSATION_VIEW_CACHE_STEPS = 10000;
 const CONSUMPTION_PRESET_KEYS = ['cycle', 'today', '24h', '7d', '14d', '30d', 'all'];
 const consumptionRangeCache = new Map();
 const conversationViewCache = new Map();
@@ -17038,9 +19597,11 @@ const TELEMETRY_RECOMPUTE_SETTING_KEYS = new Set([
   'weeklyTokenBudget',
   'weeklyCostBudget',
   'windowMountMode',
+  'vsCodeMountMode',
   'enableWindowOverlay',
   'autoConfigureLaunch',
   'enableRemoteSshTelemetry',
+  'enableSafetyMonitor',
 ]);
 
 function makeConsumptionRangeCacheKey(
@@ -17108,6 +19669,12 @@ function recordConversationViewToCache(payload) {
   const active = payload?.activeConversation;
   const cidLower = String(active?.cascadeId || '').trim().toLowerCase();
   if (!cidLower || !Array.isArray(active?.recentSteps)) return;
+  let stepCount = Array.isArray(active?.recentSteps) ? active.recentSteps.length : 0;
+  if (Array.isArray(active?.agents)) {
+    for (const ag of active.agents) {
+      if (Array.isArray(ag?.recentSteps)) stepCount += ag.recentSteps.length;
+    }
+  }
   const entry = {
     cascadeId: active.cascadeId,
     activeConversation: active,
@@ -17122,12 +19689,24 @@ function recordConversationViewToCache(payload) {
           )
         : null),
     stepRevision: String(payload.stepRevision || ''),
+    stepCount,
     cachedAtMs: Date.now(),
   };
   conversationViewCache.delete(cidLower);
   conversationViewCache.set(cidLower, entry);
-  while (conversationViewCache.size > MAX_CONVERSATION_VIEW_CACHE) {
-    conversationViewCache.delete(conversationViewCache.keys().next().value);
+  let totalCachedSteps = 0;
+  for (const rec of conversationViewCache.values()) {
+    totalCachedSteps += Number(rec?.stepCount || 0);
+  }
+  while (
+    conversationViewCache.size > MAX_CONVERSATION_VIEW_CACHE ||
+    (conversationViewCache.size > 2 && totalCachedSteps > MAX_CONVERSATION_VIEW_CACHE_STEPS)
+  ) {
+    const oldestKey = conversationViewCache.keys().next().value;
+    if (oldestKey === undefined) break;
+    const evicted = conversationViewCache.get(oldestKey);
+    conversationViewCache.delete(oldestKey);
+    totalCachedSteps -= Number(evicted?.stepCount || 0);
   }
 }
 
@@ -17324,6 +19903,8 @@ function reconcileIncomingTelemetrySettings(payload, reqSettingsRev) {
 
 const CLIENT_TOPBAR_SLOT_KEYS = TOPBAR_SLOT_KEYS;
 const DEFAULT_CLIENT_TOPBAR_SLOTS = DEFAULT_TOPBAR_SLOTS;
+const CLIENT_TOPBAR_MULTI_SESSION_MODES = TOPBAR_MULTI_SESSION_MODES;
+const DEFAULT_CLIENT_TOPBAR_MULTI_SESSION_MODE = DEFAULT_TOPBAR_MULTI_SESSION_MODE;
 const DEFAULT_CLIENT_CONTEXT_AGENT_MODE = DEFAULT_CONTEXT_AGENT_MODE;
 const CLIENT_CLI_STATUSLINE_PRESETS = CLI_STATUSLINE_PRESETS;
 const DEFAULT_CLIENT_CLI_STATUSLINE_SLOTS = DEFAULT_CLI_STATUSLINE_SLOTS;
@@ -17332,8 +19913,21 @@ const DEFAULT_CLIENT_OVERVIEW_MODULES = DEFAULT_OVERVIEW_MODULES;
 const DEFAULT_CLIENT_HOVER_MODULES = DEFAULT_HOVER_MODULES;
 const DEFAULT_CLIENT_HOVER_SYNC_OVERVIEW_METRICS = DEFAULT_HOVER_SYNC_OVERVIEW_METRICS;
 const DEFAULT_CLIENT_HOVER_METRIC_STYLE = DEFAULT_HOVER_METRIC_STYLE;
+const DEFAULT_CLIENT_HOVER_METRIC_ROWS = DEFAULT_HOVER_METRIC_ROWS;
+const DEFAULT_CLIENT_HOVER_METRIC_SIZES = DEFAULT_HOVER_METRIC_SIZES;
+const DEFAULT_CLIENT_HOVER_METRIC_TEXT_MODE = DEFAULT_HOVER_METRIC_TEXT_MODE;
 const DEFAULT_CLIENT_HOVER_METRICS = DEFAULT_HOVER_METRICS;
 const DEFAULT_CLIENT_OVERVIEW_METRIC_STYLE = DEFAULT_OVERVIEW_METRIC_STYLE;
+const DEFAULT_CLIENT_OVERVIEW_METRIC_ROWS = DEFAULT_OVERVIEW_METRIC_ROWS;
+const DEFAULT_CLIENT_OVERVIEW_METRIC_SIZES = DEFAULT_OVERVIEW_METRIC_SIZES;
+const DEFAULT_CLIENT_OVERVIEW_METRIC_TEXT_MODE = DEFAULT_OVERVIEW_METRIC_TEXT_MODE;
+const DEFAULT_CLIENT_METRIC_ROWS = DEFAULT_METRIC_ROWS;
+const DEFAULT_CLIENT_METRIC_TEXT_MODE = DEFAULT_METRIC_TEXT_MODE;
+const CLIENT_METRIC_GRID_COLS = METRIC_GRID_COLS;
+const CLIENT_METRIC_GRID_ROWS = METRIC_GRID_ROWS;
+const CLIENT_METRIC_CARD_SIZES = METRIC_CARD_SIZES;
+const CLIENT_METRIC_TEXT_MODES = METRIC_TEXT_MODES;
+const MAX_CLIENT_OVERVIEW_METRICS = MAX_OVERVIEW_METRICS;
 const MAX_CLIENT_LARGE_METRIC_SLOTS = MAX_LARGE_METRIC_SLOTS;
 const CLIENT_OVERVIEW_METRIC_KEYS = OVERVIEW_METRIC_KEYS;
 const DEFAULT_CLIENT_OVERVIEW_METRICS = DEFAULT_OVERVIEW_METRICS;
@@ -17351,6 +19945,8 @@ const normalizeClientPopoverWidthMode = normalizePopoverWidthMode;
 const normalizeClientPopoverWidth = normalizePopoverWidth;
 const normalizeClientModelDisplayMode = normalizeModelDisplayMode;
 const normalizeClientTopbarSlots = normalizeTopbarCapsuleSlots;
+const normalizeClientTopbarMultiSessionMode = normalizeTopbarMultiSessionMode;
+const isClientTopbarMultiSessionVisible = isTopbarMultiSessionVisible;
 const normalizeClientContextAgentMode = normalizeContextAgentMode;
 const normalizeClientQuotaDisplayMode = normalizeQuotaDisplayMode;
 const normalizeClientExperimentalQuotaReservation = normalizeExperimentalQuotaReservation;
@@ -17371,14 +19967,27 @@ const resolveEffectiveClientCliStatusLineSlots = resolveEffectiveCliStatusLineSl
 const normalizeClientHoverModules = normalizeHoverModules;
 const normalizeClientHoverSyncOverviewMetrics = normalizeHoverSyncOverviewMetrics;
 const normalizeClientHoverMetricStyle = normalizeHoverMetricStyle;
+const normalizeClientHoverMetricRows = normalizeHoverMetricRows;
+const normalizeClientHoverMetricSizes = normalizeHoverMetricSizes;
+const normalizeClientHoverMetricTextMode = normalizeHoverMetricTextMode;
 const normalizeClientHoverMetrics = normalizeHoverMetrics;
 const normalizeClientOverviewModules = normalizeOverviewModules;
 const normalizeClientOverviewMetricStyle = normalizeOverviewMetricStyle;
+const normalizeClientOverviewMetricRows = normalizeOverviewMetricRows;
+const normalizeClientOverviewMetricSizes = normalizeOverviewMetricSizes;
+const normalizeClientOverviewMetricTextMode = normalizeOverviewMetricTextMode;
 const normalizeClientOverviewMetrics = normalizeOverviewMetrics;
+const normalizeClientMetricCardSize = normalizeMetricCardSize;
+const normalizeClientMetricCardSizes = normalizeMetricCardSizes;
+const normalizeClientMetricGridRows = normalizeMetricGridRows;
+const normalizeClientMetricTextMode = normalizeMetricTextMode;
+const deriveClientMetricCardStyle = deriveMetricCardStyleFromLayout;
+const packClientMetricBentoLayout = packMetricBentoLayout;
 const resolveEffectiveClientMetricMatrixConfig = resolveEffectiveMetricMatrixConfig;
 const normalizeClientStepColumns = normalizeStepTableColumns;
 const normalizeClientUpdateMode = normalizePluginUpdateMode;
 const normalizeClientWindowMountMode = normalizeWindowMountMode;
+const normalizeClientVsCodeMountMode = normalizeVsCodeMountMode;
 const normalizeClientDisplayCurrency = normalizeDisplayCurrency;
 
 function isEquivalentTelemetry(prev, next) {
@@ -17478,11 +20087,29 @@ function isEquivalentTelemetry(prev, next) {
   ) {
     return false;
   }
+  if (
+    normalizeClientVsCodeMountMode(pSet?.vsCodeMountMode) !==
+    normalizeClientVsCodeMountMode(nSet?.vsCodeMountMode)
+  ) {
+    return false;
+  }
   if (pSet?.enableWindowOverlay !== nSet?.enableWindowOverlay) return false;
   if ((pSet?.enableCliStatusLine !== false) !== (nSet?.enableCliStatusLine !== false)) {
     return false;
   }
   if (!sameArr(pSet?.cliStatusLineSlots, nSet?.cliStatusLineSlots)) return false;
+  if (
+    normalizeClientTopbarMultiSessionMode(
+      pSet?.topbarMultiSessionMode,
+      pSet?.showTopbarMultiSession
+    ) !==
+    normalizeClientTopbarMultiSessionMode(
+      nSet?.topbarMultiSessionMode,
+      nSet?.showTopbarMultiSession
+    )
+  ) {
+    return false;
+  }
   if ((pSet?.showTopbarMultiSession !== false) !== (nSet?.showTopbarMultiSession !== false)) {
     return false;
   }
@@ -17540,6 +20167,12 @@ function isEquivalentTelemetry(prev, next) {
   ) {
     return false;
   }
+  if (
+    normalizeEnableSafetyMonitor(pSet?.enableSafetyMonitor) !==
+    normalizeEnableSafetyMonitor(nSet?.enableSafetyMonitor)
+  ) {
+    return false;
+  }
   if (!sameArr(pSet?.topbarCapsuleSlots, nSet?.topbarCapsuleSlots)) return false;
   if (!sameArr(pSet?.hoverModules, nSet?.hoverModules)) return false;
   if (
@@ -17548,9 +20181,33 @@ function isEquivalentTelemetry(prev, next) {
   ) {
     return false;
   }
+  const sameSizeMap = (a, b) => {
+    const na = normalizeClientMetricCardSizes(a);
+    const nb = normalizeClientMetricCardSizes(b);
+    const ka = Object.keys(na);
+    const kb = Object.keys(nb);
+    if (ka.length !== kb.length) return false;
+    for (let i = 0; i < ka.length; i += 1) {
+      if (na[ka[i]] !== nb[ka[i]]) return false;
+    }
+    return true;
+  };
   if (
     normalizeClientHoverMetricStyle(pSet?.hoverMetricStyle) !==
     normalizeClientHoverMetricStyle(nSet?.hoverMetricStyle)
+  ) {
+    return false;
+  }
+  if (
+    normalizeClientHoverMetricRows(pSet?.hoverMetricRows, pSet?.hoverMetricStyle) !==
+    normalizeClientHoverMetricRows(nSet?.hoverMetricRows, nSet?.hoverMetricStyle)
+  ) {
+    return false;
+  }
+  if (!sameSizeMap(pSet?.hoverMetricSizes, nSet?.hoverMetricSizes)) return false;
+  if (
+    normalizeClientHoverMetricTextMode(pSet?.hoverMetricTextMode) !==
+    normalizeClientHoverMetricTextMode(nSet?.hoverMetricTextMode)
   ) {
     return false;
   }
@@ -17559,6 +20216,19 @@ function isEquivalentTelemetry(prev, next) {
   if (
     normalizeClientOverviewMetricStyle(pSet?.overviewMetricStyle) !==
     normalizeClientOverviewMetricStyle(nSet?.overviewMetricStyle)
+  ) {
+    return false;
+  }
+  if (
+    normalizeClientOverviewMetricRows(pSet?.overviewMetricRows, pSet?.overviewMetricStyle) !==
+    normalizeClientOverviewMetricRows(nSet?.overviewMetricRows, nSet?.overviewMetricStyle)
+  ) {
+    return false;
+  }
+  if (!sameSizeMap(pSet?.overviewMetricSizes, nSet?.overviewMetricSizes)) return false;
+  if (
+    normalizeClientOverviewMetricTextMode(pSet?.overviewMetricTextMode) !==
+    normalizeClientOverviewMetricTextMode(nSet?.overviewMetricTextMode)
   ) {
     return false;
   }
@@ -17592,6 +20262,36 @@ function isEquivalentTelemetry(prev, next) {
     String(pCli?.managedFlags || '') !== String(nCli?.managedFlags || '')
   ) {
     return false;
+  }
+  const pSm = prev.safetyMonitor;
+  const nSm = next.safetyMonitor;
+  if (Boolean(pSm) !== Boolean(nSm)) {
+    return false;
+  }
+  if (pSm && nSm) {
+    const p5 = pSm.window5h;
+    const n5 = nSm.window5h;
+    const p24 = pSm.window24h;
+    const n24 = nSm.window24h;
+    if (
+      Number(pSm.sourceCount || 0) !== Number(nSm.sourceCount || 0) ||
+      Number(p5?.totalStreamGen || 0) !== Number(n5?.totalStreamGen || 0) ||
+      Number(p5?.hiddenStreamGen || 0) !== Number(n5?.hiddenStreamGen || 0) ||
+      Number(p5?.flashLiteCalls || 0) !== Number(n5?.flashLiteCalls || 0) ||
+      Number(p5?.heavyCalls || 0) !== Number(n5?.heavyCalls || 0) ||
+      Number(p5?.heavyTrajChars || 0) !== Number(n5?.heavyTrajChars || 0) ||
+      Number(p5?.blockedMs || 0) !== Number(n5?.blockedMs || 0) ||
+      Number(p5?.rateLimit429Count || 0) !== Number(n5?.rateLimit429Count || 0) ||
+      Number(p5?.fallbackCount || 0) !== Number(n5?.fallbackCount || 0) ||
+      Number(p24?.flashLiteCalls || 0) !== Number(n24?.flashLiteCalls || 0) ||
+      Number(p24?.heavyCalls || 0) !== Number(n24?.heavyCalls || 0) ||
+      Number(p24?.heavyTrajChars || 0) !== Number(n24?.heavyTrajChars || 0) ||
+      Boolean(pSm.alerts?.has429Fallback) !== Boolean(nSm.alerts?.has429Fallback) ||
+      Boolean(pSm.alerts?.hasHeavyBurst) !== Boolean(nSm.alerts?.hasHeavyBurst) ||
+      Boolean(pSm.alerts?.nearFlashLiteLimit) !== Boolean(nSm.alerts?.nearFlashLiteLimit)
+    ) {
+      return false;
+    }
   }
   const pCloud = prev.cloudStatus;
   const nCloud = next.cloudStatus;
@@ -17652,7 +20352,9 @@ function isEquivalentTelemetry(prev, next) {
   }
   if (
     pAct?.liveActivity?.signature !== nAct?.liveActivity?.signature ||
-    pAct?.liveActivity?.startedAtMs !== nAct?.liveActivity?.startedAtMs
+    pAct?.liveActivity?.startedAtMs !== nAct?.liveActivity?.startedAtMs ||
+    getTaskStepsSignature(pAct?.liveActivity?.taskSteps) !==
+      getTaskStepsSignature(nAct?.liveActivity?.taskSteps)
   ) {
     return false;
   }
@@ -17667,7 +20369,9 @@ function isEquivalentTelemetry(prev, next) {
   }
   if (
     pAct?.aggregated?.liveActivity?.signature !== nAct?.aggregated?.liveActivity?.signature ||
-    pAct?.aggregated?.liveActivity?.startedAtMs !== nAct?.aggregated?.liveActivity?.startedAtMs
+    pAct?.aggregated?.liveActivity?.startedAtMs !== nAct?.aggregated?.liveActivity?.startedAtMs ||
+    getTaskStepsSignature(pAct?.aggregated?.liveActivity?.taskSteps) !==
+      getTaskStepsSignature(nAct?.aggregated?.liveActivity?.taskSteps)
   ) {
     return false;
   }
@@ -17725,6 +20429,8 @@ function isEquivalentTelemetry(prev, next) {
       pa?.stepCount !== na?.stepCount ||
       pa?.isRunning !== na?.isRunning ||
       pa?.liveActivity?.signature !== na?.liveActivity?.signature ||
+      getTaskStepsSignature(pa?.liveActivity?.taskSteps) !==
+        getTaskStepsSignature(na?.liveActivity?.taskSteps) ||
       pa?.latestTokPerSec !== na?.latestTokPerSec ||
       pa?.latestTtftSec !== na?.latestTtftSec ||
       pa?.lastKnownTtftSec !== na?.lastKnownTtftSec ||
@@ -18054,11 +20760,13 @@ function isEquivalentTelemetry(prev, next) {
       pPools[i]?.remainingPct !== nPools[i]?.remainingPct ||
       pPools[i]?.reservedPct !== nPools[i]?.reservedPct ||
       pPools[i]?.reservedLeaseCount !== nPools[i]?.reservedLeaseCount ||
+      pPools[i]?.externalUsedPct !== nPools[i]?.externalUsedPct ||
       pPools[i]?.resetTime !== nPools[i]?.resetTime ||
       pPools[i]?.weeklyUsedPct !== nPools[i]?.weeklyUsedPct ||
       pPools[i]?.weeklyRemainingPct !== nPools[i]?.weeklyRemainingPct ||
       pPools[i]?.weeklyReservedPct !== nPools[i]?.weeklyReservedPct ||
       pPools[i]?.weeklyReservedLeaseCount !== nPools[i]?.weeklyReservedLeaseCount ||
+      pPools[i]?.weeklyExternalUsedPct !== nPools[i]?.weeklyExternalUsedPct ||
       pPools[i]?.weeklyResetTime !== nPools[i]?.weeklyResetTime ||
       pPools[i]?.cycle5h?.tokens !== nPools[i]?.cycle5h?.tokens ||
       pPools[i]?.cycle5h?.costUsd !== nPools[i]?.cycle5h?.costUsd ||
@@ -18114,7 +20822,9 @@ function isEquivalentTelemetry(prev, next) {
       pr?.runningSubagentCount !== nr?.runningSubagentCount ||
       (pr?.runningSwarmCount || 0) !== (nr?.runningSwarmCount || 0) ||
       pr?.mainActivity?.signature !== nr?.mainActivity?.signature ||
-      pr?.mainActivity?.startedAtMs !== nr?.mainActivity?.startedAtMs
+      pr?.mainActivity?.startedAtMs !== nr?.mainActivity?.startedAtMs ||
+      getTaskStepsSignature(pr?.mainActivity?.taskSteps) !==
+        getTaskStepsSignature(nr?.mainActivity?.taskSteps)
     ) {
       return false;
     }
@@ -18130,7 +20840,9 @@ function isEquivalentTelemetry(prev, next) {
         pSubs[j]?.isRunning !== nSubs[j]?.isRunning ||
         pSubs[j]?.stepCount !== nSubs[j]?.stepCount ||
         pSubs[j]?.liveActivity?.signature !== nSubs[j]?.liveActivity?.signature ||
-        pSubs[j]?.liveActivity?.startedAtMs !== nSubs[j]?.liveActivity?.startedAtMs
+        pSubs[j]?.liveActivity?.startedAtMs !== nSubs[j]?.liveActivity?.startedAtMs ||
+        getTaskStepsSignature(pSubs[j]?.liveActivity?.taskSteps) !==
+          getTaskStepsSignature(nSubs[j]?.liveActivity?.taskSteps)
       ) {
         return false;
       }
@@ -18814,8 +21526,17 @@ async function saveSettingsPatch(patch) {
   if (Object.prototype.hasOwnProperty.call(safePatch, 'enableCliStatusLine')) {
     safePatch.enableCliStatusLine = Boolean(safePatch.enableCliStatusLine);
   }
-  if (Object.prototype.hasOwnProperty.call(safePatch, 'showTopbarMultiSession')) {
-    safePatch.showTopbarMultiSession = Boolean(safePatch.showTopbarMultiSession);
+  if (Object.prototype.hasOwnProperty.call(safePatch, 'topbarMultiSessionMode')) {
+    const normMultiMode = normalizeClientTopbarMultiSessionMode(
+      safePatch.topbarMultiSessionMode,
+      safePatch.showTopbarMultiSession
+    );
+    safePatch.topbarMultiSessionMode = normMultiMode;
+    safePatch.showTopbarMultiSession = normMultiMode !== 'hide';
+  } else if (Object.prototype.hasOwnProperty.call(safePatch, 'showTopbarMultiSession')) {
+    const nextShowMulti = Boolean(safePatch.showTopbarMultiSession);
+    safePatch.showTopbarMultiSession = nextShowMulti;
+    safePatch.topbarMultiSessionMode = nextShowMulti ? 'show' : 'hide';
   }
   if (Object.prototype.hasOwnProperty.call(safePatch, 'contextAgentMode')) {
     safePatch.contextAgentMode = normalizeClientContextAgentMode(safePatch.contextAgentMode);
@@ -18885,22 +21606,110 @@ async function saveSettingsPatch(patch) {
       safePatch.hoverSyncOverviewMetrics
     );
   }
-  if (Object.prototype.hasOwnProperty.call(safePatch, 'hoverMetricStyle')) {
-    safePatch.hoverMetricStyle = normalizeClientHoverMetricStyle(safePatch.hoverMetricStyle);
-  }
-  if (Object.prototype.hasOwnProperty.call(safePatch, 'hoverMetrics')) {
+  const curSettings = telemetryStore.getState().telemetry?.settings || {};
+  const hasHoverMetrics = Object.prototype.hasOwnProperty.call(safePatch, 'hoverMetrics');
+  const hasHoverRows = Object.prototype.hasOwnProperty.call(safePatch, 'hoverMetricRows');
+  const hasHoverSizes = Object.prototype.hasOwnProperty.call(safePatch, 'hoverMetricSizes');
+  const hasHoverStyle = Object.prototype.hasOwnProperty.call(safePatch, 'hoverMetricStyle');
+  if (hasHoverMetrics) {
     safePatch.hoverMetrics = normalizeClientHoverMetrics(safePatch.hoverMetrics);
+  }
+  if (Object.prototype.hasOwnProperty.call(safePatch, 'hoverMetricTextMode')) {
+    safePatch.hoverMetricTextMode = normalizeClientHoverMetricTextMode(
+      safePatch.hoverMetricTextMode
+    );
+  }
+  if (hasHoverRows || hasHoverSizes) {
+    if (hasHoverRows) {
+      safePatch.hoverMetricRows = normalizeClientHoverMetricRows(safePatch.hoverMetricRows);
+    }
+    if (hasHoverSizes) {
+      safePatch.hoverMetricSizes = normalizeClientHoverMetricSizes(safePatch.hoverMetricSizes);
+    }
+    const nextHoverRows = hasHoverRows
+      ? safePatch.hoverMetricRows
+      : normalizeClientHoverMetricRows(curSettings.hoverMetricRows, curSettings.hoverMetricStyle);
+    const nextHoverMetrics = hasHoverMetrics
+      ? safePatch.hoverMetrics
+      : normalizeClientHoverMetrics(curSettings.hoverMetrics);
+    const nextHoverSizes = hasHoverSizes
+      ? safePatch.hoverMetricSizes
+      : normalizeClientHoverMetricSizes(
+          curSettings.hoverMetricSizes,
+          nextHoverMetrics,
+          curSettings.hoverMetricRows === undefined ? curSettings.hoverMetricStyle : undefined
+        );
+    safePatch.hoverMetricStyle = deriveClientMetricCardStyle(
+      nextHoverRows,
+      nextHoverMetrics,
+      nextHoverSizes
+    );
+  } else if (hasHoverStyle) {
+    const nextStyle = normalizeClientHoverMetricStyle(safePatch.hoverMetricStyle);
+    const nextHoverMetrics = hasHoverMetrics
+      ? safePatch.hoverMetrics
+      : normalizeClientHoverMetrics(curSettings.hoverMetrics);
+    safePatch.hoverMetricStyle = nextStyle;
+    safePatch.hoverMetricRows = normalizeClientHoverMetricRows(undefined, nextStyle);
+    safePatch.hoverMetricSizes = normalizeClientHoverMetricSizes(undefined, nextHoverMetrics, nextStyle);
   }
   if (Object.prototype.hasOwnProperty.call(safePatch, 'overviewModules')) {
     safePatch.overviewModules = normalizeClientOverviewModules(safePatch.overviewModules);
   }
-  if (Object.prototype.hasOwnProperty.call(safePatch, 'overviewMetricStyle')) {
-    safePatch.overviewMetricStyle = normalizeClientOverviewMetricStyle(
-      safePatch.overviewMetricStyle
+  const hasOverviewMetrics = Object.prototype.hasOwnProperty.call(safePatch, 'overviewMetrics');
+  const hasOverviewRows = Object.prototype.hasOwnProperty.call(safePatch, 'overviewMetricRows');
+  const hasOverviewSizes = Object.prototype.hasOwnProperty.call(safePatch, 'overviewMetricSizes');
+  const hasOverviewStyle = Object.prototype.hasOwnProperty.call(safePatch, 'overviewMetricStyle');
+  if (hasOverviewMetrics) {
+    safePatch.overviewMetrics = normalizeClientOverviewMetrics(safePatch.overviewMetrics);
+  }
+  if (Object.prototype.hasOwnProperty.call(safePatch, 'overviewMetricTextMode')) {
+    safePatch.overviewMetricTextMode = normalizeClientOverviewMetricTextMode(
+      safePatch.overviewMetricTextMode
     );
   }
-  if (Object.prototype.hasOwnProperty.call(safePatch, 'overviewMetrics')) {
-    safePatch.overviewMetrics = normalizeClientOverviewMetrics(safePatch.overviewMetrics);
+  if (hasOverviewRows || hasOverviewSizes) {
+    if (hasOverviewRows) {
+      safePatch.overviewMetricRows = normalizeClientOverviewMetricRows(safePatch.overviewMetricRows);
+    }
+    if (hasOverviewSizes) {
+      safePatch.overviewMetricSizes = normalizeClientOverviewMetricSizes(
+        safePatch.overviewMetricSizes
+      );
+    }
+    const nextOverviewRows = hasOverviewRows
+      ? safePatch.overviewMetricRows
+      : normalizeClientOverviewMetricRows(
+          curSettings.overviewMetricRows,
+          curSettings.overviewMetricStyle
+        );
+    const nextOverviewMetrics = hasOverviewMetrics
+      ? safePatch.overviewMetrics
+      : normalizeClientOverviewMetrics(curSettings.overviewMetrics);
+    const nextOverviewSizes = hasOverviewSizes
+      ? safePatch.overviewMetricSizes
+      : normalizeClientOverviewMetricSizes(
+          curSettings.overviewMetricSizes,
+          nextOverviewMetrics,
+          curSettings.overviewMetricRows === undefined ? curSettings.overviewMetricStyle : undefined
+        );
+    safePatch.overviewMetricStyle = deriveClientMetricCardStyle(
+      nextOverviewRows,
+      nextOverviewMetrics,
+      nextOverviewSizes
+    );
+  } else if (hasOverviewStyle) {
+    const nextStyle = normalizeClientOverviewMetricStyle(safePatch.overviewMetricStyle);
+    const nextOverviewMetrics = hasOverviewMetrics
+      ? safePatch.overviewMetrics
+      : normalizeClientOverviewMetrics(curSettings.overviewMetrics);
+    safePatch.overviewMetricStyle = nextStyle;
+    safePatch.overviewMetricRows = normalizeClientOverviewMetricRows(undefined, nextStyle);
+    safePatch.overviewMetricSizes = normalizeClientOverviewMetricSizes(
+      undefined,
+      nextOverviewMetrics,
+      nextStyle
+    );
   }
   if (Object.prototype.hasOwnProperty.call(safePatch, 'stepTableColumns')) {
     safePatch.stepTableColumns = normalizeClientStepColumns(safePatch.stepTableColumns);
@@ -18949,6 +21758,9 @@ async function saveSettingsPatch(patch) {
       safePatch.enableRemoteSshTelemetry
     );
   }
+  if (Object.prototype.hasOwnProperty.call(safePatch, 'enableSafetyMonitor')) {
+    safePatch.enableSafetyMonitor = normalizeEnableSafetyMonitor(safePatch.enableSafetyMonitor);
+  }
   if (Object.prototype.hasOwnProperty.call(safePatch, 'windowMountMode')) {
     const normMount = normalizeClientWindowMountMode(
       safePatch.windowMountMode,
@@ -18959,6 +21771,9 @@ async function saveSettingsPatch(patch) {
   } else if (Object.prototype.hasOwnProperty.call(safePatch, 'enableWindowOverlay')) {
     safePatch.enableWindowOverlay = Boolean(safePatch.enableWindowOverlay);
     safePatch.windowMountMode = safePatch.enableWindowOverlay ? 'dual' : 'sidebar';
+  }
+  if (Object.prototype.hasOwnProperty.call(safePatch, 'vsCodeMountMode')) {
+    safePatch.vsCodeMountMode = normalizeClientVsCodeMountMode(safePatch.vsCodeMountMode);
   }
   const myRev = ++settingsRevision;
   const prevTelemetry = telemetryStore.getState().telemetry;
@@ -19163,6 +21978,7 @@ async function triggerFxSync() {
 
 const normalizeClientAutoConfigureLaunch = normalizeAutoConfigureLaunch;
 const normalizeClientEnableRemoteSshTelemetry = normalizeEnableRemoteSshTelemetry;
+const normalizeClientEnableSafetyMonitor = normalizeEnableSafetyMonitor;
 
 async function triggerBridgeHostRelaunch(options = {}) {
   const payload =
@@ -19379,7 +22195,16 @@ function startAsyncTelemetryLoop(intervalMs = 2000) {
       return Math.min(loopIntervalMs, 800);
     }
     if (isWindowOverlayMode() && typeof document !== 'undefined' && document.hidden) {
-      return Math.max(loopIntervalMs, 8000);
+      return Math.max(loopIntervalMs, 10000);
+    }
+    if (isWindowOverlayMode() && readInjectedWindowBridge()?.isRemoteEndpoint) {
+      const tel = telemetryStore.getState().telemetry;
+      const hasRunning =
+        (Array.isArray(tel?.runningConversations) && tel.runningConversations.length > 0) ||
+        tel?.activeConversation?.status === 'CASCADE_RUN_STATUS_RUNNING';
+      if (!hasRunning) {
+        return Math.max(loopIntervalMs, 6000);
+      }
     }
     return loopIntervalMs;
   };
@@ -19589,7 +22414,7 @@ function isMacHostPlatform(telemetry) {
   }
   return false;
 }
-return { extractHostRouteCascadeId, telemetryStore, clearConsumptionRangeCache, clearConversationViewCache, CLIENT_TOPBAR_SLOT_KEYS, DEFAULT_CLIENT_TOPBAR_SLOTS, DEFAULT_CLIENT_CONTEXT_AGENT_MODE, CLIENT_CLI_STATUSLINE_PRESETS, DEFAULT_CLIENT_CLI_STATUSLINE_SLOTS, CLIENT_OVERVIEW_MODULE_KEYS, DEFAULT_CLIENT_OVERVIEW_MODULES, DEFAULT_CLIENT_HOVER_MODULES, DEFAULT_CLIENT_HOVER_SYNC_OVERVIEW_METRICS, DEFAULT_CLIENT_HOVER_METRIC_STYLE, DEFAULT_CLIENT_HOVER_METRICS, DEFAULT_CLIENT_OVERVIEW_METRIC_STYLE, MAX_CLIENT_LARGE_METRIC_SLOTS, CLIENT_OVERVIEW_METRIC_KEYS, DEFAULT_CLIENT_OVERVIEW_METRICS, CLIENT_STEP_COLUMN_KEYS, DEFAULT_CLIENT_STEP_COLUMNS, DEFAULT_CLIENT_STEP_TOKEN_COMBO_FORMAT, MIN_CLIENT_POPOVER_WIDTH, MAX_CLIENT_POPOVER_WIDTH, DEFAULT_CLIENT_POPOVER_WIDTH, DEFAULT_CLIENT_QUOTA_DISPLAY_MODE, parseClientStepTokenComboSegments, normalizeClientStepTokenComboFormat, normalizeClientPopoverWidthMode, normalizeClientPopoverWidth, normalizeClientModelDisplayMode, normalizeClientTopbarSlots, normalizeClientContextAgentMode, normalizeClientQuotaDisplayMode, normalizeClientExperimentalQuotaReservation, normalizeClientAccountQuotaRefreshMinutes, normalizeClientCliStatusLineSlots, getDefaultCtxInspectorAgentId, resolveOverlayCtxInspectorAgentId, resolveEffectiveClientCliStatusLineSlots, normalizeClientHoverModules, normalizeClientHoverSyncOverviewMetrics, normalizeClientHoverMetricStyle, normalizeClientHoverMetrics, normalizeClientOverviewModules, normalizeClientOverviewMetricStyle, normalizeClientOverviewMetrics, resolveEffectiveClientMetricMatrixConfig, normalizeClientStepColumns, normalizeClientUpdateMode, normalizeClientWindowMountMode, normalizeClientDisplayCurrency, isEquivalentTelemetry, resetTelemetryForEndpointSwitch, fetchTelemetry, selectConversation, selectConsumptionTimeRange, selectConsumptionCyclePool, prefetchConsumptionPresets, saveSettingsPatch, saveModelContextWindow, resetAllSettings, rebuildTrajectoryCache, triggerCloudSync, triggerFxSync, normalizeClientAutoConfigureLaunch, normalizeClientEnableRemoteSshTelemetry, triggerBridgeHostRelaunch, triggerCliStatusLineAction, fetchSessionMigrationCatalog, fetchQuotaReservationLog, executeSessionMigration, fetchLocalSessionsList, fetchSessionCleanupPreview, deleteLocalSessionsAction, redactLocalLedgerPrivacy, revealLocalSessionPathAction, triggerPluginUpdate, startAsyncTelemetryLoop, stopAsyncTelemetryLoop, resolveHostRouteMatch, resolveScopedConversation, isMacHostPlatform };
+return { extractHostRouteCascadeId, telemetryStore, clearConsumptionRangeCache, clearConversationViewCache, CLIENT_TOPBAR_SLOT_KEYS, DEFAULT_CLIENT_TOPBAR_SLOTS, CLIENT_TOPBAR_MULTI_SESSION_MODES, DEFAULT_CLIENT_TOPBAR_MULTI_SESSION_MODE, DEFAULT_CLIENT_CONTEXT_AGENT_MODE, CLIENT_CLI_STATUSLINE_PRESETS, DEFAULT_CLIENT_CLI_STATUSLINE_SLOTS, CLIENT_OVERVIEW_MODULE_KEYS, DEFAULT_CLIENT_OVERVIEW_MODULES, DEFAULT_CLIENT_HOVER_MODULES, DEFAULT_CLIENT_HOVER_SYNC_OVERVIEW_METRICS, DEFAULT_CLIENT_HOVER_METRIC_STYLE, DEFAULT_CLIENT_HOVER_METRIC_ROWS, DEFAULT_CLIENT_HOVER_METRIC_SIZES, DEFAULT_CLIENT_HOVER_METRIC_TEXT_MODE, DEFAULT_CLIENT_HOVER_METRICS, DEFAULT_CLIENT_OVERVIEW_METRIC_STYLE, DEFAULT_CLIENT_OVERVIEW_METRIC_ROWS, DEFAULT_CLIENT_OVERVIEW_METRIC_SIZES, DEFAULT_CLIENT_OVERVIEW_METRIC_TEXT_MODE, DEFAULT_CLIENT_METRIC_ROWS, DEFAULT_CLIENT_METRIC_TEXT_MODE, CLIENT_METRIC_GRID_COLS, CLIENT_METRIC_GRID_ROWS, CLIENT_METRIC_CARD_SIZES, CLIENT_METRIC_TEXT_MODES, MAX_CLIENT_OVERVIEW_METRICS, MAX_CLIENT_LARGE_METRIC_SLOTS, CLIENT_OVERVIEW_METRIC_KEYS, DEFAULT_CLIENT_OVERVIEW_METRICS, CLIENT_STEP_COLUMN_KEYS, DEFAULT_CLIENT_STEP_COLUMNS, DEFAULT_CLIENT_STEP_TOKEN_COMBO_FORMAT, MIN_CLIENT_POPOVER_WIDTH, MAX_CLIENT_POPOVER_WIDTH, DEFAULT_CLIENT_POPOVER_WIDTH, DEFAULT_CLIENT_QUOTA_DISPLAY_MODE, parseClientStepTokenComboSegments, normalizeClientStepTokenComboFormat, normalizeClientPopoverWidthMode, normalizeClientPopoverWidth, normalizeClientModelDisplayMode, normalizeClientTopbarSlots, normalizeClientTopbarMultiSessionMode, isClientTopbarMultiSessionVisible, normalizeClientContextAgentMode, normalizeClientQuotaDisplayMode, normalizeClientExperimentalQuotaReservation, normalizeClientAccountQuotaRefreshMinutes, normalizeClientCliStatusLineSlots, getDefaultCtxInspectorAgentId, resolveOverlayCtxInspectorAgentId, resolveEffectiveClientCliStatusLineSlots, normalizeClientHoverModules, normalizeClientHoverSyncOverviewMetrics, normalizeClientHoverMetricStyle, normalizeClientHoverMetricRows, normalizeClientHoverMetricSizes, normalizeClientHoverMetricTextMode, normalizeClientHoverMetrics, normalizeClientOverviewModules, normalizeClientOverviewMetricStyle, normalizeClientOverviewMetricRows, normalizeClientOverviewMetricSizes, normalizeClientOverviewMetricTextMode, normalizeClientOverviewMetrics, normalizeClientMetricCardSize, normalizeClientMetricCardSizes, normalizeClientMetricGridRows, normalizeClientMetricTextMode, deriveClientMetricCardStyle, packClientMetricBentoLayout, resolveEffectiveClientMetricMatrixConfig, normalizeClientStepColumns, normalizeClientUpdateMode, normalizeClientWindowMountMode, normalizeClientVsCodeMountMode, normalizeClientDisplayCurrency, isEquivalentTelemetry, resetTelemetryForEndpointSwitch, fetchTelemetry, selectConversation, selectConsumptionTimeRange, selectConsumptionCyclePool, prefetchConsumptionPresets, saveSettingsPatch, saveModelContextWindow, resetAllSettings, rebuildTrajectoryCache, triggerCloudSync, triggerFxSync, normalizeClientAutoConfigureLaunch, normalizeClientEnableRemoteSshTelemetry, normalizeClientEnableSafetyMonitor, triggerBridgeHostRelaunch, triggerCliStatusLineAction, fetchSessionMigrationCatalog, fetchQuotaReservationLog, executeSessionMigration, fetchLocalSessionsList, fetchSessionCleanupPreview, deleteLocalSessionsAction, redactLocalLedgerPrivacy, revealLocalSessionPathAction, triggerPluginUpdate, startAsyncTelemetryLoop, stopAsyncTelemetryLoop, resolveHostRouteMatch, resolveScopedConversation, isMacHostPlatform };
 })();
 
 // --- src/components/ui/TopLongPillNav.js ---
@@ -23154,12 +25979,6 @@ function buildHeatmapMonthTicks(slots, firstDow, totalWeeks) {
   return ticks;
 }
 
-const LOCALE_SHORT_MONTHS = Object.freeze({
-  'en-US': Object.freeze(['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']),
-  'de-DE': Object.freeze(['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez']),
-  'fr-FR': Object.freeze(['janv', 'févr', 'mars', 'avr', 'mai', 'juin', 'juil', 'août', 'sept', 'oct', 'nov', 'déc']),
-});
-
 function normalizeHeatmapMode(mode) {
   return mode === 'week' || mode === 'month' || mode === 'all' ? mode : 'day';
 }
@@ -23390,7 +26209,11 @@ function buildHeatmapBarView(slots, firstDow, totalWeeks, mode, buildSegmentsFn)
     let activeMonths = 0;
     const nonZero = [];
     const activeLocale = getEffectiveLocale();
-    const shortMonths = LOCALE_SHORT_MONTHS[activeLocale] || null;
+    const useCjkMonthTemplate =
+      activeLocale === 'zh-CN' ||
+      activeLocale === 'zh-TW' ||
+      activeLocale === 'ja-JP' ||
+      activeLocale === 'ko-KR';
     const buckets = monthAccs.map((acc, idx) => {
       if (acc.tokens > 0) {
         activeMonths++;
@@ -23401,11 +26224,13 @@ function buildHeatmapBarView(slots, firstDow, totalWeeks, mode, buildSegmentsFn)
         peakIdx = idx;
       }
       const mNum = acc.month || 1;
-      const monShort = shortMonths ? shortMonths[mNum - 1] || `M${mNum}` : '';
-      const fullTitle = shortMonths
-        ? `${monShort} ${acc.year}`
-        : t('cons.monthFullLabel', { year: acc.year, m: mNum });
-      const shortLbl = shortMonths ? monShort : t('cons.monthLabel', { m: mNum });
+      const monShort = useCjkMonthTemplate
+        ? ''
+        : formatShortMonthName(mNum - 1, activeLocale, { stripTrailingDot: true }) || `M${mNum}`;
+      const fullTitle = useCjkMonthTemplate
+        ? t('cons.monthFullLabel', { year: acc.year, m: mNum })
+        : `${monShort} ${acc.year}`;
+      const shortLbl = useCjkMonthTemplate ? t('cons.monthLabel', { m: mNum }) : monShort;
       return finalizeHeatmapBucket(acc, fullTitle, shortLbl, buildSegmentsFn);
     });
     nonZero.sort((a, b) => a - b);
@@ -27652,14 +30477,17 @@ function splitMetricValueAndUnit(valueText) {
 }
 
 const SPARKLINE_DEFAULT_WIDTH_BY_COLS = Object.freeze({ 1: 248, 2: 136, 3: 74 });
+const SPARKLINE_DEFAULT_HEIGHT = 34;
 const SPARKLINE_MIN_WIDTH = 28;
 const SPARKLINE_MAX_WIDTH = 640;
+const SPARKLINE_MIN_HEIGHT = 24;
+const SPARKLINE_MAX_HEIGHT = 120;
 const SPARKLINE_PAD_X = 4;
 const SPARKLINE_TARGET_PITCH_PX = 7.5;
 const SPARKLINE_MIN_POINTS = 5;
 const SPARKLINE_MAX_POINTS = 48;
 
-function resolveAdaptiveSparklineSpec(availableWidth, colCount = 3) {
+function resolveAdaptiveSparklineSpec(availableWidth, colCount = 3, availableHeight = 0) {
   const safeCols = colCount === 1 || colCount === 2 ? colCount : 3;
   const fallbackWidth = SPARKLINE_DEFAULT_WIDTH_BY_COLS[safeCols];
   const rawWidth = Number(availableWidth);
@@ -27667,6 +30495,11 @@ function resolveAdaptiveSparklineSpec(availableWidth, colCount = 3) {
     Number.isFinite(rawWidth) && rawWidth > 0
       ? Math.max(SPARKLINE_MIN_WIDTH, Math.min(SPARKLINE_MAX_WIDTH, Math.round(rawWidth)))
       : fallbackWidth;
+  const rawHeight = Number(availableHeight);
+  const height =
+    Number.isFinite(rawHeight) && rawHeight > 0
+      ? Math.max(SPARKLINE_MIN_HEIGHT, Math.min(SPARKLINE_MAX_HEIGHT, Math.round(rawHeight)))
+      : SPARKLINE_DEFAULT_HEIGHT;
   const plotWidth = Math.max(8, width - SPARKLINE_PAD_X * 2);
   const maxPoints = Math.max(
     SPARKLINE_MIN_POINTS,
@@ -27674,10 +30507,10 @@ function resolveAdaptiveSparklineSpec(availableWidth, colCount = 3) {
   );
   return {
     width,
-    height: 34,
+    height,
     maxPoints,
-    strokeWidth: width < 64 ? '1.5' : width < 100 ? '1.55' : '1.65',
-    dotRadius: width < 64 ? '2.25' : width < 100 ? '2.5' : '2.75',
+    strokeWidth: width < 64 ? '1.5' : width < 100 ? '1.55' : height >= 56 ? '1.8' : '1.65',
+    dotRadius: width < 64 ? '2.25' : width < 100 ? '2.5' : height >= 56 ? '3' : '2.75',
   };
 }
 
@@ -28421,6 +31254,145 @@ function extractToneClass(valueClass = '') {
   return m ? m[1] : '';
 }
 
+function isNodeWithin(target, container) {
+  let cur = target;
+  while (cur) {
+    if (cur === container) return true;
+    cur = cur.parentNode || cur.host || null;
+  }
+  return false;
+}
+
+function sameSizeMap(a, b) {
+  const keysA = Object.keys(a || {});
+  const keysB = Object.keys(b || {});
+  if (keysA.length !== keysB.length) return false;
+  for (const k of keysA) {
+    if (a[k] !== b[k]) return false;
+  }
+  return true;
+}
+
+function buildNextSizesMap(baseSizes, key, nextSize) {
+  const out = { ...(baseSizes || {}) };
+  const cleanSize = normalizeClientMetricCardSize(nextSize);
+  if (cleanSize === 'sm') {
+    delete out[key];
+  } else {
+    out[key] = cleanSize;
+  }
+  return out;
+}
+
+function cycleMetricCardSize(currentEffSize, rows) {
+  if (rows === 2) {
+    if (currentEffSize === 'sm') return 'third';
+    if (currentEffSize === 'third') return 'wide';
+    if (currentEffSize === 'wide') return 'narrow';
+    if (currentEffSize === 'narrow') return 'tall';
+    return 'sm';
+  }
+  if (currentEffSize === 'sm') return 'third';
+  if (currentEffSize === 'third') return 'wide';
+  return 'sm';
+}
+
+function formatMetricSizeBadge(size) {
+  if (size === 'tall') return `${t('settings.str.metricSizeTall')} 2×2`;
+  if (size === 'narrow') return `${t('settings.str.metricSizeNarrow')} 1×2`;
+  if (size === 'wide') return `${t('settings.str.metricSizeWide')} 2×1`;
+  if (size === 'third') return `${t('settings.str.metricSizeThird')} 1/3`;
+  return `${t('settings.str.metricSizeSm')} 1×1`;
+}
+
+function prefersReducedMotion() {
+  try {
+    return Boolean(
+      typeof window !== 'undefined' &&
+        typeof window.matchMedia === 'function' &&
+        window.matchMedia('(prefers-reduced-motion: reduce)')?.matches
+    );
+  } catch {
+    return false;
+  }
+}
+
+function readMatrixGridGaps(matrixEl, cellEls) {
+  let colGap = NaN;
+  let rowGap = NaN;
+  const getStyle =
+    typeof window !== 'undefined' && typeof window.getComputedStyle === 'function'
+      ? window.getComputedStyle
+      : typeof getComputedStyle === 'function'
+        ? getComputedStyle
+        : null;
+  if (getStyle && matrixEl) {
+    try {
+      const cs = getStyle(matrixEl);
+      const cg = Number.parseFloat(cs?.columnGap);
+      const rg = Number.parseFloat(cs?.rowGap);
+      const g = Number.parseFloat(cs?.gap);
+      if (Number.isFinite(cg) && cg > 0) colGap = cg;
+      else if (Number.isFinite(g) && g > 0) colGap = g;
+      if (Number.isFinite(rg) && rg > 0) rowGap = rg;
+      else if (Number.isFinite(g) && g > 0) rowGap = g;
+    } catch {}
+  }
+  if ((!Number.isFinite(colGap) || !Number.isFinite(rowGap)) && Array.isArray(cellEls) && cellEls.length > 1) {
+    const rects = cellEls
+      .map((el) => el?.getBoundingClientRect?.())
+      .filter((r) => r && Number.isFinite(r.width) && r.width > 0 && Number.isFinite(r.height) && r.height > 0);
+    let minHorizGap = Infinity;
+    let minVertGap = Infinity;
+    for (let i = 0; i < rects.length; i += 1) {
+      for (let j = 0; j < rects.length; j += 1) {
+        if (i === j) continue;
+        const a = rects[i];
+        const b = rects[j];
+        if (Math.abs(a.top - b.top) < 8 && b.left >= a.right - 0.5) {
+          const dg = b.left - a.right;
+          if (dg >= 0 && dg < minHorizGap) minHorizGap = dg;
+        }
+        if (Math.abs(a.left - b.left) < 8 && b.top >= a.bottom - 0.5) {
+          const dg = b.top - a.bottom;
+          if (dg >= 0 && dg < minVertGap) minVertGap = dg;
+        }
+      }
+    }
+    if (!Number.isFinite(colGap) && Number.isFinite(minHorizGap) && minHorizGap < 40) {
+      colGap = minHorizGap;
+    }
+    if (!Number.isFinite(rowGap) && Number.isFinite(minVertGap) && minVertGap < 40) {
+      rowGap = minVertGap;
+    }
+  }
+  return {
+    colGap: Number.isFinite(colGap) && colGap >= 0 ? colGap : 1,
+    rowGap: Number.isFinite(rowGap) && rowGap >= 0 ? rowGap : 1,
+  };
+}
+
+function computePlacementPixelRect(placement, layout, matrixRect, colGap, rowGap) {
+  const cols = Math.max(1, Number(layout?.gridCols || CLIENT_METRIC_GRID_COLS));
+  const rows = Math.max(1, Number(layout?.effectiveRows || 1));
+  const colW = Math.max(4, (matrixRect.width - colGap * (cols - 1)) / cols);
+  const rowH = Math.max(16, (matrixRect.height - rowGap * (rows - 1)) / rows);
+  const left = matrixRect.left + (placement.colStart - 1) * (colW + colGap);
+  const top = matrixRect.top + (placement.rowStart - 1) * (rowH + rowGap);
+  const width = placement.colSpan * colW + (placement.colSpan - 1) * colGap;
+  const height = placement.rowSpan * rowH + (placement.rowSpan - 1) * rowGap;
+  return {
+    left,
+    top,
+    width,
+    height,
+    right: left + width,
+    bottom: top + height,
+    centerX: left + width * 0.5,
+    centerY: top + height * 0.5,
+  };
+}
+
 function createSparklineSvg(gradId) {
   const svg = document.createElementNS(SVG_NS, 'svg');
   svg.setAttribute('class', 'cell-sparkline-svg');
@@ -28472,12 +31444,40 @@ function createSparklineSvg(gradId) {
   return { svg, areaPath, polyline, dot };
 }
 
+function createCornerGripSvg() {
+  const svg = document.createElementNS(SVG_NS, 'svg');
+  svg.setAttribute('class', 'matrix-resize-grip-svg');
+  svg.setAttribute('viewBox', '0 0 10 10');
+  svg.setAttribute('width', '9');
+  svg.setAttribute('height', '9');
+  svg.setAttribute('aria-hidden', 'true');
+
+  const line1 = document.createElementNS(SVG_NS, 'path');
+  line1.setAttribute('d', 'M8.5 2.5L2.5 8.5');
+  line1.setAttribute('stroke', 'currentColor');
+  line1.setAttribute('stroke-width', '1.35');
+  line1.setAttribute('stroke-linecap', 'round');
+
+  const line2 = document.createElementNS(SVG_NS, 'path');
+  line2.setAttribute('d', 'M8.5 6.2L6.2 8.5');
+  line2.setAttribute('stroke', 'currentColor');
+  line2.setAttribute('stroke-width', '1.35');
+  line2.setAttribute('stroke-linecap', 'round');
+
+  svg.appendChild(line1);
+  svg.appendChild(line2);
+  return svg;
+}
+
 const MetricMatrixWidget = defineComponent({
   name: 'MetricMatrixWidget',
   setup({ props, onCleanup }) {
     const widgetMode = props?.mode === 'hover' ? 'hover' : 'overview';
     const hasMetricReorder =
       typeof props?.onReorderMetrics === 'function' || typeof props?.onPreviewMetrics === 'function';
+    const hasMetricResize =
+      typeof props?.onResizeMetricSizes === 'function' ||
+      typeof props?.onPreviewMetricSizes === 'function';
     const onRequestVerticalDrag =
       typeof props?.onRequestVerticalDrag === 'function' ? props.onRequestVerticalDrag : null;
     const canParentDragModule =
@@ -28486,25 +31486,378 @@ const MetricMatrixWidget = defineComponent({
       typeof props?.getCtxAgentId === 'function'
         ? props.getCtxAgentId
         : () => uiStore.getState().ctxInspectorAgentId;
+
     const matrixEl = h('section', {
       className: 'telemetry-matrix',
       'aria-label': t('module.metrics'),
       'data-cols': '4',
+      'data-rows': '1',
     });
     patchStyleVar(matrixEl, '--matrix-cols', '4');
+    patchStyleVar(matrixEl, '--matrix-rows', '1');
 
     let currentVisibleKeys = [];
     let currentOverflowKeys = [];
+    let currentLayoutRows = 1;
+    let currentEffectiveRows = 1;
+    let currentGridCols = 4;
+    let currentSizesMap = {};
+    let currentPlacementsByKey = new Map();
+    let draggingSizesOverride = null;
+    let resizingKey = null;
     let lastUpdatePayload = null;
     let pendingUpdatePayload = null;
     let activeDrag = null;
-    let lastColCount = 0;
-    let lastIsLargeTrend = false;
+    let activeResize = null;
+    let suppressResizeClick = false;
+    let suppressResizeClickTimer = null;
+    let lastLayoutGeomSig = '';
+    let lastSparkGeomSig = '';
     let pendingSparkResizeRafId = 0;
     let pendingSparkResizeMicrotask = false;
-    const measuredWrapWidthByKey = new Map();
+    let skipNextFlip = false;
+    let flipRafId = 0;
+    let flipCleanupTimer = null;
+    let activeFlipEls = [];
+    let resizePullEl = null;
+    const measuredWrapSizeByKey = new Map();
     const observedWrapToKey = new Map();
+    const ghostElPool = [];
+    const dropPreviewEl = hasMetricReorder
+      ? h('div', {
+          className: 'matrix-drop-preview',
+          'aria-hidden': 'true',
+          hidden: true,
+        })
+      : null;
     const settleAnimator = createDropSettleAnimator('is-settling', ' scale(1.02)');
+
+    function getMetricCellEls() {
+      return Array.from(matrixEl.children || []).filter((child) =>
+        child?.classList?.contains?.('matrix-cell')
+      );
+    }
+
+    function getMetricCellByKey(key) {
+      if (!key) return null;
+      return getMetricCellEls().find((el) => el?.getAttribute?.('data-metric-key') === key) || null;
+    }
+
+    function clearResizePullVisual() {
+      if (!resizePullEl) return;
+      const el = resizePullEl;
+      resizePullEl = null;
+      if (el?.style && !el.classList?.contains?.('is-bento-flipping')) {
+        el.style.transformOrigin = '';
+        el.style.transform = '';
+      }
+    }
+
+    function clearFlipAnimation() {
+      if (flipRafId && typeof cancelAnimationFrame === 'function') {
+        cancelAnimationFrame(flipRafId);
+        flipRafId = 0;
+      }
+      if (flipCleanupTimer) {
+        clearTimeout(flipCleanupTimer);
+        flipCleanupTimer = null;
+      }
+      patchClasses(matrixEl, { 'is-bento-animating': false });
+      if (activeFlipEls.length > 0) {
+        for (const el of activeFlipEls) {
+          patchClasses(el, { 'is-bento-flipping': false });
+          if (el?.style && !el.classList?.contains?.('is-cell-dragging')) {
+            el.style.transition = '';
+            el.style.transformOrigin = '';
+            el.style.transform = '';
+          }
+        }
+        activeFlipEls = [];
+      }
+    }
+
+    function captureFlipRects() {
+      const map = new Map();
+      for (const el of getMetricCellEls()) {
+        const key = el?.getAttribute?.('data-metric-key');
+        const r = el?.getBoundingClientRect?.();
+        if (key && r && Number.isFinite(r.width) && r.width > 0 && Number.isFinite(r.height) && r.height > 0) {
+          map.set(key, { left: r.left, top: r.top, width: r.width, height: r.height });
+        }
+      }
+      clearFlipAnimation();
+      clearResizePullVisual();
+      return map;
+    }
+
+    function playFlipFrom(beforeRects) {
+      if (!beforeRects || beforeRects.size === 0) return;
+      if (prefersReducedMotion() || typeof requestAnimationFrame !== 'function') return;
+      const animated = [];
+      for (const el of getMetricCellEls()) {
+        const key = el?.getAttribute?.('data-metric-key');
+        if (!key || !beforeRects.has(key)) continue;
+        const prev = beforeRects.get(key);
+        const next = el?.getBoundingClientRect?.();
+        if (!next || !Number.isFinite(next.width) || next.width <= 0 || !Number.isFinite(next.height) || next.height <= 0) {
+          continue;
+        }
+        const dx = prev.left - next.left;
+        const dy = prev.top - next.top;
+        const sx = prev.width / next.width;
+        const sy = prev.height / next.height;
+        if (
+          Math.abs(dx) > 0.5 ||
+          Math.abs(dy) > 0.5 ||
+          Math.abs(sx - 1) > 0.015 ||
+          Math.abs(sy - 1) > 0.015
+        ) {
+          animated.push({ el, dx, dy, sx, sy });
+        }
+      }
+      if (animated.length === 0) return;
+      clearFlipAnimation();
+      activeFlipEls = animated.map((item) => item.el);
+      patchClasses(matrixEl, { 'is-bento-animating': true });
+      for (const item of animated) {
+        if (!item.el?.style) continue;
+        item.el.style.transition = 'none';
+        item.el.style.transformOrigin = '0 0';
+        item.el.style.transform = `translate3d(${item.dx.toFixed(2)}px, ${item.dy.toFixed(2)}px, 0) scale(${item.sx.toFixed(4)}, ${item.sy.toFixed(4)})`;
+        patchClasses(item.el, { 'is-bento-flipping': true });
+      }
+      void matrixEl.offsetWidth;
+      const batchEls = activeFlipEls;
+      flipRafId = requestAnimationFrame(() => {
+        flipRafId = 0;
+        if (activeFlipEls !== batchEls) return;
+        for (const item of animated) {
+          if (!item.el?.style) continue;
+          item.el.style.transition = '';
+          item.el.style.transform = 'translate3d(0px, 0px, 0) scale(1, 1)';
+        }
+      });
+      flipCleanupTimer = setTimeout(() => {
+        if (activeFlipEls === batchEls) {
+          clearFlipAnimation();
+        }
+      }, 250);
+    }
+
+    function clearResizeClickSuppression() {
+      if (suppressResizeClickTimer) {
+        clearTimeout(suppressResizeClickTimer);
+        suppressResizeClickTimer = null;
+      }
+      suppressResizeClick = false;
+    }
+
+    function armResizeClickSuppression() {
+      clearResizeClickSuppression();
+      suppressResizeClick = true;
+      suppressResizeClickTimer = setTimeout(() => {
+        suppressResizeClickTimer = null;
+        suppressResizeClick = false;
+      }, 120);
+    }
+
+    function persistOptimisticMetricSizes(nextSizes) {
+      const clean = normalizeClientMetricCardSizes(nextSizes);
+      currentSizesMap = clean;
+      if (lastUpdatePayload?.data) {
+        const prevSettings = lastUpdatePayload.data.settings || {};
+        const syncOverview =
+          widgetMode !== 'hover' || prevSettings.hoverSyncOverviewMetrics !== false;
+        lastUpdatePayload = {
+          data: {
+            ...lastUpdatePayload.data,
+            settings: {
+              ...prevSettings,
+              ...(syncOverview
+                ? { overviewMetricSizes: clean }
+                : { hoverMetricSizes: clean }),
+            },
+          },
+        };
+      }
+    }
+
+    function teardownActiveResize({ revert = false } = {}) {
+      if (!activeResize) return;
+      const { startSizes, getWorkingSizes, session } = activeResize;
+      const moved = session.isMoved();
+      activeResize = null;
+      draggingSizesOverride = null;
+      resizingKey = null;
+      clearResizePullVisual();
+      session.cancel(true);
+      patchClasses(matrixEl, { 'is-resizing-metric': false });
+      if (revert && moved && !sameSizeMap(startSizes, getWorkingSizes())) {
+        props?.onPreviewMetricSizes?.({ ...startSizes });
+      }
+      if (revert && lastUpdatePayload) {
+        applyUpdatePayload(lastUpdatePayload);
+      }
+    }
+
+    function commitMetricCardSizeImmediate(cellKey, nextSize) {
+      if (!hasMetricResize || !cellKey) return;
+      const nextSizes = buildNextSizesMap(currentSizesMap, cellKey, nextSize);
+      if (sameSizeMap(currentSizesMap, nextSizes)) return;
+      persistOptimisticMetricSizes(nextSizes);
+      applyUpdatePayload(lastUpdatePayload);
+      props?.onPreviewMetricSizes?.({ ...nextSizes });
+      props?.onResizeMetricSizes?.({ ...nextSizes });
+      scheduleAdaptiveSparklineRepaint();
+    }
+
+    function startMetricCardResize(e, cellKey) {
+      if (!hasMetricResize || activeDrag || !cellKey) return;
+      if (e && e.button != null && e.button !== 0) return;
+      const placement = currentPlacementsByKey.get(cellKey);
+      if (!placement) return;
+      e?.preventDefault?.();
+      e?.stopPropagation?.();
+      if (activeResize) teardownActiveResize({ revert: false });
+
+      const startSizes = { ...currentSizesMap };
+      const startEffSize = placement.size;
+      const rowsAtStart = currentLayoutRows;
+      const effectiveRowsAtStart = Math.max(1, currentEffectiveRows);
+      const startLogicalCols =
+        startEffSize === 'wide' || startEffSize === 'tall'
+          ? 6
+          : startEffSize === 'third'
+            ? 4
+            : 3;
+      const startLogicalRows = startEffSize === 'narrow' || startEffSize === 'tall' ? 2 : 1;
+
+      const matrixRect = matrixEl.getBoundingClientRect?.();
+      const rawMatrixW = Number(matrixRect?.width || 0);
+      const rawMatrixH = Number(matrixRect?.height || 0);
+      const gridColsAtStart = Math.max(1, currentGridCols || CLIENT_METRIC_GRID_COLS);
+      const unitW =
+        Number.isFinite(rawMatrixW) && rawMatrixW > 0 ? rawMatrixW / gridColsAtStart : 32;
+      const unitH =
+        Number.isFinite(rawMatrixH) && rawMatrixH > 0
+          ? rawMatrixH / effectiveRowsAtStart
+          : 62;
+
+      let workingSize = startEffSize;
+      let workingSizes = { ...startSizes };
+
+      function resolveSnappedSize(clientX, clientY, startX, startY) {
+        const spanCols = startLogicalCols + (Number(clientX) - Number(startX)) / Math.max(8, unitW);
+        const spanRows = startLogicalRows + (Number(clientY) - Number(startY)) / Math.max(24, unitH);
+        const curIsTall = workingSize === 'narrow' || workingSize === 'tall';
+        const nextIsTall =
+          rowsAtStart === 2 ? (curIsTall ? spanRows > 1.28 : spanRows >= 1.45) : false;
+        if (nextIsTall) {
+          const curIsWide = workingSize === 'wide' || workingSize === 'tall';
+          const nextIsWide = curIsWide ? spanCols > 4.25 : spanCols >= 4.65;
+          return nextIsWide ? 'tall' : 'narrow';
+        }
+        if (workingSize === 'wide' || workingSize === 'tall') {
+          if (spanCols <= 3.35) return 'sm';
+          if (spanCols <= 4.75) return 'third';
+          return 'wide';
+        }
+        if (workingSize === 'third') {
+          if (spanCols >= 5.15) return 'wide';
+          if (spanCols <= 3.35) return 'sm';
+          return 'third';
+        }
+        if (spanCols >= 5.15) return 'wide';
+        if (spanCols >= 3.55) return 'third';
+        return 'sm';
+      }
+
+      const session = startPointerDragSession(e, {
+        threshold: 4,
+        onStart: () => {
+          resizingKey = cellKey;
+          draggingSizesOverride = { ...startSizes };
+          patchClasses(matrixEl, { 'is-resizing-metric': true });
+          if (lastUpdatePayload) {
+            applyUpdatePayload(lastUpdatePayload);
+          }
+        },
+        onMove: ({ clientX, clientY, startX, startY }) => {
+          const nextSize = resolveSnappedSize(clientX, clientY, startX, startY);
+          if (nextSize !== workingSize) {
+            workingSize = nextSize;
+            workingSizes = buildNextSizesMap(startSizes, cellKey, nextSize);
+            draggingSizesOverride = { ...workingSizes };
+            if (lastUpdatePayload) {
+              applyUpdatePayload(lastUpdatePayload);
+            }
+            props?.onPreviewMetricSizes?.({ ...workingSizes });
+          } else if (!prefersReducedMotion()) {
+            const targetCell = getMetricCellByKey(cellKey);
+            if (targetCell?.style && !targetCell.classList?.contains?.('is-bento-flipping')) {
+              const targetLogicalCols =
+                workingSize === 'wide' || workingSize === 'tall'
+                  ? 6
+                  : workingSize === 'third'
+                    ? 4
+                    : 3;
+              const targetLogicalRows = workingSize === 'narrow' || workingSize === 'tall' ? 2 : 1;
+              const remCols =
+                (startLogicalCols -
+                  targetLogicalCols +
+                  (Number(clientX) - Number(startX)) / Math.max(8, unitW)) /
+                3;
+              const remRows =
+                startLogicalRows -
+                targetLogicalRows +
+                (Number(clientY) - Number(startY)) / Math.max(24, unitH);
+              const pullX = Math.max(-0.045, Math.min(0.055, remCols * 0.06));
+              const pullY =
+                rowsAtStart === 2
+                  ? Math.max(-0.045, Math.min(0.055, remRows * 0.06))
+                  : 0;
+              resizePullEl = targetCell;
+              targetCell.style.transformOrigin = '0 0';
+              targetCell.style.transform = `scale(${(1 + pullX).toFixed(4)}, ${(1 + pullY).toFixed(4)})`;
+            }
+          }
+        },
+        onEnd: ({ moved, cancelled }) => {
+          armResizeClickSuppression();
+          if (cancelled) {
+            teardownActiveResize({ revert: true });
+            return;
+          }
+          if (!moved) {
+            teardownActiveResize({ revert: false });
+            commitMetricCardSizeImmediate(
+              cellKey,
+              cycleMetricCardSize(startEffSize, rowsAtStart)
+            );
+            return;
+          }
+          const finalSizes = { ...workingSizes };
+          const changed = !sameSizeMap(startSizes, finalSizes);
+          teardownActiveResize({ revert: false });
+          if (changed) {
+            persistOptimisticMetricSizes(finalSizes);
+            if (lastUpdatePayload) {
+              applyUpdatePayload(lastUpdatePayload);
+            }
+            props?.onResizeMetricSizes?.({ ...finalSizes });
+            scheduleAdaptiveSparklineRepaint();
+          } else if (lastUpdatePayload) {
+            applyUpdatePayload(lastUpdatePayload);
+          }
+        },
+      });
+
+      activeResize = {
+        startSizes,
+        getWorkingSizes: () => workingSizes,
+        session,
+      };
+    }
 
     function scheduleAdaptiveSparklineRepaint() {
       if (activeDrag || !lastUpdatePayload) return;
@@ -28539,11 +31892,18 @@ const MetricMatrixWidget = defineComponent({
               const key = observedWrapToKey.get(wrapEl);
               if (!key) continue;
               const rawW = Number(entry?.contentRect?.width || wrapEl.clientWidth || 0);
+              const rawH = Number(entry?.contentRect?.height || wrapEl.clientHeight || 0);
               if (!Number.isFinite(rawW) || rawW <= 0) continue;
               const nextW = Math.round(rawW);
-              const prevW = measuredWrapWidthByKey.get(key) || 0;
-              if (Math.abs(nextW - prevW) >= 2) {
-                measuredWrapWidthByKey.set(key, nextW);
+              const nextH = Number.isFinite(rawH) && rawH > 0 ? Math.round(rawH) : 0;
+              const prev = measuredWrapSizeByKey.get(key);
+              const prevW = prev?.width || 0;
+              const prevH = prev?.height || 0;
+              if (Math.abs(nextW - prevW) >= 2 || (nextH > 0 && Math.abs(nextH - prevH) >= 2)) {
+                measuredWrapSizeByKey.set(key, {
+                  width: nextW,
+                  height: nextH > 0 ? nextH : prevH,
+                });
                 changed = true;
               }
             }
@@ -28564,39 +31924,82 @@ const MetricMatrixWidget = defineComponent({
       }
     }
 
-    function readLiveSparklineWidths(colCount, isLargeTrend, metricKeys) {
-      if (!isLargeTrend) {
-        measuredWrapWidthByKey.clear();
+    function readLiveSparklineSizes(sparkGeomSig, trendKeys) {
+      if (trendKeys.length === 0) {
+        measuredWrapSizeByKey.clear();
         return;
       }
-      if (colCount !== lastColCount || !lastIsLargeTrend) {
-        measuredWrapWidthByKey.clear();
+      if (sparkGeomSig !== lastSparkGeomSig) {
+        measuredWrapSizeByKey.clear();
         return;
       }
-      const keySet = new Set(metricKeys);
-      for (const key of Array.from(measuredWrapWidthByKey.keys())) {
-        if (!keySet.has(key)) measuredWrapWidthByKey.delete(key);
+      const keySet = new Set(trendKeys);
+      for (const key of Array.from(measuredWrapSizeByKey.keys())) {
+        if (!keySet.has(key)) measuredWrapSizeByKey.delete(key);
       }
-      for (const cellEl of matrixEl.children || []) {
+      for (const cellEl of getMetricCellEls()) {
         const key = cellEl?.getAttribute?.('data-metric-key');
         if (!key || !keySet.has(key)) continue;
         const wrapEl = cellEl.querySelector?.('.cell-sparkline-wrap');
         const liveW = Math.round(Number(wrapEl?.clientWidth || 0));
+        const liveH = Math.round(Number(wrapEl?.clientHeight || 0));
         if (Number.isFinite(liveW) && liveW > 0) {
-          const prevW = measuredWrapWidthByKey.get(key) || 0;
-          if (Math.abs(liveW - prevW) >= 2 || prevW === 0) {
-            measuredWrapWidthByKey.set(key, liveW);
+          const prev = measuredWrapSizeByKey.get(key);
+          const prevW = prev?.width || 0;
+          const prevH = prev?.height || 0;
+          if (
+            Math.abs(liveW - prevW) >= 2 ||
+            prevW === 0 ||
+            (Number.isFinite(liveH) && liveH > 0 && (Math.abs(liveH - prevH) >= 2 || prevH === 0))
+          ) {
+            measuredWrapSizeByKey.set(key, {
+              width: liveW,
+              height: Number.isFinite(liveH) && liveH > 0 ? liveH : prevH,
+            });
           }
         }
       }
     }
 
+    function hideDropPreview() {
+      if (!dropPreviewEl) return;
+      patchAttr(dropPreviewEl, 'hidden', true);
+      if (dropPreviewEl.style) {
+        dropPreviewEl.style.transform = '';
+        dropPreviewEl.style.width = '';
+        dropPreviewEl.style.height = '';
+      }
+    }
+
+    function updateDropPreview(rect, matrixLeft, matrixTop, { instant = false } = {}) {
+      if (!dropPreviewEl || !rect) return;
+      const wasHidden = dropPreviewEl.hasAttribute?.('hidden') || dropPreviewEl.parentNode !== matrixEl;
+      if (dropPreviewEl.parentNode !== matrixEl) {
+        matrixEl.appendChild(dropPreviewEl);
+      }
+      if ((instant || wasHidden) && dropPreviewEl.style) {
+        dropPreviewEl.style.transition = 'none';
+      }
+      patchAttr(dropPreviewEl, 'hidden', false);
+      if (dropPreviewEl.style) {
+        dropPreviewEl.style.width = `${Math.max(12, rect.width).toFixed(2)}px`;
+        dropPreviewEl.style.height = `${Math.max(12, rect.height).toFixed(2)}px`;
+        setTranslate3d(dropPreviewEl, rect.left - matrixLeft, rect.top - matrixTop);
+        if (instant || wasHidden) {
+          void dropPreviewEl.offsetWidth;
+          dropPreviewEl.style.transition = '';
+        }
+      }
+    }
+
     function resetDragVisuals() {
+      hideDropPreview();
       patchClasses(matrixEl, { 'is-dragging-matrix': false });
-      for (const cellEl of matrixEl.children || []) {
+      for (const cellEl of getMetricCellEls()) {
         patchClasses(cellEl, { 'is-cell-dragging': false, 'is-cell-drag-sibling': false });
         if (cellEl?.style) {
           cellEl.style.transition = '';
+          cellEl.style.transformOrigin = '';
           cellEl.style.transform = '';
         }
       }
@@ -28620,37 +32023,61 @@ const MetricMatrixWidget = defineComponent({
     }
 
     function startMetricCellDrag(e, startIdx) {
-      if (!hasMetricReorder || (e && e.button != null && e.button !== 0)) return;
+      if (!hasMetricReorder || activeResize || (e && e.button != null && e.button !== 0)) return;
       if (currentVisibleKeys.length <= 1 || startIdx < 0 || startIdx >= currentVisibleKeys.length) {
         return;
       }
       e?.preventDefault?.();
       e?.stopPropagation?.();
       if (activeDrag) teardownActiveDrag({ revert: false, flushPending: true });
+      clearFlipAnimation();
       settleAnimator.clear();
 
       const startVisible = [...currentVisibleKeys];
       const overflowTail = [...currentOverflowKeys];
+      const dragKey = startVisible[startIdx];
       const count = startVisible.length;
-      const cellEls = Array.from(matrixEl.children || []).slice(0, count);
+      const cellEls = getMetricCellEls().slice(0, count);
       if (cellEls.length !== count) return;
-      const origIndices = Array.from({ length: count }, (_, idx) => idx);
-      let targetIdx = startIdx;
+      const draggedEl = cellEls[startIdx];
+      const cellElByKey = new Map();
+      for (let i = 0; i < count; i += 1) {
+        cellElByKey.set(startVisible[i], cellEls[i]);
+      }
+
+      const dragRows = currentLayoutRows;
+      const dragSizes = { ...currentSizesMap };
       let workingVisible = [...startVisible];
-      let slotRects = [];
+      let candidates = [];
+      let activeCandidate = null;
+      let origRectsByKey = new Map();
+      let origDraggedRect = null;
+      let baseMatrixRect = { left: 0, top: 0, width: 400, height: 72, right: 400, bottom: 72 };
       let isMultiRow = false;
-      let startMatrixLeft = 0;
-      let startMatrixTop = 0;
       let hasMatrixRect = false;
       let lastDragOffsetX = 0;
       let lastDragOffsetY = 0;
 
-      function updateSiblingTransforms(nextTargetIdx) {
-        const perm = buildReorderedItems(origIndices, startIdx, nextTargetIdx);
-        for (let pos = 0; pos < count; pos += 1) {
-          const orig = perm[pos];
-          if (orig !== startIdx) {
-            setTranslate3d(cellEls[orig], slotRects[pos].left - slotRects[orig].left, slotRects[pos].top - slotRects[orig].top);
+      function applyCandidateTransforms(cand) {
+        if (!cand) return;
+        updateDropPreview(cand.draggedRect, baseMatrixRect.left, baseMatrixRect.top);
+        for (let i = 0; i < count; i += 1) {
+          const key = startVisible[i];
+          if (key === dragKey) continue;
+          const el = cellElByKey.get(key);
+          const fromRect = origRectsByKey.get(key);
+          const toRect = cand.rectsByKey.get(key);
+          if (!el || !fromRect || !toRect) continue;
+          const dx = toRect.left - fromRect.left;
+          const dy = toRect.top - fromRect.top;
+          const sx = fromRect.width > 0 ? toRect.width / fromRect.width : 1;
+          const sy = fromRect.height > 0 ? toRect.height / fromRect.height : 1;
+          if (Math.abs(sx - 1) > 0.015 || Math.abs(sy - 1) > 0.015) {
+            if (el.style) el.style.transformOrigin = '0 0';
+            setTranslate3d(el, dx, dy, ` scale(${sx.toFixed(4)}, ${sy.toFixed(4)})`);
+          } else {
+            if (el.style) el.style.transformOrigin = '';
+            setTranslate3d(el, dx, dy);
           }
         }
       }
@@ -28658,15 +32085,16 @@ const MetricMatrixWidget = defineComponent({
       const session = startPointerDragSession(e, {
         threshold: 4,
         onStart: ({ startX, startY, clientX, clientY }) => {
-          slotRects = [];
+          const measuredRects = [];
           for (let i = 0; i < count; i += 1) {
+            const key = startVisible[i];
             const r = cellEls[i]?.getBoundingClientRect?.();
-            const ok = Boolean(r && Number.isFinite(r.width) && r.width > 0);
+            const ok = Boolean(r && Number.isFinite(r.width) && r.width > 0 && Number.isFinite(r.height) && r.height > 0);
             const width = ok ? r.width : 110;
             const height = ok ? r.height : 64;
             const left = ok ? r.left : i * 116;
             const top = ok ? r.top : 0;
-            slotRects.push({
+            const rectObj = {
               left,
               top,
               width,
@@ -28675,9 +32103,14 @@ const MetricMatrixWidget = defineComponent({
               bottom: top + height,
               centerX: left + width * 0.5,
               centerY: top + height * 0.5,
-            });
+            };
+            measuredRects.push(rectObj);
+            origRectsByKey.set(key, rectObj);
           }
-          isMultiRow = slotRects.some((r) => Math.abs(r.top - slotRects[0].top) > 10);
+          origDraggedRect = origRectsByKey.get(dragKey);
+          isMultiRow =
+            currentEffectiveRows > 1 ||
+            measuredRects.some((r) => Math.abs(r.top - measuredRects[0].top) > 10);
           if (
             !isMultiRow &&
             onRequestVerticalDrag &&
@@ -28688,33 +32121,109 @@ const MetricMatrixWidget = defineComponent({
             onRequestVerticalDrag(e, clientX, clientY);
             return false;
           }
+
           const mr = matrixEl?.getBoundingClientRect?.();
-          hasMatrixRect = Boolean(mr && Number.isFinite(mr.width) && mr.width > 0);
-          startMatrixLeft = hasMatrixRect ? mr.left : 0;
-          startMatrixTop = hasMatrixRect ? mr.top : 0;
+          hasMatrixRect = Boolean(mr && Number.isFinite(mr.width) && mr.width > 0 && Number.isFinite(mr.height) && mr.height > 0);
+          if (hasMatrixRect) {
+            baseMatrixRect = {
+              left: mr.left,
+              top: mr.top,
+              width: mr.width,
+              height: mr.height,
+              right: mr.left + mr.width,
+              bottom: mr.top + mr.height,
+            };
+          } else {
+            const minLeft = Math.min(...measuredRects.map((r) => r.left));
+            const minTop = Math.min(...measuredRects.map((r) => r.top));
+            const maxRight = Math.max(...measuredRects.map((r) => r.right));
+            const maxBottom = Math.max(...measuredRects.map((r) => r.bottom));
+            baseMatrixRect = {
+              left: minLeft,
+              top: minTop,
+              width: Math.max(100, maxRight - minLeft),
+              height: Math.max(64, maxBottom - minTop),
+              right: maxRight,
+              bottom: maxBottom,
+            };
+          }
+
+          const { colGap, rowGap } = readMatrixGridGaps(matrixEl, cellEls);
+          const bySlotKey = new Map();
+          for (let candIdx = 0; candIdx < count; candIdx += 1) {
+            const candOrder = buildReorderedItems(startVisible, startIdx, candIdx);
+            const candLayout = packClientMetricBentoLayout({
+              rows: dragRows,
+              metrics: candOrder,
+              sizes: dragSizes,
+              includeGhostCells: hasMetricResize,
+            });
+            if (candLayout.placements.length !== count) continue;
+            const draggedPlacement = candLayout.placements.find((p) => p.key === dragKey);
+            if (!draggedPlacement) continue;
+            const rectsByKey = new Map();
+            for (const p of candLayout.placements) {
+              rectsByKey.set(
+                p.key,
+                candIdx === startIdx && origRectsByKey.has(p.key)
+                  ? origRectsByKey.get(p.key)
+                  : computePlacementPixelRect(p, candLayout, baseMatrixRect, colGap, rowGap)
+              );
+            }
+            const draggedRect = rectsByKey.get(dragKey);
+            const slotKey = `${draggedPlacement.colStart}:${draggedPlacement.colSpan}:${draggedPlacement.rowStart}:${draggedPlacement.rowSpan}`;
+            const candObj = {
+              candIdx,
+              order: candOrder,
+              layout: candLayout,
+              rectsByKey,
+              draggedRect,
+              distFromStart: Math.abs(candIdx - startIdx),
+            };
+            const existing = bySlotKey.get(slotKey);
+            if (!existing || candObj.distFromStart < existing.distFromStart) {
+              bySlotKey.set(slotKey, candObj);
+            }
+          }
+          candidates = Array.from(bySlotKey.values());
+          activeCandidate =
+            candidates.find((c) => c.candIdx === startIdx) ||
+            candidates[0] || {
+              candIdx: startIdx,
+              order: [...startVisible],
+              rectsByKey: origRectsByKey,
+              draggedRect: origDraggedRect,
+            };
+          if (candidates.length === 0) {
+            candidates = [activeCandidate];
+          }
+
           patchClasses(matrixEl, { 'is-dragging-matrix': true });
           for (let k = 0; k < count; k += 1) {
-            patchClasses(cellEls[k], { 'is-cell-dragging': k === startIdx, 'is-cell-drag-sibling': k !== startIdx });
+            patchClasses(cellEls[k], {
+              'is-cell-dragging': k === startIdx,
+              'is-cell-drag-sibling': k !== startIdx,
+            });
           }
-          updateSiblingTransforms(targetIdx);
+          applyCandidateTransforms(activeCandidate);
         },
         onMove: ({ clientX, clientY, startX, startY }) => {
           const mr = hasMatrixRect ? matrixEl?.getBoundingClientRect?.() : null;
-          const rawDeltaX = clientX - startX - (mr && mr.width > 0 ? mr.left - startMatrixLeft : 0);
-          const rawDeltaY = clientY - startY - (mr && mr.width > 0 ? mr.top - startMatrixTop : 0);
+          const rawDeltaX = clientX - startX - (mr && mr.width > 0 ? mr.left - baseMatrixRect.left : 0);
+          const rawDeltaY = clientY - startY - (mr && mr.width > 0 ? mr.top - baseMatrixRect.top : 0);
 
           const clampedX = applyRubberBand(
             rawDeltaX,
-            Math.min(...slotRects.map((r) => r.left)) - slotRects[startIdx].left,
-            Math.max(...slotRects.map((r) => r.right)) - slotRects[startIdx].right,
+            baseMatrixRect.left - origDraggedRect.left,
+            baseMatrixRect.right - origDraggedRect.right,
             14,
             0.25
           );
           const clampedY = isMultiRow
             ? applyRubberBand(
                 rawDeltaY,
-                Math.min(...slotRects.map((r) => r.top)) - slotRects[startIdx].top,
-                Math.max(...slotRects.map((r) => r.bottom)) - slotRects[startIdx].bottom,
+                baseMatrixRect.top - origDraggedRect.top,
+                baseMatrixRect.bottom - origDraggedRect.bottom,
                 14,
                 0.25
               )
@@ -28724,31 +32233,27 @@ const MetricMatrixWidget = defineComponent({
 
           lastDragOffsetX = clampedX;
           lastDragOffsetY = clampedY;
-          setTranslate3d(cellEls[startIdx], clampedX, clampedY, ' scale(1.02)');
+          setTranslate3d(draggedEl, clampedX, clampedY, ' scale(1.02)');
 
-          let nextTarget = startIdx;
-          if (!isMultiRow) {
-            nextTarget = hitTestLinearCenter(
-              slotRects.map((r) => ({ start: r.left, size: r.width, end: r.right, center: r.centerX })),
-              startIdx,
-              rawDeltaX
-            );
-          } else {
-            const cx = slotRects[startIdx].centerX + rawDeltaX;
-            const cy = slotRects[startIdx].centerY + rawDeltaY;
-            let bestDistSq = Infinity;
-            for (let i = 0; i < count; i += 1) {
-              const d2 = (cx - slotRects[i].centerX) ** 2 + (cy - slotRects[i].centerY) ** 2;
-              if (d2 < bestDistSq) {
-                bestDistSq = d2;
-                nextTarget = i;
-              }
+          const cx = origDraggedRect.centerX + rawDeltaX;
+          const cy = origDraggedRect.centerY + rawDeltaY;
+          let bestCand = activeCandidate;
+          let bestScore = Infinity;
+          for (let i = 0; i < candidates.length; i += 1) {
+            const cand = candidates[i];
+            const dist = isMultiRow
+              ? Math.hypot(cx - cand.draggedRect.centerX, cy - cand.draggedRect.centerY)
+              : Math.abs(cx - cand.draggedRect.centerX);
+            const score = cand === activeCandidate ? dist - 6 : dist;
+            if (score < bestScore) {
+              bestScore = score;
+              bestCand = cand;
             }
           }
-          if (nextTarget !== targetIdx) {
-            targetIdx = nextTarget;
-            workingVisible = buildReorderedItems(startVisible, startIdx, targetIdx);
-            updateSiblingTransforms(targetIdx);
+          if (bestCand && bestCand !== activeCandidate) {
+            activeCandidate = bestCand;
+            workingVisible = [...bestCand.order];
+            applyCandidateTransforms(activeCandidate);
             props?.onPreviewMetrics?.([...workingVisible, ...overflowTail]);
           }
         },
@@ -28757,16 +32262,16 @@ const MetricMatrixWidget = defineComponent({
             teardownActiveDrag({ revert: true, flushPending: true });
             return;
           }
-          const finalTargetIdx = targetIdx;
+          const finalCand = activeCandidate;
           const finalVisible = [...workingVisible];
           const finalFull = [...finalVisible, ...overflowTail];
           const targetOffsetX =
-            moved && slotRects[finalTargetIdx] && slotRects[startIdx]
-              ? slotRects[finalTargetIdx].left - slotRects[startIdx].left
+            moved && finalCand?.draggedRect && origDraggedRect
+              ? finalCand.draggedRect.left - origDraggedRect.left
               : 0;
           const targetOffsetY =
-            moved && slotRects[finalTargetIdx] && slotRects[startIdx]
-              ? slotRects[finalTargetIdx].top - slotRects[startIdx].top
+            moved && finalCand?.draggedRect && origDraggedRect
+              ? finalCand.draggedRect.top - origDraggedRect.top
               : 0;
           const residualX = moved ? lastDragOffsetX - targetOffsetX : 0;
           const residualY = moved ? lastDragOffsetY - targetOffsetY : 0;
@@ -28778,7 +32283,9 @@ const MetricMatrixWidget = defineComponent({
             currentVisibleKeys = finalVisible;
             if (lastUpdatePayload?.data) {
               const prevSettings = lastUpdatePayload.data.settings || {};
-              const syncOverview = widgetMode !== 'hover' || prevSettings.hoverSyncOverviewMetrics !== false;
+              const syncOverview =
+                widgetMode !== 'hover' || prevSettings.hoverSyncOverviewMetrics !== false;
+              skipNextFlip = true;
               applyUpdatePayload({
                 data: {
                   ...lastUpdatePayload.data,
@@ -28791,8 +32298,9 @@ const MetricMatrixWidget = defineComponent({
             }
             props?.onReorderMetrics?.(finalFull);
           }
-          if (moved && matrixEl.children?.[finalTargetIdx]) {
-            settleAnimator.trigger(matrixEl.children[finalTargetIdx], residualX, residualY);
+          const landedCell = getMetricCellByKey(dragKey);
+          if (moved && landedCell) {
+            settleAnimator.trigger(landedCell, residualX, residualY);
           }
         },
       });
@@ -28800,25 +32308,150 @@ const MetricMatrixWidget = defineComponent({
       activeDrag = { startVisible, overflowTail, getWorkingVisible: () => workingVisible, session };
     }
 
+    function syncGhostCells(ghostSpecs) {
+      const targetCount = Array.isArray(ghostSpecs) ? ghostSpecs.length : 0;
+      while (ghostElPool.length < targetCount) {
+        ghostElPool.push(
+          h('div', {
+            className: 'matrix-ghost-cell',
+            'aria-hidden': 'true',
+          })
+        );
+      }
+      for (let i = 0; i < ghostElPool.length; i += 1) {
+        const ghostEl = ghostElPool[i];
+        if (i < targetCount) {
+          const spec = ghostSpecs[i];
+          patchStyleVar(ghostEl, '--ghost-col-start', String(spec.colStart));
+          patchStyleVar(ghostEl, '--ghost-col-span', String(spec.colSpan || 3));
+          patchStyleVar(ghostEl, '--ghost-row-start', String(spec.rowStart));
+          if (ghostEl.parentNode !== matrixEl) {
+            matrixEl.appendChild(ghostEl);
+          }
+        } else if (ghostEl.parentNode === matrixEl) {
+          matrixEl.removeChild(ghostEl);
+        }
+      }
+    }
+
     function createMetricCellNode() {
+      let boundMetricKey = '';
       const gradId = `wm-spark-grad-${++sparklineGradSeq}`;
       const labelSpan = h('span', { text: '—' });
-      const iconSvg = createSvgIcon('pulse', { size: 11 });
-      const valueEl = h('strong', { className: 'cell-value', text: '—' });
+      const valueMainEl = h('span', { className: 'cell-value-main', text: '—' });
+      const valueUnitEl = h('span', { className: 'cell-value-unit', hidden: true, text: '' });
+      const valueEl = h('strong', { className: 'cell-value' }, [valueMainEl, valueUnitEl]);
       const subEl = h('span', { className: 'cell-sub', text: '—' });
 
       const trendNumEl = h('strong', { className: 'cell-trend-num', text: '—' });
       const trendUnitEl = h('span', { className: 'cell-trend-unit', text: '' });
-      const trendSubEl = h('span', { className: 'cell-trend-sub', text: '—' });
-      const spark = createSparklineSvg(gradId);
-      const sparkWrapEl = h('div', { className: 'cell-sparkline-wrap' }, [spark.svg]);
-      const trendRowEl = h('div', { className: 'cell-trend-row', hidden: true }, [
-        h('div', { className: 'cell-trend-left' }, [
-          h('div', { className: 'cell-trend-metric' }, [trendNumEl, trendUnitEl]),
-          trendSubEl,
-        ]),
-        sparkWrapEl,
+      const trendMetricEl = h('div', { className: 'cell-trend-metric', hidden: true }, [
+        trendNumEl,
+        trendUnitEl,
       ]);
+      const trendSubEl = h('span', { className: 'cell-trend-sub', hidden: true, text: '—' });
+      const spark = createSparklineSvg(gradId);
+      const sparkWrapEl = h('div', { className: 'cell-sparkline-wrap', hidden: true }, [
+        spark.svg,
+      ]);
+
+      const sizeBadgeEl = hasMetricResize
+        ? h('span', {
+            className: 'matrix-cell-size-badge text-mono',
+            'aria-hidden': 'true',
+            hidden: true,
+            text: '',
+          })
+        : null;
+
+      const resizeHandleEl = hasMetricResize
+        ? h(
+            'button',
+            {
+              type: 'button',
+              className: 'matrix-cell-resize-handle',
+              'aria-label': t('settings.str.metricResizeHandleAria'),
+              title: t('settings.str.metricResizeHandleHint'),
+              onPointerdown: (e) => startMetricCardResize(e, boundMetricKey),
+              onClick: (e) => {
+                e?.preventDefault?.();
+                e?.stopPropagation?.();
+                if (suppressResizeClick) {
+                  clearResizeClickSuppression();
+                  return;
+                }
+                const placement = currentPlacementsByKey.get(boundMetricKey);
+                if (!placement) return;
+                commitMetricCardSizeImmediate(
+                  boundMetricKey,
+                  cycleMetricCardSize(placement.size, currentLayoutRows)
+                );
+              },
+              onKeydown: (e) => {
+                if (!hasMetricResize || !boundMetricKey) return;
+                const placement = currentPlacementsByKey.get(boundMetricKey);
+                if (!placement) return;
+                if (e?.key === 'Enter' || e?.key === ' ') {
+                  e.preventDefault?.();
+                  e.stopPropagation?.();
+                  commitMetricCardSizeImmediate(
+                    boundMetricKey,
+                    cycleMetricCardSize(placement.size, currentLayoutRows)
+                  );
+                } else if (e?.key === 'ArrowRight') {
+                  e.preventDefault?.();
+                  e.stopPropagation?.();
+                  if (placement.size === 'sm') {
+                    commitMetricCardSizeImmediate(boundMetricKey, 'third');
+                  } else if (placement.size === 'third') {
+                    commitMetricCardSizeImmediate(boundMetricKey, 'wide');
+                  } else if (placement.size === 'narrow') {
+                    commitMetricCardSizeImmediate(boundMetricKey, 'tall');
+                  }
+                } else if (e?.key === 'ArrowLeft') {
+                  e.preventDefault?.();
+                  e.stopPropagation?.();
+                  if (placement.size === 'wide') {
+                    commitMetricCardSizeImmediate(boundMetricKey, 'third');
+                  } else if (placement.size === 'third') {
+                    commitMetricCardSizeImmediate(boundMetricKey, 'sm');
+                  } else if (placement.size === 'tall') {
+                    commitMetricCardSizeImmediate(boundMetricKey, 'narrow');
+                  }
+                } else if (e?.key === 'ArrowDown' && currentLayoutRows === 2) {
+                  e.preventDefault?.();
+                  e.stopPropagation?.();
+                  if (placement.size === 'sm') {
+                    commitMetricCardSizeImmediate(boundMetricKey, 'narrow');
+                  } else if (placement.size === 'third' || placement.size === 'wide') {
+                    commitMetricCardSizeImmediate(boundMetricKey, 'tall');
+                  }
+                } else if (e?.key === 'ArrowUp') {
+                  e.preventDefault?.();
+                  e.stopPropagation?.();
+                  if (placement.size === 'narrow') {
+                    commitMetricCardSizeImmediate(boundMetricKey, 'sm');
+                  } else if (placement.size === 'tall') {
+                    commitMetricCardSizeImmediate(boundMetricKey, 'wide');
+                  }
+                }
+              },
+            },
+            [createCornerGripSvg()]
+          )
+        : null;
+
+      const labelRowEl = h('div', { className: 'cell-label' }, [labelSpan]);
+      const children = [
+        labelRowEl,
+        valueEl,
+        subEl,
+        trendMetricEl,
+        trendSubEl,
+        sparkWrapEl,
+      ];
+      if (sizeBadgeEl) children.push(sizeBadgeEl);
+      if (resizeHandleEl) children.push(resizeHandleEl);
 
       const el = h(
         'div',
@@ -28827,33 +32460,37 @@ const MetricMatrixWidget = defineComponent({
           ...(hasMetricReorder
             ? {
                 onPointerdown: (e) => {
-                  const idx = Array.from(matrixEl.children || []).indexOf(el);
+                  if (resizeHandleEl && isNodeWithin(e?.target, resizeHandleEl)) return;
+                  const idx = getMetricCellEls().indexOf(el);
                   if (idx >= 0) startMetricCellDrag(e, idx);
                 },
               }
             : {}),
         },
-        [
-          h('div', { className: 'cell-label' }, [labelSpan, iconSvg]),
-          valueEl,
-          subEl,
-          trendRowEl,
-        ]
+        children
       );
+
       return {
         el,
         refs: {
           el,
+          labelRowEl,
           labelSpan,
-          iconSvg,
           valueEl,
+          valueMainEl,
+          valueUnitEl,
           subEl,
-          trendRowEl,
+          trendMetricEl,
           trendNumEl,
           trendUnitEl,
           trendSubEl,
           sparkWrapEl,
           spark,
+          sizeBadgeEl,
+          resizeHandleEl,
+          setBoundKey(key) {
+            boundMetricKey = key;
+          },
         },
       };
     }
@@ -28861,71 +32498,176 @@ const MetricMatrixWidget = defineComponent({
     function applyUpdatePayload({ data } = {}) {
       lastUpdatePayload = { data };
       patchAttr(matrixEl, 'aria-label', t('module.metrics'));
-      const settings = data?.settings || {};
+      const baseSettings = data?.settings || {};
+      const syncOverviewSetting =
+        widgetMode !== 'hover' || baseSettings.hoverSyncOverviewMetrics !== false;
+      const effectiveSettings =
+        draggingSizesOverride != null
+          ? {
+              ...baseSettings,
+              ...(syncOverviewSetting
+                ? { overviewMetricSizes: draggingSizesOverride }
+                : { hoverMetricSizes: draggingSizesOverride }),
+            }
+          : baseSettings;
+
       const {
-        isLarge: isLargeTrend,
-        metrics: metricKeys,
-        allMetrics,
-      } = resolveEffectiveClientMetricMatrixConfig(widgetMode, settings);
+        rows: configuredRows,
+        sizes: resolvedSizes,
+        textMode,
+        showTitle,
+        showSub,
+        layout,
+      } = resolveEffectiveClientMetricMatrixConfig(widgetMode, effectiveSettings, {
+        includeGhostCells: hasMetricResize,
+      });
+
+      const placements = layout.placements;
+      const metricKeys = placements.map((p) => p.key);
       currentVisibleKeys = [...metricKeys];
-      currentOverflowKeys = Array.isArray(allMetrics) ? allMetrics.slice(metricKeys.length) : [];
+      currentOverflowKeys = [...layout.overflowKeys];
+      currentLayoutRows = configuredRows;
+      currentEffectiveRows = layout.effectiveRows;
+      currentGridCols = layout.gridCols;
+      currentSizesMap = { ...resolvedSizes };
+      currentPlacementsByKey = new Map(placements.map((p) => [p.key, p]));
+
       const canDragCells = hasMetricReorder && metricKeys.length > 1;
       const dragHint = canDragCells
         ? canParentDragModule()
           ? t('settings.str.metricOrModuleDragHint')
           : t('settings.str.metricDragHint')
         : null;
-      const maxCols = isLargeTrend ? 3 : 4;
-      const colCount = Math.max(1, Math.min(maxCols, metricKeys.length));
-      readLiveSparklineWidths(colCount, isLargeTrend, metricKeys);
-      lastColCount = colCount;
-      lastIsLargeTrend = isLargeTrend;
+      const trendPlacements = placements.filter((p) => p.isTrend);
+      const trendKeys = trendPlacements.map((p) => p.key);
+      const needsSparkline = trendKeys.length > 0;
+      const geomSig = `${layout.effectiveRows}:${layout.gridCols}:${layout.isThreeUpTrend ? '3up' : 'bento'}:${placements
+        .map((p) => `${p.key}=${p.size}:${p.isTrend ? 'T' : 'C'}@${p.colStart},${p.colSpan},${p.rowStart},${p.rowSpan}`)
+        .join('|')}`;
+      const sparkGeomSig = `${geomSig}:${textMode}`;
+      const shouldFlip =
+        (hasMetricResize || hasMetricReorder) &&
+        !activeDrag &&
+        !skipNextFlip &&
+        lastLayoutGeomSig !== '' &&
+        geomSig !== lastLayoutGeomSig;
+      skipNextFlip = false;
+      const beforeFlipRects = shouldFlip ? captureFlipRects() : null;
+      readLiveSparklineSizes(sparkGeomSig, trendKeys);
+      lastLayoutGeomSig = geomSig;
+      lastSparkGeomSig = sparkGeomSig;
 
       patchClasses(matrixEl, {
-        'is-large-trend': isLargeTrend,
+        'is-bento': true,
+        'is-large-trend': layout.isThreeUpTrend,
+        'is-two-row': layout.effectiveRows === 2,
         'is-metrics-reorderable': canDragCells,
+        'is-metrics-resizable': hasMetricResize,
       });
-      patchAttr(matrixEl, 'data-cols', String(colCount));
-      patchStyleVar(matrixEl, '--matrix-cols', String(colCount));
+      patchAttr(matrixEl, 'data-cols', String(layout.displayCols || 4));
+      patchAttr(matrixEl, 'data-rows', String(layout.effectiveRows));
+      patchAttr(matrixEl, 'data-metric-text', textMode);
+      patchStyleVar(matrixEl, '--matrix-cols', String(layout.gridCols));
+      patchStyleVar(matrixEl, '--matrix-rows', String(layout.effectiveRows));
 
       const { hasSubagents, scopedConv, ctxAgent } = resolveScopedConversation(
         data,
         'all',
         getCtxAgentId(),
-        isLargeTrend
+        needsSparkline
       );
       const active = scopedConv || data?.activeConversation || {};
       const ctx = ctxAgent?.context || active.context || {};
       const quotas = data?.quotas || {};
       const locale = getEffectiveLocale();
       const limitTokens = Number(ctx.compactionLimitTokens || ctx.limitTokens || 256000);
-      const seriesSteps = isLargeTrend
+      const seriesSteps = needsSparkline
         ? active.sparklineSteps || active.recentSteps || data?.activeConversation?.recentSteps || []
         : [];
+      const resizeHandleAria = hasMetricResize ? t('settings.str.metricResizeHandleAria') : '';
+      const resizeHandleHint = hasMetricResize ? t('settings.str.metricResizeHandleHint') : '';
 
-      const cells = metricKeys.map((key) => {
-        const base = resolveOverviewMetricCell(key, {
+      const cells = placements.map((p) => {
+        const base = resolveOverviewMetricCell(p.key, {
           active,
           ctx,
           quotas,
-          settings,
+          settings: effectiveSettings,
           hasSubagents,
         });
-        if (!isLargeTrend) {
-          return { ...base, isLargeTrend: false, sparkSig: '' };
+        const split = splitMetricValueAndUnit(base.valueText);
+        const isResizingThis = hasMetricResize && resizingKey === p.key;
+        const sizeBadgeText = hasMetricResize ? formatMetricSizeBadge(p.size) : '';
+        if (!p.isTrend) {
+          return {
+            ...base,
+            placement: p,
+            textMode,
+            showTitle,
+            showSub,
+            valueMain: split.main,
+            valueUnit: split.unit,
+            isTrend: false,
+            isTall: false,
+            isNarrow: false,
+            isThird: false,
+            isWide: false,
+            isResizingThis,
+            sizeBadgeText,
+            resizeHandleAria,
+            resizeHandleHint,
+            sparkSig: '',
+          };
         }
-        const spec = resolveAdaptiveSparklineSpec(measuredWrapWidthByKey.get(key), colCount);
-        const series = extractOverviewMetricSeries(key, seriesSteps, {
+        const isNarrow = Boolean(p.isNarrow);
+        const isTall = Boolean(p.isTall);
+        const isThird = Boolean(p.isThird);
+        const isWide = Boolean(p.isWide);
+        const widthFrac = p.colSpan / Math.max(1, layout.gridCols);
+        const fallbackSparkCols = widthFrac >= 0.75 ? 1 : widthFrac >= 0.45 ? 2 : 3;
+        const fallbackSparkHeight = isTall
+          ? textMode === 'none'
+            ? 76
+            : textMode === 'both'
+              ? 54
+              : 64
+          : isNarrow
+            ? textMode === 'both'
+              ? 34
+              : 42
+            : textMode === 'both'
+              ? 24
+              : 26;
+        const measuredSize = measuredWrapSizeByKey.get(p.key);
+        const spec = resolveAdaptiveSparklineSpec(
+          measuredSize?.width,
+          fallbackSparkCols,
+          measuredSize?.height || fallbackSparkHeight
+        );
+        const series = extractOverviewMetricSeries(p.key, seriesSteps, {
           maxPoints: spec.maxPoints,
           limitTokens,
         });
         const geom = buildSparklineGeometry(series, { width: spec.width, height: spec.height });
-        const split = splitMetricValueAndUnit(base.valueText);
         const tone = extractToneClass(base.valueClass);
         const sparkSig = `${spec.width}x${spec.height}:${spec.maxPoints}:${geom.linePoints}:${geom.lastX},${geom.lastY}`;
         return {
           ...base,
-          isLargeTrend: true,
+          placement: p,
+          textMode,
+          showTitle,
+          showSub,
+          valueMain: split.main,
+          valueUnit: split.unit,
+          isTrend: true,
+          isTall,
+          isNarrow,
+          isThird,
+          isWide,
+          isResizingThis,
+          sizeBadgeText,
+          resizeHandleAria,
+          resizeHandleHint,
           tone,
           trendMain: split.main,
           trendUnit: split.unit,
@@ -28940,26 +32682,57 @@ const MetricMatrixWidget = defineComponent({
 
       patchKeyedList(matrixEl, cells, {
         keyFn: (cell) => cell.key,
-        sigFn: (cell) =>
-          `${locale}:${cell.isLargeTrend ? 'L' : 'M'}:${cell.key}:${cell.label}:${cell.icon}:${cell.isPulsing}:${cell.valueClass}:${cell.valueText}:${cell.subClass}:${cell.subText}:${cell.sparkSig}:${dragHint || ''}`,
+        sigFn: (cell) => {
+          const p = cell.placement;
+          return `${locale}:${cell.textMode}:${p.size}:${p.isTrend ? 'T' : 'C'}:${p.isTall ? 'H' : p.isNarrow ? 'V' : p.isThird ? 'M' : ''}:${p.colStart}:${p.colSpan}:${p.rowStart}:${p.rowSpan}:${cell.isResizingThis ? 'R' : ''}:${cell.sizeBadgeText}:${cell.key}:${cell.label}:${cell.valueClass}:${cell.valueText}:${cell.subClass}:${cell.subText}:${cell.sparkSig}:${dragHint || ''}`;
+        },
         createRow: createMetricCellNode,
         updateRow: (refs, cell) => {
+          const p = cell.placement;
+          refs.setBoundKey(cell.key);
           patchAttr(refs.el, 'data-metric-key', cell.key);
-          patchAttr(refs.el, 'title', dragHint);
-          patchClasses(refs.el, { 'is-trend-card': cell.isLargeTrend });
+          patchAttr(refs.el, 'data-card-size', p.size);
+          patchAttr(refs.el, 'data-col-span', String(p.colSpan));
+          patchAttr(refs.el, 'data-row-span', String(p.rowSpan));
+          patchAttr(refs.el, 'title', dragHint || (!cell.showTitle ? cell.label : null));
+          patchStyleVar(refs.el, '--cell-col-start', String(p.colStart));
+          patchStyleVar(refs.el, '--cell-col-span', String(p.colSpan));
+          patchStyleVar(refs.el, '--cell-row-start', String(p.rowStart));
+          patchStyleVar(refs.el, '--cell-row-span', String(p.rowSpan));
+          patchClasses(refs.el, {
+            'is-trend-card': cell.isTrend,
+            'is-third-card': cell.isThird,
+            'is-wide-card': cell.isWide,
+            'is-narrow-card': cell.isNarrow,
+            'is-tall-card': cell.isTall,
+            'is-cell-resizing': cell.isResizingThis,
+          });
+          patchAttr(refs.labelRowEl, 'hidden', !cell.showTitle);
           patchText(refs.labelSpan, cell.label);
-          patchSvgIcon(refs.iconSvg, cell.icon);
-          refs.iconSvg.setAttribute('width', String(cell.iconSize));
-          refs.iconSvg.setAttribute('height', String(cell.iconSize));
-          patchClasses(refs.iconSvg, { 'is-pulsing': Boolean(cell.isPulsing) });
 
-          patchAttr(refs.valueEl, 'hidden', cell.isLargeTrend);
-          patchAttr(refs.subEl, 'hidden', cell.isLargeTrend);
-          patchAttr(refs.trendRowEl, 'hidden', !cell.isLargeTrend);
+          if (refs.sizeBadgeEl) {
+            patchText(refs.sizeBadgeEl, cell.sizeBadgeText);
+            patchAttr(refs.sizeBadgeEl, 'hidden', !cell.isResizingThis);
+          }
+          if (refs.resizeHandleEl) {
+            patchAttr(refs.resizeHandleEl, 'aria-label', cell.resizeHandleAria);
+            patchAttr(refs.resizeHandleEl, 'title', cell.resizeHandleHint);
+            patchAttr(refs.resizeHandleEl, 'data-card-size', p.size);
+          }
 
-          if (!cell.isLargeTrend) {
+          patchAttr(refs.valueEl, 'hidden', cell.isTrend);
+          patchAttr(refs.subEl, 'hidden', cell.isTrend || !cell.showSub);
+          patchAttr(refs.trendMetricEl, 'hidden', !cell.isTrend);
+          patchAttr(refs.trendSubEl, 'hidden', !cell.isTrend || !cell.showSub);
+          patchAttr(refs.sparkWrapEl, 'hidden', !cell.isTrend);
+
+          if (!cell.isTrend) {
+            const isWordUnit = cell.valueUnit === 'tok/s' || cell.valueUnit === 't/s';
             patchAttr(refs.valueEl, 'class', cell.valueClass);
-            patchText(refs.valueEl, cell.valueText);
+            patchText(refs.valueMainEl, cell.valueMain);
+            patchText(refs.valueUnitEl, cell.valueUnit);
+            patchAttr(refs.valueUnitEl, 'hidden', !cell.valueUnit);
+            patchAttr(refs.valueUnitEl, 'data-unit-spaced', isWordUnit ? 'true' : null);
             patchAttr(refs.subEl, 'class', cell.subClass);
             patchText(refs.subEl, cell.subText);
             return;
@@ -29011,7 +32784,15 @@ const MetricMatrixWidget = defineComponent({
           }
         },
       });
-      syncObservedSparklineWraps(isLargeTrend ? metricKeys : []);
+
+      syncGhostCells(hasMetricResize ? layout.ghostCells : []);
+      if (dropPreviewEl && dropPreviewEl.parentNode === matrixEl && !activeDrag) {
+        hideDropPreview();
+      }
+      if (beforeFlipRects && beforeFlipRects.size > 0) {
+        playFlipFrom(beforeFlipRects);
+      }
+      syncObservedSparklineWraps(trendKeys);
     }
 
     function update(payload = {}) {
@@ -29023,15 +32804,21 @@ const MetricMatrixWidget = defineComponent({
     }
 
     onCleanup(() => {
+      teardownActiveResize({ revert: false });
       teardownActiveDrag({ revert: false, flushPending: false });
+      clearFlipAnimation();
+      clearResizePullVisual();
+      clearResizeClickSuppression();
       settleAnimator.clear();
+      hideDropPreview();
       if (pendingSparkResizeRafId && typeof cancelAnimationFrame === 'function') {
         cancelAnimationFrame(pendingSparkResizeRafId);
         pendingSparkResizeRafId = 0;
       }
       sparkResizeObserver?.disconnect();
       observedWrapToKey.clear();
-      measuredWrapWidthByKey.clear();
+      measuredWrapSizeByKey.clear();
+      ghostElPool.length = 0;
     });
 
     update({ data: null });
@@ -29660,7 +33447,12 @@ const { buildQuotaPoolItems, createPoolQuotaRow, formatQuotaSummaryFooter, syncP
 function buildQuotaPoolItems(
   quotas,
   minuteTick = 0,
-  { isPending = false, showReserved = false, quotaDisplayMode = 'used' } = {}
+  {
+    isPending = false,
+    showReserved = false,
+    showSafetyMonitor = false,
+    quotaDisplayMode = 'used',
+  } = {}
 ) {
   const safeQuotas = quotas || {};
   const activePool = safeQuotas.activePool || {};
@@ -29690,6 +33482,7 @@ function buildQuotaPoolItems(
       minuteTick,
       isPending,
       showReserved: Boolean(showReserved),
+      showSafetyMonitor: Boolean(showSafetyMonitor),
       quotaDisplayMode: effDisplayMode,
     };
   });
@@ -29709,8 +33502,13 @@ function createPoolQuotaRow() {
   const left5h = h('span', { className: 'quota-win-left' }, [title5h, usage5h]);
   const meta5h = h('span', { className: 'panel-meta quota-win-meta text-mono', text: '--' });
   const fill5h = h('div', { className: 'progress-fill' });
+  const fillExternal5h = h('div', { className: 'progress-fill-external' });
   const fillReserved5h = h('div', { className: 'progress-fill-reserved' });
-  const track5h = h('div', { className: 'progress-track' }, [fill5h, fillReserved5h]);
+  const track5h = h('div', { className: 'progress-track' }, [
+    fill5h,
+    fillExternal5h,
+    fillReserved5h,
+  ]);
   const row5h = h('div', { style: 'display: flex; flex-direction: column; gap: 4px;' }, [
     h('div', { className: 'panel-header quota-win-head' }, [left5h, meta5h]),
     track5h,
@@ -29721,8 +33519,13 @@ function createPoolQuotaRow() {
   const leftWk = h('span', { className: 'quota-win-left' }, [titleWk, usageWk]);
   const metaWk = h('span', { className: 'panel-meta quota-win-meta text-mono', text: '--' });
   const fillWk = h('div', { className: 'progress-fill' });
+  const fillExternalWk = h('div', { className: 'progress-fill-external' });
   const fillReservedWk = h('div', { className: 'progress-fill-reserved' });
-  const trackWk = h('div', { className: 'progress-track' }, [fillWk, fillReservedWk]);
+  const trackWk = h('div', { className: 'progress-track' }, [
+    fillWk,
+    fillExternalWk,
+    fillReservedWk,
+  ]);
   const rowWk = h('div', { style: 'display: flex; flex-direction: column; gap: 4px;' }, [
     h('div', { className: 'panel-header quota-win-head' }, [leftWk, metaWk]),
     trackWk,
@@ -29743,6 +33546,7 @@ function createPoolQuotaRow() {
       meta5h,
       track5h,
       fill5h,
+      fillExternal5h,
       fillReserved5h,
       rowWk,
       leftWk,
@@ -29751,6 +33555,7 @@ function createPoolQuotaRow() {
       metaWk,
       trackWk,
       fillWk,
+      fillExternalWk,
       fillReservedWk,
     },
   };
@@ -29784,9 +33589,14 @@ function syncQuotaWindowMeter({
   showReserved,
   rawReservedPct,
   leaseCount,
+  showExternal = false,
+  rawExternalPct = 0,
+  showSafetyReview = false,
+  rawSafetyReviewPct = 0,
   metaEl,
   trackEl,
   fillEl,
+  fillExternalEl = null,
   fillReservedEl,
 }) {
   const isRemaining = quotaDisplayMode === 'remaining';
@@ -29796,8 +33606,22 @@ function syncQuotaWindowMeter({
   const numReserved = showReserved && hasData ? Number(rawReservedPct || 0) : 0;
   const rsvVal =
     Number.isFinite(numReserved) && numReserved >= 0.05 ? Math.min(usedVal, numReserved) : 0;
-  const actualVal = Math.max(0, usedVal - rsvVal);
+  const numExternal = showExternal && hasData ? Number(rawExternalPct || 0) : 0;
+  const extVal =
+    Number.isFinite(numExternal) && numExternal >= 0.05
+      ? Math.min(Math.max(0, usedVal - rsvVal), numExternal)
+      : 0;
+  const numSafety = showSafetyReview && hasData ? Number(rawSafetyReviewPct || 0) : 0;
+  const safetyVal =
+    Number.isFinite(numSafety) && numSafety >= 0.05
+      ? Math.min(Math.max(0, usedVal - rsvVal - extVal), numSafety)
+      : 0;
+  const selfUsedVal = Math.max(0, usedVal - rsvVal - extVal);
+  const safetySuffix =
+    safetyVal > 0 ? t('quota.safetyReviewTipSuffix', { pct: formatPctNumber(safetyVal) }) : '';
   const resetStr = hasData ? formatCountdown(resetTime) : '';
+
+  patchClasses(trackEl, { 'is-remaining-mode': isRemaining });
 
   patchText(
     metaEl,
@@ -29814,32 +33638,93 @@ function syncQuotaWindowMeter({
       : fallbackMetaText
   );
 
-  if (hasData && rsvVal > 0) {
+  if (hasData && (rsvVal > 0 || extVal > 0)) {
     const rsvStr = formatPctNumber(rsvVal);
-    const actualStr = formatPctNumber(actualVal);
+    const extStr = formatPctNumber(extVal);
+    const selfStr = formatPctNumber(selfUsedVal);
     const leases = Math.max(1, Number(leaseCount) || 1);
-    const tipText =
-      leases >= 2
-        ? t('quota.reservedTipMulti', { rsv: rsvStr, leases, actual: actualStr })
-        : t('quota.reservedTip', { rsv: rsvStr, actual: actualStr });
-    patchAttr(metaEl, 'title', tipText);
-    patchAttr(trackEl, 'title', tipText);
-    const primaryWidth = isRemaining
-      ? +Math.min(100, remVal).toFixed(2)
-      : +Math.min(100, actualVal).toFixed(2);
-    const rsvWidth = +Math.min(Math.max(0, 100 - primaryWidth), rsvVal).toFixed(2);
-    patchStyleVar(fillEl, '--fill-w', `${primaryWidth}%`);
-    patchStyleVar(fillReservedEl, '--reserved-w', `${rsvWidth}%`);
-    patchClasses(fillReservedEl, { 'is-active': true, 'has-sep': primaryWidth > 0 });
+    let tipText = null;
+    if (extVal > 0 && rsvVal > 0) {
+      tipText =
+        leases >= 2
+          ? t('quota.externalReservedTipMulti', {
+              self: selfStr,
+              ext: extStr,
+              rsv: rsvStr,
+              leases,
+            })
+          : t('quota.externalReservedTip', { self: selfStr, ext: extStr, rsv: rsvStr });
+    } else if (extVal > 0) {
+      tipText = t('quota.externalTip', { self: selfStr, ext: extStr });
+    } else {
+      tipText =
+        leases >= 2
+          ? t('quota.reservedTipMulti', { rsv: rsvStr, leases, actual: selfStr })
+          : t('quota.reservedTip', { rsv: rsvStr, actual: selfStr });
+    }
+    const fullTip = safetySuffix ? `${tipText} · ${safetySuffix}` : tipText;
+    patchAttr(metaEl, 'title', fullTip);
+    patchAttr(trackEl, 'title', fullTip);
+
+    if (isRemaining) {
+      const primaryWidth = +Math.min(100, remVal).toFixed(2);
+      const rsvWidth =
+        rsvVal > 0 ? +Math.min(Math.max(0, 100 - primaryWidth), rsvVal).toFixed(2) : 0;
+      const extWidth =
+        extVal > 0
+          ? +Math.min(Math.max(0, 100 - primaryWidth - rsvWidth), extVal).toFixed(2)
+          : 0;
+      patchStyleVar(fillEl, '--fill-w', `${primaryWidth}%`);
+      patchStyleVar(fillReservedEl, '--reserved-w', `${rsvWidth}%`);
+      patchClasses(fillReservedEl, {
+        'is-active': rsvWidth > 0,
+        'has-sep': rsvWidth > 0 && primaryWidth > 0,
+      });
+      if (fillExternalEl) {
+        patchStyleVar(fillExternalEl, '--external-w', `${extWidth}%`);
+        patchClasses(fillExternalEl, {
+          'is-active': extWidth > 0,
+          'has-sep':
+            extWidth > 0 &&
+            primaryWidth + rsvWidth > 0 &&
+            primaryWidth + rsvWidth + extWidth >= 99.95,
+        });
+      }
+    } else {
+      const primaryWidth = +Math.min(100, selfUsedVal).toFixed(2);
+      const extWidth =
+        extVal > 0 ? +Math.min(Math.max(0, 100 - primaryWidth), extVal).toFixed(2) : 0;
+      const rsvWidth =
+        rsvVal > 0
+          ? +Math.min(Math.max(0, 100 - primaryWidth - extWidth), rsvVal).toFixed(2)
+          : 0;
+      patchStyleVar(fillEl, '--fill-w', `${primaryWidth}%`);
+      if (fillExternalEl) {
+        patchStyleVar(fillExternalEl, '--external-w', `${extWidth}%`);
+        patchClasses(fillExternalEl, {
+          'is-active': extWidth > 0,
+          'has-sep': extWidth > 0 && primaryWidth > 0,
+        });
+      }
+      patchStyleVar(fillReservedEl, '--reserved-w', `${rsvWidth}%`);
+      patchClasses(fillReservedEl, {
+        'is-active': rsvWidth > 0,
+        'has-sep': rsvWidth > 0 && primaryWidth + extWidth > 0,
+      });
+    }
   } else {
-    patchAttr(metaEl, 'title', null);
-    patchAttr(trackEl, 'title', null);
+    patchAttr(metaEl, 'title', safetySuffix || null);
+    patchAttr(trackEl, 'title', safetySuffix || null);
     const barWidth = isRemaining
       ? hasData
         ? Math.min(100, remVal)
         : 0
       : Math.min(100, usedVal);
     patchStyleVar(fillEl, '--fill-w', `${barWidth}%`);
+    if (fillExternalEl) {
+      patchStyleVar(fillExternalEl, '--external-w', '0%');
+      patchClasses(fillExternalEl, { 'is-active': false, 'has-sep': false });
+    }
     patchStyleVar(fillReservedEl, '--reserved-w', '0%');
     patchClasses(fillReservedEl, { 'is-active': false, 'has-sep': false });
   }
@@ -29858,6 +33743,7 @@ function syncPoolQuotaRow(refs, item, idx, rowEl) {
     isActivePool,
     isPending,
     showReserved,
+    showSafetyMonitor = false,
     quotaDisplayMode = 'used',
   } = item;
   patchClasses(rowEl, { 'quota-pool-row': true, 'has-divider': idx > 0 });
@@ -29926,9 +33812,14 @@ function syncPoolQuotaRow(refs, item, idx, rowEl) {
     showReserved: allowReserved,
     rawReservedPct: poolData?.reservedPct,
     leaseCount: poolData?.reservedLeaseCount,
+    showExternal: !isPending,
+    rawExternalPct: poolData?.externalUsedPct,
+    showSafetyReview: !isPending && Boolean(showSafetyMonitor),
+    rawSafetyReviewPct: poolData?.safetyReviewUsedPct,
     metaEl: refs.meta5h,
     trackEl: refs.track5h,
     fillEl: refs.fill5h,
+    fillExternalEl: refs.fillExternal5h,
     fillReservedEl: refs.fillReserved5h,
   });
 
@@ -29977,9 +33868,14 @@ function syncPoolQuotaRow(refs, item, idx, rowEl) {
     showReserved: allowReserved && !useCustomWeekly,
     rawReservedPct: poolData?.weeklyReservedPct,
     leaseCount: poolData?.weeklyReservedLeaseCount,
+    showExternal: !isPending && !useCustomWeekly,
+    rawExternalPct: poolData?.weeklyExternalUsedPct,
+    showSafetyReview: !isPending && !useCustomWeekly && Boolean(showSafetyMonitor),
+    rawSafetyReviewPct: poolData?.weeklySafetyReviewUsedPct,
     metaEl: refs.metaWk,
     trackEl: refs.trackWk,
     fillEl: refs.fillWk,
+    fillExternalEl: refs.fillExternalWk,
     fillReservedEl: refs.fillReservedWk,
   });
 }
@@ -29989,7 +33885,7 @@ function quotaPoolRowSig(item, idx) {
   const cWk = item.poolData?.cycleWeekly;
   const est = item.poolData?.rateEstimate;
   const fw = item.fallbackWeekly;
-  return `${getEffectiveLocale()}:${idx}:${item.poolLabel}:${item.isActivePool}:${Boolean(item.isPending)}:${Boolean(item.showReserved)}:${item.quotaDisplayMode || 'used'}:${item.minuteTick}:${item.poolData?.usedPct}:${item.poolData?.remainingPct}:${item.poolData?.reservedPct}:${item.poolData?.reservedLeaseCount}:${item.poolData?.resetTime}:${item.poolData?.weeklyUsedPct}:${item.poolData?.weeklyRemainingPct}:${item.poolData?.weeklyReservedPct}:${item.poolData?.weeklyReservedLeaseCount}:${item.poolData?.weeklyResetTime}:${c5h?.tokens}:${c5h?.costUsd}:${c5h?.calls}:${cWk?.tokens}:${cWk?.costUsd}:${cWk?.calls}:${est?.eqFull5hUsd}:${est?.eqFull5hTokens}:${est?.eqFullWeeklyUsd}:${est?.eqFullWeeklyTokens}:${fw?.isOfficial}:${fw?.usedPct}:${fw?.remainingPct}:${fw?.resetTime}:${fw?.title}:${fw?.tokens}:${fw?.costUsd}:${fw?.calls}`;
+  return `${getEffectiveLocale()}:${idx}:${item.poolLabel}:${item.isActivePool}:${Boolean(item.isPending)}:${Boolean(item.showReserved)}:${Boolean(item.showSafetyMonitor)}:${item.quotaDisplayMode || 'used'}:${item.minuteTick}:${item.poolData?.usedPct}:${item.poolData?.remainingPct}:${item.poolData?.reservedPct}:${item.poolData?.reservedLeaseCount}:${item.poolData?.externalUsedPct}:${item.poolData?.safetyReviewUsedPct}:${item.poolData?.resetTime}:${item.poolData?.weeklyUsedPct}:${item.poolData?.weeklyRemainingPct}:${item.poolData?.weeklyReservedPct}:${item.poolData?.weeklyReservedLeaseCount}:${item.poolData?.weeklyExternalUsedPct}:${item.poolData?.weeklySafetyReviewUsedPct}:${item.poolData?.weeklyResetTime}:${c5h?.tokens}:${c5h?.costUsd}:${c5h?.calls}:${cWk?.tokens}:${cWk?.costUsd}:${cWk?.calls}:${est?.eqFull5hUsd}:${est?.eqFull5hTokens}:${est?.eqFullWeeklyUsd}:${est?.eqFullWeeklyTokens}:${fw?.isOfficial}:${fw?.usedPct}:${fw?.remainingPct}:${fw?.resetTime}:${fw?.title}:${fw?.tokens}:${fw?.costUsd}:${fw?.calls}`;
 }
 
 function formatAccountTierBadge(account) {
@@ -30450,19 +34346,35 @@ const QuotaPoolsWidget = defineComponent({
     }
 
     const legendActualTextEl = h('span', { text: t('quota.legendActual') });
+    const legendExternalTextEl = h('span', { text: t('quota.legendExternal') });
     const legendReservedTextEl = h('span', { text: t('quota.legendReserved') });
+    const legendExternalItemEl = h(
+      'span',
+      { className: 'quota-legend-item is-external-item', hidden: true },
+      [
+        h('span', { className: 'quota-legend-line is-external', 'aria-hidden': 'true' }),
+        legendExternalTextEl,
+      ]
+    );
+    legendExternalItemEl.hidden = true;
+    const legendReservedItemEl = h(
+      'span',
+      { className: 'quota-legend-item is-reserved-item' },
+      [
+        h('span', { className: 'quota-legend-line is-reserved', 'aria-hidden': 'true' }),
+        legendReservedTextEl,
+      ]
+    );
     const reserveLegendEl = h(
       'div',
       { className: 'quota-reserve-legend', hidden: true },
       [
-        h('span', { className: 'quota-legend-item' }, [
+        h('span', { className: 'quota-legend-item is-actual-item' }, [
           h('span', { className: 'quota-legend-line is-actual', 'aria-hidden': 'true' }),
           legendActualTextEl,
         ]),
-        h('span', { className: 'quota-legend-item' }, [
-          h('span', { className: 'quota-legend-line is-reserved', 'aria-hidden': 'true' }),
-          legendReservedTextEl,
-        ]),
+        legendExternalItemEl,
+        legendReservedItemEl,
       ]
     );
 
@@ -30489,10 +34401,14 @@ const QuotaPoolsWidget = defineComponent({
         legendActualTextEl,
         quotaDisplayMode === 'remaining' ? t('quota.legendRemaining') : t('quota.legendActual')
       );
+      patchText(legendExternalTextEl, t('quota.legendExternal'));
       patchText(legendReservedTextEl, t('quota.legendReserved'));
       syncRatePopoverContent(data);
       if (!data) {
         reserveLegendEl.hidden = true;
+        patchAttr(reserveLegendEl, 'hidden', true);
+        legendExternalItemEl.hidden = true;
+        patchAttr(legendExternalItemEl, 'hidden', true);
         if (compactHover) {
           patchKeyedList(poolsListEl, buildQuotaPoolItems(null, 0, { isPending: true }), {
             keyFn: (item) => item.key,
@@ -30506,12 +34422,35 @@ const QuotaPoolsWidget = defineComponent({
 
       const quotas = data.quotas || {};
       const showReserved = data.settings?.experimentalQuotaReservation !== false;
-      reserveLegendEl.hidden = !showReserved;
+      const showSafetyMonitor = data.settings?.enableSafetyMonitor === true;
       const effTick = Number.isFinite(minuteTick) ? minuteTick : Math.floor(Date.now() / 30000);
+      const poolItems = buildQuotaPoolItems(quotas, effTick, {
+        showReserved,
+        showSafetyMonitor,
+        quotaDisplayMode,
+      });
+      const hasExternal = poolItems.some((item) => {
+        if (item.isPending) return false;
+        const pd = item.poolData;
+        const has5hExt = pd?.usedPct != null && Number(pd?.externalUsedPct || 0) >= 0.05;
+        const useCustomWk = Boolean(item.isActivePool && item.fallbackWeekly?.isOfficial === false);
+        const hasWkExt =
+          !useCustomWk &&
+          pd?.weeklyUsedPct != null &&
+          Number(pd?.weeklyExternalUsedPct || 0) >= 0.05;
+        return has5hExt || hasWkExt;
+      });
+      const showLegend = showReserved || hasExternal;
+      reserveLegendEl.hidden = !showLegend;
+      patchAttr(reserveLegendEl, 'hidden', !showLegend);
+      legendExternalItemEl.hidden = !hasExternal;
+      patchAttr(legendExternalItemEl, 'hidden', !hasExternal);
+      legendReservedItemEl.hidden = !showReserved;
+      patchAttr(legendReservedItemEl, 'hidden', !showReserved);
       patchText(tierBadge, formatAccountTierBadge(data.account));
       patchKeyedList(
         poolsListEl,
-        buildQuotaPoolItems(quotas, effTick, { showReserved, quotaDisplayMode }),
+        poolItems,
         {
           keyFn: (item) => item.key,
           sigFn: quotaPoolRowSig,
@@ -31851,6 +35790,8 @@ function buildFallbackRunningConversations(
       isCurrentSelected: true,
       isMainRunning: Boolean(activeConv.isRunning),
       isRunning: true,
+      stepCount: Number(activeConv.stepCount || 0),
+      totalStepCount: Number(activeConv.totalStepCount || activeConv.stepCount || 0),
       mainActivity: activeConv.liveActivity || aggregated?.liveActivity || null,
       subagentCount: childAgents.length,
       swarmCount: swarmChildren.length,
@@ -31932,6 +35873,7 @@ const LiveActivityWidget = defineComponent({
     });
 
     const manualSubExpandMap = new Map();
+    const manualStepsExpandMap = new Map();
     const activityTimersMap = new Map();
     let liveTickTimer = null;
     let latestUpdateArgs = null;
@@ -32080,12 +36022,19 @@ const LiveActivityWidget = defineComponent({
           titleEl,
           ...(hereTagEl ? [hereTagEl] : []),
         ]),
-        h('div', { className: 'live-task-header-right' }, [
-          ...(metricsEl ? [metricsEl] : []),
-          subToggleBtn,
-          elapsedEl,
-        ]),
+        h(
+          'div',
+          { className: 'live-task-header-right' },
+          showSessionExtras ? [elapsedEl] : [subToggleBtn, elapsedEl]
+        ),
       ]);
+
+      const metaRowEl = showSessionExtras
+        ? h('div', { className: 'live-task-meta-row', hidden: true }, [
+            metricsEl,
+            subToggleBtn,
+          ])
+        : null;
 
       const mainBadge = h('span', {
         className: 'agent-badge badge-main',
@@ -32116,6 +36065,33 @@ const LiveActivityWidget = defineComponent({
         mainDetail,
       ]);
 
+      const stepsCountBadge = h('span', {
+        className: 'live-steps-count text-mono',
+        text: '',
+      });
+      const stepsCurrentEl = h('span', {
+        className: 'live-steps-current',
+        hidden: true,
+        text: '',
+      });
+      const stepsChevron = createSvgIcon('chevron-down', {
+        size: 10,
+        className: 'live-steps-chevron',
+      });
+      const stepsSummaryBtn = h(
+        'button',
+        {
+          type: 'button',
+          className: 'live-steps-summary',
+        },
+        [stepsCountBadge, stepsCurrentEl, stepsChevron]
+      );
+      const stepsListEl = h('div', { className: 'live-steps-list', hidden: true });
+      const stepsBoxEl = h('div', { className: 'live-steps-box', hidden: true }, [
+        stepsSummaryBtn,
+        stepsListEl,
+      ]);
+
       const subListEl = h('div', { className: 'live-sub-list', hidden: true });
       const subScroll = CustomScrollbar({
         contentEl: subListEl,
@@ -32125,6 +36101,8 @@ const LiveActivityWidget = defineComponent({
       const cardEl = h('div', { className: 'live-task-card' }, [
         headerEl,
         mainRowEl,
+        stepsBoxEl,
+        ...(metaRowEl ? [metaRowEl] : []),
         subScroll.el,
       ]);
 
@@ -32136,6 +36114,7 @@ const LiveActivityWidget = defineComponent({
           titleEl,
           hereTagEl,
           metricsEl,
+          metaRowEl,
           subToggleBtn,
           subToggleLabel,
           subToggleChevron,
@@ -32145,11 +36124,27 @@ const LiveActivityWidget = defineComponent({
           mainProgress,
           mainSep,
           mainDetail,
+          stepsBoxEl,
+          stepsSummaryBtn,
+          stepsCountBadge,
+          stepsCurrentEl,
+          stepsChevron,
+          stepsListEl,
           subListEl,
           subScroll,
           subAnimTimer: null,
           isCollapsingSubs: false,
         },
+      };
+    }
+
+    function createLiveStepItemRow() {
+      const dotEl = h('span', { className: 'live-step-dot', 'aria-hidden': 'true' });
+      const titleEl = h('span', { className: 'live-step-title', text: '' });
+      const rowEl = h('div', { className: 'live-step-item' }, [dotEl, titleEl]);
+      return {
+        el: rowEl,
+        refs: { rowEl, dotEl, titleEl },
       };
     }
 
@@ -32197,11 +36192,16 @@ const LiveActivityWidget = defineComponent({
         rawRunningList = buildFallbackRunningConversations(data, { agents, aggregated });
       }
 
-      if (manualSubExpandMap.size > 0) {
+      if (manualSubExpandMap.size > 0 || manualStepsExpandMap.size > 0) {
         const runningIdsSet = new Set(rawRunningList.map((item) => item.cascadeId));
         for (const id of [...manualSubExpandMap.keys()]) {
           if (!runningIdsSet.has(id)) {
             manualSubExpandMap.delete(id);
+          }
+        }
+        for (const id of [...manualStepsExpandMap.keys()]) {
+          if (!runningIdsSet.has(id)) {
+            manualStepsExpandMap.delete(id);
           }
         }
       }
@@ -32254,13 +36254,15 @@ const LiveActivityWidget = defineComponent({
               (item.subagents || []).some(
                 (s) => String(s?.cascadeId || '').toLowerCase() === hostRouteLower
               ));
+          const stepsSig = getTaskStepsSignature(item.mainActivity?.taskSteps);
+          const isStepsExp = Boolean(manualStepsExpandMap.get(item.cascadeId));
           const subSig = (item.subagents || [])
             .map(
               (s) =>
                 `${s.cascadeId}:${s.isRunning}:${s.swarmState || ''}:${s.stepCount}:${s.liveActivity?.signature || ''}:${s.liveActivity?.startedAtMs || 0}`
             )
             .join('|');
-          return `${locale}:${item.cascadeId}:${item.title}:${isHere}:${item.isMainRunning}:${item.subagentCount}:${item.swarmCount || 0}:${item.runningSubagentCount}:${isExp}:${item.latestTokPerSec ?? ''}:${item.contextUsedPct ?? ''}:${item.mainActivity?.signature || ''}:${item.mainActivity?.startedAtMs || 0}:${subSig}`;
+          return `${locale}:${item.cascadeId}:${item.title}:${isHere}:${item.isMainRunning}:${item.subagentCount}:${item.swarmCount || 0}:${item.runningSubagentCount}:${isExp}:${isStepsExp}:${stepsSig}:${item.latestTokPerSec ?? ''}:${item.contextUsedPct ?? ''}:${item.mainActivity?.signature || ''}:${item.mainActivity?.startedAtMs || 0}:${subSig}`;
         },
         createRow: createLiveTaskCard,
         updateRow: (refs, item) => {
@@ -32303,6 +36305,7 @@ const LiveActivityWidget = defineComponent({
             };
           }
 
+          let hasExtrasMetrics = false;
           if (showSessionExtras && refs.hereTagEl && refs.metricsEl) {
             const isHere =
               Boolean(hostRouteLower) &&
@@ -32323,6 +36326,7 @@ const LiveActivityWidget = defineComponent({
               metricParts.push(`${Math.round(Number(item.contextUsedPct))}%`);
             }
             const metricsStr = metricParts.join(' · ');
+            hasExtrasMetrics = Boolean(metricsStr);
             patchAttr(refs.metricsEl, 'hidden', !metricsStr);
             if (metricsStr) {
               patchText(refs.metricsEl, metricsStr);
@@ -32330,6 +36334,9 @@ const LiveActivityWidget = defineComponent({
           }
 
           const subCount = Number(item.subagentCount || item.subagents?.length || 0);
+          if (refs.metaRowEl) {
+            patchAttr(refs.metaRowEl, 'hidden', !hasExtrasMetrics && subCount === 0);
+          }
           const swarmCount = Number(
             item.swarmCount ??
               (item.subagents || []).filter((s) => s?.agentKind === 'swarm_worker').length
@@ -32476,7 +36483,9 @@ const LiveActivityWidget = defineComponent({
           );
 
           patchText(refs.mainPhase, mainLabel);
-          const progText = act.stepProgress ? `[${act.stepProgress}]` : '';
+          const progText = act.stepProgress
+            ? String(act.stepProgress).replace(/^\[|\]$/g, '').trim()
+            : '';
           patchAttr(refs.mainProgress, 'hidden', !progText);
           if (progText) {
             patchText(refs.mainProgress, progText);
@@ -32486,8 +36495,93 @@ const LiveActivityWidget = defineComponent({
           patchAttr(refs.mainDetail, 'hidden', !detailStr);
           patchText(refs.mainDetail, detailStr);
 
+          const taskSteps =
+            act.taskSteps && Number(act.taskSteps.total) > 0 ? act.taskSteps : null;
+          patchAttr(refs.stepsBoxEl, 'hidden', !taskSteps);
+          if (taskSteps) {
+            const stepsDone = Math.max(0, Number(taskSteps.done || 0));
+            const stepsTotal = Math.max(1, Number(taskSteps.total || 0));
+            const allDone = stepsDone >= stepsTotal && Number(taskSteps.failed || 0) === 0;
+            const hasFailed = Number(taskSteps.failed || 0) > 0;
+            const stepItems = Array.isArray(taskSteps.items) ? taskSteps.items : [];
+            const canExpandSteps = interactive && stepItems.length > 0;
+            const stepsExpanded = canExpandSteps && Boolean(manualStepsExpandMap.get(item.cascadeId));
+
+            patchText(refs.stepsCountBadge, formatLiveTaskStepsProgress(taskSteps));
+            patchClasses(refs.stepsCountBadge, {
+              'is-done': allDone,
+              'is-failed': hasFailed,
+            });
+            const currentStepText =
+              String(taskSteps.currentTitle || '').trim() || (allDone ? t('live.stepsAllDone') : '');
+            patchAttr(refs.stepsCurrentEl, 'hidden', !currentStepText);
+            if (currentStepText) {
+              patchText(refs.stepsCurrentEl, currentStepText);
+            }
+            patchAttr(refs.stepsChevron, 'hidden', !canExpandSteps);
+            patchClasses(refs.stepsSummaryBtn, {
+              'is-expanded': stepsExpanded,
+              'is-static': !canExpandSteps,
+            });
+            patchAttr(
+              refs.stepsSummaryBtn,
+              'aria-expanded',
+              canExpandSteps ? (stepsExpanded ? 'true' : 'false') : null
+            );
+            patchAttr(
+              refs.stepsSummaryBtn,
+              'title',
+              canExpandSteps
+                ? stepsExpanded
+                  ? t('live.stepsCollapseTitle')
+                  : t('live.stepsExpandTitle')
+                : null
+            );
+            refs.stepsSummaryBtn.onclick = canExpandSteps
+              ? (e) => {
+                  e?.stopPropagation?.();
+                  manualStepsExpandMap.set(
+                    item.cascadeId,
+                    !Boolean(manualStepsExpandMap.get(item.cascadeId))
+                  );
+                  if (latestUpdateArgs) update(latestUpdateArgs);
+                  onLayoutChange?.();
+                }
+              : null;
+
+            const showStepsList = canExpandSteps && stepsExpanded;
+            patchAttr(refs.stepsListEl, 'hidden', !showStepsList);
+            if (showStepsList) {
+              patchKeyedList(refs.stepsListEl, stepItems, {
+                keyFn: (st, idx) => `${idx}:${st.title}`,
+                sigFn: (st) => `${st.status}:${st.title}`,
+                createRow: createLiveStepItemRow,
+                updateRow: (stepRefs, st) => {
+                  const status = String(st?.status || 'pending');
+                  patchClasses(stepRefs.rowEl, {
+                    'is-done': status === 'done',
+                    'is-in-progress': status === 'in_progress',
+                    'is-failed': status === 'failed',
+                    'is-skipped': status === 'skipped',
+                    'is-pending':
+                      status !== 'done' &&
+                      status !== 'in_progress' &&
+                      status !== 'failed' &&
+                      status !== 'skipped',
+                  });
+                  patchText(stepRefs.titleEl, st?.title || '');
+                },
+              });
+            }
+          } else {
+            refs.stepsSummaryBtn.onclick = null;
+          }
+
           if (interactive && !showSessionExtras) {
-            const fullTooltip = `[${convTitle}] ${t('fmt.mainAgent')} · ${mainLabel}${progText ? ` ${progText}` : ''}${detailStr ? ` · ${detailStr}` : ''}`;
+            const stepsSummarySuffix = taskSteps
+              ? ` · ${formatLiveTaskStepsProgress(taskSteps)}${taskSteps.currentTitle ? ` ${taskSteps.currentTitle}` : ''}`
+              : '';
+            const fullTooltip = `[${convTitle}] ${t('fmt.mainAgent')} · ${mainLabel}${progText ? ` ${progText}` : ''}${detailStr ? ` · ${detailStr}` : ''}${stepsSummarySuffix}`;
             patchAttr(refs.cardEl, 'title', fullTooltip);
           }
 
@@ -32579,7 +36673,10 @@ const LiveActivityWidget = defineComponent({
                   ? formatLiveActivityLabel(subAct, 'live.running')
                   : formatLiveActivityLabel(subAct, idleFallbackKey);
                 const subDetail = formatLiveActivityDetail(subAct);
-                const subProg = subAct.stepProgress ? ` [${subAct.stepProgress}]` : '';
+                const subProgClean = subAct.stepProgress
+                  ? String(subAct.stepProgress).replace(/^\[|\]$/g, '').trim()
+                  : '';
+                const subProg = subProgClean ? ` ${subProgClean}` : '';
                 const summaryStr = showSessionExtras
                   ? sub.isRunning
                     ? `${subLabel}${subProg}${subDetail ? ` · ${subDetail}` : ''}`
@@ -32675,6 +36772,8 @@ const OVERVIEW_WIDGET_REGISTRY = Object.freeze({
       getCtxAgentId,
       onPreviewMetrics,
       onReorderMetrics,
+      onPreviewMetricSizes,
+      onResizeMetricSizes,
       onRequestVerticalDrag,
       canDragParentModule,
     }) =>
@@ -32685,6 +36784,8 @@ const OVERVIEW_WIDGET_REGISTRY = Object.freeze({
         getCtxAgentId,
         onPreviewMetrics,
         onReorderMetrics,
+        onPreviewMetricSizes,
+        onResizeMetricSizes,
         onRequestVerticalDrag,
         canDragParentModule,
       }),
@@ -32741,6 +36842,8 @@ function createDynamicWidgetHost({
   onReorderModules = undefined,
   onPreviewMetrics = undefined,
   onReorderMetrics = undefined,
+  onPreviewMetricSizes = undefined,
+  onResizeMetricSizes = undefined,
 }) {
   const instances = new Map();
   const modulePointerCleanups = new Map();
@@ -32929,6 +37032,8 @@ function createDynamicWidgetHost({
           setCtxAgentId,
           onPreviewMetrics,
           onReorderMetrics,
+          onPreviewMetricSizes,
+          onResizeMetricSizes,
           onRequestVerticalDrag: hasModuleReorder
             ? (downEv, cx, cy) =>
                 startModuleDrag(downEv, 'metrics', {
@@ -34198,7 +38303,10 @@ const CapsuleBarWidget = defineComponent({
         settings.windowMountMode,
         settings.enableWindowOverlay
       );
-      const showMulti = settings.showTopbarMultiSession !== false;
+      const multiMode = normalizeClientTopbarMultiSessionMode(
+        settings.topbarMultiSessionMode,
+        settings.showTopbarMultiSession
+      );
       const slotKeys = normalizeClientTopbarSlots(settings.topbarCapsuleSlots);
       currentSlotKeys = [...slotKeys];
 
@@ -34216,9 +38324,8 @@ const CapsuleBarWidget = defineComponent({
       patchAttr(sidebarHintEl, 'hidden', !isSidebar);
       patchText(sidebarHintEl, t('settings.str.previewMountSidebarHint'));
 
-      patchAttr(multiBtn, 'hidden', !showMulti);
-
       if (!data) {
+        patchAttr(multiBtn, 'hidden', !isClientTopbarMultiSessionVisible(multiMode, 0));
         patchClasses(multiBtn, { 'is-running': false, 'is-waiting': false });
         patchCapsuleOdometerText(multiLabel, t('capsule.multiZero'), { resetKey: 'multi' });
         syncCapsuleSlotNodes(capsuleSlots, capsuleSeps, slotKeys, { hasTelemetry: false });
@@ -34238,6 +38345,7 @@ const CapsuleBarWidget = defineComponent({
         contextUsedPct: slotCtx.usedPct,
       });
 
+      patchAttr(multiBtn, 'hidden', !isClientTopbarMultiSessionVisible(multiMode, runningCount));
       patchClasses(multiBtn, {
         'is-running': runningCount > 0 && !hasWaiting,
         'is-waiting': runningCount > 0 && hasWaiting,
@@ -37203,6 +41311,378 @@ function createConsumptionBreakdownRowBuilders({
 return { partitionModelSegments, createBreakdownItemRow, updateBreakdownItemRow, createConsumptionBreakdownRowBuilders };
 })();
 
+// --- src/components/widgets/SafetyMonitorCard.js ---
+const { resolveSafetyMonitorAlert, SafetyMonitorCard } = (() => {
+const FLASH_LITE_5H_CAP_REF = 4400;
+
+function resolveSafetyMonitorAlert(alerts) {
+  if (!alerts || typeof alerts !== 'object') return '';
+  if (alerts.has429Fallback) return 'fallback429';
+  if (alerts.hasHeavyBurst) return 'heavyBurst';
+  if (alerts.nearFlashLiteLimit) return 'nearLimit';
+  return '';
+}
+
+function formatSafetyBlockedDuration(rawMs) {
+  const ms = Math.max(0, Number(rawMs) || 0);
+  if (ms === 0) return '0s';
+  if (ms < 1000) return `${Math.round(ms)}ms`;
+  const totalSec = ms / 1000;
+  if (totalSec < 60) return `${Number(totalSec.toFixed(1))}s`;
+  const mins = Math.floor(totalSec / 60);
+  const remSec = Math.round(totalSec % 60);
+  return remSec > 0 ? `${mins}m ${remSec}s` : `${mins}m`;
+}
+
+function getSafetyWindowCalls(win) {
+  if (!win || typeof win !== 'object') return 0;
+  return Math.max(0, Number(win.flashLiteCalls) || 0) + Math.max(0, Number(win.heavyCalls) || 0);
+}
+
+function getSafetyWindowOptions() {
+  return [
+    { value: '5h', label: t('safety.win5h') },
+    { value: '24h', label: t('safety.win24h') },
+  ];
+}
+
+function buildSafetyCardSignature({ enabled, winKey, safetyMonitor }) {
+  const locale = getEffectiveLocale();
+  if (!enabled) return `${locale}|off`;
+  if (!safetyMonitor || typeof safetyMonitor !== 'object') return `${locale}|on|empty|${winKey}`;
+  const w5 = safetyMonitor.window5h || {};
+  const w24 = safetyMonitor.window24h || {};
+  const al = safetyMonitor.alerts || {};
+  return [
+    locale,
+    'on',
+    winKey,
+    w5.totalStreamGen || 0,
+    w5.hiddenStreamGen || 0,
+    w5.flashLiteCalls || 0,
+    w5.heavyCalls || 0,
+    w5.heavyTriggered || 0,
+    w5.heavyTrajChars || 0,
+    w5.flashLiteTrajChars || 0,
+    w5.blockedMs || 0,
+    w5.rateLimit429Count || 0,
+    w5.fallbackCount || 0,
+    w5.estInputTokensLower || 0,
+    w5.estInputTokensUpper || 0,
+    w24.totalStreamGen || 0,
+    w24.hiddenStreamGen || 0,
+    w24.flashLiteCalls || 0,
+    w24.heavyCalls || 0,
+    w24.heavyTriggered || 0,
+    w24.heavyTrajChars || 0,
+    w24.flashLiteTrajChars || 0,
+    w24.blockedMs || 0,
+    w24.rateLimit429Count || 0,
+    w24.fallbackCount || 0,
+    w24.estInputTokensLower || 0,
+    w24.estInputTokensUpper || 0,
+    al.has429Fallback ? 1 : 0,
+    al.hasHeavyBurst ? 1 : 0,
+    al.nearFlashLiteLimit ? 1 : 0,
+  ].join('|');
+}
+
+const SafetyMonitorCard = defineComponent({
+  name: 'SafetyMonitorCard',
+  setup({ onCleanup }) {
+    let userPickedWin = '';
+    let latestState = { enabled: false, safetyMonitor: null };
+    let lastSig = '';
+
+    const titleEl = h('span', { text: t('safety.cardTitle') });
+    const alertTagEl = h('span', { className: 'status-tag', hidden: true });
+    alertTagEl.hidden = true;
+
+    const winSwitch = SegmentedControl({
+      ariaLabel: t('safety.cardTitle'),
+      modelValue: '5h',
+      options: getSafetyWindowOptions(),
+      onUpdateModelValue: (nextWin) => {
+        const clean = nextWin === '24h' ? '24h' : '5h';
+        if (userPickedWin === clean) return;
+        userPickedWin = clean;
+        render();
+      },
+    });
+
+    const hiddenLabelEl = h('span', { className: 'text-muted', style: 'font-size: var(--fs-md);' });
+    const hiddenHeroEl = h('strong', { className: 'cons-hero-num text-mono', text: '0%' });
+    const hiddenSubEl = h('span', { className: 'text-muted text-mono', style: 'font-size: var(--fs-md);' });
+
+    const callsLabelEl = h('span', { className: 'text-muted', style: 'font-size: var(--fs-md);' });
+    const callsHeroEl = h('strong', { className: 'cons-hero-cost text-mono', text: '0 / 0' });
+    const callsSubEl = h('span', { className: 'text-muted text-mono', style: 'font-size: var(--fs-md);' });
+
+    const estLabelEl = h('span', { className: 'text-muted', style: 'font-size: var(--fs-md);' });
+    const estHeroEl = h('strong', { className: 'cons-hero-cache text-mono', text: '--' });
+    const estSubEl = h('span', { className: 'text-muted text-mono', style: 'font-size: var(--fs-md);' });
+
+    const flLabelEl = h('span', { className: 'cons-sub-label' });
+    const flValEl = h('span', { className: 'cons-mid-num text-mono', text: '0' });
+    const flMetaEl = h('span', { className: 'text-muted text-mono', style: 'font-size: var(--fs-sm);' });
+
+    const heavyLabelEl = h('span', { className: 'cons-sub-label' });
+    const heavyValEl = h('span', { className: 'cons-mid-num text-mono', text: '0' });
+    const heavyMetaEl = h('span', { className: 'text-muted text-mono', style: 'font-size: var(--fs-sm);' });
+
+    const rate429DotEl = h('span', { className: 'dot-swatch safety-dot-muted' });
+    const rate429LabelEl = h('span', { className: 'cons-sub-label' });
+    const rate429ValEl = h('span', { className: 'cons-mid-num text-mono', text: '0 / 0' });
+    const rate429MetaEl = h('span', { className: 'text-muted text-mono', style: 'font-size: var(--fs-sm);' });
+
+    const segVisibleEl = h('div', { className: 'safety-share-seg is-visible' });
+    const segFlashEl = h('div', { className: 'safety-share-seg is-flash' });
+    const segHeavyEl = h('div', { className: 'safety-share-seg is-heavy' });
+    const shareBarEl = h('div', { className: 'safety-share-bar', hidden: true }, [
+      segVisibleEl,
+      segFlashEl,
+      segHeavyEl,
+    ]);
+    shareBarEl.hidden = true;
+
+    const adviceTextEl = h('span', { className: 'safety-advice-text' });
+    const adviceEl = h('div', { className: 'safety-monitor-advice', hidden: true }, [
+      createSvgIcon('warning', { size: 12, className: 'safety-advice-icon' }),
+      adviceTextEl,
+    ]);
+    adviceEl.hidden = true;
+
+    const noteEl = h('div', { className: 'safety-monitor-note' });
+
+    const matrixEl = h('div', { className: 'cons-box cons-unified-matrix safety-monitor-matrix' }, [
+      h('div', { className: 'cons-split-3' }, [
+        h('div', { className: 'cons-col' }, [
+          hiddenLabelEl,
+          h('div', { className: 'cons-baseline' }, [hiddenHeroEl, hiddenSubEl]),
+        ]),
+        h('div', { className: 'cons-col is-bordered-col' }, [
+          callsLabelEl,
+          h('div', { className: 'cons-baseline' }, [callsHeroEl, callsSubEl]),
+        ]),
+        h('div', { className: 'cons-col is-bordered-col' }, [
+          estLabelEl,
+          h('div', { className: 'cons-baseline' }, [estHeroEl, estSubEl]),
+        ]),
+      ]),
+      h('div', { className: 'cons-split-3 cons-matrix-bottom' }, [
+        h('div', { className: 'cons-col' }, [
+          h('div', { className: 'cons-sub-head' }, [
+            h('span', { className: 'safety-sub-title' }, [
+              h('span', { className: 'dot-swatch seg-cached' }),
+              flLabelEl,
+            ]),
+          ]),
+          h('div', { className: 'cons-baseline' }, [flValEl, flMetaEl]),
+        ]),
+        h('div', { className: 'cons-col is-bordered-col' }, [
+          h('div', { className: 'cons-sub-head' }, [
+            h('span', { className: 'safety-sub-title' }, [
+              h('span', { className: 'dot-swatch seg-input' }),
+              heavyLabelEl,
+            ]),
+          ]),
+          h('div', { className: 'cons-baseline' }, [heavyValEl, heavyMetaEl]),
+        ]),
+        h('div', { className: 'cons-col is-bordered-col' }, [
+          h('div', { className: 'cons-sub-head' }, [
+            h('span', { className: 'safety-sub-title' }, [rate429DotEl, rate429LabelEl]),
+          ]),
+          h('div', { className: 'cons-baseline' }, [rate429ValEl, rate429MetaEl]),
+        ]),
+      ]),
+    ]);
+
+    const rootEl = h('section', { className: 'panel safety-monitor-panel', hidden: true }, [
+      h('div', { className: 'panel-header safety-monitor-head' }, [
+        h('span', { className: 'panel-title' }, [
+          createSvgIcon('shield', { size: 13 }),
+          titleEl,
+          alertTagEl,
+        ]),
+        winSwitch.el,
+      ]),
+      matrixEl,
+      shareBarEl,
+      adviceEl,
+      noteEl,
+    ]);
+    rootEl.hidden = true;
+
+    function resolveActiveWindowKey(sm) {
+      if (userPickedWin === '5h' || userPickedWin === '24h') return userPickedWin;
+      const c5h = getSafetyWindowCalls(sm?.window5h);
+      const c24h = getSafetyWindowCalls(sm?.window24h);
+      if (c5h === 0 && c24h > 0) return '24h';
+      return '5h';
+    }
+
+    function render() {
+      const { enabled, safetyMonitor } = latestState;
+      const winKey = resolveActiveWindowKey(safetyMonitor);
+      const sig = buildSafetyCardSignature({ enabled, winKey, safetyMonitor });
+      if (sig === lastSig) return;
+      lastSig = sig;
+
+      const shouldShow = enabled === true;
+      rootEl.hidden = !shouldShow;
+      patchAttr(rootEl, 'hidden', !shouldShow);
+      if (!shouldShow) return;
+
+      const alertKind = resolveSafetyMonitorAlert(safetyMonitor?.alerts);
+      const activeWin =
+        winKey === '24h' ? safetyMonitor?.window24h || {} : safetyMonitor?.window5h || {};
+
+      patchText(titleEl, t('safety.cardTitle'));
+      winSwitch.setProps({
+        ariaLabel: t('safety.cardTitle'),
+        modelValue: winKey,
+        options: getSafetyWindowOptions(),
+      });
+
+      const badgeText =
+        alertKind === 'fallback429'
+          ? t('safety.alert429Badge')
+          : alertKind === 'heavyBurst'
+            ? t('safety.alertBurstBadge')
+            : alertKind === 'nearLimit'
+              ? t('safety.alertLimitBadge')
+              : '';
+      alertTagEl.hidden = !badgeText;
+      patchAttr(alertTagEl, 'hidden', !badgeText);
+      patchText(alertTagEl, badgeText);
+      patchClasses(alertTagEl, {
+        'state-danger': alertKind === 'fallback429',
+        'state-warn': alertKind === 'heavyBurst' || alertKind === 'nearLimit',
+      });
+
+      const flCalls = Math.max(0, Number(activeWin.flashLiteCalls) || 0);
+      const heavyCalls = Math.max(0, Number(activeWin.heavyCalls) || 0);
+      const totalStream = Math.max(0, Number(activeWin.totalStreamGen) || 0);
+      const hiddenStream = Math.max(0, Number(activeWin.hiddenStreamGen) || 0);
+      const hiddenPctNum = totalStream > 0 ? (hiddenStream / totalStream) * 100 : 0;
+      const hiddenPctStr = totalStream > 0 ? `${formatPctNumber(hiddenPctNum)}%` : '0%';
+      const falseAlarmPct =
+        heavyCalls > 0
+          ? formatPctNumber(
+              ((heavyCalls - Math.max(0, Number(activeWin.heavyTriggered) || 0)) / heavyCalls) * 100
+            )
+          : '';
+      const totalChars =
+        Math.max(0, Number(activeWin.heavyTrajChars) || 0) +
+        Math.max(0, Number(activeWin.flashLiteTrajChars) || 0);
+      const lowTok = Math.max(0, Number(activeWin.estInputTokensLower) || 0);
+      const highTok = Math.max(0, Number(activeWin.estInputTokensUpper) || 0);
+      const r429 = Math.max(0, Number(activeWin.rateLimit429Count) || 0);
+      const fb = Math.max(0, Number(activeWin.fallbackCount) || 0);
+      const blockedStr = formatSafetyBlockedDuration(activeWin.blockedMs);
+
+      patchText(hiddenLabelEl, t('safety.metricHiddenRatio'));
+      patchText(hiddenHeroEl, hiddenPctStr);
+      patchText(
+        hiddenSubEl,
+        totalStream > 0 ? `${hiddenStream} / ${totalStream}` : `${hiddenStream}`
+      );
+
+      patchText(callsLabelEl, t('safety.metricCallsSplit'));
+      patchText(callsHeroEl, `${flCalls} / ${heavyCalls}`);
+      patchText(
+        callsSubEl,
+        heavyCalls > 0 ? t('safety.falseAlarmSuffix', { pct: falseAlarmPct }) : winKey
+      );
+
+      patchText(estLabelEl, t('safety.metricEstTokens'));
+      patchText(estHeroEl, highTok > 0 ? `~${formatTokens(lowTok)}–${formatTokens(highTok)}` : '--');
+      patchText(
+        estSubEl,
+        totalChars > 0 ? `${formatTokens(totalChars)} ${t('safety.charsUnit')}` : ''
+      );
+
+      patchText(flLabelEl, t('safety.metricFlashLite'));
+      patchText(flValEl, String(flCalls));
+      patchText(flMetaEl, winKey === '5h' ? `/ ${FLASH_LITE_5H_CAP_REF}` : '');
+
+      patchText(heavyLabelEl, t('safety.metricHeavy'));
+      patchText(heavyValEl, String(heavyCalls));
+      patchText(heavyMetaEl, blockedStr !== '0s' ? `· ${blockedStr}` : '');
+
+      const hasRateAlert = r429 > 0 || fb > 0;
+      patchClasses(rate429DotEl, {
+        'safety-dot-danger': hasRateAlert,
+        'safety-dot-muted': !hasRateAlert,
+      });
+      patchText(rate429LabelEl, t('safety.metric429Fallback'));
+      patchText(rate429ValEl, `${r429} / ${fb}`);
+      patchClasses(rate429ValEl, { 'is-alert': hasRateAlert });
+      patchText(rate429MetaEl, '');
+
+      const hasBar = totalStream > 0 && (flCalls > 0 || heavyCalls > 0);
+      shareBarEl.hidden = !hasBar;
+      patchAttr(shareBarEl, 'hidden', !hasBar);
+      if (hasBar) {
+        const effTotal = Math.max(totalStream, flCalls + heavyCalls);
+        const visPct = Math.max(0, ((effTotal - flCalls - heavyCalls) / effTotal) * 100);
+        const flPct = Math.max(0, (flCalls / effTotal) * 100);
+        const hvPct = Math.max(0, 100 - visPct - flPct);
+        patchStyleVar(segVisibleEl, '--seg-w', `${+visPct.toFixed(2)}%`);
+        patchStyleVar(segFlashEl, '--seg-w', `${+flPct.toFixed(2)}%`);
+        patchStyleVar(segHeavyEl, '--seg-w', `${+hvPct.toFixed(2)}%`);
+      }
+
+      const adviceText =
+        alertKind === 'fallback429'
+          ? t('safety.alert429Advice')
+          : alertKind === 'heavyBurst'
+            ? t('safety.alertBurstAdvice')
+            : alertKind === 'nearLimit'
+              ? t('safety.alertLimitAdvice')
+              : '';
+      adviceEl.hidden = !adviceText;
+      patchAttr(adviceEl, 'hidden', !adviceText);
+      patchText(adviceTextEl, adviceText);
+      patchClasses(adviceEl, {
+        'tone-danger': alertKind === 'fallback429',
+        'tone-warn': alertKind === 'heavyBurst' || alertKind === 'nearLimit',
+      });
+
+      const hasAnyCalls = flCalls > 0 || heavyCalls > 0;
+      patchText(noteEl, hasAnyCalls ? t('safety.disclaimer') : t('safety.emptyWindow'));
+    }
+
+    function update({ enabled = false, safetyMonitor = null } = {}) {
+      latestState = { enabled: enabled === true, safetyMonitor: safetyMonitor || null };
+      render();
+    }
+
+    function refreshLabels() {
+      lastSig = '';
+      render();
+    }
+
+    onCleanup(() => {
+      winSwitch.destroy();
+    });
+
+    return {
+      el: rootEl,
+      refs: {
+        update,
+        refreshLabels,
+        winSwitch,
+        alertTagEl,
+        adviceEl,
+        shareBarEl,
+      },
+    };
+  },
+});
+return { resolveSafetyMonitorAlert, SafetyMonitorCard };
+})();
+
 // --- src/components/settings/structurePreviewMock.js ---
 const { buildStructurePreviewTelemetry } = (() => {
 function buildStructurePreviewTelemetry(
@@ -37935,11 +42415,18 @@ function isNodeWithin(target, container) {
   return false;
 }
 
+function normalizeDimmedValues(raw) {
+  if (raw == null) return null;
+  if (raw instanceof Set) return new Set(raw);
+  if (Array.isArray(raw)) return new Set(raw);
+  return null;
+}
+
 const EditableSlotList = defineComponent({
   name: 'EditableSlotList',
   setup({ props, onCleanup }) {
     const minItems = Math.max(0, Number(props.minItems ?? 1));
-    const maxItems = Math.max(minItems, Number(props.maxItems ?? 5));
+    let maxItems = Math.max(minItems, Number(props.maxItems ?? 5));
     let currentItems = Array.isArray(props.items) ? [...props.items] : [];
     let currentOptions = Array.isArray(props.options) ? [...props.options] : [];
     let emptyHintText = String(props.emptyHintText || '');
@@ -37948,7 +42435,11 @@ const EditableSlotList = defineComponent({
       Number.isInteger(props.dimmedFromIndex) && props.dimmedFromIndex >= 0
         ? props.dimmedFromIndex
         : null;
+    let dimmedValuesSet = normalizeDimmedValues(props.dimmedValues);
     let dimmedTagText = String(props.dimmedTagText || '');
+    let getItemBadge = typeof props.getItemBadge === 'function' ? props.getItemBadge : null;
+    let onClickItemBadge =
+      typeof props.onClickItemBadge === 'function' ? props.onClickItemBadge : null;
     let activeDrag = null;
     const settleAnimator = createDropSettleAnimator('is-settling', ' scale(1.015)');
     let suppressClickTimer = null;
@@ -37983,6 +42474,13 @@ const EditableSlotList = defineComponent({
     const rootEl = h('div', { className: 'editable-slot-wrap' }, [emptyEl, listEl, footerEl]);
 
     const rowPool = [];
+
+    function isSlotDimmed(itemVal, visualSlot) {
+      if (dimmedValuesSet !== null) {
+        return dimmedValuesSet.has(itemVal);
+      }
+      return dimmedFromIndex !== null && visualSlot >= dimmedFromIndex;
+    }
 
     function clearSettleAnimation() {
       settleAnimator.clear();
@@ -38051,8 +42549,8 @@ const EditableSlotList = defineComponent({
       const count = startItems.length;
       const startIdx = initialRowIdx;
 
-      function applySlotDimState(entry, visualSlot) {
-        const isDimmed = dimmedFromIndex !== null && visualSlot >= dimmedFromIndex;
+      function applySlotDimState(entry, itemVal, visualSlot) {
+        const isDimmed = isSlotDimmed(itemVal, visualSlot);
         patchClasses(entry.rowEl, { 'is-dimmed': isDimmed });
         patchAttr(entry.dimmedTagEl, 'hidden', !isDimmed || !dimmedTagText);
         if (dimmedTagText) patchText(entry.dimmedTagEl, dimmedTagText);
@@ -38085,10 +42583,11 @@ const EditableSlotList = defineComponent({
         },
         onLayout: ({ perm }) => {
           for (let visualSlot = 0; visualSlot < perm.length; visualSlot += 1) {
-            const entry = rowPool[perm[visualSlot]];
+            const origIdx = perm[visualSlot];
+            const entry = rowPool[origIdx];
             if (!entry) continue;
             patchText(entry.indexBadge, String(visualSlot + 1));
-            applySlotDimState(entry, visualSlot);
+            applySlotDimState(entry, startItems[origIdx], visualSlot);
           }
         },
         onPreview: (working) => {
@@ -38135,6 +42634,20 @@ const EditableSlotList = defineComponent({
           const next = [...currentItems];
           next[rowIndex] = nextVal;
           emitChange(next);
+        },
+      });
+
+      const itemBadgeBtn = h('button', {
+        type: 'button',
+        className: 'slot-size-pill',
+        hidden: true,
+        text: '',
+        onClick: (e) => {
+          e.stopPropagation();
+          const val = currentItems[rowIndex];
+          if (val !== undefined) {
+            onClickItemBadge?.(val, rowIndex);
+          }
         },
       });
 
@@ -38199,12 +42712,13 @@ const EditableSlotList = defineComponent({
           className: 'editable-slot-row',
           onPointerdown: (e) => {
             if (isNodeWithin(e?.target, orderBtnsEl)) return;
+            if (isNodeWithin(e?.target, itemBadgeBtn)) return;
             if (selectMenuEl && isNodeWithin(e?.target, selectMenuEl)) return;
             const onSelectTrigger = isNodeWithin(e?.target, selectComp.el);
             startPointerDrag(e, rowIndex, { threshold: onSelectTrigger ? 5 : 3 });
           },
         },
-        [dragHandle, indexBadge, selectComp.el, dimmedTagEl, orderBtnsEl]
+        [dragHandle, indexBadge, selectComp.el, dimmedTagEl, itemBadgeBtn, orderBtnsEl]
       );
       if (typeof rowEl.addEventListener === 'function') {
         rowEl.addEventListener(
@@ -38224,6 +42738,7 @@ const EditableSlotList = defineComponent({
         dragHandle,
         indexBadge,
         dimmedTagEl,
+        itemBadgeBtn,
         selectComp,
         upBtn,
         downBtn,
@@ -38263,14 +42778,28 @@ const EditableSlotList = defineComponent({
         const entry = rowPool[i];
         const itemVal = currentItems[i];
         entry.setIndex(i);
-        const isDimmed = dimmedFromIndex !== null && i >= dimmedFromIndex;
+        const isDimmed = isSlotDimmed(itemVal, i);
         patchAttr(entry.rowEl, 'data-slot-row', String(i));
+        patchAttr(entry.rowEl, 'data-slot-value', String(itemVal));
         patchClasses(entry.rowEl, { 'is-dimmed': isDimmed });
         patchText(entry.indexBadge, String(i + 1));
         patchAttr(entry.dimmedTagEl, 'hidden', !isDimmed || !dimmedTagText);
         if (dimmedTagText) {
           patchText(entry.dimmedTagEl, dimmedTagText);
         }
+
+        const badge = getItemBadge ? getItemBadge(itemVal, i) : null;
+        if (badge && badge.text) {
+          patchAttr(entry.itemBadgeBtn, 'hidden', false);
+          patchText(entry.itemBadgeBtn, badge.text);
+          patchAttr(entry.itemBadgeBtn, 'title', badge.title || null);
+          patchAttr(entry.itemBadgeBtn, 'aria-label', badge.ariaLabel || badge.title || badge.text);
+          patchAttr(entry.itemBadgeBtn, 'data-badge-tone', badge.tone || null);
+          patchClasses(entry.itemBadgeBtn, { 'is-active': Boolean(badge.active) });
+        } else {
+          patchAttr(entry.itemBadgeBtn, 'hidden', true);
+        }
+
         patchClasses(entry.dragHandle, { 'is-disabled': !canDrag });
         patchAttr(entry.dragHandle, 'title', dragTitle || null);
 
@@ -38329,6 +42858,9 @@ const EditableSlotList = defineComponent({
       if (Array.isArray(next.options)) {
         currentOptions = [...next.options];
       }
+      if (next.maxItems !== undefined && Number.isFinite(Number(next.maxItems))) {
+        maxItems = Math.max(minItems, Number(next.maxItems));
+      }
       if (next.emptyHintText !== undefined) {
         emptyHintText = String(next.emptyHintText || '');
       }
@@ -38341,11 +42873,32 @@ const EditableSlotList = defineComponent({
             ? next.dimmedFromIndex
             : null;
       }
+      if (next.dimmedValues !== undefined) {
+        dimmedValuesSet = normalizeDimmedValues(next.dimmedValues);
+      }
       if (next.dimmedTagText !== undefined) {
         dimmedTagText = String(next.dimmedTagText || '');
       }
+      if (next.getItemBadge !== undefined) {
+        getItemBadge = typeof next.getItemBadge === 'function' ? next.getItemBadge : null;
+      }
+      if (next.onClickItemBadge !== undefined) {
+        onClickItemBadge =
+          typeof next.onClickItemBadge === 'function' ? next.onClickItemBadge : null;
+      }
       if (activeDrag) {
         pendingSyncAfterDrag = true;
+        if (next.dimmedValues !== undefined || next.dimmedFromIndex !== undefined) {
+          for (let k = 0; k < activeDrag.startItems.length; k += 1) {
+            const entry = rowPool[k];
+            if (!entry) continue;
+            const itemVal = activeDrag.startItems[k];
+            const isDimmed = isSlotDimmed(itemVal, k);
+            patchClasses(entry.rowEl, { 'is-dimmed': isDimmed });
+            patchAttr(entry.dimmedTagEl, 'hidden', !isDimmed || !dimmedTagText);
+            if (dimmedTagText) patchText(entry.dimmedTagEl, dimmedTagText);
+          }
+        }
         return;
       }
       syncRows();
@@ -38922,12 +43475,24 @@ function saveCleanupPrefs(prefs) {
   }
 }
 
-function formatCompactBytes(bytes) {
-  const n = Number(bytes || 0);
-  if (!Number.isFinite(n) || n <= 0) return '';
-  if (n < 1024) return `${n} B`;
-  if (n < 1024 * 1024) return `${(n / 1024).toFixed(0)} KB`;
-  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+const SMGR_LARGE_SESSION_BYTES = 50 * 1024 * 1024;
+
+function buildSessionSizeTooltip(session) {
+  const totalBytes = Math.max(0, Number(session?.sizeBytes || 0));
+  const totalLine = t('settings.smgr.sizeTooltipTotal', {
+    size: formatCompactBytes(totalBytes),
+  });
+  const dbBytes = Math.max(0, Number(session?.dbSizeBytes || 0));
+  const brainBytes = Math.max(0, Number(session?.brainSizeBytes || 0));
+  const subBytes = Math.max(0, Number(session?.subagentSizeBytes || 0));
+  const parts = [];
+  if (dbBytes > 0) parts.push(t('settings.smgr.sizePartDb', { size: formatCompactBytes(dbBytes) }));
+  if (brainBytes > 0) parts.push(t('settings.smgr.sizePartBrain', { size: formatCompactBytes(brainBytes) }));
+  if (subBytes > 0) parts.push(t('settings.smgr.sizePartSubagents', { size: formatCompactBytes(subBytes) }));
+  if (parts.length >= 2 || (parts.length === 1 && (brainBytes > 0 || subBytes > 0))) {
+    return `${totalLine}\n${parts.join(' · ')}`;
+  }
+  return totalLine;
 }
 
 function getClientDisplayName(clientId) {
@@ -39035,6 +43600,12 @@ const SessionManagerCard = defineComponent({
 
     const titleTextEl = h('span', { text: t('settings.smgr.title') });
     const totalCountBadge = h('span', { className: 'smgr-title-count', text: '0' });
+    const totalSizeTextEl = h('span', { text: '' });
+    const totalSizeBadge = h(
+      'span',
+      { className: 'smgr-title-size', hidden: true },
+      [createSvgIcon('database', { size: 10 }), totalSizeTextEl]
+    );
     const refreshBtnTextEl = h('span', { text: t('settings.smgr.refresh') });
     const refreshBtn = h(
       'button',
@@ -39059,6 +43630,7 @@ const SessionManagerCard = defineComponent({
         createSvgIcon('layers', { size: 13 }),
         titleTextEl,
         totalCountBadge,
+        totalSizeBadge,
       ]),
       h('div', { className: 'smgr-header-actions' }, [refreshBtn, moreMenu.el]),
     ]);
@@ -39248,8 +43820,15 @@ const SessionManagerCard = defineComponent({
       [createSvgIcon('trash', { size: 12 }), batchDeleteTextEl]
     );
 
+    const selectedSizeTextEl = h('span', { text: '' });
+    const selectedSizeEl = h(
+      'span',
+      { className: 'smgr-selected-size', hidden: true },
+      [createSvgIcon('database', { size: 10 }), selectedSizeTextEl]
+    );
+
     const actionBarEl = h('div', { className: 'smgr-action-bar' }, [
-      h('div', { className: 'smgr-action-left' }, [toggleAllBtn, clearSelBtn]),
+      h('div', { className: 'smgr-action-left' }, [toggleAllBtn, clearSelBtn, selectedSizeEl]),
       h('div', { className: 'smgr-action-right' }, [hideIdxBtn, batchDeleteBtn]),
     ]);
 
@@ -39306,14 +43885,53 @@ const SessionManagerCard = defineComponent({
       return getAllSessions().find((s) => sessionItemKey(s) === key) || null;
     }
 
-    function getSelectedTargets() {
+    function getSelectedStats() {
       const targets = [];
+      let totalSizeBytes = 0;
       for (const s of getAllSessions()) {
         if (s.canDelete && selectedKeys.has(sessionItemKey(s))) {
           targets.push({ clientId: s.clientId, sessionId: s.sessionId });
+          totalSizeBytes += Math.max(0, Number(s.sizeBytes || 0));
         }
       }
-      return targets;
+      return { targets, count: targets.length, totalSizeBytes };
+    }
+
+    function getSelectedTargets() {
+      return getSelectedStats().targets;
+    }
+
+    function computeAllSessionsTotalBytes() {
+      const all = getAllSessions();
+      if (all.length > 0) {
+        return all.reduce((sum, s) => sum + Math.max(0, Number(s.sizeBytes || 0)), 0);
+      }
+      return Math.max(0, Number(catalog?.counts?.totalSizeBytes || 0));
+    }
+
+    function syncTotalSizeBadge(filtered) {
+      if (!catalog || remoteUnsupported) {
+        patchAttr(totalSizeBadge, 'hidden', true);
+        return;
+      }
+      const allTotalBytes = computeAllSessionsTotalBytes();
+      const filteredBytes = Array.isArray(filtered)
+        ? filtered.reduce((sum, s) => sum + Math.max(0, Number(s.sizeBytes || 0)), 0)
+        : allTotalBytes;
+      const isNarrowed = sourceFilter !== 'all' || Boolean(searchQuery);
+      const displayBytes = isNarrowed ? filteredBytes : filteredBytes || allTotalBytes;
+      const formattedDisplay = formatCompactBytes(displayBytes);
+      patchText(totalSizeTextEl, formattedDisplay);
+      patchClasses(totalSizeBadge, { 'is-filtered': isNarrowed });
+      const tip = isNarrowed
+        ? t('settings.smgr.filteredSizeTitle', {
+            filtered: formattedDisplay,
+            total: formatCompactBytes(allTotalBytes),
+          })
+        : t('settings.smgr.totalSizeTitle', { size: formattedDisplay });
+      patchAttr(totalSizeBadge, 'title', tip);
+      patchAttr(totalSizeBadge, 'aria-label', tip);
+      patchAttr(totalSizeBadge, 'hidden', false);
     }
 
     function rebuildTopMoreMenu() {
@@ -39356,12 +43974,23 @@ const SessionManagerCard = defineComponent({
 
     function syncSourceSegments() {
       const counts = catalog?.counts?.byClient || { desktop: 0, cli: 0, ide_legacy: 0 };
+      const sizeByClient = catalog?.counts?.byClientSizeBytes || {};
       const total = Number(catalog?.counts?.total || 0);
       const running = catalog?.runningClients || {};
       const clientsList = Array.isArray(catalog?.clients) ? catalog.clients : [];
+      const allTotalBytes = computeAllSessionsTotalBytes();
 
       const formatLabel = (base, count, isRun) => `${base} (${count})${isRun ? ' •' : ''}`;
-      const opts = [{ value: 'all', label: `${t('settings.smgr.sourceAll')} (${total})` }];
+      const opts = [
+        {
+          value: 'all',
+          label: `${t('settings.smgr.sourceAll')} (${total})`,
+          title:
+            allTotalBytes > 0
+              ? t('settings.smgr.totalSizeTitle', { size: formatCompactBytes(allTotalBytes) })
+              : '',
+        },
+      ];
 
       for (const defId of ['desktop', 'cli', 'ide_legacy']) {
         const info = clientsList.find((c) => c.id === defId);
@@ -39369,14 +43998,22 @@ const SessionManagerCard = defineComponent({
         if (info?.exists || cnt > 0 || defId === 'desktop') {
           const isRun = Boolean(running[defId]);
           const isOnline = isRun && isClientOnlineDeleteSupported(defId);
+          const clientBytes = Number(info?.totalSizeBytes ?? sizeByClient[defId] ?? 0);
+          const titleParts = [];
+          if (clientBytes > 0) {
+            titleParts.push(
+              t('settings.smgr.totalSizeTitle', { size: formatCompactBytes(clientBytes) })
+            );
+          }
+          if (isRun) {
+            titleParts.push(
+              isOnline ? t('settings.smgr.runningDotOnlineTitle') : t('settings.smgr.runningDotTitle')
+            );
+          }
           opts.push({
             value: defId,
             label: formatLabel(getClientDisplayName(defId), cnt, isRun),
-            title: isRun
-              ? isOnline
-                ? t('settings.smgr.runningDotOnlineTitle')
-                : t('settings.smgr.runningDotTitle')
-              : '',
+            title: titleParts.join(' · '),
           });
         }
       }
@@ -39448,7 +44085,7 @@ const SessionManagerCard = defineComponent({
         selectAllCheckBoxEl.appendChild(h('span', { className: 'smgr-partial-dash' }));
       }
 
-      const selCount = getSelectedTargets().length;
+      const { count: selCount, totalSizeBytes: selSizeBytes } = getSelectedStats();
       patchText(
         toggleAllTextEl,
         allSelected
@@ -39460,6 +44097,15 @@ const SessionManagerCard = defineComponent({
       patchAttr(toggleAllBtn, 'disabled', deletableFiltered.length === 0 || isDeleting);
       patchAttr(clearSelBtn, 'hidden', selCount === 0 || allSelected);
       patchAttr(clearSelBtn, 'disabled', isDeleting);
+
+      patchAttr(selectedSizeEl, 'hidden', selCount === 0);
+      if (selCount > 0) {
+        const formattedSelSize = formatCompactBytes(selSizeBytes);
+        patchText(selectedSizeTextEl, formattedSelSize);
+        const selSizeTip = t('settings.smgr.selectedSizeTitle', { size: formattedSelSize });
+        patchAttr(selectedSizeEl, 'title', selSizeTip);
+        patchAttr(selectedSizeEl, 'aria-label', selSizeTip);
+      }
 
       patchAttr(batchDeleteBtn, 'hidden', selCount === 0);
       patchAttr(batchDeleteBtn, 'disabled', selCount === 0 || isDeleting);
@@ -39518,6 +44164,37 @@ const SessionManagerCard = defineComponent({
       confirmBoxEl.appendChild(header);
 
       const bullets = [t('settings.smgr.confirmSummary', { n: effectiveDeletableN })];
+      let reclaimableBytes = 0;
+      if (preview && Number.isFinite(Number(preview.reclaimableSizeBytes))) {
+        const rawReclaim = Math.max(0, Number(preview.reclaimableSizeBytes));
+        const protOnlineBytes = Math.max(0, Number(preview.protectedOnlineSizeBytes || 0));
+        reclaimableBytes = purgeProtectedBrain
+          ? rawReclaim
+          : Math.max(0, rawReclaim - protOnlineBytes);
+      } else if (Array.isArray(targets) && targets.length > 0) {
+        const blockedSet = new Set(
+          (Array.isArray(preview?.blockedByRunning) ? preview.blockedByRunning : []).map(
+            (b) => `${b.clientId}:${b.sessionId}`
+          )
+        );
+        const protOnlineSet = new Set(
+          protectedItems
+            .filter((it) => it?.mode === 'online')
+            .map((it) => `${it.clientId}:${it.sessionId}`)
+        );
+        for (const item of targets) {
+          const itemKey = `${item.clientId}:${item.sessionId}`;
+          if (blockedSet.has(itemKey)) continue;
+          if (!purgeProtectedBrain && protOnlineSet.has(itemKey)) continue;
+          const hit = getSessionByKey(itemKey);
+          reclaimableBytes += Math.max(0, Number(hit?.sizeBytes || 0));
+        }
+      }
+      if (effectiveDeletableN > 0 && reclaimableBytes > 0) {
+        bullets.push(
+          t('settings.smgr.confirmReclaimSize', { size: formatCompactBytes(reclaimableBytes) })
+        );
+      }
       if (onlineDeletableN > 0 && offlineDeletableN > 0) {
         bullets.push(
           t('settings.smgr.confirmOnlineMixed', { online: onlineDeletableN, offline: offlineDeletableN })
@@ -39685,12 +44362,14 @@ const SessionManagerCard = defineComponent({
         listEl.appendChild(
           h('div', { className: 'smgr-empty', text: t('settings.smgr.emptyLoading') })
         );
+        syncTotalSizeBadge([]);
         syncSelectionButtons([]);
         listScrollbar.refresh();
         return;
       }
 
       const filtered = getFilteredSessions();
+      syncTotalSizeBadge(filtered);
       syncSelectionButtons(filtered);
 
       if (filtered.length === 0) {
@@ -39724,11 +44403,31 @@ const SessionManagerCard = defineComponent({
           isChecked ? [createSvgIcon('check', { size: 9 })] : []
         );
 
+        const sessionSizeBytes = Math.max(0, Number(s.sizeBytes || 0));
+        const sizeBadgeClass = [
+          'smgr-badge',
+          'smgr-size-badge',
+          sessionSizeBytes >= SMGR_LARGE_SESSION_BYTES ? 'is-large' : '',
+          sessionSizeBytes === 0 ? 'is-zero' : '',
+        ]
+          .filter(Boolean)
+          .join(' ');
         const tags = [
           h('span', {
             className: `smgr-badge is-client-${s.clientId}`,
             text: getClientDisplayName(s.clientId),
           }),
+          h(
+            'span',
+            {
+              className: sizeBadgeClass,
+              title: buildSessionSizeTooltip(s),
+            },
+            [
+              createSvgIcon('database', { size: 10 }),
+              h('span', { text: formatCompactBytes(sessionSizeBytes) }),
+            ]
+          ),
         ];
         if (s.indexOnly) {
           tags.push(h('span', { className: 'smgr-badge is-muted', text: t('settings.smgr.tagIndexOnly') }));
@@ -39754,7 +44453,6 @@ const SessionManagerCard = defineComponent({
         }
 
         const rightMetaParts = [];
-        if (s.sizeBytes > 0) rightMetaParts.push(formatCompactBytes(s.sizeBytes));
         if (s.lastModifiedMs > 0) rightMetaParts.push(formatCompactDateTime(s.lastModifiedMs));
 
         const telNodes = [];
@@ -40069,6 +44767,8 @@ const SessionManagerCard = defineComponent({
       el: rootEl,
       refs: {
         refreshBtn,
+        totalSizeBadge,
+        selectedSizeEl,
         searchInput: searchControl.inputEl,
         sortSelect,
         hideIdxBtn,
@@ -40587,6 +45287,9 @@ const SessionMigrationCard = defineComponent({
           };
 
           const metaParts = [t('settings.oth.migStepsUnit', { count: item.stepCount })];
+          if (Number(item.sizeBytes || 0) > 0) {
+            metaParts.push(formatCompactBytes(item.sizeBytes));
+          }
           const age = smigFormatAge(item.lastModifiedMs);
           if (age) metaParts.push(age);
 
@@ -41483,13 +46186,10 @@ const { SettingsGeneralTab } = (() => {
 function getLanguageOptions() {
   return [
     { value: 'auto', label: t('settings.gen.langAuto') },
-    { value: 'zh-CN', label: t('settings.gen.langZh') },
-    { value: 'zh-TW', label: t('settings.gen.langZhTw') },
-    { value: 'en-US', label: t('settings.gen.langEn') },
-    { value: 'ja-JP', label: t('settings.gen.langJa') },
-    { value: 'ko-KR', label: t('settings.gen.langKo') },
-    { value: 'de-DE', label: t('settings.gen.langDe') },
-    { value: 'fr-FR', label: t('settings.gen.langFr') },
+    ...SUPPORTED_LOCALE_ENTRIES.map(({ locale, nativeName }) => ({
+      value: locale,
+      label: nativeName,
+    })),
   ];
 }
 
@@ -42197,6 +46897,17 @@ function normalizeStructureTabKey(raw) {
 }
 
 function getMountModeOptions() {
+  if (isVsCodeExtensionHost()) {
+    const lockedTopbar = isForceTopbarOverlay();
+    return [
+      {
+        value: 'composer',
+        label: t('settings.str.mountVsCodeComposer'),
+        disabled: lockedTopbar,
+      },
+      { value: 'dual', label: t('settings.str.mountVsCodeTopbar') },
+    ];
+  }
   return [
     { value: 'dual', label: t('settings.str.mountDual') },
     { value: 'composer', label: t('settings.str.mountComposer') },
@@ -42218,10 +46929,27 @@ function getContextAgentModeOptions() {
   ];
 }
 
-function getHoverMetricStyleOptions() {
+function getMultiSessionModeOptions() {
   return [
-    { value: 'medium', label: t('settings.str.hoverMetricStyleMedium') },
-    { value: 'large', label: t('settings.str.hoverMetricStyleLarge') },
+    { value: 'show', label: t('settings.str.show') },
+    { value: 'running_only', label: t('settings.str.runningOnly') },
+    { value: 'hide', label: t('settings.str.hide') },
+  ];
+}
+
+function getMetricRowsOptions() {
+  return [
+    { value: '1', label: t('settings.str.metricRows1') },
+    { value: '2', label: t('settings.str.metricRows2') },
+  ];
+}
+
+function getMetricTextModeOptions() {
+  return [
+    { value: 'both', label: t('settings.str.metricTextBoth') },
+    { value: 'title', label: t('settings.str.metricTextTitle') },
+    { value: 'sub', label: t('settings.str.metricTextSub') },
+    { value: 'none', label: t('settings.str.metricTextNone') },
   ];
 }
 
@@ -42238,6 +46966,68 @@ function isSameList(a, b) {
     if (a[i] !== b[i]) return false;
   }
   return true;
+}
+
+function isSameSizeMap(a, b) {
+  const left = a && typeof a === 'object' ? a : {};
+  const right = b && typeof b === 'object' ? b : {};
+  const keys = Object.keys(left);
+  if (keys.length !== Object.keys(right).length) return false;
+  for (const k of keys) {
+    if (left[k] !== right[k]) return false;
+  }
+  return true;
+}
+
+function formatMetricSizePillSpec(metricKey, rows, sizesMap) {
+  const raw = normalizeClientMetricCardSize(sizesMap?.[metricKey]);
+  const eff = rows === 1 ? (raw === 'tall' ? 'wide' : raw === 'narrow' ? 'sm' : raw) : raw;
+  const text =
+    eff === 'tall'
+      ? t('settings.str.metricSizeTall')
+      : eff === 'narrow'
+        ? t('settings.str.metricSizeNarrow')
+        : eff === 'wide'
+          ? t('settings.str.metricSizeWide')
+          : eff === 'third'
+            ? t('settings.str.metricSizeThird')
+            : t('settings.str.metricSizeSm');
+  return {
+    text,
+    title: t('settings.str.metricSizePillHint'),
+    ariaLabel: `${text} · ${t('settings.str.metricSizePillHint')}`,
+    active: eff !== 'sm',
+    tone: eff,
+  };
+}
+
+function cycleDraftMetricCardSize(baseSizes, metricKey, rows) {
+  const curRaw = normalizeClientMetricCardSize(baseSizes?.[metricKey]);
+  const curEff =
+    rows === 1 ? (curRaw === 'tall' ? 'wide' : curRaw === 'narrow' ? 'sm' : curRaw) : curRaw;
+  const nextSize =
+    rows === 2
+      ? curEff === 'sm'
+        ? 'third'
+        : curEff === 'third'
+          ? 'wide'
+          : curEff === 'wide'
+            ? 'narrow'
+            : curEff === 'narrow'
+              ? 'tall'
+              : 'sm'
+      : curEff === 'sm'
+        ? 'third'
+        : curEff === 'third'
+          ? 'wide'
+          : 'sm';
+  const next = { ...(baseSizes || {}) };
+  if (nextSize === 'sm') {
+    delete next[metricKey];
+  } else {
+    next[metricKey] = nextSize;
+  }
+  return next;
 }
 
 function formatCliPreviewSlot(slotKey, slotCtx) {
@@ -42364,20 +47154,28 @@ const SettingsStructureTab = defineComponent({
   name: 'SettingsStructureTab',
   setup({ props, onCleanup }) {
     let activeThirdTab = normalizeStructureTabKey(uiStore.getState().settingsStructureTab);
-    let draftWindowMountMode = 'dual';
+    let draftWindowMountMode = isVsCodeExtensionHost()
+      ? isForceTopbarOverlay()
+        ? 'dual'
+        : 'composer'
+      : 'dual';
     let draftPopoverWidthMode = 'auto';
     let draftPopoverWidth = DEFAULT_CLIENT_POPOVER_WIDTH;
     let draftEnableCliStatusLine = true;
     let draftCliStatusLineSlots = null;
-    let draftShowTopbarMulti = true;
+    let draftTopbarMultiSessionMode = DEFAULT_CLIENT_TOPBAR_MULTI_SESSION_MODE;
     let draftContextAgentMode = DEFAULT_CLIENT_CONTEXT_AGENT_MODE;
     let draftTopbarSlots = [...DEFAULT_CLIENT_TOPBAR_SLOTS];
     let draftHoverModules = [...DEFAULT_CLIENT_HOVER_MODULES];
     let draftHoverSyncOverview = DEFAULT_CLIENT_HOVER_SYNC_OVERVIEW_METRICS;
-    let draftHoverMetricStyle = DEFAULT_CLIENT_HOVER_METRIC_STYLE;
+    let draftHoverMetricRows = DEFAULT_CLIENT_HOVER_METRIC_ROWS;
+    let draftHoverMetricSizes = { ...DEFAULT_CLIENT_HOVER_METRIC_SIZES };
+    let draftHoverMetricTextMode = DEFAULT_CLIENT_HOVER_METRIC_TEXT_MODE;
     let draftHoverMetrics = [...DEFAULT_CLIENT_HOVER_METRICS];
     let draftOverviewModules = [...DEFAULT_CLIENT_OVERVIEW_MODULES];
-    let draftOverviewMetricStyle = DEFAULT_CLIENT_OVERVIEW_METRIC_STYLE;
+    let draftOverviewMetricRows = DEFAULT_CLIENT_OVERVIEW_METRIC_ROWS;
+    let draftOverviewMetricSizes = { ...DEFAULT_CLIENT_OVERVIEW_METRIC_SIZES };
+    let draftOverviewMetricTextMode = DEFAULT_CLIENT_OVERVIEW_METRIC_TEXT_MODE;
     let draftOverviewMetrics = [...DEFAULT_CLIENT_OVERVIEW_METRICS];
     let draftQuotaDisplayMode = DEFAULT_CLIENT_QUOTA_DISPLAY_MODE;
     let draftShowStepTurnRail = false;
@@ -42411,23 +47209,45 @@ const SettingsStructureTab = defineComponent({
         hasArgonWeeklyQuotaPool(latestQuotas) ||
         draftTopbarSlots.includes('argon_weekly') ||
         effectiveCliSlots.includes('argon_weekly');
+      const hoverStyle = deriveClientMetricCardStyle(
+        draftHoverMetricRows,
+        draftHoverMetrics,
+        draftHoverMetricSizes
+      );
+      const overviewStyle = deriveClientMetricCardStyle(
+        draftOverviewMetricRows,
+        draftOverviewMetrics,
+        draftOverviewMetricSizes
+      );
+      const vsCodeHost = isVsCodeExtensionHost();
       return buildStructurePreviewTelemetry(
         latestSettings,
         {
-          windowMountMode: draftWindowMountMode,
-          enableWindowOverlay: draftWindowMountMode !== 'sidebar',
+          ...(vsCodeHost
+            ? { vsCodeMountMode: normalizeClientVsCodeMountMode(draftWindowMountMode) }
+            : {
+                windowMountMode: draftWindowMountMode,
+                enableWindowOverlay: draftWindowMountMode !== 'sidebar',
+              }),
           popoverWidthMode: draftPopoverWidthMode,
           popoverWidth: draftPopoverWidth,
           enableCliStatusLine: draftEnableCliStatusLine,
-          showTopbarMultiSession: draftShowTopbarMulti,
+          topbarMultiSessionMode: draftTopbarMultiSessionMode,
+          showTopbarMultiSession: draftTopbarMultiSessionMode !== 'hide',
           contextAgentMode: draftContextAgentMode,
           topbarCapsuleSlots: draftTopbarSlots,
           hoverModules: draftHoverModules,
           hoverSyncOverviewMetrics: draftHoverSyncOverview,
-          hoverMetricStyle: draftHoverMetricStyle,
+          hoverMetricRows: draftHoverMetricRows,
+          hoverMetricSizes: { ...draftHoverMetricSizes },
+          hoverMetricTextMode: draftHoverMetricTextMode,
+          hoverMetricStyle: hoverStyle,
           hoverMetrics: draftHoverMetrics,
           overviewModules: draftOverviewModules,
-          overviewMetricStyle: draftOverviewMetricStyle,
+          overviewMetricRows: draftOverviewMetricRows,
+          overviewMetricSizes: { ...draftOverviewMetricSizes },
+          overviewMetricTextMode: draftOverviewMetricTextMode,
+          overviewMetricStyle: overviewStyle,
           overviewMetrics: draftOverviewMetrics,
           quotaDisplayMode: draftQuotaDisplayMode,
           showStepTurnRail: draftShowStepTurnRail,
@@ -42608,6 +47428,21 @@ const SettingsStructureTab = defineComponent({
       icon: 'dock',
       options: getMountModeOptions(),
       onUpdateModelValue: (val) => {
+        if (isVsCodeExtensionHost()) {
+          if (isForceTopbarOverlay()) {
+            draftWindowMountMode = 'dual';
+            syncMountSectionMeta();
+            return;
+          }
+          const nextVsMode = normalizeClientVsCodeMountMode(val);
+          draftWindowMountMode = nextVsMode;
+          syncMountSectionMeta();
+          props.onLayoutChange?.();
+          void persistStructurePatch(mountSection, {
+            vsCodeMountMode: nextVsMode,
+          });
+          return;
+        }
         const nextMode = normalizeClientWindowMountMode(val);
         draftWindowMountMode = nextMode;
         syncMountSectionMeta();
@@ -42658,15 +47493,17 @@ const SettingsStructureTab = defineComponent({
       },
     });
 
-    const multiSessionToggle = ToggleSwitch({
-      ariaLabelKey: 'settings.str.multiToggle',
-      preset: 'visibility',
-      modelValue: 'show',
+    const multiSessionToggle = SegmentedControl({
+      ariaLabel: t('settings.str.multiToggle'),
+      modelValue: draftTopbarMultiSessionMode,
+      options: getMultiSessionModeOptions(),
       onUpdateModelValue: (val) => {
-        draftShowTopbarMulti = val !== 'hide';
+        const nextMode = normalizeClientTopbarMultiSessionMode(val);
+        draftTopbarMultiSessionMode = nextMode;
         syncMountSectionMeta();
         void persistStructurePatch(mountSection, {
-          showTopbarMultiSession: draftShowTopbarMulti,
+          topbarMultiSessionMode: nextMode,
+          showTopbarMultiSession: nextMode !== 'hide',
         });
       },
     });
@@ -42820,11 +47657,13 @@ const SettingsStructureTab = defineComponent({
       title: t('settings.str.mountSection'),
       badgeText: t('settings.str.mountBadge', { count: draftTopbarSlots.length }),
       onReset: () => {
-        draftWindowMountMode = 'dual';
+        const vsCodeHost = isVsCodeExtensionHost();
+        const forceTopbar = vsCodeHost && isForceTopbarOverlay();
+        draftWindowMountMode = vsCodeHost ? (forceTopbar ? 'dual' : 'composer') : 'dual';
         draftPopoverWidthMode = 'auto';
         draftPopoverWidth = DEFAULT_CLIENT_POPOVER_WIDTH;
         popoverWidthStepper.setProps({ modelValue: DEFAULT_CLIENT_POPOVER_WIDTH });
-        draftShowTopbarMulti = true;
+        draftTopbarMultiSessionMode = DEFAULT_CLIENT_TOPBAR_MULTI_SESSION_MODE;
         draftContextAgentMode = DEFAULT_CLIENT_CONTEXT_AGENT_MODE;
         draftTopbarSlots = [...DEFAULT_CLIENT_TOPBAR_SLOTS];
         uiStore.setState({ ctxInspectorAgentId: DEFAULT_CLIENT_CONTEXT_AGENT_MODE });
@@ -42833,10 +47672,14 @@ const SettingsStructureTab = defineComponent({
         void persistStructurePatch(
           mountSection,
           {
-            windowMountMode: 'dual',
-            enableWindowOverlay: true,
+            ...(vsCodeHost
+              ? forceTopbar
+                ? {}
+                : { vsCodeMountMode: 'composer' }
+              : { windowMountMode: 'dual', enableWindowOverlay: true }),
             popoverWidthMode: 'auto',
             popoverWidth: DEFAULT_CLIENT_POPOVER_WIDTH,
+            topbarMultiSessionMode: DEFAULT_CLIENT_TOPBAR_MULTI_SESSION_MODE,
             showTopbarMultiSession: true,
             contextAgentMode: DEFAULT_CLIENT_CONTEXT_AGENT_MODE,
             topbarCapsuleSlots: [...DEFAULT_CLIENT_TOPBAR_SLOTS],
@@ -42882,7 +47725,11 @@ const SettingsStructureTab = defineComponent({
         1,
         Array.isArray(mockData?.runningConversations) ? mockData.runningConversations.length : 1
       );
-      patchAttr(cliPreviewMultiEl, 'hidden', !draftShowTopbarMulti);
+      patchAttr(
+        cliPreviewMultiEl,
+        'hidden',
+        !isClientTopbarMultiSessionVisible(draftTopbarMultiSessionMode, runningCount)
+      );
       patchText(cliPreviewMultiTextEl, t('settings.str.cliPreviewRunning', { count: runningCount }));
       for (let i = 0; i < cliPreviewSlotParts.length; i += 1) {
         const parts = cliPreviewSlotParts[i];
@@ -42982,12 +47829,15 @@ const SettingsStructureTab = defineComponent({
     }
 
     function syncMountSectionMeta() {
+      const vsCodeHost = isVsCodeExtensionHost();
+      const forceTopbar = vsCodeHost && isForceTopbarOverlay();
+      const effectiveDraftMountMode = forceTopbar ? 'dual' : draftWindowMountMode;
       windowMountSelect.setProps({
-        modelValue: draftWindowMountMode,
+        modelValue: effectiveDraftMountMode,
         options: getMountModeOptions(),
       });
       mountBridgeNotice.refs.update({
-        visible: draftWindowMountMode !== 'sidebar',
+        visible: !vsCodeHost && draftWindowMountMode !== 'sidebar',
         windowBridge: latestWindowBridge,
         hostPlatform: latestHostPlatform,
       });
@@ -43003,7 +47853,9 @@ const SettingsStructureTab = defineComponent({
         });
       }
       multiSessionToggle.setProps({
-        modelValue: draftShowTopbarMulti ? 'show' : 'hide',
+        modelValue: draftTopbarMultiSessionMode,
+        options: getMultiSessionModeOptions(),
+        ariaLabel: t('settings.str.multiToggle'),
       });
       contextAgentModeToggle.setProps({
         modelValue: draftContextAgentMode,
@@ -43014,11 +47866,12 @@ const SettingsStructureTab = defineComponent({
       mountSection.refs.setBadge(
         t('settings.str.mountBadge', { count: draftTopbarSlots.length })
       );
+      const expectedDefaultMount = vsCodeHost ? (forceTopbar ? 'dual' : 'composer') : 'dual';
       const isDefault =
-        draftWindowMountMode === 'dual' &&
+        effectiveDraftMountMode === expectedDefaultMount &&
         draftPopoverWidthMode === 'auto' &&
         draftPopoverWidth === DEFAULT_CLIENT_POPOVER_WIDTH &&
-        draftShowTopbarMulti === true &&
+        draftTopbarMultiSessionMode === DEFAULT_CLIENT_TOPBAR_MULTI_SESSION_MODE &&
         draftContextAgentMode === DEFAULT_CLIENT_CONTEXT_AGENT_MODE &&
         isSameList(draftTopbarSlots, DEFAULT_CLIENT_TOPBAR_SLOTS);
       mountSection.refs.setResetDisabled(isDefault);
@@ -43034,22 +47887,124 @@ const SettingsStructureTab = defineComponent({
       hidden: true,
       text: t('settings.str.hoverEmptyHint'),
     });
-    const syncHoverMetricListProps = () =>
+    function getEffectiveHoverMetricRows() {
+      return draftHoverSyncOverview ? draftOverviewMetricRows : draftHoverMetricRows;
+    }
+
+    function getEffectiveHoverMetricSizes() {
+      return draftHoverSyncOverview ? draftOverviewMetricSizes : draftHoverMetricSizes;
+    }
+
+    function getEffectiveHoverMetricTextMode() {
+      return draftHoverSyncOverview ? draftOverviewMetricTextMode : draftHoverMetricTextMode;
+    }
+
+    function getEffectiveHoverMetrics() {
+      return draftHoverSyncOverview ? draftOverviewMetrics : draftHoverMetrics;
+    }
+
+    function getEffectiveHoverLayout() {
+      return packClientMetricBentoLayout({
+        rows: getEffectiveHoverMetricRows(),
+        metrics: getEffectiveHoverMetrics(),
+        sizes: getEffectiveHoverMetricSizes(),
+      });
+    }
+
+    function getEffectiveOverviewLayout() {
+      return packClientMetricBentoLayout({
+        rows: draftOverviewMetricRows,
+        metrics: draftOverviewMetrics,
+        sizes: draftOverviewMetricSizes,
+      });
+    }
+
+    const commitHoverMetricSizes = (nextSizes) => {
+      const normalized = normalizeClientHoverMetricSizes(nextSizes);
+      if (draftHoverSyncOverview) {
+        draftOverviewMetricSizes = normalized;
+        syncOverviewSectionMeta();
+        syncHoverSectionMeta();
+        props.onLayoutChange?.();
+        void persistStructurePatch(hoverSection, {
+          overviewMetricRows: draftOverviewMetricRows,
+          overviewMetricSizes: { ...draftOverviewMetricSizes },
+          overviewMetricStyle: deriveClientMetricCardStyle(
+            draftOverviewMetricRows,
+            draftOverviewMetrics,
+            draftOverviewMetricSizes
+          ),
+        });
+      } else {
+        draftHoverMetricSizes = normalized;
+        syncHoverSectionMeta();
+        props.onLayoutChange?.();
+        void persistStructurePatch(hoverSection, {
+          hoverMetricRows: draftHoverMetricRows,
+          hoverMetricSizes: { ...draftHoverMetricSizes },
+          hoverMetricStyle: deriveClientMetricCardStyle(
+            draftHoverMetricRows,
+            draftHoverMetrics,
+            draftHoverMetricSizes
+          ),
+        });
+      }
+    };
+
+    const commitOverviewMetricSizes = (nextSizes) => {
+      draftOverviewMetricSizes = normalizeClientOverviewMetricSizes(nextSizes);
+      syncOverviewSectionMeta();
+      if (draftHoverSyncOverview) syncHoverSectionMeta();
+      props.onLayoutChange?.();
+      void persistStructurePatch(overviewSection, {
+        overviewMetricRows: draftOverviewMetricRows,
+        overviewMetricSizes: { ...draftOverviewMetricSizes },
+        overviewMetricStyle: deriveClientMetricCardStyle(
+          draftOverviewMetricRows,
+          draftOverviewMetrics,
+          draftOverviewMetricSizes
+        ),
+      });
+    };
+
+    const syncHoverMetricListProps = () => {
+      const rows = getEffectiveHoverMetricRows();
+      const metrics = getEffectiveHoverMetrics();
+      const sizes = getEffectiveHoverMetricSizes();
+      const layout = packClientMetricBentoLayout({ rows, metrics, sizes });
+      const maxSlots = rows === 2 ? MAX_CLIENT_OVERVIEW_METRICS : Math.max(4, metrics.length);
       hoverMetricsList.refs.setProps({
-        items: getEffectiveHoverMetrics(),
+        items: metrics,
         options: getOverviewMetricOptions(),
-        dimmedFromIndex: getEffectiveHoverMetricStyle() === 'large' ? MAX_CLIENT_LARGE_METRIC_SLOTS : null,
+        maxItems: maxSlots,
+        dimmedValues: layout.overflowKeys,
         dimmedTagText: t('settings.str.metricOverflowTag'),
+        getItemBadge: (key) => formatMetricSizePillSpec(key, rows, sizes),
+        onClickItemBadge: (key) =>
+          commitHoverMetricSizes(cycleDraftMetricCardSize(getEffectiveHoverMetricSizes(), key, getEffectiveHoverMetricRows())),
         addBtnTextFn: (count, max) => t('settings.str.addOverviewMetric', { count, max }),
       });
-    const syncOverviewMetricListProps = () =>
+    };
+    const syncOverviewMetricListProps = () => {
+      const rows = draftOverviewMetricRows;
+      const metrics = draftOverviewMetrics;
+      const sizes = draftOverviewMetricSizes;
+      const layout = packClientMetricBentoLayout({ rows, metrics, sizes });
+      const maxSlots = rows === 2 ? MAX_CLIENT_OVERVIEW_METRICS : Math.max(4, metrics.length);
       overviewMetricsList.refs.setProps({
-        items: draftOverviewMetrics,
+        items: metrics,
         options: getOverviewMetricOptions(),
-        dimmedFromIndex: draftOverviewMetricStyle === 'large' ? MAX_CLIENT_LARGE_METRIC_SLOTS : null,
+        maxItems: maxSlots,
+        dimmedValues: layout.overflowKeys,
         dimmedTagText: t('settings.str.metricOverflowTag'),
+        getItemBadge: (key) => formatMetricSizePillSpec(key, rows, sizes),
+        onClickItemBadge: (key) =>
+          commitOverviewMetricSizes(
+            cycleDraftMetricCardSize(draftOverviewMetricSizes, key, draftOverviewMetricRows)
+          ),
         addBtnTextFn: (count, max) => t('settings.str.addOverviewMetric', { count, max }),
       });
+    };
     const commitHoverMetricsOrder = (nextMetrics) => {
       const normalized = normalizeClientHoverMetrics(nextMetrics);
       if (draftHoverSyncOverview) {
@@ -43057,12 +48012,30 @@ const SettingsStructureTab = defineComponent({
         syncOverviewSectionMeta();
         syncHoverSectionMeta();
         props.onLayoutChange?.();
-        void persistStructurePatch(hoverSection, { overviewMetrics: draftOverviewMetrics });
+        void persistStructurePatch(hoverSection, {
+          overviewMetrics: draftOverviewMetrics,
+          overviewMetricRows: draftOverviewMetricRows,
+          overviewMetricSizes: { ...draftOverviewMetricSizes },
+          overviewMetricStyle: deriveClientMetricCardStyle(
+            draftOverviewMetricRows,
+            draftOverviewMetrics,
+            draftOverviewMetricSizes
+          ),
+        });
       } else {
         draftHoverMetrics = normalized;
         syncHoverSectionMeta();
         props.onLayoutChange?.();
-        void persistStructurePatch(hoverSection, { hoverMetrics: draftHoverMetrics });
+        void persistStructurePatch(hoverSection, {
+          hoverMetrics: draftHoverMetrics,
+          hoverMetricRows: draftHoverMetricRows,
+          hoverMetricSizes: { ...draftHoverMetricSizes },
+          hoverMetricStyle: deriveClientMetricCardStyle(
+            draftHoverMetricRows,
+            draftHoverMetrics,
+            draftHoverMetricSizes
+          ),
+        });
       }
     };
     const commitOverviewMetricsOrder = (nextMetrics) => {
@@ -43070,7 +48043,16 @@ const SettingsStructureTab = defineComponent({
       syncOverviewSectionMeta();
       if (draftHoverSyncOverview) syncHoverSectionMeta();
       props.onLayoutChange?.();
-      void persistStructurePatch(overviewSection, { overviewMetrics: draftOverviewMetrics });
+      void persistStructurePatch(overviewSection, {
+        overviewMetrics: draftOverviewMetrics,
+        overviewMetricRows: draftOverviewMetricRows,
+        overviewMetricSizes: { ...draftOverviewMetricSizes },
+        overviewMetricStyle: deriveClientMetricCardStyle(
+          draftOverviewMetricRows,
+          draftOverviewMetrics,
+          draftOverviewMetricSizes
+        ),
+      });
     };
 
     const hoverPreviewHost = createDynamicWidgetHost({
@@ -43107,6 +48089,18 @@ const SettingsStructureTab = defineComponent({
         syncHoverMetricListProps();
       },
       onReorderMetrics: commitHoverMetricsOrder,
+      onPreviewMetricSizes: (previewSizes) => {
+        const normalized = normalizeClientHoverMetricSizes(previewSizes);
+        if (draftHoverSyncOverview) {
+          draftOverviewMetricSizes = normalized;
+          syncOverviewMetricListProps();
+          refreshOverviewPreview();
+        } else {
+          draftHoverMetricSizes = normalized;
+        }
+        syncHoverMetricListProps();
+      },
+      onResizeMetricSizes: commitHoverMetricSizes,
     });
     const hoverPreviewCanvas = h('div', { className: 'structure-preview-canvas' }, [
       hoverPreviewTipEl,
@@ -43117,9 +48111,13 @@ const SettingsStructureTab = defineComponent({
       className: 'form-label',
       text: t('settings.str.hoverModulesLabel'),
     });
-    const hoverMetricStyleLabelEl = h('span', {
+    const hoverMetricRowsLabelEl = h('span', {
       className: 'form-label',
-      text: t('settings.str.hoverMetricStyleLabel'),
+      text: t('settings.str.metricHeightLabel'),
+    });
+    const hoverMetricTextModeLabelEl = h('span', {
+      className: 'form-label',
+      text: t('settings.str.metricTextModeLabel'),
     });
     const hoverSyncOverviewLabelEl = h('span', {
       className: 'form-label',
@@ -43135,35 +48133,65 @@ const SettingsStructureTab = defineComponent({
       text: t('settings.str.hoverMetricsLabel'),
     });
 
-    function getEffectiveHoverMetricStyle() {
-      return draftHoverSyncOverview ? draftOverviewMetricStyle : draftHoverMetricStyle;
-    }
-
-    function getEffectiveHoverMetrics() {
-      return draftHoverSyncOverview ? draftOverviewMetrics : draftHoverMetrics;
-    }
-
-    const hoverMetricStyleSwitch = SegmentedControl({
-      ariaLabel: t('settings.str.hoverMetricStyleLabel'),
-      modelValue: getEffectiveHoverMetricStyle(),
-      options: getHoverMetricStyleOptions(),
+    const hoverMetricRowsSwitch = SegmentedControl({
+      ariaLabel: t('settings.str.metricHeightLabel'),
+      modelValue: String(getEffectiveHoverMetricRows()),
+      options: getMetricRowsOptions(),
       onUpdateModelValue: (val) => {
-        const nextStyle = normalizeClientHoverMetricStyle(val);
-        if (nextStyle === getEffectiveHoverMetricStyle()) return;
+        const nextRows = normalizeClientHoverMetricRows(val);
+        if (nextRows === getEffectiveHoverMetricRows()) return;
         if (draftHoverSyncOverview) {
-          draftOverviewMetricStyle = nextStyle;
+          draftOverviewMetricRows = nextRows;
           syncOverviewSectionMeta();
           syncHoverSectionMeta();
           props.onLayoutChange?.();
           void persistStructurePatch(hoverSection, {
-            overviewMetricStyle: draftOverviewMetricStyle,
+            overviewMetricRows: draftOverviewMetricRows,
+            overviewMetricSizes: { ...draftOverviewMetricSizes },
+            overviewMetricStyle: deriveClientMetricCardStyle(
+              draftOverviewMetricRows,
+              draftOverviewMetrics,
+              draftOverviewMetricSizes
+            ),
           });
         } else {
-          draftHoverMetricStyle = nextStyle;
+          draftHoverMetricRows = nextRows;
           syncHoverSectionMeta();
           props.onLayoutChange?.();
           void persistStructurePatch(hoverSection, {
-            hoverMetricStyle: draftHoverMetricStyle,
+            hoverMetricRows: draftHoverMetricRows,
+            hoverMetricSizes: { ...draftHoverMetricSizes },
+            hoverMetricStyle: deriveClientMetricCardStyle(
+              draftHoverMetricRows,
+              draftHoverMetrics,
+              draftHoverMetricSizes
+            ),
+          });
+        }
+      },
+    });
+
+    const hoverMetricTextModeSwitch = SegmentedControl({
+      ariaLabel: t('settings.str.metricTextModeLabel'),
+      modelValue: getEffectiveHoverMetricTextMode(),
+      options: getMetricTextModeOptions(),
+      onUpdateModelValue: (val) => {
+        const nextMode = normalizeClientHoverMetricTextMode(val);
+        if (nextMode === getEffectiveHoverMetricTextMode()) return;
+        if (draftHoverSyncOverview) {
+          draftOverviewMetricTextMode = nextMode;
+          syncOverviewSectionMeta();
+          syncHoverSectionMeta();
+          props.onLayoutChange?.();
+          void persistStructurePatch(hoverSection, {
+            overviewMetricTextMode: draftOverviewMetricTextMode,
+          });
+        } else {
+          draftHoverMetricTextMode = nextMode;
+          syncHoverSectionMeta();
+          props.onLayoutChange?.();
+          void persistStructurePatch(hoverSection, {
+            hoverMetricTextMode: draftHoverMetricTextMode,
           });
         }
       },
@@ -43178,14 +48206,23 @@ const SettingsStructureTab = defineComponent({
         if (nextSync === draftHoverSyncOverview) return;
         if (!nextSync) {
 
-          draftHoverMetricStyle = draftOverviewMetricStyle;
+          draftHoverMetricRows = draftOverviewMetricRows;
+          draftHoverMetricSizes = { ...draftOverviewMetricSizes };
+          draftHoverMetricTextMode = draftOverviewMetricTextMode;
           draftHoverMetrics = [...draftOverviewMetrics];
           draftHoverSyncOverview = false;
           syncHoverSectionMeta();
           props.onLayoutChange?.();
           void persistStructurePatch(hoverSection, {
             hoverSyncOverviewMetrics: false,
-            hoverMetricStyle: draftHoverMetricStyle,
+            hoverMetricRows: draftHoverMetricRows,
+            hoverMetricSizes: { ...draftHoverMetricSizes },
+            hoverMetricTextMode: draftHoverMetricTextMode,
+            hoverMetricStyle: deriveClientMetricCardStyle(
+              draftHoverMetricRows,
+              draftHoverMetrics,
+              draftHoverMetricSizes
+            ),
             hoverMetrics: draftHoverMetrics,
           });
         } else {
@@ -43204,18 +48241,31 @@ const SettingsStructureTab = defineComponent({
       options: getOverviewMetricOptions(),
       minItems: 1,
       maxItems: 4,
-      dimmedFromIndex:
-        getEffectiveHoverMetricStyle() === 'large' ? MAX_CLIENT_LARGE_METRIC_SLOTS : null,
+      dimmedValues: getEffectiveHoverLayout().overflowKeys,
       dimmedTagText: t('settings.str.metricOverflowTag'),
+      getItemBadge: (key) =>
+        formatMetricSizePillSpec(key, getEffectiveHoverMetricRows(), getEffectiveHoverMetricSizes()),
+      onClickItemBadge: (key) =>
+        commitHoverMetricSizes(
+          cycleDraftMetricCardSize(
+            getEffectiveHoverMetricSizes(),
+            key,
+            getEffectiveHoverMetricRows()
+          )
+        ),
       addBtnTextFn: (count, max) => t('settings.str.addOverviewMetric', { count, max }),
       onPreview: (previewItems) => {
         const normalized = normalizeClientHoverMetrics(previewItems);
         if (draftHoverSyncOverview) {
           draftOverviewMetrics = normalized;
+          syncOverviewMetricListProps();
           refreshOverviewPreview();
         } else {
           draftHoverMetrics = normalized;
         }
+        hoverMetricsList.refs.setProps({
+          dimmedValues: getEffectiveHoverLayout().overflowKeys,
+        });
         refreshHoverPreview();
       },
       onChange: commitHoverMetricsOrder,
@@ -43251,7 +48301,9 @@ const SettingsStructureTab = defineComponent({
       onReset: () => {
         draftHoverModules = [...DEFAULT_CLIENT_HOVER_MODULES];
         draftHoverSyncOverview = DEFAULT_CLIENT_HOVER_SYNC_OVERVIEW_METRICS;
-        draftHoverMetricStyle = DEFAULT_CLIENT_HOVER_METRIC_STYLE;
+        draftHoverMetricRows = DEFAULT_CLIENT_HOVER_METRIC_ROWS;
+        draftHoverMetricSizes = { ...DEFAULT_CLIENT_HOVER_METRIC_SIZES };
+        draftHoverMetricTextMode = DEFAULT_CLIENT_HOVER_METRIC_TEXT_MODE;
         draftHoverMetrics = [...DEFAULT_CLIENT_HOVER_METRICS];
         syncHoverSectionMeta();
         props.onLayoutChange?.();
@@ -43260,7 +48312,14 @@ const SettingsStructureTab = defineComponent({
           {
             hoverModules: [...DEFAULT_CLIENT_HOVER_MODULES],
             hoverSyncOverviewMetrics: DEFAULT_CLIENT_HOVER_SYNC_OVERVIEW_METRICS,
-            hoverMetricStyle: DEFAULT_CLIENT_HOVER_METRIC_STYLE,
+            hoverMetricRows: DEFAULT_CLIENT_HOVER_METRIC_ROWS,
+            hoverMetricSizes: { ...DEFAULT_CLIENT_HOVER_METRIC_SIZES },
+            hoverMetricTextMode: DEFAULT_CLIENT_HOVER_METRIC_TEXT_MODE,
+            hoverMetricStyle: deriveClientMetricCardStyle(
+              DEFAULT_CLIENT_HOVER_METRIC_ROWS,
+              DEFAULT_CLIENT_HOVER_METRICS,
+              DEFAULT_CLIENT_HOVER_METRIC_SIZES
+            ),
             hoverMetrics: [...DEFAULT_CLIENT_HOVER_METRICS],
           },
           'settings.resetDone'
@@ -43270,9 +48329,13 @@ const SettingsStructureTab = defineComponent({
         hoverPreviewCanvas,
         h('div', { className: 'settings-divider' }),
         h('div', { className: 'form-row' }, [
-          h('div', { className: 'settings-inline-row' }, [
-            hoverMetricStyleLabelEl,
-            hoverMetricStyleSwitch.el,
+          h('div', { className: 'settings-inline-row is-wrap-narrow' }, [
+            hoverMetricRowsLabelEl,
+            hoverMetricRowsSwitch.el,
+          ]),
+          h('div', { className: 'settings-inline-row is-wrap-narrow' }, [
+            hoverMetricTextModeLabelEl,
+            hoverMetricTextModeSwitch.el,
           ]),
           h('div', { className: 'settings-inline-row' }, [
             hoverSyncOverviewLabelEl,
@@ -43300,13 +48363,19 @@ const SettingsStructureTab = defineComponent({
     }
 
     function syncHoverSectionMeta() {
-      const effectiveStyle = getEffectiveHoverMetricStyle();
+      const effectiveRows = getEffectiveHoverMetricRows();
+      const effectiveTextMode = getEffectiveHoverMetricTextMode();
       const metricsEnabled = draftHoverModules.includes('metrics');
 
-      hoverMetricStyleSwitch.setProps({
-        modelValue: effectiveStyle,
-        options: getHoverMetricStyleOptions(),
-        ariaLabel: t('settings.str.hoverMetricStyleLabel'),
+      hoverMetricRowsSwitch.setProps({
+        modelValue: String(effectiveRows),
+        options: getMetricRowsOptions(),
+        ariaLabel: t('settings.str.metricHeightLabel'),
+      });
+      hoverMetricTextModeSwitch.setProps({
+        modelValue: effectiveTextMode,
+        options: getMetricTextModeOptions(),
+        ariaLabel: t('settings.str.metricTextModeLabel'),
       });
       hoverSyncOverviewToggle.setProps({
         modelValue: draftHoverSyncOverview ? 'on' : 'off',
@@ -43328,7 +48397,9 @@ const SettingsStructureTab = defineComponent({
       const isDefault =
         isSameList(draftHoverModules, DEFAULT_CLIENT_HOVER_MODULES) &&
         draftHoverSyncOverview === DEFAULT_CLIENT_HOVER_SYNC_OVERVIEW_METRICS &&
-        draftHoverMetricStyle === DEFAULT_CLIENT_HOVER_METRIC_STYLE &&
+        draftHoverMetricRows === DEFAULT_CLIENT_HOVER_METRIC_ROWS &&
+        isSameSizeMap(draftHoverMetricSizes, DEFAULT_CLIENT_HOVER_METRIC_SIZES) &&
+        draftHoverMetricTextMode === DEFAULT_CLIENT_HOVER_METRIC_TEXT_MODE &&
         isSameList(draftHoverMetrics, DEFAULT_CLIENT_HOVER_METRICS);
       hoverSection.refs.setResetDisabled(isDefault);
       refreshHoverPreview();
@@ -43361,14 +48432,27 @@ const SettingsStructureTab = defineComponent({
         }
       },
       onReorderMetrics: commitOverviewMetricsOrder,
+      onPreviewMetricSizes: (previewSizes) => {
+        draftOverviewMetricSizes = normalizeClientOverviewMetricSizes(previewSizes);
+        syncOverviewMetricListProps();
+        if (draftHoverSyncOverview) {
+          syncHoverMetricListProps();
+          refreshHoverPreview();
+        }
+      },
+      onResizeMetricSizes: commitOverviewMetricSizes,
     });
     const overviewPreviewCanvas = h('div', { className: 'structure-preview-canvas' }, [
       overviewPreviewContainerEl,
     ]);
 
-    const overviewMetricStyleLabelEl = h('span', {
+    const overviewMetricRowsLabelEl = h('span', {
       className: 'form-label',
-      text: t('settings.str.hoverMetricStyleLabel'),
+      text: t('settings.str.metricHeightLabel'),
+    });
+    const overviewMetricTextModeLabelEl = h('span', {
+      className: 'form-label',
+      text: t('settings.str.metricTextModeLabel'),
     });
     const overviewModulesLabelEl = h('span', {
       className: 'form-label',
@@ -43388,21 +48472,46 @@ const SettingsStructureTab = defineComponent({
       text: t('settings.str.quotaDisplayModeLabel'),
     });
 
-    const overviewMetricStyleSwitch = SegmentedControl({
-      ariaLabel: t('settings.str.hoverMetricStyleLabel'),
-      modelValue: draftOverviewMetricStyle,
-      options: getHoverMetricStyleOptions(),
+    const overviewMetricRowsSwitch = SegmentedControl({
+      ariaLabel: t('settings.str.metricHeightLabel'),
+      modelValue: String(draftOverviewMetricRows),
+      options: getMetricRowsOptions(),
       onUpdateModelValue: (val) => {
-        const nextStyle = normalizeClientOverviewMetricStyle(val);
-        if (nextStyle === draftOverviewMetricStyle) return;
-        draftOverviewMetricStyle = nextStyle;
+        const nextRows = normalizeClientOverviewMetricRows(val);
+        if (nextRows === draftOverviewMetricRows) return;
+        draftOverviewMetricRows = nextRows;
         syncOverviewSectionMeta();
         if (draftHoverSyncOverview) {
           syncHoverSectionMeta();
         }
         props.onLayoutChange?.();
         void persistStructurePatch(overviewSection, {
-          overviewMetricStyle: draftOverviewMetricStyle,
+          overviewMetricRows: draftOverviewMetricRows,
+          overviewMetricSizes: { ...draftOverviewMetricSizes },
+          overviewMetricStyle: deriveClientMetricCardStyle(
+            draftOverviewMetricRows,
+            draftOverviewMetrics,
+            draftOverviewMetricSizes
+          ),
+        });
+      },
+    });
+
+    const overviewMetricTextModeSwitch = SegmentedControl({
+      ariaLabel: t('settings.str.metricTextModeLabel'),
+      modelValue: draftOverviewMetricTextMode,
+      options: getMetricTextModeOptions(),
+      onUpdateModelValue: (val) => {
+        const nextMode = normalizeClientOverviewMetricTextMode(val);
+        if (nextMode === draftOverviewMetricTextMode) return;
+        draftOverviewMetricTextMode = nextMode;
+        syncOverviewSectionMeta();
+        if (draftHoverSyncOverview) {
+          syncHoverSectionMeta();
+        }
+        props.onLayoutChange?.();
+        void persistStructurePatch(overviewSection, {
+          overviewMetricTextMode: draftOverviewMetricTextMode,
         });
       },
     });
@@ -43450,14 +48559,23 @@ const SettingsStructureTab = defineComponent({
       options: getOverviewMetricOptions(),
       minItems: 1,
       maxItems: 4,
-      dimmedFromIndex:
-        draftOverviewMetricStyle === 'large' ? MAX_CLIENT_LARGE_METRIC_SLOTS : null,
+      dimmedValues: getEffectiveOverviewLayout().overflowKeys,
       dimmedTagText: t('settings.str.metricOverflowTag'),
+      getItemBadge: (key) =>
+        formatMetricSizePillSpec(key, draftOverviewMetricRows, draftOverviewMetricSizes),
+      onClickItemBadge: (key) =>
+        commitOverviewMetricSizes(
+          cycleDraftMetricCardSize(draftOverviewMetricSizes, key, draftOverviewMetricRows)
+        ),
       addBtnTextFn: (count, max) => t('settings.str.addOverviewMetric', { count, max }),
       onPreview: (previewItems) => {
         draftOverviewMetrics = normalizeClientOverviewMetrics(previewItems);
+        overviewMetricsList.refs.setProps({
+          dimmedValues: getEffectiveOverviewLayout().overflowKeys,
+        });
         refreshOverviewPreview();
         if (draftHoverSyncOverview) {
+          syncHoverMetricListProps();
           refreshHoverPreview();
         }
       },
@@ -43474,7 +48592,9 @@ const SettingsStructureTab = defineComponent({
       }),
       onReset: () => {
         draftOverviewModules = [...DEFAULT_CLIENT_OVERVIEW_MODULES];
-        draftOverviewMetricStyle = DEFAULT_CLIENT_OVERVIEW_METRIC_STYLE;
+        draftOverviewMetricRows = DEFAULT_CLIENT_OVERVIEW_METRIC_ROWS;
+        draftOverviewMetricSizes = { ...DEFAULT_CLIENT_OVERVIEW_METRIC_SIZES };
+        draftOverviewMetricTextMode = DEFAULT_CLIENT_OVERVIEW_METRIC_TEXT_MODE;
         draftOverviewMetrics = [...DEFAULT_CLIENT_OVERVIEW_METRICS];
         draftQuotaDisplayMode = DEFAULT_CLIENT_QUOTA_DISPLAY_MODE;
         syncOverviewSectionMeta();
@@ -43488,7 +48608,14 @@ const SettingsStructureTab = defineComponent({
           overviewSection,
           {
             overviewModules: [...DEFAULT_CLIENT_OVERVIEW_MODULES],
-            overviewMetricStyle: DEFAULT_CLIENT_OVERVIEW_METRIC_STYLE,
+            overviewMetricRows: DEFAULT_CLIENT_OVERVIEW_METRIC_ROWS,
+            overviewMetricSizes: { ...DEFAULT_CLIENT_OVERVIEW_METRIC_SIZES },
+            overviewMetricTextMode: DEFAULT_CLIENT_OVERVIEW_METRIC_TEXT_MODE,
+            overviewMetricStyle: deriveClientMetricCardStyle(
+              DEFAULT_CLIENT_OVERVIEW_METRIC_ROWS,
+              DEFAULT_CLIENT_OVERVIEW_METRICS,
+              DEFAULT_CLIENT_OVERVIEW_METRIC_SIZES
+            ),
             overviewMetrics: [...DEFAULT_CLIENT_OVERVIEW_METRICS],
             quotaDisplayMode: DEFAULT_CLIENT_QUOTA_DISPLAY_MODE,
           },
@@ -43499,9 +48626,13 @@ const SettingsStructureTab = defineComponent({
         overviewPreviewCanvas,
         h('div', { className: 'settings-divider' }),
         h('div', { className: 'form-row' }, [
-          h('div', { className: 'settings-inline-row' }, [
-            overviewMetricStyleLabelEl,
-            overviewMetricStyleSwitch.el,
+          h('div', { className: 'settings-inline-row is-wrap-narrow' }, [
+            overviewMetricRowsLabelEl,
+            overviewMetricRowsSwitch.el,
+          ]),
+          h('div', { className: 'settings-inline-row is-wrap-narrow' }, [
+            overviewMetricTextModeLabelEl,
+            overviewMetricTextModeSwitch.el,
           ]),
           h('div', { className: 'settings-inline-row' }, [
             quotaDisplayModeLabelEl,
@@ -43525,11 +48656,16 @@ const SettingsStructureTab = defineComponent({
     }
 
     function syncOverviewSectionMeta() {
-      const isLarge = draftOverviewMetricStyle === 'large';
-      overviewMetricStyleSwitch.setProps({
-        modelValue: draftOverviewMetricStyle,
-        options: getHoverMetricStyleOptions(),
-        ariaLabel: t('settings.str.hoverMetricStyleLabel'),
+      const layout = getEffectiveOverviewLayout();
+      overviewMetricRowsSwitch.setProps({
+        modelValue: String(draftOverviewMetricRows),
+        options: getMetricRowsOptions(),
+        ariaLabel: t('settings.str.metricHeightLabel'),
+      });
+      overviewMetricTextModeSwitch.setProps({
+        modelValue: draftOverviewMetricTextMode,
+        options: getMetricTextModeOptions(),
+        ariaLabel: t('settings.str.metricTextModeLabel'),
       });
       quotaDisplayModeToggle.setProps({
         modelValue: draftQuotaDisplayMode,
@@ -43544,18 +48680,17 @@ const SettingsStructureTab = defineComponent({
       syncOverviewMetricListProps();
       const metricsModuleActive = draftOverviewModules.includes('metrics');
       patchAttr(overviewMetricsHintEl, 'hidden', metricsModuleActive);
-      const visibleMetricCount = isLarge
-        ? Math.min(MAX_CLIENT_LARGE_METRIC_SLOTS, draftOverviewMetrics.length)
-        : draftOverviewMetrics.length;
       overviewSection.refs.setBadge(
         t('settings.str.overviewBadge', {
           modCount: draftOverviewModules.length,
-          metCount: visibleMetricCount,
+          metCount: layout.placements.length,
         })
       );
       const isDefault =
         isSameList(draftOverviewModules, DEFAULT_CLIENT_OVERVIEW_MODULES) &&
-        draftOverviewMetricStyle === DEFAULT_CLIENT_OVERVIEW_METRIC_STYLE &&
+        draftOverviewMetricRows === DEFAULT_CLIENT_OVERVIEW_METRIC_ROWS &&
+        isSameSizeMap(draftOverviewMetricSizes, DEFAULT_CLIENT_OVERVIEW_METRIC_SIZES) &&
+        draftOverviewMetricTextMode === DEFAULT_CLIENT_OVERVIEW_METRIC_TEXT_MODE &&
         isSameList(draftOverviewMetrics, DEFAULT_CLIENT_OVERVIEW_METRICS) &&
         draftQuotaDisplayMode === DEFAULT_CLIENT_QUOTA_DISPLAY_MODE;
       overviewSection.refs.setResetDisabled(isDefault);
@@ -43929,26 +49064,57 @@ const SettingsStructureTab = defineComponent({
       if (hostPlatform) latestHostPlatform = hostPlatform;
       if (cliStatusLine !== undefined) latestCliStatusLine = cliStatusLine;
       if (quotas !== undefined) latestQuotas = quotas;
-      draftWindowMountMode = normalizeClientWindowMountMode(
-        settings.windowMountMode,
-        settings.enableWindowOverlay
-      );
+      draftWindowMountMode = isVsCodeExtensionHost()
+        ? isForceTopbarOverlay()
+          ? 'dual'
+          : normalizeClientVsCodeMountMode(settings.vsCodeMountMode)
+        : normalizeClientWindowMountMode(
+            settings.windowMountMode,
+            settings.enableWindowOverlay
+          );
       draftPopoverWidthMode = normalizeClientPopoverWidthMode(settings.popoverWidthMode);
       draftPopoverWidth = normalizeClientPopoverWidth(settings.popoverWidth);
       draftEnableCliStatusLine = settings.enableCliStatusLine !== false;
       draftCliStatusLineSlots = normalizeClientCliStatusLineSlots(settings.cliStatusLineSlots);
-      draftShowTopbarMulti = settings.showTopbarMultiSession !== false;
+      draftTopbarMultiSessionMode = normalizeClientTopbarMultiSessionMode(
+        settings.topbarMultiSessionMode,
+        settings.showTopbarMultiSession
+      );
       draftContextAgentMode = normalizeClientContextAgentMode(settings.contextAgentMode);
       draftTopbarSlots = normalizeClientTopbarSlots(settings.topbarCapsuleSlots);
       draftHoverModules = normalizeClientHoverModules(settings.hoverModules);
       draftHoverSyncOverview = normalizeClientHoverSyncOverviewMetrics(
         settings.hoverSyncOverviewMetrics
       );
-      draftHoverMetricStyle = normalizeClientHoverMetricStyle(settings.hoverMetricStyle);
+      const hasHoverBento =
+        settings.hoverMetricRows !== undefined || settings.hoverMetricSizes !== undefined;
       draftHoverMetrics = normalizeClientHoverMetrics(settings.hoverMetrics);
+      draftHoverMetricRows = normalizeClientHoverMetricRows(
+        settings.hoverMetricRows,
+        hasHoverBento ? undefined : settings.hoverMetricStyle
+      );
+      draftHoverMetricSizes = normalizeClientHoverMetricSizes(
+        settings.hoverMetricSizes,
+        draftHoverMetrics,
+        hasHoverBento ? undefined : settings.hoverMetricStyle
+      );
+      draftHoverMetricTextMode = normalizeClientHoverMetricTextMode(settings.hoverMetricTextMode);
       draftOverviewModules = normalizeClientOverviewModules(settings.overviewModules);
-      draftOverviewMetricStyle = normalizeClientOverviewMetricStyle(settings.overviewMetricStyle);
+      const hasOverviewBento =
+        settings.overviewMetricRows !== undefined || settings.overviewMetricSizes !== undefined;
       draftOverviewMetrics = normalizeClientOverviewMetrics(settings.overviewMetrics);
+      draftOverviewMetricRows = normalizeClientOverviewMetricRows(
+        settings.overviewMetricRows,
+        hasOverviewBento ? undefined : settings.overviewMetricStyle
+      );
+      draftOverviewMetricSizes = normalizeClientOverviewMetricSizes(
+        settings.overviewMetricSizes,
+        draftOverviewMetrics,
+        hasOverviewBento ? undefined : settings.overviewMetricStyle
+      );
+      draftOverviewMetricTextMode = normalizeClientOverviewMetricTextMode(
+        settings.overviewMetricTextMode
+      );
       draftQuotaDisplayMode = normalizeClientQuotaDisplayMode(settings.quotaDisplayMode);
       draftShowStepTurnRail = settings.showStepTurnRail === true;
       draftShowStepAgentBadge = settings.showStepAgentBadge !== false;
@@ -43987,13 +49153,15 @@ const SettingsStructureTab = defineComponent({
       hoverSection.refs.setTitle(t('settings.str.hoverSection'));
       hoverSection.refs.setResetLabel(t('settings.resetBtn'));
       patchText(hoverModulesLabelEl, t('settings.str.hoverModulesLabel'));
-      patchText(hoverMetricStyleLabelEl, t('settings.str.hoverMetricStyleLabel'));
+      patchText(hoverMetricRowsLabelEl, t('settings.str.metricHeightLabel'));
+      patchText(hoverMetricTextModeLabelEl, t('settings.str.metricTextModeLabel'));
       patchText(hoverSyncOverviewLabelEl, t('settings.str.hoverSyncOverviewLabel'));
       patchText(hoverMetricsLabelEl, t('settings.str.hoverMetricsLabel'));
 
       overviewSection.refs.setTitle(t('settings.str.overviewSection'));
       overviewSection.refs.setResetLabel(t('settings.resetBtn'));
-      patchText(overviewMetricStyleLabelEl, t('settings.str.hoverMetricStyleLabel'));
+      patchText(overviewMetricRowsLabelEl, t('settings.str.metricHeightLabel'));
+      patchText(overviewMetricTextModeLabelEl, t('settings.str.metricTextModeLabel'));
       patchText(overviewModulesLabelEl, t('settings.str.overviewModulesLabel'));
       patchText(overviewMetricsLabelEl, t('settings.str.overviewMetricsLabel'));
       patchText(overviewMetricsHintEl, t('settings.str.overviewMetricsInactiveHint'));
@@ -44065,10 +49233,12 @@ const SettingsStructureTab = defineComponent({
       cliSlotsList.destroy();
       topbarSlotsList.destroy();
       hoverModulesList.destroy();
-      hoverMetricStyleSwitch.destroy();
+      hoverMetricRowsSwitch.destroy();
+      hoverMetricTextModeSwitch.destroy();
       hoverSyncOverviewToggle.destroy();
       hoverMetricsList.destroy();
-      overviewMetricStyleSwitch.destroy();
+      overviewMetricRowsSwitch.destroy();
+      overviewMetricTextModeSwitch.destroy();
       quotaDisplayModeToggle.destroy();
       overviewModulesList.destroy();
       overviewMetricsList.destroy();
@@ -44107,10 +49277,12 @@ const SettingsStructureTab = defineComponent({
         cliStatusActionBtn,
         topbarSlotsList,
         hoverModulesList,
-        hoverMetricStyleSwitch,
+        hoverMetricRowsSwitch,
+        hoverMetricTextModeSwitch,
         hoverSyncOverviewToggle,
         hoverMetricsList,
-        overviewMetricStyleSwitch,
+        overviewMetricRowsSwitch,
+        overviewMetricTextModeSwitch,
         quotaDisplayModeToggle,
         overviewModulesList,
         overviewMetricsList,
@@ -44419,6 +49591,7 @@ function getAccountRefreshOptions() {
     { value: 360, label: t(key('refresh6h')) },
     { value: 720, label: t(key('refresh12h')) },
     { value: 1440, label: t(key('refresh24h')) },
+    { value: 0, label: t(key('refreshOff')) },
   ];
 }
 
@@ -44770,7 +49943,9 @@ const SettingsAccountTab = defineComponent({
         const nextMins = normalizeAccountQuotaRefreshMinutes(nextVal);
         refreshMinutes = nextMins;
         refreshIntervalSelect.setValue(nextMins);
-        void refreshSavedQuotas();
+        if (nextMins > 0) {
+          void refreshSavedQuotas();
+        }
         try {
           await saveSettingsPatch({ accountQuotaRefreshMinutes: nextMins });
         } catch {
@@ -45681,7 +50856,13 @@ const SettingsAccountTab = defineComponent({
         return;
       }
       await request('list');
-      if (!disposed && draftRiskAccepted && !isVaultLocked() && email !== resolveActiveEmail()) {
+      if (
+        !disposed &&
+        refreshMinutes > 0 &&
+        draftRiskAccepted &&
+        !isVaultLocked() &&
+        email !== resolveActiveEmail()
+      ) {
         void refreshQuota(email, false);
       }
     }
@@ -45748,7 +50929,7 @@ const SettingsAccountTab = defineComponent({
     }
 
     async function refreshSavedQuotas() {
-      if (refreshingSavedQuotas || !draftRiskAccepted || isVaultLocked()) return;
+      if (refreshMinutes <= 0 || refreshingSavedQuotas || !draftRiskAccepted || isVaultLocked()) return;
       refreshingSavedQuotas = true;
       try {
         const activeEmail = resolveActiveEmail();
@@ -45761,7 +50942,15 @@ const SettingsAccountTab = defineComponent({
         });
         const BATCH_SIZE = 3;
         for (let i = 0; i < staleTargets.length; i += BATCH_SIZE) {
-          if (disposed || operation === 'switch' || !draftRiskAccepted || isVaultLocked()) break;
+          if (
+            disposed ||
+            refreshMinutes <= 0 ||
+            operation === 'switch' ||
+            !draftRiskAccepted ||
+            isVaultLocked()
+          ) {
+            break;
+          }
           const batch = staleTargets.slice(i, i + BATCH_SIZE);
           await Promise.all(batch.map((addr) => refreshQuota(addr, false)));
         }
@@ -45775,6 +50964,7 @@ const SettingsAccountTab = defineComponent({
       if (
         !addr ||
         addr === activeEmail ||
+        (!manual && refreshMinutes <= 0) ||
         !draftRiskAccepted ||
         isVaultLocked() ||
         quotaInFlight.has(addr) ||
@@ -45927,7 +51117,14 @@ const SettingsAccountTab = defineComponent({
     }
 
     const quotaScheduleTimer = setInterval(() => {
-      if (!disposed && draftRiskAccepted && accounts.length > 0 && !operation && !isVaultLocked()) {
+      if (
+        !disposed &&
+        refreshMinutes > 0 &&
+        draftRiskAccepted &&
+        accounts.length > 0 &&
+        !operation &&
+        !isVaultLocked()
+      ) {
         void refreshSavedQuotas();
       }
     }, 60_000);
@@ -46008,6 +51205,7 @@ const SettingsOtherTab = defineComponent({
     let draftModelDisplayMode = 'short';
     let draftAutoConfigureLaunch = true;
     let draftEnableRemoteSshTelemetry = true;
+    let draftEnableSafetyMonitor = false;
     let draftExperimentalQuotaReservation = true;
     let draftDeveloperModeEnabled = false;
     let draftRiskyFeaturesEnabled = false;
@@ -46228,6 +51426,33 @@ const SettingsOtherTab = defineComponent({
       },
     });
 
+    const safetyMonitorLabelEl = h('span', {
+      className: 'settings-action-title',
+      text: t('settings.oth.safetyMonitorLabel'),
+    });
+    const safetyMonitorDescEl = h('span', {
+      className: 'settings-action-desc',
+      text: t('settings.oth.safetyMonitorDesc'),
+    });
+    const safetyMonitorToggle = ToggleSwitch({
+      modelValue: 'off',
+      ariaLabelKey: 'settings.oth.safetyMonitorLabel',
+      preset: 'enable',
+      onUpdateModelValue: async (val) => {
+        const nextEnabled = val === 'on';
+        draftEnableSafetyMonitor = nextEnabled;
+        safetyMonitorToggle.setProps({ modelValue: nextEnabled ? 'on' : 'off' });
+        showHostFeedback(t('settings.saving'), 0);
+        try {
+          await saveSettingsPatch({ enableSafetyMonitor: nextEnabled });
+          showHostFeedback(t('settings.saved'), 1500);
+        } catch {
+          if (latestSettings) renderSettings(latestSettings);
+          showHostFeedback(t('settings.saveFailed'), 2500);
+        }
+      },
+    });
+
     const macWrapperLabelEl = h('span', {
       className: 'settings-action-title',
       text: t('settings.oth.macWrapperLabel'),
@@ -46306,6 +51531,10 @@ const SettingsOtherTab = defineComponent({
       h('div', { className: 'settings-action-block' }, [
         h('div', { className: 'settings-action-info' }, [remoteSshLabelEl, remoteSshDescEl]),
         remoteSshToggle.el,
+      ]),
+      h('div', { className: 'settings-action-block' }, [
+        h('div', { className: 'settings-action-info' }, [safetyMonitorLabelEl, safetyMonitorDescEl]),
+        safetyMonitorToggle.el,
       ]),
       macWrapperCleanRow,
     ]);
@@ -47182,6 +52411,7 @@ const SettingsOtherTab = defineComponent({
       draftEnableRemoteSshTelemetry = normalizeClientEnableRemoteSshTelemetry(
         settings.enableRemoteSshTelemetry
       );
+      draftEnableSafetyMonitor = normalizeClientEnableSafetyMonitor(settings.enableSafetyMonitor);
       draftExperimentalQuotaReservation = normalizeClientExperimentalQuotaReservation(
         settings.experimentalQuotaReservation
       );
@@ -47214,6 +52444,9 @@ const SettingsOtherTab = defineComponent({
       remoteSshToggle.setProps({
         modelValue: draftEnableRemoteSshTelemetry ? 'on' : 'off',
       });
+      safetyMonitorToggle.setProps({
+        modelValue: draftEnableSafetyMonitor ? 'on' : 'off',
+      });
       syncHostIntegrationRows();
       quotaReserveToggle.setProps({
         modelValue: draftExperimentalQuotaReservation ? 'on' : 'off',
@@ -47229,6 +52462,8 @@ const SettingsOtherTab = defineComponent({
       patchText(autoLaunchDescEl, t('settings.oth.autoLaunchDesc'));
       patchText(remoteSshLabelEl, t('settings.oth.remoteSshLabel'));
       patchText(remoteSshDescEl, t('settings.oth.remoteSshDesc'));
+      patchText(safetyMonitorLabelEl, t('settings.oth.safetyMonitorLabel'));
+      patchText(safetyMonitorDescEl, t('settings.oth.safetyMonitorDesc'));
       patchText(macWrapperLabelEl, t('settings.oth.macWrapperLabel'));
       patchText(macWrapperDescEl, t('settings.oth.macWrapperDesc'));
       patchText(macWrapperRemoveBtnText, t('settings.oth.macRemoveWrapperBtn'));
@@ -47237,6 +52472,9 @@ const SettingsOtherTab = defineComponent({
       });
       remoteSshToggle.setProps({
         modelValue: draftEnableRemoteSshTelemetry ? 'on' : 'off',
+      });
+      safetyMonitorToggle.setProps({
+        modelValue: draftEnableSafetyMonitor ? 'on' : 'off',
       });
       syncHostIntegrationRows();
       patchText(expTitleEl, t('settings.oth.expTitle'));
@@ -47291,6 +52529,7 @@ const SettingsOtherTab = defineComponent({
       stepModelSelect.destroy();
       autoLaunchToggle.destroy();
       remoteSshToggle.destroy();
+      safetyMonitorToggle.destroy();
       quotaReserveToggle.destroy();
       developerModeToggle.destroy();
       riskyFeaturesToggle.destroy();
@@ -47307,6 +52546,7 @@ const SettingsOtherTab = defineComponent({
         stepModelSelect,
         autoLaunchToggle,
         remoteSshToggle,
+        safetyMonitorToggle,
         macWrapperRemoveBtn,
         quotaReserveToggle,
         exportReserveLogBtn,
@@ -48782,6 +54022,8 @@ const ConsumptionView = defineComponent({
       monthlyGridEl,
     ]);
 
+    const safetyMonitorCard = SafetyMonitorCard();
+
     const scrollInner = h(
       'div',
       {
@@ -48793,6 +54035,7 @@ const ConsumptionView = defineComponent({
         rankingPanel,
         sourcesPanel,
         monthlyPanel,
+        safetyMonitorCard.el,
       ]
     );
 
@@ -48850,6 +54093,10 @@ const ConsumptionView = defineComponent({
 
     function renderConsumptionData(slice) {
       if (!slice) return;
+      safetyMonitorCard.refs.update({
+        enabled: slice.enableSafetyMonitor === true,
+        safetyMonitor: slice.safetyMonitor || null,
+      });
       const cons = slice.consumption || {};
       const rangeInfo = cons.selectedRange || {};
 
@@ -49487,6 +54734,8 @@ const ConsumptionView = defineComponent({
         showUpstreamModel: Boolean(st.telemetry?.settings?.showUpstreamModel),
         displayCurrency: normalizeDisplayCurrency(st.telemetry?.settings?.displayCurrency),
         fxStatus: st.telemetry?.fxStatus || null,
+        enableSafetyMonitor: st.telemetry?.settings?.enableSafetyMonitor === true,
+        safetyMonitor: st.telemetry?.safetyMonitor || null,
       }),
       (slice) => {
         latestSlice = slice;
@@ -49571,6 +54820,7 @@ const ConsumptionView = defineComponent({
       for (let i = 0; i < 12; i++) {
         patchText(monthlyCols[i].monthLabel, t('cons.monthLabel', { m: i + 1 }));
       }
+      safetyMonitorCard.refs.refreshLabels();
     }
 
     const unsubI18n = i18nStore.subscribe(
@@ -49602,6 +54852,7 @@ const ConsumptionView = defineComponent({
       timeFilterSwitch.destroy();
       startPicker.destroy();
       endPicker.destroy();
+      safetyMonitorCard.destroy();
       viewScrollbar.destroy();
     });
 
@@ -49617,6 +54868,7 @@ const ConsumptionView = defineComponent({
         viewScrollbar,
         breakdownPopoverEl,
         consExportMenu,
+        safetyMonitorCard,
       },
     };
   },
@@ -50257,21 +55509,27 @@ const StepsDetailView = defineComponent({
       inlineScopeSelect.el,
       stepsModelSelect.el,
     ]);
+    const headerRightEl = h('div', { className: 'steps-header-right', hidden: true }, [
+      headerFiltersEl,
+      stepsExportMenu.el,
+    ]);
+    function syncHeaderRightVisibility() {
+      const hasVisibleRightControl =
+        !headerFiltersEl.hasAttribute('hidden') || !stepsExportMenu.el.hasAttribute('hidden');
+      patchAttr(headerRightEl, 'hidden', !hasVisibleRightControl);
+    }
 
     const panelEl = h(
       'section',
       {
-        className: 'panel',
+        className: 'panel steps-panel',
         style: 'flex: 1; min-height: 0; display: flex; flex-direction: column; position: relative;',
       },
       [
         h('div', { className: 'panel-header steps-panel-header' }, [
           h('div', { className: 'steps-header-controls' }, [
             subTabSwitch.el,
-            h('div', { className: 'steps-header-right' }, [
-              headerFiltersEl,
-              stepsExportMenu.el,
-            ]),
+            headerRightEl,
           ]),
         ]),
         stepsFilterToolbarEl,
@@ -50616,6 +55874,7 @@ const StepsDetailView = defineComponent({
       const showFilterToolbar = filterToolbarEnabled && !showModels && steps.length > 0;
       patchAttr(stepsFilterToolbarEl, 'hidden', !showFilterToolbar);
       stepsExportMenu.refs.setHidden(showModels || steps.length === 0);
+      syncHeaderRightVisibility();
       if (showFilterToolbar) {
         const activeFilterOpts = [];
         for (const def of QUICK_CHIP_DEFS) {
@@ -51284,7 +56543,12 @@ const StepsDetailView = defineComponent({
           'hidden',
           tab !== 'steps' || !toolbarAllowed || (currentTableSteps.length === 0 && !stepSearchQuery && !stepQuickChip)
         );
+        if (tab !== 'steps') {
+          patchAttr(stepsModelSelect.el, 'hidden', true);
+          patchAttr(headerFiltersEl, 'hidden', inlineScopeSelect.el.hasAttribute('hidden'));
+        }
         stepsExportMenu.refs.setHidden(tab !== 'steps' || currentAllConvSteps.length === 0);
+        syncHeaderRightVisibility();
         patchAttr(stepsScroll.el, 'hidden', tab !== 'steps');
         patchAttr(modelsScroll.el, 'hidden', tab !== 'models');
         if (getVisibleMonitorView() === 'steps' && latestSlice) {
@@ -52082,7 +57346,7 @@ return { App };
 })();
 
 // --- src/components/layout/overlayHostAnchors.js ---
-const { CAPSULE_HOST_ID, PORTAL_HOST_ID, computeCapsuleLayoutMode, isImmediatelyBeforeNode, isIdeExtensionChatFrame, resolveActiveDockTarget, findNativeTopRightAnchor, getLeftSidebarRightEdge, attachShadowStyles } = (() => {
+const { CAPSULE_HOST_ID, PORTAL_HOST_ID, computeCapsuleLayoutMode, isImmediatelyBeforeNode, isIdeExtensionChatFrame, resolveActiveDockTarget, findNativeTopRightAnchor, getLeftSidebarRightEdge, getRightSidebarLeftEdge, attachShadowStyles } = (() => {
 const CAPSULE_HOST_ID = 'ag-usage-monitor-capsule';
 const PORTAL_HOST_ID = 'ag-usage-monitor-portal';
 
@@ -52837,12 +58101,8 @@ function isIdeExtensionChatFrame() {
 
 function resolveActiveDockTarget(options = undefined) {
   const settings = telemetryStore.getState().telemetry?.settings;
-  const rawMode =
-    settings?.windowMountMode ??
-    readInjectedWindowBridge()?.mountMode;
   const mountMode =
-    options?.mountMode ||
-    normalizeClientWindowMountMode(rawMode, settings?.enableWindowOverlay);
+    options?.mountMode || resolveClientEffectiveOverlayMountMode(settings);
   if (isIdeExtensionChatFrame()) {
     if (mountMode !== 'composer') return null;
     return findHostComposerAutoTarget(
@@ -52926,6 +58186,70 @@ function getLeftSidebarRightEdge(vw) {
   return 0;
 }
 
+function getRightSidebarLeftEdge(vw) {
+  try {
+    if (typeof document === 'undefined' || typeof document.querySelector !== 'function') {
+      return 0;
+    }
+    const safeVw = Number(vw || 0);
+    if (!(safeVw > 320)) return 0;
+
+    const sashEl = document.querySelector('[data-testid="aux-pane-sash"]');
+    if (sashEl && !isNodeHiddenByStyle(sashEl) && sashEl.getBoundingClientRect) {
+      const sr = sashEl.getBoundingClientRect();
+      if (
+        (sr.width > 0 || sr.height > 0) &&
+        sr.left > 240 &&
+        sr.left < safeVw - 40
+      ) {
+        return Math.floor(sr.left);
+      }
+    }
+
+    const auxSelectors = [
+      '.monaco-workbench .part.auxiliarybar',
+      '.monaco-workbench .part.sidebar.right',
+      '[data-testid="aux-pane"]',
+      '[data-testid="aux-sidebar"]',
+      'aside[data-side="right"]',
+      'iframe[src*="usage-monitor"]',
+      'webview[src*="usage-monitor"]',
+    ];
+    let minLeftEdge = 0;
+    for (const sel of auxSelectors) {
+      const el = document.querySelector(sel);
+      if (!el || el.id === CAPSULE_HOST_ID || el.id === PORTAL_HOST_ID) continue;
+      if (isNodeHiddenByStyle(el) || !el.getBoundingClientRect) continue;
+      const r = el.getBoundingClientRect();
+      if (
+        r.width >= 120 &&
+        r.height > 0 &&
+        r.left > 240 &&
+        r.left < safeVw - 40 &&
+        r.right >= safeVw - 24
+      ) {
+        const edge = Math.floor(r.left);
+        if (minLeftEdge === 0 || edge < minLeftEdge) {
+          minLeftEdge = edge;
+        }
+      }
+    }
+    if (minLeftEdge > 0) return minLeftEdge;
+
+    const tbEl = findHostTitlebar();
+    if (tbEl && !isNodeHiddenByStyle(tbEl) && tbEl.getBoundingClientRect) {
+      const tr = tbEl.getBoundingClientRect();
+      if (tr.width >= 300 && tr.height > 0 && tr.right > 300 && tr.right < safeVw - 160) {
+        return Math.floor(tr.right);
+      }
+    }
+    return 0;
+  } catch {
+
+  }
+  return 0;
+}
+
 const CAPSULE_EXCLUDED_CSS_SECTIONS = new Set([
   'src/styles/views-overview.css',
   'src/styles/views-consumption.css',
@@ -52970,7 +58294,7 @@ function attachShadowStyles(shadowRoot, fullCss, { slimCapsule = false } = {}) {
   styleEl.textContent = slimCapsule ? buildSlimCapsuleCss(fullCss) : fullCss;
   shadowRoot.appendChild(styleEl);
 }
-return { CAPSULE_HOST_ID, PORTAL_HOST_ID, computeCapsuleLayoutMode, isImmediatelyBeforeNode, isIdeExtensionChatFrame, resolveActiveDockTarget, findNativeTopRightAnchor, getLeftSidebarRightEdge, attachShadowStyles };
+return { CAPSULE_HOST_ID, PORTAL_HOST_ID, computeCapsuleLayoutMode, isImmediatelyBeforeNode, isIdeExtensionChatFrame, resolveActiveDockTarget, findNativeTopRightAnchor, getLeftSidebarRightEdge, getRightSidebarLeftEdge, attachShadowStyles };
 })();
 
 // --- src/components/layout/WindowOverlayShell.js ---
@@ -52978,7 +58302,8 @@ const { mountWindowOverlay } = (() => {
 const FLOATING_CARD_WIDTH = 522;
 const POPOVER_BASE_WIDTH = 540;
 const POPOVER_MAX_AUTO_WIDTH = 960;
-const MULTI_PANEL_WIDTH = 464;
+const MULTI_PANEL_WIDTH = 376;
+const MULTI_PANEL_EMPTY_WIDTH = 256;
 
 function mountWindowOverlay() {
   if (typeof window === 'undefined' || typeof document === 'undefined') return null;
@@ -53228,8 +58553,18 @@ function mountWindowOverlay() {
   ];
   let lastSlotCount = 3;
   let lastShowMulti = true;
+  let lastRunningCount = 0;
   let lastShowUpdate = false;
   let isTopbarUpdating = false;
+
+  function resolveEffectiveShowMulti(telemetry, runningCountOverride = null) {
+    const mode = normalizeClientTopbarMultiSessionMode(
+      telemetry?.settings?.topbarMultiSessionMode,
+      telemetry?.settings?.showTopbarMultiSession
+    );
+    const count = runningCountOverride !== null ? runningCountOverride : lastRunningCount;
+    return isClientTopbarMultiSessionVisible(mode, count);
+  }
 
   const updateDot = h('span', { className: 'wm-update-dot', hidden: true });
   const topbarUpdateIcon = createSvgIcon('arrow-down', { size: 10 });
@@ -53600,30 +58935,37 @@ function mountWindowOverlay() {
     const hostFontSans =
       readProp(rootCs, '--font-sans') ||
       readProp(bodyCs, '--font-sans') ||
+      readProp(rootCs, '--font-family') ||
+      readProp(bodyCs, '--font-family') ||
       readProp(wbCs, '--vscode-font-family') ||
       readProp(bodyCs, 'font-family', 'fontFamily') ||
       readProp(rootCs, 'font-family', 'fontFamily');
     const hostFontMono =
       readProp(rootCs, '--font-mono') ||
       readProp(bodyCs, '--font-mono') ||
+      readProp(rootCs, '--editor-font-family') ||
+      readProp(bodyCs, '--editor-font-family') ||
       readProp(wbCs, '--vscode-editor-font-family') ||
       readProp(rootCs, '--font-code');
 
-    for (const [cssVar, val] of [
-      ['--font-sans', hostFontSans],
-      ['--font-mono', hostFontMono],
+    for (const [cssVar, hostVar, val] of [
+      ['--font-sans', '--host-font-sans', hostFontSans],
+      ['--font-mono', '--host-font-mono', hostFontMono],
     ]) {
       const prevVal = mirroredTypographyVars.get(cssVar) || '';
       if (val) {
         if (prevVal !== val) {
           portalHost.style.setProperty?.(cssVar, val);
+          portalHost.style.setProperty?.(hostVar, val);
           mirroredTypographyVars.set(cssVar, val);
         }
       } else if (prevVal) {
         if (typeof portalHost.style.removeProperty === 'function') {
           portalHost.style.removeProperty(cssVar);
+          portalHost.style.removeProperty(hostVar);
         } else {
           portalHost.style.setProperty?.(cssVar, '');
+          portalHost.style.setProperty?.(hostVar, '');
         }
         mirroredTypographyVars.delete(cssVar);
       }
@@ -53992,24 +59334,30 @@ function mountWindowOverlay() {
         Math.round(FLOATING_CARD_WIDTH * panelScale),
         Math.max(280, vw - 24)
       );
-      const defaultMultiW = Math.min(
-        Math.round(MULTI_PANEL_WIDTH * panelScale),
-        Math.max(280, vw - 24)
-      );
       const isDockComposer = capsuleHost.getAttribute('data-dock') === 'composer';
 
       if (multiOpen) {
         const mRect = multiBtn.getBoundingClientRect?.() || bRect;
         const anchorRect = mRect.width > 0 || mRect.height > 0 ? mRect : bRect;
-        const rawW =
+        const rightEdge = getRightSidebarLeftEdge(vw);
+        const hasUsableRightBound = rightEdge > 0 && rightEdge - 10 - minLeft >= 240;
+        const maxRight = hasUsableRightBound ? Math.min(vw - 12, rightEdge - 10) : vw - 12;
+        const availMultiW = Math.max(240, maxRight - minLeft);
+        const isEmptyMulti = Boolean(multiPanelEl.classList?.contains?.('is-empty'));
+        const targetMultiW = Math.min(
+          Math.round((isEmptyMulti ? MULTI_PANEL_EMPTY_WIDTH : MULTI_PANEL_WIDTH) * panelScale),
+          availMultiW
+        );
+        multiPanelEl.style.maxWidth = `${availMultiW}px`;
+        const measuredW =
           Number(multiPanelEl.offsetWidth) ||
           Number(multiPanelEl.getBoundingClientRect?.().width) ||
-          defaultMultiW;
-        const panelW = Math.min(rawW, Math.max(280, vw - minLeft - 12));
+          0;
+        const panelW = measuredW > 0 ? Math.min(measuredW, availMultiW) : targetMultiW;
         const panelH =
           Number(multiPanelEl.offsetHeight) ||
           Number(multiPanelEl.getBoundingClientRect?.().height) ||
-          320;
+          (isEmptyMulti ? 92 : 320);
         const spaceBelowMulti = vh - anchorRect.bottom - 12;
         const spaceAboveMulti = anchorRect.top - 16;
         const openMultiAbove =
@@ -54030,7 +59378,7 @@ function mountWindowOverlay() {
         }
         patchClasses(multiPanelEl, { 'is-above': openMultiAbove });
         let left = Math.round(anchorRect.left);
-        left = Math.min(left, vw - panelW - 12);
+        left = Math.min(left, maxRight - panelW);
         left = Math.max(minLeft, left);
         multiPanelEl.style.top = `${top}px`;
         multiPanelEl.style.left = `${left}px`;
@@ -54204,7 +59552,7 @@ function mountWindowOverlay() {
     const dockTarget = dockOverride === undefined ? resolveRuntimeDockTarget() : dockOverride;
     const avail = measureAvailableTitlebarWidth(dockTarget);
     const curTel = telemetryStore.getState().telemetry;
-    const showMulti = curTel?.settings?.showTopbarMultiSession !== false;
+    const showMulti = resolveEffectiveShowMulti(curTel);
     const curUpdateMode = normalizeClientUpdateMode(
       curTel?.settings?.pluginUpdateMode,
       curTel?.settings?.autoUpdatePlugin
@@ -54385,6 +59733,9 @@ function mountWindowOverlay() {
 
   function setMultiOpen(nextOpen, { pinned = false, instant = false } = {}) {
     const targetOpen = Boolean(nextOpen);
+    if (targetOpen && multiBtn.hasAttribute('hidden')) {
+      return;
+    }
     if (targetOpen && multiLeaveTimer) {
       clearTimeout(multiLeaveTimer);
       multiLeaveTimer = null;
@@ -54441,6 +59792,10 @@ function mountWindowOverlay() {
     }
     if (tooltipOpen === targetOpen) return;
     tooltipOpen = targetOpen;
+    if (!tooltipOpen && hoverLeaveTimer) {
+      clearTimeout(hoverLeaveTimer);
+      hoverLeaveTimer = null;
+    }
     patchClasses(hoverTipEl, { 'is-instant': Boolean(instant && targetOpen) });
     patchAttr(hoverTipEl, 'hidden', !tooltipOpen);
     if (tooltipOpen) {
@@ -54497,27 +59852,34 @@ function mountWindowOverlay() {
     hostRouteConversationId,
     runningSwarmCount = 0
   ) {
-    if (!multiOpen || document.hidden) {
-      multiRunningWidget.refs.pauseTicker();
-      return;
-    }
-    const isPureSwarm = runningSubCount > 0 && runningSwarmCount === runningSubCount;
-    patchText(
-      multiRunningMetaEl,
-      runningCount > 0
-        ? runningSubCount > 0
+    const isEmpty = runningCount === 0;
+    const wasEmpty = Boolean(multiPanelEl.classList?.contains?.('is-empty'));
+    patchClasses(multiPanelEl, { 'is-empty': isEmpty });
+    patchAttr(multiRunningMetaEl, 'hidden', isEmpty);
+    if (!isEmpty) {
+      const isPureSwarm = runningSubCount > 0 && runningSwarmCount === runningSubCount;
+      patchText(
+        multiRunningMetaEl,
+        runningSubCount > 0
           ? t(isPureSwarm ? 'multi.metaWithSwarm' : 'multi.metaWithSubs', {
               main: runningCount,
               subs: runningSubCount,
             })
           : t('multi.metaMainOnly', { main: runningCount })
-        : t('multi.allIdle')
-    );
-    patchAttr(multiEmptyEl, 'hidden', runningCount > 0);
+      );
+    }
+    patchAttr(multiEmptyEl, 'hidden', !isEmpty);
+    if (!multiOpen || document.hidden) {
+      multiRunningWidget.refs.pauseTicker();
+      return;
+    }
     multiRunningWidget.refs.update({
       items: rawRunningList,
       hostRouteConversationId,
     });
+    if (wasEmpty !== isEmpty) {
+      positionFloatingElements();
+    }
   }
 
   function renderHoverWidgets() {
@@ -54539,26 +59901,27 @@ function mountWindowOverlay() {
     syncPortalAppearance(telemetry?.settings);
     syncCapsuleOsAttr();
 
-    const showMulti = telemetry?.settings?.showTopbarMultiSession !== false;
-    patchAttr(multiBtn, 'hidden', !showMulti);
-    patchAttr(capsuleHost, 'data-multi', showMulti ? 'on' : 'off');
-    if (!showMulti && multiOpen) {
-      setMultiOpen(false);
-    }
-
     const slotKeys = normalizeClientTopbarSlots(telemetry?.settings?.topbarCapsuleSlots);
-    const layoutInputsChanged =
-      showMulti !== lastShowMulti || slotKeys.length !== lastSlotCount;
-    if (layoutInputsChanged) {
-      lastShowMulti = showMulti;
-      lastSlotCount = slotKeys.length;
-      updateResponsiveLayout();
-    }
 
     if (!telemetry) {
+      lastRunningCount = 0;
+      const showMulti = resolveEffectiveShowMulti(null, 0);
+      patchAttr(multiBtn, 'hidden', !showMulti);
+      patchAttr(capsuleHost, 'data-multi', showMulti ? 'on' : 'off');
+      if (!showMulti && multiOpen) {
+        setMultiOpen(false);
+      }
+      if (showMulti !== lastShowMulti || slotKeys.length !== lastSlotCount) {
+        lastShowMulti = showMulti;
+        lastSlotCount = slotKeys.length;
+        updateResponsiveLayout();
+      }
       patchClasses(multiBtn, { 'is-running': false, 'is-waiting': false });
       patchCapsuleOdometerText(multiLabel, t('capsule.multiZero'), { resetKey: 'multi' });
+      patchClasses(multiPanelEl, { 'is-empty': true });
+      patchAttr(multiRunningMetaEl, 'hidden', false);
       patchText(multiRunningMetaEl, t('multi.loading'));
+      patchAttr(multiEmptyEl, 'hidden', false);
       multiRunningWidget.refs.stopLiveTicker();
 
       applyCapsuleSlots(slotKeys, { hasTelemetry: false });
@@ -54596,6 +59959,22 @@ function mountWindowOverlay() {
       latestTokPerSec: overviewActive.latestTokPerSec ?? null,
       contextUsedPct: slotCtx.usedPct,
     });
+
+    lastRunningCount = runningCount;
+    const showMulti = resolveEffectiveShowMulti(telemetry, runningCount);
+    patchAttr(multiBtn, 'hidden', !showMulti);
+    patchAttr(capsuleHost, 'data-multi', showMulti ? 'on' : 'off');
+    if (!showMulti && multiOpen) {
+      setMultiOpen(false);
+    }
+
+    const layoutInputsChanged =
+      showMulti !== lastShowMulti || slotKeys.length !== lastSlotCount;
+    if (layoutInputsChanged) {
+      lastShowMulti = showMulti;
+      lastSlotCount = slotKeys.length;
+      updateResponsiveLayout();
+    }
 
     patchClasses(multiBtn, {
       'is-running': runningCount > 0 && !hasWaiting,
@@ -54663,9 +60042,8 @@ function mountWindowOverlay() {
     }
   }
 
-  let lastAppliedMountMode = normalizeClientWindowMountMode(
-    telemetryStore.getState().telemetry?.settings?.windowMountMode,
-    telemetryStore.getState().telemetry?.settings?.enableWindowOverlay
+  let lastAppliedMountMode = resolveClientEffectiveOverlayMountMode(
+    telemetryStore.getState().telemetry?.settings
   );
 
   const unsubStore = telemetryStore.subscribe(
@@ -54676,13 +60054,15 @@ function mountWindowOverlay() {
       selectedConversationId: st.selectedConversationId,
     }),
     (slice) => {
-      const nextMountMode = normalizeClientWindowMountMode(
-        slice.telemetry?.settings?.windowMountMode,
-        slice.telemetry?.settings?.enableWindowOverlay
-      );
-      if (slice.telemetry?.settings?.enableWindowOverlay === false || nextMountMode === 'sidebar') {
+      const nextMountMode = resolveClientEffectiveOverlayMountMode(slice.telemetry?.settings);
+      if (
+        !isVsCodeExtensionHost() &&
+        !isForceTopbarOverlay() &&
+        (slice.telemetry?.settings?.enableWindowOverlay === false || nextMountMode === 'sidebar')
+      ) {
         if (popoverOpen) setPopoverOpen(false);
         if (multiOpen) setMultiOpen(false);
+        if (tooltipOpen) setTooltipOpen(false);
       } else if (nextMountMode !== lastAppliedMountMode) {
         lastAppliedMountMode = nextMountMode;
         ensureCapsuleDocked();
@@ -54742,6 +60122,7 @@ function mountWindowOverlay() {
     if (disposed) return;
     const currentRouteId = extractHostRouteCascadeId();
     if (currentRouteId === lastObservedRouteId) return;
+    const prevRouteId = lastObservedRouteId;
     lastObservedRouteId = currentRouteId;
     const st = telemetryStore.getState();
     const activeCascadeId = String(st.telemetry?.activeConversation?.cascadeId || '').trim();
@@ -54754,8 +60135,15 @@ function mountWindowOverlay() {
       Boolean(resolveHostRouteMatch(st.telemetry, currentRouteId)?.isChildRoute);
     const shouldPreserveSameSession =
       !currentRouteId || isSameActiveRoot || isChildOfActiveRoot;
+    const selectedMatchesPrevRoute =
+      Boolean(prevRouteId) &&
+      Boolean(st.selectedConversationId) &&
+      st.selectedConversationId.toLowerCase() === prevRouteId.toLowerCase();
     const nextSelectedId =
-      currentRouteId && st.selectedConversationId && st.selectedConversationId !== currentRouteId
+      st.selectedConversationId &&
+      ((currentRouteId &&
+        st.selectedConversationId.toLowerCase() !== currentRouteId.toLowerCase()) ||
+        (!currentRouteId && selectedMatchesPrevRoute))
         ? ''
         : st.selectedConversationId;
     if (!shouldPreserveSameSession) {
@@ -54774,6 +60162,9 @@ function mountWindowOverlay() {
     if (multiOpen && !isEventInside(e, multiPanelEl) && !isEventInside(e, capsuleHost)) {
       setMultiOpen(false);
     }
+    if (tooltipOpen && !isEventInside(e, capsuleHost)) {
+      setTooltipOpen(false);
+    }
   };
 
   const onDocKeyDown = (e) => {
@@ -54784,10 +60175,32 @@ function mountWindowOverlay() {
       if (multiOpen) {
         setMultiOpen(false);
       }
+      if (tooltipOpen) {
+        setTooltipOpen(false);
+      }
     }
   };
 
-  const onWindowPointerMove = (e) => recordPointerCoords(e);
+  const onWindowPointerMove = (e) => {
+    recordPointerCoords(e);
+
+    if (tooltipOpen && !isPointerStillInCapsule()) {
+      setTooltipOpen(false);
+    }
+    if (multiOpen && !multiPinned && !multiLeaveTimer && !isPointerInMultiZone()) {
+      scheduleMultiHoverClose();
+    }
+  };
+  const onDocMouseLeave = (e) => {
+    if (e?.relatedTarget) return;
+    hasPointerCoords = false;
+    if (tooltipOpen) {
+      setTooltipOpen(false);
+    }
+    if (multiOpen && !multiPinned) {
+      setMultiOpen(false);
+    }
+  };
   const onWindowBlur = () => {
     hasPointerCoords = false;
     if (tooltipOpen) {
@@ -54912,6 +60325,7 @@ function mountWindowOverlay() {
   document.addEventListener?.('keydown', onDocKeyDown);
   document.addEventListener?.('focusin', onDocFocusIn);
   document.addEventListener?.('visibilitychange', onVisibilityChange);
+  document.addEventListener?.('mouseleave', onDocMouseLeave);
   window.addEventListener?.('pointermove', onWindowPointerMove, { passive: true });
   window.addEventListener?.('blur', onWindowBlur);
   window.addEventListener?.('resize', onWindowResize);
@@ -54930,8 +60344,7 @@ function mountWindowOverlay() {
 
   ensureCapsuleDocked();
   renderCapsuleTelemetry();
-  const allowMultiCarryOver =
-    telemetryStore.getState().telemetry?.settings?.showTopbarMultiSession !== false;
+  const allowMultiCarryOver = !multiBtn.hasAttribute('hidden');
   if (carryOverPopoverOpen) {
     setPopoverOpen(true, { instant: true });
   } else if (carryOverMultiPinnedOpen && allowMultiCarryOver) {
@@ -54967,15 +60380,26 @@ function mountWindowOverlay() {
           : prevEndpointId;
       const portChanged = Number(cur.port || 0) !== port || String(cur.token || '') !== token;
       const endpointChanged = prevEndpointId !== nextEndpointId;
+      const prevForceTopbar = Boolean(cur.forceTopbarMode);
+      const prevIsVsCodeHost = Boolean(cur.isVsCodeHost);
       cur.port = port;
       cur.token = token;
       cur[WINDOW_BRIDGE_ENDPOINT_KEY] = nextEndpointId;
+      if (nextBridge.isVsCodeHost !== undefined) {
+        cur.isVsCodeHost = Boolean(nextBridge.isVsCodeHost);
+      }
+      if (nextBridge.forceTopbarMode !== undefined) {
+        cur.forceTopbarMode = Boolean(nextBridge.forceTopbarMode);
+      }
       if (nextBridge.isRemoteEndpoint !== undefined) {
         cur.isRemoteEndpoint = Boolean(nextBridge.isRemoteEndpoint);
       }
       if (nextBridge.endpointLabel !== undefined) {
         cur.endpointLabel = String(nextBridge.endpointLabel || '');
       }
+      const hostFlagsChanged =
+        Boolean(cur.forceTopbarMode) !== prevForceTopbar ||
+        Boolean(cur.isVsCodeHost) !== prevIsVsCodeHost;
       if (portChanged || endpointChanged) {
         cur.transportMode = 'http';
       }
@@ -54997,6 +60421,13 @@ function mountWindowOverlay() {
         }
       }
       window[WINDOW_BRIDGE_KEY] = cur;
+      if (hostFlagsChanged) {
+        lastAppliedMountMode = resolveClientEffectiveOverlayMountMode(
+          telemetryStore.getState().telemetry?.settings,
+          cur
+        );
+        ensureCapsuleDocked();
+      }
       if (endpointChanged) {
         resetTelemetryForEndpointSwitch();
         void fetchTelemetry({ force: true });
@@ -55040,8 +60471,31 @@ function mountWindowOverlay() {
     [WINDOW_OVERLAY_METHODS.getMountMode]: () => lastAppliedMountMode,
     [WINDOW_OVERLAY_METHODS.applyMountMode](nextMode) {
       if (disposed) return false;
-      const normalized = normalizeClientWindowMountMode(nextMode, nextMode !== 'sidebar');
       const bridgeConfig = readInjectedWindowBridge();
+      if (isForceTopbarOverlay(bridgeConfig)) {
+        if (bridgeConfig) bridgeConfig.mountMode = 'dual';
+        lastAppliedMountMode = 'dual';
+        return ensureCapsuleDocked();
+      }
+      if (isVsCodeExtensionHost(bridgeConfig)) {
+        const normalizedVsCode = normalizeClientVsCodeMountMode(nextMode);
+        if (bridgeConfig) bridgeConfig.mountMode = normalizedVsCode;
+        const curTel = telemetryStore.getState().telemetry;
+        if (curTel?.settings) {
+          telemetryStore.setState({
+            telemetry: {
+              ...curTel,
+              settings: {
+                ...curTel.settings,
+                vsCodeMountMode: normalizedVsCode,
+              },
+            },
+          });
+        }
+        lastAppliedMountMode = normalizedVsCode;
+        return ensureCapsuleDocked();
+      }
+      const normalized = normalizeClientWindowMountMode(nextMode, nextMode !== 'sidebar');
       if (bridgeConfig) bridgeConfig.mountMode = normalized;
       const curTel = telemetryStore.getState().telemetry;
       if (curTel?.settings) {
@@ -55102,6 +60556,7 @@ function mountWindowOverlay() {
       document.removeEventListener?.('keydown', onDocKeyDown);
       document.removeEventListener?.('focusin', onDocFocusIn);
       document.removeEventListener?.('visibilitychange', onVisibilityChange);
+      document.removeEventListener?.('mouseleave', onDocMouseLeave);
       popoverEl.removeEventListener?.('animationend', onPopoverAnimationEnd);
       window.removeEventListener?.('pointermove', onWindowPointerMove);
       window.removeEventListener?.('blur', onWindowBlur);

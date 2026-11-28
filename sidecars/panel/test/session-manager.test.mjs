@@ -8,6 +8,8 @@ import {
   readdirSync,
   readFileSync,
   rmSync,
+  statSync,
+  symlinkSync,
   utimesSync,
   writeFileSync,
 } from 'node:fs';
@@ -24,6 +26,7 @@ import {
 import {
   classifyRunningClientsFromProcesses,
   SESSION_CLIENT_DEFS,
+  sumVerifiedDirTreeBytes,
 } from '../backend/session-store.mjs';
 import {
   cleanClientSessionsBatch,
@@ -34,6 +37,7 @@ import {
   resolveClientOnlineDeleteEndpoint,
 } from '../backend/session-online-delete.mjs';
 import {
+  clearSessionManagerScanCaches,
   deleteLocalSessions,
   deleteLocalSessionsAsync,
   previewSessionCleanup,
@@ -2315,6 +2319,354 @@ test('SessionManagerCard reflects online deletion mode, generating/indexOnly gua
     assert.equal(receivedDeletePayload.clearBrowserCache, false, 'Never requests Desktop browser cache clear while Desktop is running');
 
     card.destroy();
+  } finally {
+    globalThis.document = prevDoc;
+    globalThis.window = prevWin;
+  }
+});
+
+test('accurate recursive brain storage size, .db/.db-wal/.db-shm summing, symlink skip, subagent rollup, client/total aggregates, and preview reclaimableSizeBytes', () => {
+  const tempRoot = mkdtempSync(join(tmpdir(), 'ag-smgr-storage-'));
+  const geminiDir = join(tempRoot, '.gemini');
+  const outsideSecretDir = join(tempRoot, 'outside-big-dir');
+  const idle = { desktop: false, cli: false, ide_legacy: false, checked: true };
+
+  try {
+    clearSessionManagerScanCaches();
+    const deskRoot = join(geminiDir, 'antigravity');
+    const cliRoot = join(geminiDir, 'antigravity-cli');
+    for (const r of [deskRoot, cliRoot]) {
+      mkdirSync(join(r, 'conversations'), { recursive: true });
+      mkdirSync(join(r, 'brain'), { recursive: true });
+      mkdirSync(join(r, 'annotations'), { recursive: true });
+    }
+    mkdirSync(outsideSecretDir, { recursive: true });
+    writeFileSync(join(outsideSecretDir, 'huge-outside.bin'), Buffer.alloc(2 * 1024 * 1024, 0x41));
+
+    const parentId = 'c1000000-0000-4000-8000-000000000001';
+    const childSubId = 'c1000000-0000-4000-8000-000000000002';
+    const grandSubId = 'c1000000-0000-4000-8000-000000000003';
+    const forkId = 'c1000000-0000-4000-8000-000000000004';
+    const cliId = 'c2000000-0000-4000-8000-000000000001';
+
+    createMinimalConvDb(join(deskRoot, 'conversations', `${parentId}.db`), { cid: parentId });
+    createMinimalConvDb(join(deskRoot, 'conversations', `${childSubId}.db`), {
+      cid: childSubId,
+      parentConversationId: parentId,
+      nestingDepth: 1,
+      subagentSpec: { typeName: 'research', role: 'Child Worker' },
+    });
+    createMinimalConvDb(join(deskRoot, 'conversations', `${grandSubId}.db`), {
+      cid: grandSubId,
+      parentConversationId: childSubId,
+      nestingDepth: 2,
+      subagentSpec: { typeName: 'research', role: 'Grandchild Worker' },
+    });
+    createMinimalConvDb(join(deskRoot, 'conversations', `${forkId}.db`), {
+      cid: forkId,
+      parentConversationId: parentId,
+      nestingDepth: 0,
+    });
+    createMinimalConvDb(join(cliRoot, 'conversations', `${cliId}.db`), { cid: cliId });
+
+    // Companion SQLite WAL + SHM files on parentId
+    const walBytes = 4096;
+    const shmBytes = 32768;
+    writeFileSync(join(deskRoot, 'conversations', `${parentId}.db-wal`), Buffer.alloc(walBytes, 0x11));
+    writeFileSync(join(deskRoot, 'conversations', `${parentId}.db-shm`), Buffer.alloc(shmBytes, 0x22));
+
+    // Nested brain files under parentId (including .system_generated/steps, browser_sandbox, scratch, and a junction/symlink to outside)
+    const parentBrain = join(deskRoot, 'brain', parentId);
+    mkdirSync(join(parentBrain, '.system_generated', 'logs'), { recursive: true });
+    mkdirSync(join(parentBrain, '.system_generated', 'steps', '12', 'nested'), { recursive: true });
+    mkdirSync(join(parentBrain, 'browser_sandbox', 'frames'), { recursive: true });
+    mkdirSync(join(parentBrain, 'scratch', 'deep'), { recursive: true });
+    writeFileSync(join(parentBrain, 'walkthrough.md'), Buffer.alloc(500, 0x61));
+    writeFileSync(join(parentBrain, '.system_generated', 'logs', 'transcript_full.jsonl'), Buffer.alloc(1200, 0x62));
+    writeFileSync(join(parentBrain, '.system_generated', 'steps', '12', 'output.txt'), Buffer.alloc(15000, 0x63));
+    writeFileSync(join(parentBrain, '.system_generated', 'steps', '12', 'nested', 'chunk.bin'), Buffer.alloc(8000, 0x64));
+    writeFileSync(join(parentBrain, 'browser_sandbox', 'frames', 'shot.png'), Buffer.alloc(25000, 0x65));
+    writeFileSync(join(parentBrain, 'scratch', 'deep', 'notes.txt'), Buffer.alloc(300, 0x66));
+    const expectedParentBrainBytes = 500 + 1200 + 15000 + 8000 + 25000 + 300;
+
+    // Create symlink/junction pointing outside; scanner MUST skip it without counting the 2 MB outside file
+    const linkPath = join(parentBrain, 'linked-outside');
+    try {
+      symlinkSync(outsideSecretDir, linkPath, process.platform === 'win32' ? 'junction' : 'dir');
+    } catch {
+      // Ignore if environment disallows symlink/junction creation
+    }
+
+    // Subagent & grandchild brain artifacts
+    mkdirSync(join(deskRoot, 'brain', childSubId, '.system_generated', 'steps', '1'), { recursive: true });
+    writeFileSync(join(deskRoot, 'brain', childSubId, '.system_generated', 'steps', '1', 'out.txt'), Buffer.alloc(6000, 0x71));
+    mkdirSync(join(deskRoot, 'brain', grandSubId, 'scratch'), { recursive: true });
+    writeFileSync(join(deskRoot, 'brain', grandSubId, 'scratch', 'leaf.bin'), Buffer.alloc(4000, 0x72));
+
+    // Fork and CLI brain artifacts + annotation
+    mkdirSync(join(deskRoot, 'brain', forkId), { recursive: true });
+    writeFileSync(join(deskRoot, 'brain', forkId, 'fork.md'), Buffer.alloc(2500, 0x73));
+    mkdirSync(join(cliRoot, 'brain', cliId, '.system_generated', 'steps', '3'), { recursive: true });
+    writeFileSync(join(cliRoot, 'brain', cliId, '.system_generated', 'steps', '3', 'cli.log'), Buffer.alloc(11000, 0x74));
+    const cliAnnBytes = 42;
+    writeFileSync(join(cliRoot, 'annotations', `${cliId}.pbtxt`), 'title:"CLI Storage Test"\n'.padEnd(cliAnnBytes, ' '), 'utf8');
+
+    const deskSum = initRichSummaryDb(join(deskRoot, 'conversation_summaries.db'));
+    const insDesk = deskSum.prepare(
+      `INSERT INTO conversation_summaries (
+        conversation_id, title, step_count, last_modified_time, status, parent_conversation_id, nesting_depth, app_data_dir
+      ) VALUES (?, ?, 4, '2026-11-26 10:00:00+00:00', 'CASCADE_RUN_STATUS_IDLE', ?, ?, 'antigravity')`
+    );
+    insDesk.run(parentId, 'Parent With Nested Storage', '', 0);
+    insDesk.run(childSubId, 'Child Subagent', parentId, 1);
+    insDesk.run(grandSubId, 'Grandchild Subagent', childSubId, 2);
+    insDesk.run(forkId, 'Independent Fork', parentId, 0);
+    deskSum.prepare('INSERT INTO conversation_parents VALUES (?, ?)').run(childSubId, parentId);
+    deskSum.prepare('INSERT INTO conversation_parents VALUES (?, ?)').run(grandSubId, childSubId);
+    deskSum.close();
+
+    const cliSum = initRichSummaryDb(join(cliRoot, 'conversation_summaries.db'));
+    cliSum
+      .prepare(
+        `INSERT INTO conversation_summaries (
+          conversation_id, title, step_count, last_modified_time, status, app_data_dir
+        ) VALUES (?, 'CLI Session', 3, '2026-11-26 10:05:00+00:00', 'CASCADE_RUN_STATUS_IDLE', 'antigravity-cli')`
+      )
+      .run(cliId);
+    cliSum.close();
+
+    const parentDbRaw = statSync(join(deskRoot, 'conversations', `${parentId}.db`)).size;
+    const childDbRaw = statSync(join(deskRoot, 'conversations', `${childSubId}.db`)).size;
+    const grandDbRaw = statSync(join(deskRoot, 'conversations', `${grandSubId}.db`)).size;
+    const forkDbRaw = statSync(join(deskRoot, 'conversations', `${forkId}.db`)).size;
+    const cliDbRaw = statSync(join(cliRoot, 'conversations', `${cliId}.db`)).size;
+
+    const expectedParentOwnDb = parentDbRaw + walBytes + shmBytes;
+    const expectedSubTotal = (childDbRaw + 6000) + (grandDbRaw + 4000);
+    const expectedParentTotal = expectedParentOwnDb + expectedParentBrainBytes + expectedSubTotal;
+    const expectedForkTotal = forkDbRaw + 2500;
+    const expectedCliTotal = cliDbRaw + 11000 + cliAnnBytes;
+
+    // Also test bounded depth & entry caps on sumVerifiedDirTreeBytes directly
+    const cappedDepth = sumVerifiedDirTreeBytes(parentBrain, { maxDepth: 0 });
+    assert.equal(cappedDepth.sizeBytes, 500, 'maxDepth=0 counts only root-level files');
+    assert.equal(cappedDepth.truncated, true);
+    const cappedEntries = sumVerifiedDirTreeBytes(parentBrain, { maxEntries: 2 });
+    assert.equal(cappedEntries.truncated, true);
+
+    const scan = scanLocalSessions({ geminiDir, runningClientsOverride: idle });
+    assert.equal(scan.ok, true);
+
+    const parentRec = scan.sessions.find((s) => s.sessionId === parentId);
+    const forkRec = scan.sessions.find((s) => s.sessionId === forkId);
+    const cliRec = scan.sessions.find((s) => s.sessionId === cliId);
+
+    assert.ok(parentRec && forkRec && cliRec);
+    assert.equal(parentRec.subagentCount, 2, 'Rolls up both direct child and grandchild subagents');
+    assert.equal(parentRec.sizeBytes, expectedParentTotal, 'Includes .db/.db-wal/.db-shm, deep brain tree, and rolled-up subagents while skipping symlink');
+    assert.equal(parentRec.dbSizeBytes, expectedParentOwnDb + childDbRaw + grandDbRaw);
+    assert.equal(parentRec.brainSizeBytes, expectedParentBrainBytes + 6000 + 4000);
+    assert.equal(parentRec.subagentSizeBytes, expectedSubTotal);
+    assert.equal(forkRec.sizeBytes, expectedForkTotal, '/fork stays independent and is not rolled into parent');
+    assert.equal(cliRec.sizeBytes, expectedCliTotal);
+
+    const deskClient = scan.clients.find((c) => c.id === 'desktop');
+    const cliClient = scan.clients.find((c) => c.id === 'cli');
+    assert.equal(deskClient.totalSizeBytes, expectedParentTotal + expectedForkTotal);
+    assert.equal(cliClient.totalSizeBytes, expectedCliTotal);
+    assert.equal(scan.counts.totalSizeBytes, expectedParentTotal + expectedForkTotal + expectedCliTotal);
+    assert.equal(scan.counts.byClientSizeBytes.desktop, expectedParentTotal + expectedForkTotal);
+    assert.equal(scan.counts.byClientSizeBytes.cli, expectedCliTotal);
+
+    // migrationCatalog projection exposes full session sizeBytes + dbSizeBytes
+    const migParent = scan.migrationCatalog.sessionsByClient.desktop.find((s) => s.cascadeId === parentId);
+    assert.ok(migParent);
+    assert.equal(migParent.sizeBytes, expectedParentTotal);
+    assert.equal(migParent.dbSizeBytes, expectedParentOwnDb);
+
+    // previewSessionCleanup calculates exact reclaimableSizeBytes (parent + cascaded subagents, excluding /fork)
+    const preview = previewSessionCleanup(
+      { targets: [{ clientId: 'desktop', sessionId: parentId }] },
+      { geminiDir, runningClientsOverride: idle }
+    );
+    assert.equal(preview.cascadeSubagentCount, 2);
+    assert.equal(preview.reclaimableSizeBytes, expectedParentTotal);
+  } finally {
+    clearSessionManagerScanCaches();
+    rmSync(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test('formatCompactBytes (B/KB/MB/GB) and SessionManagerCard / SessionMigrationCard render per-session, total, filtered, selected, and reclaimable storage sizes', async () => {
+  const prevDoc = globalThis.document;
+  const prevWin = globalThis.window;
+  const { document: doc } = createMockDom();
+  globalThis.document = doc;
+  globalThis.window = { document: doc };
+
+  try {
+    const { formatCompactBytes } = await import('../src/core/formatters.js');
+    const { SessionManagerCard } = await import('../src/components/settings/SessionManagerCard.js');
+    const { SessionMigrationCard } = await import('../src/components/settings/SessionMigrationCard.js');
+
+    // 1. formatCompactBytes unit coverage (edge cases + B / KB / MB / GB + rounding boundary promotion)
+    assert.equal(formatCompactBytes(0), '0 B');
+    assert.equal(formatCompactBytes(-128), '0 B');
+    assert.equal(formatCompactBytes(Number.NaN), '0 B');
+    assert.equal(formatCompactBytes(undefined), '0 B');
+    assert.equal(formatCompactBytes(512), '512 B');
+    assert.equal(formatCompactBytes(1024), '1 KB');
+    assert.equal(formatCompactBytes(1536), '1.5 KB');
+    assert.equal(formatCompactBytes(10 * 1024), '10 KB');
+    assert.equal(formatCompactBytes(1023.9 * 1024), '1.0 MB');
+    assert.equal(formatCompactBytes(50 * 1024 * 1024), '50.0 MB');
+    assert.equal(formatCompactBytes(1023.99 * 1024 * 1024), '1.00 GB');
+    assert.equal(formatCompactBytes(1.5 * 1024 * 1024 * 1024), '1.50 GB');
+    assert.equal(formatCompactBytes(12.34 * 1024 * 1024 * 1024), '12.3 GB');
+
+    const sLarge = 'd1000000-0000-4000-8000-000000000001';
+    const sSmall = 'd1000000-0000-4000-8000-000000000002';
+    const largeBytes = Math.round(1.5 * 1024 * 1024 * 1024); // 1.50 GB
+    const smallBytes = 20 * 1024 * 1024; // 20.0 MB
+    const now = Date.now();
+
+    const card = SessionManagerCard({
+      loadList: async () => ({
+        ok: true,
+        clients: [
+          { id: 'desktop', exists: true, running: false, sessionCount: 1, totalSizeBytes: largeBytes },
+          { id: 'cli', exists: true, running: false, sessionCount: 1, totalSizeBytes: smallBytes },
+        ],
+        runningClients: { desktop: false, cli: false, ide_legacy: false, checked: true },
+        onlineDeleteClients: { desktop: false, cli: false, ide_legacy: false },
+        sessions: [
+          {
+            sessionId: sLarge,
+            cascadeId: sLarge,
+            clientId: 'desktop',
+            title: 'Large Media Session',
+            workspaceName: 'app',
+            sizeBytes: largeBytes,
+            dbSizeBytes: 5 * 1024 * 1024,
+            brainSizeBytes: largeBytes - 5 * 1024 * 1024,
+            subagentSizeBytes: 120 * 1024 * 1024,
+            lastModifiedMs: now - 1000,
+            indexOnly: false,
+            canDelete: true,
+            subagentCount: 2,
+            telemetry: { recorded: false },
+          },
+          {
+            sessionId: sSmall,
+            cascadeId: sSmall,
+            clientId: 'cli',
+            title: 'CLI Compact Session',
+            workspaceName: 'cli-repo',
+            sizeBytes: smallBytes,
+            dbSizeBytes: 4 * 1024 * 1024,
+            brainSizeBytes: 16 * 1024 * 1024,
+            subagentSizeBytes: 0,
+            lastModifiedMs: now - 2000,
+            indexOnly: false,
+            canDelete: true,
+            subagentCount: 0,
+            telemetry: { recorded: false },
+          },
+        ],
+        counts: {
+          total: 2,
+          indexOnly: 0,
+          totalSizeBytes: largeBytes + smallBytes,
+          byClient: { desktop: 1, cli: 1, ide_legacy: 0 },
+          byClientSizeBytes: { desktop: largeBytes, cli: smallBytes, ide_legacy: 0 },
+        },
+        warnings: [],
+      }),
+      loadPreview: async () => ({
+        ok: true,
+        deletableCount: 1,
+        offlineDeletableCount: 1,
+        onlineDeletableCount: 0,
+        reclaimableSizeBytes: largeBytes,
+        protectedOnlineSizeBytes: 0,
+        cascadeSubagentCount: 2,
+        crossSourceIndexMatches: [],
+        orphanIndexMatches: [],
+        protectedMigrationItems: [],
+        blockedByRunning: [],
+      }),
+    });
+
+    await card.refs.ensureLoaded();
+
+    // Header total storage badge reflects full total
+    assert.equal(card.refs.totalSizeBadge.hasAttribute('hidden'), false);
+    assert.equal(card.refs.totalSizeBadge.textContent, formatCompactBytes(largeBytes + smallBytes));
+
+    // Per-session cards render prominent .smgr-size-badge with breakdown tooltip and no duplicate size in .smgr-item-meta
+    const items = card.refs.listEl.querySelectorAll('.smgr-item');
+    assert.equal(items.length, 2);
+    const largeBadge = items[0].querySelector('.smgr-size-badge');
+    assert.ok(largeBadge);
+    assert.equal(largeBadge.textContent, '1.50 GB');
+    assert.equal(largeBadge.classList.contains('is-large'), true);
+    assert.match(largeBadge.getAttribute('title'), /5\.0 MB/);
+    assert.match(largeBadge.getAttribute('title'), /120\.0 MB/);
+    assert.doesNotMatch(items[0].querySelector('.smgr-item-meta').textContent, /GB|MB/);
+
+    // Filtering via search updates header total storage badge dynamically
+    card.refs.searchInput.value = 'CLI Compact';
+    card.refs.searchInput.dispatchEvent({ type: 'input', target: card.refs.searchInput });
+    assert.equal(card.refs.totalSizeBadge.textContent, '20.0 MB');
+    assert.equal(card.refs.totalSizeBadge.classList.contains('is-filtered'), true);
+    card.refs.searchInput.value = '';
+    card.refs.searchInput.dispatchEvent({ type: 'input', target: card.refs.searchInput });
+    assert.equal(card.refs.totalSizeBadge.textContent, formatCompactBytes(largeBytes + smallBytes));
+
+    // Selecting sessions shows selected total storage in action bar and reclaimable storage in confirm drawer
+    assert.equal(card.refs.selectedSizeEl.hasAttribute('hidden'), true);
+    const firstRow = card.refs.listEl.querySelectorAll('.smgr-item')[0];
+    firstRow.dispatchEvent({ type: 'click', target: firstRow });
+    assert.equal(card.refs.selectedSizeEl.hasAttribute('hidden'), false);
+    assert.equal(card.refs.selectedSizeEl.textContent, '1.50 GB');
+
+    card.refs.batchDeleteBtn.dispatchEvent({ type: 'click', target: card.refs.batchDeleteBtn });
+    await new Promise((r) => setTimeout(r, 15));
+    assert.equal(card.refs.confirmBoxEl.hasAttribute('hidden'), false);
+    assert.match(card.refs.confirmBoxEl.textContent, /1\.50 GB/);
+
+    card.destroy();
+
+    // SessionMigrationCard displays compact storage size on migration rows
+    const migCard = SessionMigrationCard({});
+    migCard.refs.applyCatalog({
+      available: true,
+      sqliteSupported: true,
+      clients: [
+        { id: 'cli', exists: true, canBeSource: true, canBeTarget: true, sessionCount: 1 },
+        { id: 'desktop', exists: true, canBeSource: true, canBeTarget: true, sessionCount: 0 },
+      ],
+      sessionsByClient: {
+        cli: [
+          {
+            cascadeId: sSmall,
+            clientId: 'cli',
+            title: 'Migratable Session',
+            stepCount: 8,
+            sizeBytes: smallBytes,
+            lastModifiedMs: now - 3000,
+            workspaceName: 'cli-repo',
+            isRunning: false,
+          },
+        ],
+        desktop: [],
+      },
+      desktopProjects: [{ projectId: 'outside-of-project', isOutsideProject: true }],
+    });
+    const migMeta = migCard.el.querySelector('.smig-item-meta');
+    assert.ok(migMeta);
+    assert.match(migMeta.textContent, /20\.0 MB/);
+    migCard.destroy();
   } finally {
     globalThis.document = prevDoc;
     globalThis.window = prevWin;

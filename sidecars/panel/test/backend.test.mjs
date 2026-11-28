@@ -3972,3 +3972,61 @@ test('trendSeries respects strict window bounds without 6h out-of-window padding
   assert.equal(pAfter2h.consumption.trendSeries[0].granularity, 'hour');
   assert.equal(pAfter2h.consumption.trendSeries[0].tokens, 8_000);
 });
+
+test('executeSettingsAction preserves 1-row mixed Bento layout when adding/reordering metrics while still supporting genuine legacy style-only upgrades', () => {
+  const h = backendHarness();
+
+  // Save 1-row mixed Bento layout: 2x1 + 1x1 + 1x1 (derived overviewMetricStyle === 'hybrid')
+  const r1 = JSON.parse(
+    h.executeSettingsAction({
+      overviewMetricRows: 1,
+      overviewMetricSizes: { tps: 'wide' },
+      overviewMetrics: ['tps', 'ttft', 'cache_hit'],
+    }).body
+  );
+  assert.equal(r1.overviewMetricRows, 1);
+  assert.deepEqual(r1.overviewMetricSizes, { tps: 'wide' });
+  assert.equal(r1.overviewMetricStyle, 'hybrid');
+
+  // Adding a 4th metric or reordering MUST keep overviewMetricRows === 1 & sizes (even if derived style 'hybrid' is sent without rows/sizes)
+  const r2 = JSON.parse(
+    h.executeSettingsAction({
+      overviewMetrics: ['tps', 'ttft', 'cache_hit', 'step_cost'],
+      overviewMetricStyle: 'hybrid',
+    }).body
+  );
+  assert.equal(r2.overviewMetricRows, 1, 'Adding 4th metric must NOT force 2 rows');
+  assert.deepEqual(r2.overviewMetricSizes, { tps: 'wide' }, 'Adding 4th metric must NOT reset card sizes to tall');
+
+  // Reordering with explicit Bento rows & sizes keeps middle wide card intact
+  const r3 = JSON.parse(
+    h.executeSettingsAction({
+      overviewMetrics: ['ttft', 'tps', 'cache_hit', 'step_cost'],
+      overviewMetricRows: 1,
+      overviewMetricSizes: { tps: 'wide' },
+      overviewMetricStyle: 'hybrid',
+    }).body
+  );
+  assert.equal(r3.overviewMetricRows, 1);
+  assert.deepEqual(r3.overviewMetricSizes, { tps: 'wide' });
+  assert.deepEqual(r3.overviewMetrics, ['ttft', 'tps', 'cache_hit', 'step_cost']);
+
+  // Genuine legacy style-only upgrade (e.g. changing style to 'large' without rows/sizes) migrates cleanly to 1/3 ('third') cards
+  const r4 = JSON.parse(h.executeSettingsAction({ overviewMetricStyle: 'large' }).body);
+  assert.equal(r4.overviewMetricRows, 1);
+  assert.equal(r4.overviewMetricStyle, 'large');
+  assert.equal(r4.overviewMetricSizes.ttft, 'third');
+  assert.equal(r4.overviewMetricSizes.tps, 'third');
+
+  // Metric card text visibility mode defaults to 'title' and persists cleanly across both overview & hover
+  assert.equal(r4.overviewMetricTextMode, 'title');
+  assert.equal(r4.hoverMetricTextMode, 'title');
+  const r5 = JSON.parse(
+    h.executeSettingsAction({
+      overviewMetricTextMode: 'none',
+      hoverMetricTextMode: 'both',
+    }).body
+  );
+  assert.equal(r5.overviewMetricTextMode, 'none');
+  assert.equal(r5.hoverMetricTextMode, 'both');
+});

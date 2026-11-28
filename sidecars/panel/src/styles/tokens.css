@@ -55,7 +55,12 @@
   --fs-base: calc(13px * var(--ui-font-scale, 1));
   --fs-body: calc(13px * var(--ui-font-scale, 1));
   --fs-lg: calc(15px * var(--ui-font-scale, 1));
+  --fs-hero-sm: calc(17.5px * var(--ui-font-scale, 1));
   --fs-hero: calc(18px * var(--ui-font-scale, 1));
+  --fs-hero-md: calc(19px * var(--ui-font-scale, 1));
+  --fs-xl: calc(20px * var(--ui-font-scale, 1));
+  --fs-2xl: calc(22px * var(--ui-font-scale, 1));
+  --fs-3xl: calc(24px * var(--ui-font-scale, 1));
 
   --text-primary: var(--foreground, var(--vscode-foreground, var(--vscode-editor-foreground, hsl(215 22% 15%))));
   --text-secondary: var(--muted-foreground, var(--vscode-descriptionForeground, hsl(215 12% 44%)));
@@ -181,7 +186,12 @@
   --fs-base: calc(13px * var(--ui-font-scale, 1));
   --fs-body: calc(13px * var(--ui-font-scale, 1));
   --fs-lg: calc(15px * var(--ui-font-scale, 1));
+  --fs-hero-sm: calc(17.5px * var(--ui-font-scale, 1));
   --fs-hero: calc(18px * var(--ui-font-scale, 1));
+  --fs-hero-md: calc(19px * var(--ui-font-scale, 1));
+  --fs-xl: calc(20px * var(--ui-font-scale, 1));
+  --fs-2xl: calc(22px * var(--ui-font-scale, 1));
+  --fs-3xl: calc(24px * var(--ui-font-scale, 1));
 }
 
 html[data-host-theme-fallback="dark"] {

@@ -2896,7 +2896,7 @@ test('P2 regressions: bundler regex-after-paren lexer, shared URI/prompt/atomic 
   assert.equal(latestQuery, '');
   assert.equal(sBox.clearBtnEl.hasAttribute('hidden'), true);
 
-  // 4. Declarative settingsBackup round-trips all 38 portable keys + coupled legacy flags
+  // 4. Declarative settingsBackup round-trips all 47 portable keys + coupled legacy flags
   const exported = buildExportableSettingsJson({
     language: 'en-US',
     displayCurrency: 'MYR',
@@ -2904,19 +2904,38 @@ test('P2 regressions: bundler regex-after-paren lexer, shared URI/prompt/atomic 
     modelDisplayMode: 'upstream_compact',
     pluginUpdateMode: 'auto',
     windowMountMode: 'composer',
+    vsCodeMountMode: 'dual',
+    enableSafetyMonitor: true,
+    topbarMultiSessionMode: 'running_only',
     hoverSyncOverviewMetrics: false,
-    hoverMetricStyle: 'large',
+    hoverMetricRows: 2,
+    hoverMetricSizes: { tps: 'tall', cache_hit: 'wide' },
+    hoverMetricTextMode: 'none',
     hoverMetrics: ['tps', 'cache_hit', 'ttft', 'step_cost'],
-    overviewMetricStyle: 'large',
+    overviewMetricRows: 2,
+    overviewMetricSizes: { tps: 'tall' },
+    overviewMetricTextMode: 'sub',
     quotaDisplayMode: 'remaining',
     showStepFilterToolbar: true,
     experimentalQuotaReservation: true,
     accountQuotaRefreshMinutes: 180,
   });
   const parsedExport = JSON.parse(exported);
-  assert.equal(Object.keys(parsedExport.settings).length, 38);
+  assert.equal(Object.keys(parsedExport.settings).length, 47);
+  assert.equal(parsedExport.settings.enableSafetyMonitor, true);
   assert.equal(parsedExport.settings.displayCurrency, 'MYR');
   assert.equal(parsedExport.settings.quotaDisplayMode, 'remaining');
+  assert.equal(parsedExport.settings.vsCodeMountMode, 'dual');
+  assert.equal(parsedExport.settings.topbarMultiSessionMode, 'running_only');
+  assert.equal(parsedExport.settings.showTopbarMultiSession, true);
+  assert.equal(parsedExport.settings.hoverMetricRows, 2);
+  assert.deepEqual(parsedExport.settings.hoverMetricSizes, { tps: 'tall', cache_hit: 'wide' });
+  assert.equal(parsedExport.settings.hoverMetricTextMode, 'none');
+  assert.equal(parsedExport.settings.hoverMetricStyle, 'hybrid');
+  assert.equal(parsedExport.settings.overviewMetricRows, 2);
+  assert.deepEqual(parsedExport.settings.overviewMetricSizes, { tps: 'tall' });
+  assert.equal(parsedExport.settings.overviewMetricTextMode, 'sub');
+  assert.equal(parsedExport.settings.overviewMetricStyle, 'hybrid');
   assert.equal('orchestratorIdMode' in parsedExport.settings, false);
   const reimported = parseImportedSettingsJson(
     JSON.stringify({
@@ -2926,10 +2945,47 @@ test('P2 regressions: bundler regex-after-paren lexer, shared URI/prompt/atomic 
   );
   assert.equal(reimported.ok, true);
   assert.equal('orchestratorIdMode' in reimported.patch, false);
+  assert.equal(reimported.patch.vsCodeMountMode, 'dual');
+  assert.equal(reimported.patch.topbarMultiSessionMode, 'running_only');
+  assert.equal(reimported.patch.showTopbarMultiSession, true);
+  const legacyMultiImport = parseImportedSettingsJson(
+    JSON.stringify({
+      schemaVersion: parsedExport.schemaVersion,
+      settings: { showTopbarMultiSession: false },
+    })
+  );
+  assert.equal(legacyMultiImport.ok, true);
+  assert.equal(legacyMultiImport.patch.topbarMultiSessionMode, 'hide');
+  assert.equal(legacyMultiImport.patch.showTopbarMultiSession, false);
   assert.equal(reimported.patch.hoverSyncOverviewMetrics, false);
-  assert.equal(reimported.patch.hoverMetricStyle, 'large');
+  assert.equal(reimported.patch.hoverMetricRows, 2);
+  assert.deepEqual(reimported.patch.hoverMetricSizes, { tps: 'tall', cache_hit: 'wide' });
+  assert.equal(reimported.patch.hoverMetricTextMode, 'none');
+  assert.equal(reimported.patch.hoverMetricStyle, 'hybrid');
   assert.deepEqual(reimported.patch.hoverMetrics, ['tps', 'cache_hit', 'ttft', 'step_cost']);
-  assert.equal(reimported.patch.overviewMetricStyle, 'large');
+  assert.equal(reimported.patch.overviewMetricRows, 2);
+  assert.deepEqual(reimported.patch.overviewMetricSizes, { tps: 'tall' });
+  assert.equal(reimported.patch.overviewMetricTextMode, 'sub');
+  assert.equal(reimported.patch.overviewMetricStyle, 'hybrid');
+  const legacyBentoImport = parseImportedSettingsJson(
+    JSON.stringify({
+      hoverMetricStyle: 'mixed',
+      hoverMetrics: ['cache_hit', 'ttft', 'avg_tps', 'step_cost'],
+      overviewMetricStyle: 'large',
+      overviewMetrics: ['tps', 'ttft', 'avg_tps'],
+    })
+  );
+  assert.equal(legacyBentoImport.ok, true);
+  assert.equal(legacyBentoImport.patch.hoverMetricRows, 2);
+  assert.deepEqual(legacyBentoImport.patch.hoverMetricSizes, { cache_hit: 'tall' });
+  assert.equal(legacyBentoImport.patch.hoverMetricStyle, 'hybrid');
+  assert.equal(legacyBentoImport.patch.overviewMetricRows, 1);
+  assert.deepEqual(legacyBentoImport.patch.overviewMetricSizes, {
+    tps: 'third',
+    ttft: 'third',
+    avg_tps: 'third',
+  });
+  assert.equal(legacyBentoImport.patch.overviewMetricStyle, 'large');
   assert.equal(reimported.patch.quotaDisplayMode, 'remaining');
   assert.equal(reimported.patch.modernUi, false);
   assert.equal(reimported.patch.experimentalModernUi, false);
@@ -2941,6 +2997,7 @@ test('P2 regressions: bundler regex-after-paren lexer, shared URI/prompt/atomic 
   assert.equal(reimported.patch.enableWindowOverlay, true);
   assert.equal(reimported.patch.showStepFilterToolbar, true);
   assert.equal(reimported.patch.experimentalQuotaReservation, true);
+  assert.equal(reimported.patch.enableSafetyMonitor, true);
   assert.equal(reimported.patch.accountQuotaRefreshMinutes, 180);
 });
 
@@ -3044,5 +3101,365 @@ test('Feature 16: P3 extracted sub-modules (stepChartMath, overlayHostAnchors, C
   if (fsMod.existsSync(legacyPlanPath)) {
     const legacyPlan = fsMod.readFileSync(legacyPlanPath, 'utf8');
     assert.match(legacyPlan, /ARCHIVED/);
+  }
+});
+
+test('Issue #62: accountQuotaRefreshMinutes supports 0 (Off) after 24h, preserves falsy defaults, round-trips backup, and blocks automatic saved-account quota polling', async (t) => {
+  const {
+    ACCOUNT_QUOTA_REFRESH_MINUTES,
+    DEFAULT_ACCOUNT_QUOTA_REFRESH_MINUTES,
+    normalizeAccountQuotaRefreshMinutes,
+  } = await import('../shared/settings-normalization.mjs');
+  const { setI18nLanguage } = await import('../src/i18n/index.js');
+  const { SettingsAccountTab } = await import('../src/views/settings/SettingsAccountTab.js');
+
+  assert.deepEqual([...ACCOUNT_QUOTA_REFRESH_MINUTES], [10, 30, 60, 180, 360, 720, 1440, 0]);
+  assert.equal(normalizeAccountQuotaRefreshMinutes(0), 0);
+  assert.equal(normalizeAccountQuotaRefreshMinutes('0'), 0);
+  assert.equal(normalizeAccountQuotaRefreshMinutes('off'), 0);
+  assert.equal(normalizeAccountQuotaRefreshMinutes('disabled'), 0);
+  assert.equal(normalizeAccountQuotaRefreshMinutes('none'), 0);
+  for (const bad of [undefined, null, '', '   ', false, true, -1, 999, NaN]) {
+    assert.equal(
+      normalizeAccountQuotaRefreshMinutes(bad),
+      DEFAULT_ACCOUNT_QUOTA_REFRESH_MINUTES,
+      `falsy/invalid ${String(bad)} must not accidentally map to 0 (Off)`
+    );
+  }
+
+  // Portable backup preserves accountQuotaRefreshMinutes = 0
+  const exportedOff = buildExportableSettingsJson({ accountQuotaRefreshMinutes: 0 });
+  const parsedOff = parseImportedSettingsJson(exportedOff);
+  assert.equal(parsedOff.ok, true);
+  assert.equal(parsedOff.patch.accountQuotaRefreshMinutes, 0);
+
+  // Component check: 0 (Off) appears immediately after 24h and suppresses automatic quota fetches while keeping manual click functional
+  const prevDoc = globalThis.document;
+  const prevWin = globalThis.window;
+  const prevFetch = globalThis.fetch;
+  const { document } = createMockDom();
+  const apiCalls = [];
+  globalThis.document = document;
+  globalThis.window = {
+    innerWidth: 1024,
+    innerHeight: 768,
+    location: { pathname: '/', href: 'http://127.0.0.1:41234/' },
+    addEventListener() {},
+    removeEventListener() {},
+    requestAnimationFrame: (cb) => setTimeout(cb, 0),
+    cancelAnimationFrame: (id) => clearTimeout(id),
+  };
+  const makeJsonRes = (payload) => ({
+    ok: true,
+    status: 200,
+    headers: { get: () => 'application/json' },
+    json: async () => payload,
+    text: async () => JSON.stringify(payload),
+  });
+  globalThis.fetch = async (url, opts = {}) => {
+    const urlStr = String(url);
+    const body = opts?.body ? JSON.parse(opts.body) : {};
+    apiCalls.push({ url: urlStr, method: opts?.method || 'GET', body });
+    if (urlStr.includes('/api/accounts') && !urlStr.includes('/api/accounts/update')) {
+      return makeJsonRes({
+        ok: true,
+        supported: true,
+        riskLocked: false,
+        actionNonce: 'nonce-62',
+        accounts: ['active@example.com', 'backup@example.com'],
+        quotas: {
+          'backup@example.com': {
+            pools: [],
+            fetchedAt: 0,
+          },
+        },
+        security: { enabled: false, unlocked: true },
+      });
+    }
+    if (urlStr.includes('/api/accounts/update') && body.action === 'quota') {
+      return makeJsonRes({
+        ok: true,
+        actionNonce: 'nonce-62',
+        pools: [{ poolKey: 'gemini', poolLabel: 'Gemini', remainingPct: 80 }],
+        fetchedAt: Date.now(),
+      });
+    }
+    return makeJsonRes({ ok: true });
+  };
+  t.after(() => {
+    setI18nLanguage('zh-CN');
+    globalThis.document = prevDoc;
+    globalThis.window = prevWin;
+    globalThis.fetch = prevFetch;
+  });
+
+  setI18nLanguage('zh-CN');
+  const tab = SettingsAccountTab({
+    initialSettings: {
+      accountSwitchRiskAccepted: true,
+      accountQuotaRefreshMinutes: 0,
+    },
+  });
+  try {
+    tab.refs.renderAccount(
+      { status: 'signedIn', email: 'active@example.com' },
+      { pools: [] },
+      { accountSwitchRiskAccepted: true, accountQuotaRefreshMinutes: 0 }
+    );
+    const selectTrigger = tab.el.querySelector('.account-refresh-select .select-trigger');
+    assert.ok(selectTrigger, 'Refresh interval CustomSelect exists');
+    assert.equal(selectTrigger.textContent.trim(), '关闭', 'Model value 0 renders localized Off label');
+    selectTrigger.dispatchEvent({ type: 'click', stopPropagation() {} });
+    const opts = tab.el.querySelectorAll('.account-refresh-select .select-option');
+    const optValues = opts.map((el) => el.getAttribute('data-value'));
+    const optLabels = opts.map((el) => el.querySelector('.select-option-text')?.textContent?.trim());
+    assert.deepEqual(optValues, ['10', '30', '60', '180', '360', '720', '1440', '0']);
+    assert.equal(optLabels[optLabels.length - 2], '24 小时');
+    assert.equal(optLabels[optLabels.length - 1], '关闭');
+
+    await tab.refs.load();
+    await new Promise((r) => setTimeout(r, 30));
+    const autoQuotaCalls = apiCalls.filter((c) => c.body?.action === 'quota');
+    assert.equal(autoQuotaCalls.length, 0, 'With refreshMinutes=0, load/list must not trigger automatic quota polling');
+
+    // Explicit manual click on saved account refresh button still works
+    const manualBtn = tab.el
+      .querySelectorAll('.settings-account-load-quota')
+      .find((el) => !el.hasAttribute('hidden'));
+    assert.ok(manualBtn, 'Manual per-account refresh button remains available');
+    manualBtn.dispatchEvent({ type: 'click', stopPropagation() {} });
+    await new Promise((r) => setTimeout(r, 30));
+    const manualQuotaCalls = apiCalls.filter((c) => c.body?.action === 'quota');
+    assert.equal(manualQuotaCalls.length, 1, 'Explicit manual refresh button still queries quota on demand');
+    assert.equal(manualQuotaCalls[0].body.email, 'backup@example.com');
+  } finally {
+    tab.destroy();
+  }
+});
+
+test('Issue #60: enableSafetyMonitor defaults off, mounts native SafetyMonitorCard in ConsumptionView, and persists opt-in toggle', async (t) => {
+  const [
+    { DEFAULT_ENABLE_SAFETY_MONITOR, normalizeEnableSafetyMonitor },
+    { DEFAULT_SETTINGS_SCHEMA, normalizeFullSettings },
+    { QuotaPoolsWidget },
+    { SafetyMonitorCard, resolveSafetyMonitorAlert },
+  ] = await Promise.all([
+    import('../shared/settings-normalization.mjs'),
+    import('../backend/settings-schema.mjs'),
+    import('../src/components/widgets/QuotaPoolsWidget.js'),
+    import('../src/components/widgets/SafetyMonitorCard.js'),
+  ]);
+
+  assert.equal(DEFAULT_ENABLE_SAFETY_MONITOR, false);
+  assert.equal(DEFAULT_SETTINGS_SCHEMA.enableSafetyMonitor, false);
+  assert.equal(normalizeEnableSafetyMonitor(undefined), false);
+  assert.equal(normalizeEnableSafetyMonitor(null), false);
+  assert.equal(normalizeEnableSafetyMonitor(''), false);
+  assert.equal(normalizeEnableSafetyMonitor(false), false);
+  assert.equal(normalizeEnableSafetyMonitor('false'), false);
+  assert.equal(normalizeEnableSafetyMonitor('0'), false);
+  assert.equal(normalizeEnableSafetyMonitor('off'), false);
+  assert.equal(normalizeEnableSafetyMonitor('on'), true);
+  assert.equal(normalizeEnableSafetyMonitor(true), true);
+  assert.equal(normalizeFullSettings({ enableSafetyMonitor: true }).enableSafetyMonitor, true);
+  assert.equal(normalizeFullSettings({}).enableSafetyMonitor, false);
+
+  assert.equal(resolveSafetyMonitorAlert({ has429Fallback: true, hasHeavyBurst: true }), 'fallback429');
+  assert.equal(resolveSafetyMonitorAlert({ hasHeavyBurst: true, nearFlashLiteLimit: true }), 'heavyBurst');
+  assert.equal(resolveSafetyMonitorAlert({ nearFlashLiteLimit: true }), 'nearLimit');
+  assert.equal(resolveSafetyMonitorAlert({}), '');
+
+  const prevDoc = globalThis.document;
+  const prevWin = globalThis.window;
+  const prevFetch = globalThis.fetch;
+  const prevLocale = i18nStore.getState().locale;
+  const { document } = createMockDom();
+  const savedPatches = [];
+  globalThis.document = document;
+  globalThis.window = {
+    innerWidth: 1024,
+    innerHeight: 768,
+    location: { pathname: '/', href: 'http://127.0.0.1:41234/' },
+    addEventListener() {},
+    removeEventListener() {},
+    requestAnimationFrame: (cb) => setTimeout(cb, 0),
+    cancelAnimationFrame: (id) => clearTimeout(id),
+  };
+  globalThis.fetch = async (url, opts = {}) => {
+    const urlStr = String(url);
+    const body = opts?.body ? JSON.parse(opts.body) : {};
+    if (urlStr.includes('/api/settings') && opts?.method === 'POST') {
+      savedPatches.push(body);
+      const merged = normalizeFullSettings({ enableSafetyMonitor: body.enableSafetyMonitor });
+      return {
+        ok: true,
+        status: 200,
+        headers: { get: () => 'application/json' },
+        json: async () => merged,
+        text: async () => JSON.stringify(merged),
+      };
+    }
+    return {
+      ok: true,
+      status: 200,
+      headers: { get: () => 'application/json' },
+      json: async () => ({ ok: true }),
+      text: async () => JSON.stringify({ ok: true }),
+    };
+  };
+  t.after(() => {
+    setI18nLanguage(prevLocale);
+    globalThis.document = prevDoc;
+    globalThis.window = prevWin;
+    globalThis.fetch = prevFetch;
+  });
+
+  setI18nLanguage('zh-CN');
+
+  const sampleSafetyMonitor = {
+    scannedAtMs: Date.now(),
+    sourceCount: 1,
+    window5h: {
+      totalStreamGen: 282,
+      hiddenStreamGen: 130,
+      hiddenRatio: 0.461,
+      flashLiteCalls: 123,
+      flashLiteTriggered: 7,
+      heavyCalls: 7,
+      heavyTriggered: 0,
+      heavyFalseAlarmRate: 1,
+      heavyTrajChars: 2_890_000,
+      flashLiteTrajChars: 120_000,
+      blockedMs: 173_000,
+      rateLimit429Count: 0,
+      fallbackCount: 0,
+      estInputTokensLower: 722_500,
+      estInputTokensUpper: 963_333,
+    },
+    window24h: {
+      totalStreamGen: 400,
+      hiddenStreamGen: 180,
+      hiddenRatio: 0.45,
+      flashLiteCalls: 170,
+      flashLiteTriggered: 10,
+      heavyCalls: 10,
+      heavyTriggered: 1,
+      heavyFalseAlarmRate: 0.9,
+      heavyTrajChars: 3_600_000,
+      flashLiteTrajChars: 200_000,
+      blockedMs: 210_000,
+      rateLimit429Count: 0,
+      fallbackCount: 0,
+      estInputTokensLower: 900_000,
+      estInputTokensUpper: 1_200_000,
+    },
+    alerts: {
+      has429Fallback: false,
+      hasHeavyBurst: false,
+      nearFlashLiteLimit: false,
+    },
+  };
+
+  const sampleQuotas = {
+    pools: [
+      {
+        poolKey: 'Gemini',
+        poolLabel: 'Gemini',
+        family: 'Gemini',
+        usedPct: 24,
+        remainingPct: 76,
+        safetyReviewUsedPct: 1.5,
+        resetTime: new Date(Date.now() + 3600_000).toISOString(),
+      },
+    ],
+    weekly: { isOfficial: true },
+  };
+
+  const quotaWidget = QuotaPoolsWidget({ compactHover: false });
+  const safetyCard = SafetyMonitorCard();
+  const consView = ConsumptionView();
+  const otherTab = SettingsOtherTab({});
+  try {
+    // 1. QuotaPoolsWidget stays clean (no embedded safety bar) while honoring opt-in tooltip suffix
+    quotaWidget.refs.update({
+      data: {
+        settings: { experimentalQuotaReservation: true },
+        quotas: sampleQuotas,
+        safetyMonitor: sampleSafetyMonitor,
+        account: { tierName: 'Pro' },
+      },
+    });
+    assert.equal(quotaWidget.el.querySelector('.safety-monitor-panel'), null);
+    const firstTrack = quotaWidget.el.querySelector('.progress-track');
+    assert.equal(firstTrack.getAttribute('title'), null);
+
+    quotaWidget.refs.update({
+      data: {
+        settings: { enableSafetyMonitor: true, experimentalQuotaReservation: true },
+        quotas: sampleQuotas,
+        safetyMonitor: sampleSafetyMonitor,
+        account: { tierName: 'Pro' },
+      },
+    });
+    assert.match(firstTrack.getAttribute('title') || '', /1\.5%/);
+
+    // 2. SafetyMonitorCard hidden by default when disabled, visible when enabled (including ConsumptionView mount)
+    assert.ok(consView.refs.safetyMonitorCard, 'ConsumptionView mounts SafetyMonitorCard');
+    safetyCard.refs.update({ enabled: false, safetyMonitor: sampleSafetyMonitor });
+    assert.equal(safetyCard.el.hidden, true, 'SafetyMonitorCard hides when enableSafetyMonitor is false');
+
+    safetyCard.refs.update({ enabled: true, safetyMonitor: sampleSafetyMonitor });
+    assert.equal(safetyCard.el.hidden, false, 'SafetyMonitorCard shows when opted in');
+    assert.equal(safetyCard.refs.shareBarEl.hidden, false);
+    assert.equal(safetyCard.refs.adviceEl.hidden, true);
+    assert.match(safetyCard.el.textContent, /46\.1%/);
+    assert.match(safetyCard.el.textContent, /123 \/ 7/);
+    assert.match(safetyCard.el.textContent, /100%/);
+
+    // Switch 5h -> 24h via native SegmentedControl
+    const btn24h = safetyCard.refs.winSwitch.el.querySelector('button[data-seg-value="24h"]');
+    assert.ok(btn24h, 'SafetyMonitorCard exposes 24h SegmentedControl button');
+    btn24h.dispatchEvent({ type: 'click', stopPropagation() {} });
+    assert.match(safetyCard.el.textContent, /170 \/ 10/);
+
+    // 3. Alert state surfaces status-tag + soft borderless advice banner
+    const alertSafety = {
+      ...sampleSafetyMonitor,
+      window5h: { ...sampleSafetyMonitor.window5h, rateLimit429Count: 2, fallbackCount: 1 },
+      alerts: { has429Fallback: true, hasHeavyBurst: false, nearFlashLiteLimit: false },
+    };
+    safetyCard.refs.update({ enabled: true, safetyMonitor: alertSafety });
+    assert.equal(safetyCard.refs.alertTagEl.hidden, false);
+    assert.equal(safetyCard.refs.alertTagEl.classList.contains('state-danger'), true);
+    assert.equal(safetyCard.refs.adviceEl.hidden, false);
+    assert.equal(safetyCard.refs.adviceEl.classList.contains('tone-danger'), true);
+
+    // 4. Empty window when opted in displays clean zero-state message
+    safetyCard.refs.update({ enabled: true, safetyMonitor: null });
+    assert.equal(safetyCard.el.hidden, false);
+    assert.equal(safetyCard.refs.shareBarEl.hidden, true);
+    assert.match(safetyCard.el.textContent, /暂未观测到/);
+
+    // 5. SettingsOtherTab defaults safetyMonitorToggle to off and persists opt-in patch
+    otherTab.refs.renderSettings({});
+    const onBtn = otherTab.refs.safetyMonitorToggle.el.querySelector('button[data-seg-value="on"]');
+    assert.ok(onBtn, 'SettingsOtherTab mounts safetyMonitorToggle with on button');
+    assert.equal(
+      otherTab.refs.safetyMonitorToggle.el
+        .querySelector('button[data-seg-value="off"]')
+        ?.getAttribute('aria-pressed'),
+      'true'
+    );
+    onBtn.dispatchEvent({ type: 'click', stopPropagation() {} });
+    await new Promise((r) => setTimeout(r, 30));
+    assert.ok(
+      savedPatches.some((p) => p.enableSafetyMonitor === true),
+      'Clicking safetyMonitorToggle persists enableSafetyMonitor=true'
+    );
+  } finally {
+    quotaWidget.destroy();
+    safetyCard.destroy();
+    consView.destroy();
+    otherTab.destroy();
   }
 });

@@ -162,6 +162,8 @@ const LOOPBACK_HTTP_ORIGIN_RE = /^https?:\/\/(?:127\.0\.0\.1|localhost|\[::1\]):
  *   rpcWsUrls?: string[],
  *   clearRpcTargets?: boolean,
  *   tier1Verified?: boolean,
+ *   tier1Only?: boolean,
+ *   clearConnection?: boolean,
  *   onDisposeKey?: string,
  *   onDispose?: (() => void)|null,
  *   label?: string,
@@ -208,6 +210,7 @@ export function registerRemoteEndpoint(info = {}) {
       baseUrl: cleanBaseUrl,
       csrfToken: cleanCsrf,
       tier1Verified: Boolean(info.tier1Verified),
+      tier1Only: info.tier1Only === true,
       targets: new Map(),
       disposeCallbacks: new Map(),
       lastSeenMs: nowMs,
@@ -224,39 +227,49 @@ export function registerRemoteEndpoint(info = {}) {
   } else {
     entry.lastSeenMs = nowMs;
     if (identity.label) entry.label = identity.label;
-    if (cleanOrigin) entry.origin = cleanOrigin;
+    if (info.clearConnection === true && !cleanOrigin && !cleanBaseUrl) {
+      entry.origin = '';
+      entry.baseUrl = '';
+      entry.csrfToken = '';
+      entry.preferTier2UntilMs = 0;
+    } else {
+      if (cleanOrigin) entry.origin = cleanOrigin;
 
-    const existingTarget = cleanWsUrl ? entry.targets.get(cleanWsUrl) : null;
-    const isAlreadyKnownPair = Array.from(entry.targets.values()).some(
-      (t) =>
-        (!cleanBaseUrl || t.baseUrl === cleanBaseUrl) &&
-        (!cleanCsrf || t.csrfToken === cleanCsrf)
-    );
-    const baseUrlChanged = Boolean(cleanBaseUrl && entry.baseUrl && entry.baseUrl !== cleanBaseUrl);
+      const existingTarget = cleanWsUrl ? entry.targets.get(cleanWsUrl) : null;
+      const isAlreadyKnownPair = Array.from(entry.targets.values()).some(
+        (t) =>
+          (!cleanBaseUrl || t.baseUrl === cleanBaseUrl) &&
+          (!cleanCsrf || t.csrfToken === cleanCsrf)
+      );
+      const baseUrlChanged = Boolean(cleanBaseUrl && entry.baseUrl && entry.baseUrl !== cleanBaseUrl);
 
-    if (cleanBaseUrl) {
-      if (baseUrlChanged && !isAlreadyKnownPair) {
-        entry.preferTier2UntilMs = 0;
-        if (!cleanCsrf) {
-          // 远端隧道换端口重连且 2.33.0+ 未暴露 csrfToken 时清除旧端口残留令牌
-          entry.csrfToken = '';
+      if (cleanBaseUrl) {
+        if (baseUrlChanged && !isAlreadyKnownPair) {
+          entry.preferTier2UntilMs = 0;
+          if (!cleanCsrf) {
+            // 远端隧道换端口重连且 2.33.0+ 未暴露 csrfToken 时清除旧端口残留令牌
+            entry.csrfToken = '';
+          }
+          if (typeof info.tier1Verified !== 'boolean') {
+            entry.tier1Verified = false;
+          }
         }
-        if (typeof info.tier1Verified !== 'boolean') {
-          entry.tier1Verified = false;
-        }
+        entry.baseUrl = cleanBaseUrl;
       }
-      entry.baseUrl = cleanBaseUrl;
+      if (cleanCsrf) {
+        if (entry.csrfToken !== cleanCsrf && !isAlreadyKnownPair) {
+          entry.preferTier2UntilMs = 0;
+        }
+        entry.csrfToken = cleanCsrf;
+      } else if (existingTarget && baseUrlChanged && !isAlreadyKnownPair) {
+        entry.csrfToken = '';
+      }
     }
     if (typeof info.tier1Verified === 'boolean') {
       entry.tier1Verified = info.tier1Verified;
     }
-    if (cleanCsrf) {
-      if (entry.csrfToken !== cleanCsrf && !isAlreadyKnownPair) {
-        entry.preferTier2UntilMs = 0;
-      }
-      entry.csrfToken = cleanCsrf;
-    } else if (existingTarget && baseUrlChanged && !isAlreadyKnownPair) {
-      entry.csrfToken = '';
+    if (typeof info.tier1Only === 'boolean') {
+      entry.tier1Only = info.tier1Only;
     }
   }
 

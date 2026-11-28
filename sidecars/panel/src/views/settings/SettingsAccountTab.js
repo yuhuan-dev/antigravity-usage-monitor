@@ -76,6 +76,7 @@ function getAccountRefreshOptions() {
     { value: 360, label: t(key('refresh6h')) },
     { value: 720, label: t(key('refresh12h')) },
     { value: 1440, label: t(key('refresh24h')) },
+    { value: 0, label: t(key('refreshOff')) },
   ];
 }
 
@@ -430,7 +431,9 @@ export const SettingsAccountTab = defineComponent({
         const nextMins = normalizeAccountQuotaRefreshMinutes(nextVal);
         refreshMinutes = nextMins;
         refreshIntervalSelect.setValue(nextMins);
-        void refreshSavedQuotas();
+        if (nextMins > 0) {
+          void refreshSavedQuotas();
+        }
         try {
           await saveSettingsPatch({ accountQuotaRefreshMinutes: nextMins });
         } catch {
@@ -1351,7 +1354,13 @@ export const SettingsAccountTab = defineComponent({
         return;
       }
       await request('list');
-      if (!disposed && draftRiskAccepted && !isVaultLocked() && email !== resolveActiveEmail()) {
+      if (
+        !disposed &&
+        refreshMinutes > 0 &&
+        draftRiskAccepted &&
+        !isVaultLocked() &&
+        email !== resolveActiveEmail()
+      ) {
         void refreshQuota(email, false);
       }
     }
@@ -1418,7 +1427,7 @@ export const SettingsAccountTab = defineComponent({
     }
 
     async function refreshSavedQuotas() {
-      if (refreshingSavedQuotas || !draftRiskAccepted || isVaultLocked()) return;
+      if (refreshMinutes <= 0 || refreshingSavedQuotas || !draftRiskAccepted || isVaultLocked()) return;
       refreshingSavedQuotas = true;
       try {
         const activeEmail = resolveActiveEmail();
@@ -1431,7 +1440,15 @@ export const SettingsAccountTab = defineComponent({
         });
         const BATCH_SIZE = 3;
         for (let i = 0; i < staleTargets.length; i += BATCH_SIZE) {
-          if (disposed || operation === 'switch' || !draftRiskAccepted || isVaultLocked()) break;
+          if (
+            disposed ||
+            refreshMinutes <= 0 ||
+            operation === 'switch' ||
+            !draftRiskAccepted ||
+            isVaultLocked()
+          ) {
+            break;
+          }
           const batch = staleTargets.slice(i, i + BATCH_SIZE);
           await Promise.all(batch.map((addr) => refreshQuota(addr, false)));
         }
@@ -1445,6 +1462,7 @@ export const SettingsAccountTab = defineComponent({
       if (
         !addr ||
         addr === activeEmail ||
+        (!manual && refreshMinutes <= 0) ||
         !draftRiskAccepted ||
         isVaultLocked() ||
         quotaInFlight.has(addr) ||
@@ -1597,7 +1615,14 @@ export const SettingsAccountTab = defineComponent({
     }
 
     const quotaScheduleTimer = setInterval(() => {
-      if (!disposed && draftRiskAccepted && accounts.length > 0 && !operation && !isVaultLocked()) {
+      if (
+        !disposed &&
+        refreshMinutes > 0 &&
+        draftRiskAccepted &&
+        accounts.length > 0 &&
+        !operation &&
+        !isVaultLocked()
+      ) {
         void refreshSavedQuotas();
       }
     }, 60_000);

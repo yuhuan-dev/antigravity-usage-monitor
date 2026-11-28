@@ -46,9 +46,12 @@ import {
   loadSettings,
   lsRuntimeEndpoint,
   normalizeFullSettings,
+  normalizeMetricCardStyle,
   normalizeModelDisplayMode,
   normalizeModernUi,
   normalizePluginUpdateMode,
+  normalizeTopbarMultiSessionMode,
+  normalizeVsCodeMountMode,
   normalizeWindowMountMode,
   saveJson,
 } from './config.mjs';
@@ -162,8 +165,34 @@ function projectDisplayStep(st) {
   };
 }
 
-const MAX_DISPLAY_STEP_CACHE_ENTRIES = 16;
+const MAX_DISPLAY_STEP_CACHE_ENTRIES = 8;
+const MAX_DISPLAY_STEP_CACHE_TOTAL_STEPS = 6000;
 const displayStepsCache = new Map();
+
+function countProjectedDisplaySteps(stepLists) {
+  let total = 0;
+  for (const list of stepLists || []) {
+    if (Array.isArray(list)) total += list.length;
+  }
+  return total;
+}
+
+function pruneDisplayStepsCache() {
+  let totalSteps = 0;
+  for (const rec of displayStepsCache.values()) {
+    totalSteps += Number(rec?.stepCount || 0);
+  }
+  while (
+    displayStepsCache.size > MAX_DISPLAY_STEP_CACHE_ENTRIES ||
+    (displayStepsCache.size > 2 && totalSteps > MAX_DISPLAY_STEP_CACHE_TOTAL_STEPS)
+  ) {
+    const oldestKey = displayStepsCache.keys().next().value;
+    if (oldestKey === undefined) break;
+    const evicted = displayStepsCache.get(oldestKey);
+    displayStepsCache.delete(oldestKey);
+    totalSteps -= Number(evicted?.stepCount || 0);
+  }
+}
 const displayStepFields = Object.keys(
   projectDisplayStep({ anomaly: true, anomalySig: '', isReverted: true })
 ).filter((k) => k !== 'anomaly');
@@ -238,16 +267,15 @@ function projectDisplayTelemetry(payload, requestedRevision) {
     } else {
       revision = randomUUID();
       projected = sourceSteps.map((steps) => steps?.map(projectDisplayStep));
-      if (!displayStepsCache.has(cacheKey) && displayStepsCache.size >= MAX_DISPLAY_STEP_CACHE_ENTRIES) {
-        displayStepsCache.delete(displayStepsCache.keys().next().value);
-      }
       displayStepsCache.delete(cacheKey);
       displayStepsCache.set(cacheKey, {
         scope,
         steps: projected,
+        stepCount: countProjectedDisplaySteps(projected),
         revision,
         sources: sourceSteps.map((steps) => steps ? new WeakRef(steps) : undefined),
       });
+      pruneDisplayStepsCache();
     }
   }
   projected ||= sourceSteps.map((steps) => steps?.map(projectDisplayStep));
@@ -384,6 +412,10 @@ export function executeSettingsAction(data) {
             : 'dual'
           : 'sidebar'
         : normalizeWindowMountMode(current.windowMountMode, current.enableWindowOverlay);
+  const nextVsCodeMountMode =
+    payload.vsCodeMountMode !== undefined
+      ? normalizeVsCodeMountMode(payload.vsCodeMountMode)
+      : normalizeVsCodeMountMode(current.vsCodeMountMode);
   const nextModelDisplayMode =
     payload.modelDisplayMode !== undefined
       ? normalizeModelDisplayMode(payload.modelDisplayMode)
@@ -398,10 +430,44 @@ export function executeSettingsAction(data) {
       : payload.experimentalModernUi !== undefined
         ? normalizeModernUi(payload.experimentalModernUi)
         : normalizeModernUi(current.modernUi);
-  const updated = normalizeFullSettings({
+  const nextTopbarMultiSessionMode =
+    payload.topbarMultiSessionMode !== undefined
+      ? normalizeTopbarMultiSessionMode(
+          payload.topbarMultiSessionMode,
+          payload.showTopbarMultiSession
+        )
+      : typeof payload.showTopbarMultiSession === 'boolean'
+        ? payload.showTopbarMultiSession
+          ? 'show'
+          : 'hide'
+        : normalizeTopbarMultiSessionMode(
+            current.topbarMultiSessionMode,
+            current.showTopbarMultiSession
+          );
+  const legacyOverviewStyleOnly =
+    payload.overviewMetricStyle !== undefined &&
+    payload.overviewMetricRows === undefined &&
+    payload.overviewMetricSizes === undefined &&
+    (payload.overviewMetrics === undefined ||
+      normalizeMetricCardStyle(payload.overviewMetricStyle) !== current.overviewMetricStyle);
+  const legacyHoverStyleOnly =
+    payload.hoverMetricStyle !== undefined &&
+    payload.hoverMetricRows === undefined &&
+    payload.hoverMetricSizes === undefined &&
+    (payload.hoverMetrics === undefined ||
+      normalizeMetricCardStyle(payload.hoverMetricStyle) !== current.hoverMetricStyle);
+  const mergedForNorm = {
     ...current,
     ...payload,
+    ...(legacyOverviewStyleOnly
+      ? { overviewMetricRows: undefined, overviewMetricSizes: undefined }
+      : {}),
+    ...(legacyHoverStyleOnly
+      ? { hoverMetricRows: undefined, hoverMetricSizes: undefined }
+      : {}),
     modernUi: nextModernUi,
+    topbarMultiSessionMode: nextTopbarMultiSessionMode,
+    showTopbarMultiSession: nextTopbarMultiSessionMode !== 'hide',
     modelContextWindows: current.modelContextWindows,
     weeklyTokenBudget: sanitizePositiveSettingNumber(
       payload.weeklyTokenBudget ?? payload.weeklyTokenLimit,
@@ -414,7 +480,9 @@ export function executeSettingsAction(data) {
     modelDisplayMode: nextModelDisplayMode,
     pluginUpdateMode: nextPluginUpdateMode,
     windowMountMode: nextWindowMountMode,
-  });
+    vsCodeMountMode: nextVsCodeMountMode,
+  };
+  const updated = normalizeFullSettings(mergedForNorm);
   if (!saveJson(SETTINGS_FILE, updated)) {
     return {
       ok: false,
@@ -428,6 +496,7 @@ export function executeSettingsAction(data) {
     current.windowMountMode,
     current.enableWindowOverlay
   );
+  const prevVsCodeMountMode = normalizeVsCodeMountMode(current.vsCodeMountMode);
   const prevContextActive = isContextWindowFeatureActive(current);
   const nextContextActive = isContextWindowFeatureActive(updated);
   const riskyGateChanged =
@@ -448,6 +517,8 @@ export function executeSettingsAction(data) {
     updated.weeklyCostBudget !== current.weeklyCostBudget ||
     updated.enableWindowOverlay !== (current.enableWindowOverlay !== false) ||
     updated.windowMountMode !== prevMountMode ||
+    updated.vsCodeMountMode !== prevVsCodeMountMode ||
+    (updated.enableSafetyMonitor === true) !== (current.enableSafetyMonitor === true) ||
     bridgeAuxChanged ||
     riskyGateChanged ||
     contextWindowScopeChanged;
@@ -458,6 +529,7 @@ export function executeSettingsAction(data) {
   if (
     updated.enableWindowOverlay !== (current.enableWindowOverlay !== false) ||
     updated.windowMountMode !== prevMountMode ||
+    updated.vsCodeMountMode !== prevVsCodeMountMode ||
     bridgeAuxChanged
   ) {
     void notifyWindowOverlaySetting(updated.enableWindowOverlay);
@@ -584,12 +656,14 @@ export function executeResetSettingsAction() {
     current.windowMountMode,
     current.enableWindowOverlay
   );
+  const prevVsCodeMountMode = normalizeVsCodeMountMode(current.vsCodeMountMode);
   const bridgeAuxChanged =
     (updated.autoConfigureLaunch !== false) !== (current.autoConfigureLaunch !== false) ||
     (updated.enableRemoteSshTelemetry !== false) !== (current.enableRemoteSshTelemetry !== false);
   if (
     updated.enableWindowOverlay !== (current.enableWindowOverlay !== false) ||
     updated.windowMountMode !== prevMountMode ||
+    updated.vsCodeMountMode !== prevVsCodeMountMode ||
     bridgeAuxChanged
   ) {
     void notifyWindowOverlaySetting(updated.enableWindowOverlay);

@@ -8,6 +8,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Script } from 'node:vm';
+import { SUPPORTED_LOCALES } from '../shared/settings-normalization.mjs';
 
 const PANEL_DIR = dirname(dirname(fileURLToPath(import.meta.url)));
 
@@ -606,13 +607,7 @@ export function buildBundle(panelDir = PANEL_DIR) {
     'src/icons/svgRegistry.js',
     'src/icons/SvgIcon.js',
     'src/core/reactive.js',
-    'src/i18n/zh-CN.js',
-    'src/i18n/zh-TW.js',
-    'src/i18n/en-US.js',
-    'src/i18n/ja-JP.js',
-    'src/i18n/ko-KR.js',
-    'src/i18n/de-DE.js',
-    'src/i18n/fr-FR.js',
+    ...SUPPORTED_LOCALES.map((locale) => `src/i18n/${locale}.js`),
     'src/i18n/index.js',
     'src/core/appearance.js',
     'src/core/domPatch.js',
@@ -654,6 +649,7 @@ export function buildBundle(panelDir = PANEL_DIR) {
     'src/components/widgets/CapsuleBarWidget.js',
     'src/components/widgets/StepTableWidget.js',
     'src/components/widgets/ConsumptionBreakdownRows.js',
+    'src/components/widgets/SafetyMonitorCard.js',
     'src/components/settings/structurePreviewMock.js',
     'src/components/settings/CollapsibleSection.js',
     'src/components/settings/EditableSlotList.js',

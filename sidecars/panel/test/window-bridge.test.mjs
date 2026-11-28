@@ -48,6 +48,7 @@ import {
 import {
   handleMcpJsonRpcMessage,
   isOneShotCliParentCommand,
+  shouldDeferDaemonToActiveSidecar,
   shouldSkipDaemonForParentProcess,
 } from '../mcp-entry.mjs';
 import { computeCapsuleLayoutMode } from '../src/components/layout/WindowOverlayShell.js';
@@ -58,6 +59,10 @@ import {
   getTtftToneClass,
 } from '../src/core/formatters.js';
 import { setI18nLanguage } from '../src/i18n/index.js';
+import {
+  SUPPORTED_LOCALE_ENTRIES,
+  SUPPORTED_LOCALES,
+} from '../shared/settings-normalization.mjs';
 import {
   resolveCapsuleMetricPresentation,
   resolveOverviewMetricCell,
@@ -582,11 +587,12 @@ test('Capsule 4-stage responsive hysteresis and backend settings default/overrid
   assert.equal(computeCapsuleLayoutMode(200, 'wide', { showMulti: false }), 'wide');
   assert.equal(computeCapsuleLayoutMode(150, 'wide', { showMulti: false }), 'compact');
 
-  // Backend harness verifies windowMountMode, enableWindowOverlay, showTopbarMultiSession, and topbarCapsuleSlots defaults & normalization
+  // Backend harness verifies windowMountMode, enableWindowOverlay, topbarMultiSessionMode/showTopbarMultiSession, and topbarCapsuleSlots defaults & normalization
   const defaultEnv = backendHarness({ settings: {} });
   const defaultPayload = await defaultEnv.buildTelemetryPayloadInternal('', false, {});
   assert.equal(defaultPayload.settings.windowMountMode, 'dual');
   assert.equal(defaultPayload.settings.enableWindowOverlay, true);
+  assert.equal(defaultPayload.settings.topbarMultiSessionMode, 'show');
   assert.equal(defaultPayload.settings.showTopbarMultiSession, true);
   assert.deepEqual(Array.from(defaultPayload.settings.topbarCapsuleSlots), [
     'tps',
@@ -604,12 +610,23 @@ test('Capsule 4-stage responsive hysteresis and backend settings default/overrid
   const disabledPayload = await disabledEnv.buildTelemetryPayloadInternal('', false, {});
   assert.equal(disabledPayload.settings.windowMountMode, 'sidebar');
   assert.equal(disabledPayload.settings.enableWindowOverlay, false);
+  assert.equal(disabledPayload.settings.topbarMultiSessionMode, 'hide');
   assert.equal(disabledPayload.settings.showTopbarMultiSession, false);
   assert.deepEqual(Array.from(disabledPayload.settings.topbarCapsuleSlots), [
     'gemini_5h',
     'ttft',
     'claude_weekly',
   ]);
+
+  const runningOnlyEnv = backendHarness({
+    settings: {
+      topbarMultiSessionMode: 'running_only',
+      showTopbarMultiSession: false,
+    },
+  });
+  const runningOnlyPayload = await runningOnlyEnv.buildTelemetryPayloadInternal('', false, {});
+  assert.equal(runningOnlyPayload.settings.topbarMultiSessionMode, 'running_only');
+  assert.equal(runningOnlyPayload.settings.showTopbarMultiSession, true);
 
   const composerEnv = backendHarness({
     settings: {
@@ -701,15 +718,20 @@ test('Compiled app.js mounts dual Shadow DOM hosts, tracks /c/<uuid> routes, pro
     autoUpdatePlugin: false,
     windowMountMode: 'dual',
     enableWindowOverlay: true,
+    topbarMultiSessionMode: 'show',
     showTopbarMultiSession: true,
     contextAgentMode: 'main',
     enableCliStatusLine: true,
     topbarCapsuleSlots: ['tps', 'ttft', 'context'],
     hoverModules: ['metrics', 'context', 'quotas'],
     hoverSyncOverviewMetrics: true,
+    hoverMetricRows: 1,
+    hoverMetricSizes: {},
     hoverMetricStyle: 'medium',
     hoverMetrics: ['tps', 'ttft', 'avg_tps', 'step_cost'],
     overviewModules: ['metrics', 'context', 'quotas', 'live_tasks'],
+    overviewMetricRows: 1,
+    overviewMetricSizes: {},
     overviewMetricStyle: 'medium',
     overviewMetrics: ['tps', 'ttft', 'avg_tps', 'step_cost'],
     stepTableColumns: ['step', 'model', 'tps', 'ttft', 'tokens_combo', 'cache', 'cost'],
@@ -824,6 +846,11 @@ test('Compiled app.js mounts dual Shadow DOM hosts, tracks /c/<uuid> routes, pro
         }
         if (patch.pluginUpdateMode !== undefined && patch.autoUpdatePlugin === undefined) {
           mockSettings.autoUpdatePlugin = patch.pluginUpdateMode === 'auto';
+        }
+        if (patch.topbarMultiSessionMode !== undefined && patch.showTopbarMultiSession === undefined) {
+          mockSettings.showTopbarMultiSession = patch.topbarMultiSessionMode !== 'hide';
+        } else if (patch.showTopbarMultiSession !== undefined && patch.topbarMultiSessionMode === undefined) {
+          mockSettings.topbarMultiSessionMode = patch.showTopbarMultiSession ? 'show' : 'hide';
         }
         return {
           ok: true,
@@ -1351,6 +1378,9 @@ test('Compiled app.js mounts dual Shadow DOM hosts, tracks /c/<uuid> routes, pro
     assert.equal(liveTaskCard.querySelector('.live-task-title').textContent, 'Background Security Audit');
     assert.equal(liveTaskCard.querySelector('.badge-main').hasAttribute('hidden'), false, 'Session with subagents shows 主 badge');
     assert.equal(liveTaskCard.querySelector('.live-activity-phase').textContent, '执行命令');
+    assert.equal(liveTaskCard.querySelector('.live-activity-progress').textContent, '1/2', 'Activity progress pill renders without square brackets');
+    assert.equal(liveTaskCard.querySelector('.live-task-header-right .wm-task-metrics'), null, 'Metrics moved out of header row to prevent title crowding');
+    assert.equal(liveTaskCard.querySelector('.live-task-meta-row .wm-task-metrics')?.textContent, '64.2 t/s · 48%');
     assert.equal(liveTaskCard.querySelector('.live-sub-list').hasAttribute('hidden'), false, 'Active subagents auto-expanded');
     assert.equal(liveTaskCard.querySelector('.live-sub-role').textContent, 'Auth Researcher');
     assert.equal(soloTaskCard.querySelector('.live-task-title').textContent, 'Solo Refactor Task');
@@ -1400,8 +1430,10 @@ test('Compiled app.js mounts dual Shadow DOM hosts, tracks /c/<uuid> routes, pro
     const hoverLegendGrid = hoverTipEl.querySelector('.ctx-legend-grid');
     const hoverQuotaPools = hoverTipEl.querySelector('.wm-hover-quota-pools');
     assert.equal(hoverMatrix.children.length, 4);
-    assert.equal(hoverMatrix.children[0].children[1].textContent, '92.4 tok/s');
-    assert.equal(hoverMatrix.children[3].children[1].textContent, '$0.040');
+    assert.equal(hoverMatrix.children[0].querySelector('.cell-value-main').textContent, '92.4');
+    assert.equal(hoverMatrix.children[0].querySelector('.cell-value-unit').textContent, 'tok/s');
+    assert.equal(hoverMatrix.children[3].querySelector('.cell-value-main').textContent, '$0.040');
+    assert.equal(hoverMatrix.children[3].querySelector('.cell-value-unit').hasAttribute('hidden'), true);
     assert.equal(hoverLegendGrid.children.length, 10, 'All 10 context legend slots pre-reserved');
     const firstLegendSlotBefore = hoverLegendGrid.children[0];
     assert.equal(firstLegendSlotBefore.children[0].children[1].textContent, '工具结果');
@@ -1537,8 +1569,8 @@ test('Compiled app.js mounts dual Shadow DOM hosts, tracks /c/<uuid> routes, pro
     const langOpts = langSelectEl.querySelectorAll('.select-option');
     assert.deepEqual(
       langOpts.map((opt) => opt.querySelector('.select-option-text').textContent),
-      ['跟随系统', '简体中文', '繁體中文', 'English', '日本語', '한국어', 'Deutsch', 'Français'],
-      'UI language select lists auto + all 7 supported locales'
+      ['跟随系统', ...SUPPORTED_LOCALE_ENTRIES.map((entry) => entry.nativeName)],
+      'UI language select lists auto + all supported locales'
     );
     langSelectEl.querySelector('.select-trigger').dispatchEvent({ type: 'click', stopPropagation() {} });
 
@@ -1577,13 +1609,22 @@ test('Compiled app.js mounts dual Shadow DOM hosts, tracks /c/<uuid> routes, pro
     assert.equal(portalHost.getAttribute('data-font-scale'), 'md');
     assert.equal(popoverEl.getAttribute('data-font-scale'), 'md');
 
-    // Live i18n switch: zh-CN -> en-US (index 3) -> ja-JP (index 4) -> auto (index 0) -> zh-CN (index 1) without page reload
-    const selectUiLangByIndex = async (idx) => {
+    // Live i18n switch: zh-CN -> en-US -> ja-JP -> auto -> zh-CN without page reload (no magic option indices)
+    const selectUiLangByLabel = async (label) => {
       langSelectEl.querySelector('.select-trigger').dispatchEvent({ type: 'click', stopPropagation() {} });
-      langSelectEl.querySelectorAll('.select-option')[idx].dispatchEvent({ type: 'click', stopPropagation() {} });
+      const targetOpt = langSelectEl
+        .querySelectorAll('.select-option')
+        .find((opt) => opt.querySelector('.select-option-text').textContent === label);
+      assert.ok(targetOpt, `UI language option "${label}" must exist`);
+      targetOpt.dispatchEvent({ type: 'click', stopPropagation() {} });
       await new Promise((r) => setTimeout(r, 30));
     };
-    await selectUiLangByIndex(3);
+    const selectUiLangAuto = async () => {
+      langSelectEl.querySelector('.select-trigger').dispatchEvent({ type: 'click', stopPropagation() {} });
+      langSelectEl.querySelectorAll('.select-option')[0].dispatchEvent({ type: 'click', stopPropagation() {} });
+      await new Promise((r) => setTimeout(r, 30));
+    };
+    await selectUiLangByLabel('English');
     assert.equal(mockSettings.language, 'en-US');
     assert.match(currencySelectEl.querySelector('.select-label').textContent, /USD Only/i);
     assert.equal(pillTabs[0].querySelector('.pill-tab-label').textContent, 'Live');
@@ -1592,15 +1633,15 @@ test('Compiled app.js mounts dual Shadow DOM hosts, tracks /c/<uuid> routes, pro
     assert.equal(subNavBtns[1].textContent, 'Structure');
     assert.equal(subNavBtns[2].textContent, 'Sessions');
     assert.equal(subNavBtns[3].textContent, 'Other');
-    await selectUiLangByIndex(4);
+    await selectUiLangByLabel('日本語');
     assert.equal(mockSettings.language, 'ja-JP');
     assert.match(currencySelectEl.querySelector('.select-label').textContent, /JPY/);
     assert.equal(pillTabs[0].querySelector('.pill-tab-label').textContent, 'ライブ');
     assert.equal(pillTabs[3].querySelector('.pill-tab-label').textContent, '設定');
     assert.equal(subNavBtns[0].textContent, '一般');
-    await selectUiLangByIndex(0);
+    await selectUiLangAuto();
     assert.equal(mockSettings.language, 'auto');
-    await selectUiLangByIndex(1);
+    await selectUiLangByLabel('简体中文');
     assert.equal(mockSettings.language, 'zh-CN');
     assert.match(currencySelectEl.querySelector('.select-label').textContent, /CNY/);
     assert.equal(pillTabs[0].querySelector('.pill-tab-label').textContent, '实时监控');
@@ -1738,9 +1779,9 @@ test('Compiled app.js mounts dual Shadow DOM hosts, tracks /c/<uuid> routes, pro
     assert.equal(mockSettings.enableWindowOverlay, true, 'enableWindowOverlay persisted back to true');
     assert.equal(previewCapsuleBar.getAttribute('data-mount-mode'), 'dual');
 
-    // Toggle popover width mode (auto -> custom 640px -> step +10px -> auto), topbar multi-session switch, capsule/hover context agent mode (main -> auto -> main), and separate CLI bottom capsule switch
+    // Toggle popover width mode (auto -> custom 640px -> step +10px -> auto), topbar multi-session 3-way mode (hide -> running_only -> show), capsule/hover context agent mode (main -> auto -> main), and separate CLI bottom capsule switch
     const topbarSegBtns = sec0.querySelectorAll('.seg-btn');
-    assert.equal(topbarSegBtns.length, 6, 'App mount card renders 6 segmented buttons (Popover width + Topbar multi-session + Capsule/Hover context mode)');
+    assert.equal(topbarSegBtns.length, 7, 'App mount card renders 7 segmented buttons (Popover width [2] + Running sessions mode [3] + Capsule/Hover context mode [2])');
     const cliSegBtns = cliSec.querySelectorAll('.seg-btn');
     assert.equal(cliSegBtns.length, 2, 'Separate CLI section card renders 2 segmented buttons for CLI bottom capsule toggle');
     const popWidthInput = sec0.querySelector('.num-field');
@@ -1763,22 +1804,30 @@ test('Compiled app.js mounts dual Shadow DOM hosts, tracks /c/<uuid> routes, pro
     await new Promise((r) => setTimeout(r, 30));
     assert.equal(mockSettings.popoverWidthMode, 'auto', 'Popover width mode restored to auto');
 
-    topbarSegBtns[3].dispatchEvent({ type: 'click', stopPropagation() {} });
+    topbarSegBtns[4].dispatchEvent({ type: 'click', stopPropagation() {} });
     await new Promise((r) => setTimeout(r, 30));
+    assert.equal(mockSettings.topbarMultiSessionMode, 'hide');
     assert.equal(mockSettings.showTopbarMultiSession, false);
     assert.equal(multiBtn.hasAttribute('hidden'), true, 'Topbar multi-session button hidden immediately');
     assert.equal(previewMultiBtn.hasAttribute('hidden'), true, 'Preview multi-session button hidden immediately');
     assert.equal(capsuleHost.getAttribute('data-multi'), 'off');
+    topbarSegBtns[3].dispatchEvent({ type: 'click', stopPropagation() {} });
+    await new Promise((r) => setTimeout(r, 30));
+    assert.equal(mockSettings.topbarMultiSessionMode, 'running_only');
+    assert.equal(mockSettings.showTopbarMultiSession, true);
+    assert.equal(multiBtn.hasAttribute('hidden'), false, 'Running sessions button stays visible in running_only when sessions are active');
+    assert.equal(previewMultiBtn.hasAttribute('hidden'), false, 'Preview button stays visible in running_only because mock preview has an active session');
     topbarSegBtns[2].dispatchEvent({ type: 'click', stopPropagation() {} });
     await new Promise((r) => setTimeout(r, 30));
+    assert.equal(mockSettings.topbarMultiSessionMode, 'show');
     assert.equal(mockSettings.showTopbarMultiSession, true);
     assert.equal(multiBtn.hasAttribute('hidden'), false, 'Topbar multi-session button restored immediately');
     assert.equal(previewMultiBtn.hasAttribute('hidden'), false, 'Preview multi-session button restored immediately');
 
-    topbarSegBtns[5].dispatchEvent({ type: 'click', stopPropagation() {} });
+    topbarSegBtns[6].dispatchEvent({ type: 'click', stopPropagation() {} });
     await new Promise((r) => setTimeout(r, 30));
     assert.equal(mockSettings.contextAgentMode, 'auto', 'Capsule/Hover context mode switches to follow active (auto)');
-    topbarSegBtns[4].dispatchEvent({ type: 'click', stopPropagation() {} });
+    topbarSegBtns[5].dispatchEvent({ type: 'click', stopPropagation() {} });
     await new Promise((r) => setTimeout(r, 30));
     assert.equal(mockSettings.contextAgentMode, 'main', 'Capsule/Hover context mode switches back to lock main agent');
 
@@ -2012,45 +2061,99 @@ test('Compiled app.js mounts dual Shadow DOM hosts, tracks /c/<uuid> routes, pro
     await new Promise((r) => setTimeout(r, 40));
     assert.deepEqual(mockSettings.hoverModules, ['metrics', 'context', 'quotas']);
 
-    // Switch real-time metrics style to Large while synced with Live Overview -> updates overviewMetricStyle & dims 4th metric row
-    const [hoverStyleGroup, hoverSyncGroup] = sec1.querySelectorAll('.segmented');
-    const hoverStyleBtns = hoverStyleGroup.querySelectorAll('.seg-btn');
+    // Switch real-time metrics height, card text mode, and resize Bento cards while synced/detached
+    const [hoverRowsGroup, hoverTextModeGroup, hoverSyncGroup] = sec1.querySelectorAll('.segmented');
+    const hoverRowsBtns = hoverRowsGroup.querySelectorAll('.seg-btn');
+    const hoverTextModeBtns = hoverTextModeGroup.querySelectorAll('.seg-btn');
     const hoverSyncBtns = hoverSyncGroup.querySelectorAll('.seg-btn');
-    assert.equal(hoverStyleBtns.length, 2, 'Hover metric style segmented switch has Medium and Large options');
+    assert.equal(hoverRowsBtns.length, 2, 'Hover metric height segmented switch has 1 Row and 2 Rows options');
+    assert.equal(hoverTextModeBtns.length, 4, 'Hover metric card text mode switch has 4 options (both/title/sub/none)');
     assert.equal(hoverSyncBtns.length, 2, 'Hover sync toggle has On and Off options');
-    hoverStyleBtns[1].dispatchEvent({ type: 'click', stopPropagation() {} });
+
+    // Switch card text mode while synced -> defaults to 'title', updates overviewMetricTextMode & toggles header/subtext in preview
+    assert.equal(hoverPreviewWidgets.children[0].getAttribute('data-metric-text'), 'title');
+    assert.equal(hoverPreviewWidgets.children[0].querySelector('.cell-label').hasAttribute('hidden'), false);
+    assert.equal(hoverPreviewWidgets.children[0].querySelector('.cell-sub').hasAttribute('hidden'), true);
+    hoverTextModeBtns[3].dispatchEvent({ type: 'click', stopPropagation() {} });
+    await new Promise((r) => setTimeout(r, 30));
+    assert.equal(mockSettings.overviewMetricTextMode, 'none');
+    assert.equal(hoverPreviewWidgets.children[0].getAttribute('data-metric-text'), 'none');
+    assert.equal(hoverPreviewWidgets.children[0].querySelector('.cell-label').hasAttribute('hidden'), true);
+    assert.equal(hoverPreviewWidgets.children[0].querySelector('.cell-sub').hasAttribute('hidden'), true);
+    hoverTextModeBtns[0].dispatchEvent({ type: 'click', stopPropagation() {} });
+    await new Promise((r) => setTimeout(r, 30));
+    assert.equal(mockSettings.overviewMetricTextMode, 'both');
+
+    // Switch to 2 Rows while synced -> updates overviewMetricRows=2, shows Row-2 ghost cells, and drags card 0 handle to tall (2x2)
+    hoverRowsBtns[1].dispatchEvent({ type: 'click', stopPropagation() {} });
     await new Promise((r) => setTimeout(r, 30));
     assert.equal(mockSettings.hoverSyncOverviewMetrics, true);
-    assert.equal(mockSettings.overviewMetricStyle, 'large');
-    assert.equal(
-      hoverPreviewWidgets.children[0].classList.contains('is-large-trend'),
-      true,
-      'Hover preview MetricMatrixWidget switches to large trend sparkline layout'
-    );
-    assert.equal(hoverPreviewWidgets.children[0].getAttribute('data-cols'), '3');
-    assert.equal(hoverPreviewWidgets.children[0].querySelectorAll('.matrix-cell.is-trend-card').length, 3);
-    assert.equal(hoverPreviewWidgets.children[0].querySelectorAll('.cell-sparkline-svg').length, 3);
+    assert.equal(mockSettings.overviewMetricRows, 2);
+    const hoverBentoMatrix = hoverPreviewWidgets.children[0];
+    assert.equal(hoverBentoMatrix.classList.contains('is-bento'), true, 'Hover preview uses Bento layout');
+    assert.equal(hoverBentoMatrix.classList.contains('is-two-row'), true, 'Hover preview switches to 2-row height');
+    assert.equal(hoverBentoMatrix.querySelectorAll('.matrix-ghost-cell').length, 4, 'Empty Row 2 shows 4 edit ghost cells');
     const hoverMetricRows = hoverMetricsWrap.querySelectorAll('.editable-slot-row');
-    assert.equal(hoverMetricRows.length, 4, 'Unified 1-4 metric list preserves 4th metric row in Large mode');
-    assert.equal(hoverMetricRows[3].classList.contains('is-dimmed'), true, '4th metric row dimmed in Large mode');
+    assert.equal(hoverMetricRows[3].classList.contains('is-dimmed'), false, '4th metric row stays visible in 2-row mode');
+    const syncedHandle0 = hoverBentoMatrix.querySelectorAll('.matrix-cell-resize-handle')[0];
+    assert.ok(syncedHandle0, 'Edit hover preview mounts corner resize handles');
+    hoverBentoMatrix.getBoundingClientRect = () => ({ left: 0, top: 0, right: 400, bottom: 144, width: 400, height: 144 });
+    syncedHandle0.dispatchEvent({ type: 'pointerdown', button: 0, clientX: 96, clientY: 68, preventDefault() {}, stopPropagation() {} });
+    mockDocument.dispatchEvent({ type: 'pointermove', clientX: 160, clientY: 120, preventDefault() {} });
+    mockDocument.dispatchEvent({ type: 'pointerup', clientX: 160, clientY: 120 });
+    await new Promise((r) => setTimeout(r, 30));
+    assert.deepEqual(mockSettings.overviewMetricSizes, { tps: 'tall' }, 'Dragging synced hover card corner persists overviewMetricSizes');
+    assert.equal(hoverBentoMatrix.querySelectorAll('.matrix-cell.is-tall-card').length, 1);
+    assert.equal(hoverBentoMatrix.querySelectorAll('.matrix-ghost-cell').length, 1, '7/8 occupied 2-row grid honestly shows 1 open edit ghost slot');
 
-    // Turn off Sync with Live Overview -> Hover detaches cleanly while Overview stays Large
+    // Switch back to 1 Row while synced -> tall card downgrades visually to wide (2x1), dimming 4th overflow metric row
+    hoverRowsBtns[0].dispatchEvent({ type: 'click', stopPropagation() {} });
+    await new Promise((r) => setTimeout(r, 30));
+    assert.equal(mockSettings.hoverSyncOverviewMetrics, true);
+    assert.equal(mockSettings.overviewMetricRows, 1);
+    assert.deepEqual(mockSettings.overviewMetricSizes, { tps: 'tall' }, 'Switching to 1 Row preserves saved tall preference');
+    assert.equal(hoverPreviewWidgets.children[0].querySelectorAll('.matrix-cell').length, 3);
+    assert.equal(hoverPreviewWidgets.children[0].querySelectorAll('.matrix-cell')[0].getAttribute('data-card-size'), 'wide');
+    assert.equal(hoverMetricRows.length, 4, 'Metric list preserves 4th overflow row');
+    assert.equal(hoverMetricRows[3].classList.contains('is-dimmed'), true, '4th metric row dimmed when overflowing 1-row grid');
+
+    // Regression: removing then re-adding 4th metric while 1-row has 2x1 + 1x1 + 1x1 MUST stay 1 row & keep card sizes
+    hoverMetricRows[3].querySelector('.slot-remove-btn').dispatchEvent({ type: 'click', stopPropagation() {} });
+    await new Promise((r) => setTimeout(r, 30));
+    assert.equal(mockSettings.overviewMetricRows, 1, 'Removing 4th metric keeps 1-row height');
+    assert.deepEqual(mockSettings.overviewMetricSizes, { tps: 'tall' }, 'Removing 4th metric keeps saved card sizes');
+    hoverMetricsWrap.querySelector('.slot-add-btn').dispatchEvent({ type: 'click', stopPropagation() {} });
+    await new Promise((r) => setTimeout(r, 30));
+    assert.equal(mockSettings.overviewMetricRows, 1, 'Adding 4th metric onto full 1-row (2x1+1x1+1x1) NEVER forces 2 rows');
+    assert.deepEqual(mockSettings.overviewMetricSizes, { tps: 'tall' }, 'Adding 4th metric preserves card sizes');
+    assert.equal(hoverMetricsWrap.querySelectorAll('.editable-slot-row')[3].classList.contains('is-dimmed'), true, 'Re-added 4th metric stays dimmed as overflow in 1-row mode');
+
+    // Turn off Sync with Live Overview -> Hover detaches cleanly while preserving overview rows & card sizes
     hoverSyncBtns[1].dispatchEvent({ type: 'click', stopPropagation() {} });
     await new Promise((r) => setTimeout(r, 30));
     assert.equal(mockSettings.hoverSyncOverviewMetrics, false);
-    assert.equal(mockSettings.hoverMetricStyle, 'large');
-    hoverStyleBtns[0].dispatchEvent({ type: 'click', stopPropagation() {} });
+    assert.equal(mockSettings.hoverMetricRows, 1);
+    assert.deepEqual(mockSettings.hoverMetricSizes, { tps: 'tall' }, 'Detaching hover carries over current overview Bento sizes');
+
+    // Detached Hover switches to 2 Rows and clicks row-0 size pill to cycle tall -> sm -> updates hoverMetricSizes independently
+    hoverRowsBtns[1].dispatchEvent({ type: 'click', stopPropagation() {} });
     await new Promise((r) => setTimeout(r, 30));
-    assert.equal(mockSettings.hoverMetricStyle, 'medium');
-    assert.equal(mockSettings.overviewMetricStyle, 'large', 'Overview stays Large after Hover detaches');
-    assert.equal(hoverPreviewWidgets.children[0].classList.contains('is-large-trend'), false);
-    assert.equal(hoverPreviewWidgets.children[0].getAttribute('data-cols'), '4');
-    assert.equal(hoverMetricRows[3].classList.contains('is-dimmed'), false, '4th metric row restored when switching back to Medium');
-    // Reset hover pane restores sync=true and hover defaults
+    assert.equal(mockSettings.hoverMetricRows, 2);
+    assert.equal(mockSettings.overviewMetricRows, 1, 'Detached hover height change does not alter overviewMetricRows');
+    const detachedSizePill0 = hoverMetricsWrap.querySelectorAll('.slot-size-pill')[0];
+    assert.ok(detachedSizePill0, 'Metric list exposes clickable size pill');
+    detachedSizePill0.dispatchEvent({ type: 'click', stopPropagation() {} });
+    await new Promise((r) => setTimeout(r, 30));
+    assert.deepEqual(mockSettings.hoverMetricSizes, {}, 'Clicking size pill cycles tall -> sm on detached hover');
+    assert.deepEqual(mockSettings.overviewMetricSizes, { tps: 'tall' }, 'Detached hover size pill does not alter overviewMetricSizes');
+    assert.equal(hoverMetricRows[3].classList.contains('is-dimmed'), false, '4th metric row undimmed when fitting in grid');
+
+    // Reset hover pane restores sync=true and hover defaults (hoverMetricRows=1, hoverMetricSizes={})
     sec1.querySelector('.btn-ghost-sm').dispatchEvent({ type: 'click', stopPropagation() {} });
     await new Promise((r) => setTimeout(r, 40));
     assert.equal(mockSettings.hoverSyncOverviewMetrics, true);
-    assert.equal(mockSettings.hoverMetricStyle, 'medium');
+    assert.equal(mockSettings.hoverMetricRows, 1);
+    assert.deepEqual(mockSettings.hoverMetricSizes, {});
 
     // Pane 2 (3rd-level tab 'overview'): Live Overview Layout + real overview UI preview
     const sec2 = accordionSections[3];
@@ -2061,16 +2164,15 @@ test('Compiled app.js mounts dual Shadow DOM hosts, tracks /c/<uuid> routes, pro
     assert.equal(sec2.hasAttribute('hidden'), false);
     const overviewPreviewHostEl = sec2.querySelector('.overview-modules-host');
     assert.equal(overviewPreviewHostEl.children.length, 4, 'Overview preview mounts all 4 real overview widgets');
-    // Overview is currently in Large mode from earlier synced switch -> verify 3 trend cards + dimmed 4th row, then switch back to Medium
-    assert.equal(overviewPreviewHostEl.children[0].classList.contains('is-large-trend'), true, 'Live Overview preview supports Large sparkline trend cards');
-    assert.equal(overviewPreviewHostEl.children[0].getAttribute('data-cols'), '3');
+    // Overview currently has overviewMetricRows=1 + overviewMetricSizes={ tps: 'tall' } (downgraded to wide) -> 3 visible + 4th dimmed
+    assert.equal(overviewPreviewHostEl.children[0].querySelectorAll('.matrix-cell').length, 3);
     const [ovMetricWrap, ovModWrap] = sec2.querySelectorAll('.editable-slot-wrap');
-    assert.equal(ovMetricWrap.querySelectorAll('.editable-slot-row')[3].classList.contains('is-dimmed'), true, 'Overview 4th metric dimmed in Large mode');
-    const ovStyleBtns = sec2.querySelectorAll('.seg-btn');
-    ovStyleBtns[0].dispatchEvent({ type: 'click', stopPropagation() {} });
+    assert.equal(ovMetricWrap.querySelectorAll('.editable-slot-row')[3].classList.contains('is-dimmed'), true, 'Overview 4th metric dimmed when overflowing 1-row Bento grid');
+    // Click size pill on row 0 (wide -> sm in 1-row mode) -> restores all 4 cards and undims 4th row
+    ovMetricWrap.querySelectorAll('.slot-size-pill')[0].dispatchEvent({ type: 'click', stopPropagation() {} });
     await new Promise((r) => setTimeout(r, 30));
-    assert.equal(mockSettings.overviewMetricStyle, 'medium');
-    assert.equal(overviewPreviewHostEl.children[0].classList.contains('is-large-trend'), false);
+    assert.deepEqual(mockSettings.overviewMetricSizes, {});
+    assert.equal(overviewPreviewHostEl.children[0].querySelectorAll('.matrix-cell').length, 4);
     assert.equal(ovMetricWrap.querySelectorAll('.editable-slot-row')[3].classList.contains('is-dimmed'), false);
     assert.equal(
       sec2.querySelector('.structure-preview-canvas').classList.contains('is-scaled'),
@@ -5036,6 +5138,20 @@ test('Issue #44: standalone Web UI & panel sync <html lang> and <title> across e
   assert.equal(resolveStandaloneRequestLocale({ headers: { 'accept-language': 'en-US' } }, 'zh-CN'), 'zh-CN');
 
   const rawIndexHtml = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  for (const loc of SUPPORTED_LOCALES) {
+    assert.equal(
+      resolveStandaloneRequestLocale({ headers: { 'accept-language': `${loc},en;q=0.1` } }, 'auto'),
+      loc,
+      `Standalone Accept-Language must resolve ${loc}`
+    );
+    const localizedHtml = localizeStandaloneIndexHtml(rawIndexHtml, loc);
+    assert.match(
+      localizedHtml,
+      new RegExp(`<html lang="${loc}">`),
+      `Standalone index.html must localize html[lang] for ${loc}`
+    );
+    assert.match(localizedHtml, /<title>[^<]+<\/title>/);
+  }
   const enIndexHtml = localizeStandaloneIndexHtml(rawIndexHtml, 'en-US');
   assert.match(enIndexHtml, /<html lang="en-US">/);
   assert.match(enIndexHtml, /<title>Usage & Speed Monitor<\/title>/);
@@ -6321,8 +6437,32 @@ test('Issue #26: Antigravity Desktop 2.33.0+ automatic shortcut/launcher provisi
     const writtenPs1 = fs.readFileSync(capturedRelaunchEnv.AGY_RELAUNCH_PS1, 'utf8');
     assert.equal(writtenPs1.startsWith('\uFEFF'), true, 'Writes UTF-8 BOM for Windows PowerShell 5.1');
     assert.match(writtenPs1, /^[\uFEFF]?param\(\[string\]\$HostElevated = '0'\)/);
+    assert.match(writtenPs1, /\$PSCommandPath \+ '\.ack'/, 'Writes startup .ack sentinel so HIPS-blocked WMI dispatch can fall back');
+    assert.match(writtenPs1, /ELECTRON_RUN_AS_NODE/, 'Clears inherited Electron node env vars before host relaunch');
     assert.match(writtenPs1, /--remote-debugging-port=0/);
     assert.ok(writtenPs1.includes(stalePortFile));
+    assert.match(
+      capturedRelaunchArgs[capturedRelaunchArgs.length - 1],
+      /Wait-RelaunchAck/,
+      'Dispatcher verifies inner script startup ack before reporting success'
+    );
+    assert.match(
+      capturedRelaunchArgs[capturedRelaunchArgs.length - 1],
+      /FilterAdministratorToken/,
+      'Built-in Administrator without token filtering prefers Shell.Application over WMI'
+    );
+
+    const blockedRelaunchRes = await triggerDesktopHostRelaunch({
+      env: { ...simEnv, TEMP: simTmp },
+      platform: 'win32',
+      homeDir,
+      stalePortFiles: [stalePortFile],
+      allowInTest: true,
+      execFileFn: async () => '{"ok":false,"error":"relaunch_script_blocked"}',
+    });
+    assert.equal(blockedRelaunchRes.ok, false, 'Propagates dispatcher failure instead of silent success');
+    assert.equal(blockedRelaunchRes.status, 500);
+    assert.equal(fs.existsSync(capturedRelaunchEnv.AGY_RELAUNCH_PS1), false, 'Cleans up orphaned temp .ps1 on dispatch failure');
 
     // Verify dynamic running-process path discovery when installed on custom non-default drive (e.g. D:\Apps\Antigravity)
     const customDriveRes = await triggerDesktopHostRelaunch({
@@ -6929,6 +7069,7 @@ test('Issue #35: topbar capsule and hover HUD lock to main agent by default, tog
     modernUi: true,
     windowMountMode: 'dual',
     enableWindowOverlay: true,
+    topbarMultiSessionMode: 'show',
     showTopbarMultiSession: true,
     contextAgentMode: 'main',
     topbarCapsuleSlots: ['tps', 'ttft', 'context'],
@@ -7174,6 +7315,186 @@ test('Issue #35: topbar capsule and hover HUD lock to main agent by default, tog
   } finally {
     ov?.dispose?.();
   }
+});
+
+test('Hover HUD (.wm-hover-tip) auto-dismiss regression: outside mousedown, Escape, pointermove outside capsule, and document mouseleave', async () => {
+  const appJs = fs.readFileSync(new URL('../app.js', import.meta.url), 'utf8');
+  const stylesCss = fs.readFileSync(new URL('../styles.css', import.meta.url), 'utf8');
+  const rootUuid = '22222222-3333-4444-5555-666666666666';
+
+  const { document: mockDocument, body, docListeners, makeElement } = createMockDom({
+    defaultRect: { left: 900, right: 1080, top: 6, bottom: 32, width: 180, height: 26 },
+  });
+  const winListeners = new Map();
+  const dispatchWin = (type, ev) => {
+    for (const fn of [...(winListeners.get(type) || [])]) fn(ev);
+  };
+  const titlebar = makeElement('div');
+  titlebar.className = 'flex items-center @container/titlebar';
+  const titleRight = makeElement('div');
+  titleRight.className = 'flex items-center gap-1';
+  titlebar.appendChild(titleRight);
+  body.appendChild(titlebar);
+
+  const mockSettings = {
+    language: 'en-US',
+    themeAccent: 'host',
+    fontScale: 'md',
+    pluginUpdateMode: 'manual',
+    autoUpdatePlugin: false,
+    windowMountMode: 'dual',
+    enableWindowOverlay: true,
+    showTopbarMultiSession: true,
+    contextAgentMode: 'main',
+    topbarCapsuleSlots: ['tps', 'ttft', 'context'],
+    hoverModules: ['metrics', 'context'],
+    overviewModules: ['metrics', 'context'],
+    overviewMetrics: ['tps', 'ttft', 'avg_tps', 'step_cost'],
+    stepTableColumns: ['step', 'model', 'tps', 'ttft', 'tokens_combo', 'cache', 'cost'],
+  };
+  const ctx = {
+    totalTokens: 51200,
+    limitTokens: 256000,
+    compactionLimitTokens: 256000,
+    usedPct: 20,
+    messagesTokens: 40000,
+    toolResultsTokens: 8000,
+    assistantTokens: 3200,
+    userInputTokens: 2000,
+    systemPromptTokens: 3000,
+    systemToolsTokens: 1000,
+  };
+  const buildPayload = () => ({
+    bundleVersion: 'ver-hover-dismiss',
+    settings: { ...mockSettings },
+    quotas: { pools: [] },
+    conversations: [],
+    runningConversations: [],
+    activeConversation: {
+      cascadeId: rootUuid,
+      title: 'Hover Dismiss',
+      isRunning: false,
+      stepCount: 1,
+      latestTokPerSec: 10,
+      avgTokPerSec: 8,
+      latestTtftSec: 0.5,
+      context: ctx,
+      agents: [],
+      recentSteps: [],
+    },
+    consumption: { range: '7d', summary: {}, trendSeries: [], topModels: [], topConversations: [] },
+  });
+
+  const mockLocation = { pathname: `/c/${rootUuid}`, href: `http://localhost/c/${rootUuid}` };
+  const mockWindow = {
+    innerWidth: 1280,
+    innerHeight: 800,
+    location: mockLocation,
+    document: mockDocument,
+    __AGUsageMonitorBridge: { port: 49236, token: 'tok-hover', version: 'ver-hover-dismiss', platform: 'darwin' },
+    addEventListener(type, fn) {
+      if (!winListeners.has(type)) winListeners.set(type, []);
+      winListeners.get(type).push(fn);
+    },
+    removeEventListener(type, fn) {
+      const arr = winListeners.get(type);
+      if (!arr) return;
+      const i = arr.indexOf(fn);
+      if (i >= 0) arr.splice(i, 1);
+    },
+    getComputedStyle: () => ({ display: 'flex', flexDirection: 'row', visibility: 'visible' }),
+    requestAnimationFrame: (cb) => setTimeout(cb, 0),
+    cancelAnimationFrame: (id) => clearTimeout(id),
+    fetch: async (url, opts = {}) => {
+      const urlStr = String(url);
+      if (urlStr.includes('/styles.css')) {
+        return { ok: true, status: 200, text: async () => stylesCss };
+      }
+      if (urlStr.includes('/api/settings') && String(opts.method || '').toUpperCase() === 'POST') {
+        Object.assign(mockSettings, JSON.parse(opts.body || '{}'));
+        return { ok: true, status: 200, json: async () => ({ ok: true, settings: { ...mockSettings } }) };
+      }
+      return { ok: true, status: 200, json: async () => buildPayload() };
+    },
+  };
+  mockWindow.window = mockWindow;
+  mockWindow.globalThis = mockWindow;
+
+  const sandbox = vm.createContext({
+    window: mockWindow,
+    globalThis: mockWindow,
+    document: mockDocument,
+    location: mockLocation,
+    navigator: {},
+    URLSearchParams,
+    AbortController,
+    setTimeout,
+    clearTimeout,
+    setInterval,
+    clearInterval,
+    queueMicrotask,
+    fetch: mockWindow.fetch,
+    console,
+  });
+
+  vm.runInContext(appJs, sandbox);
+  await new Promise((r) => setTimeout(r, 50));
+
+  const ov = mockWindow.__AGUsageMonitorOverlay;
+  const capsuleHost = mockDocument.getElementById('ag-usage-monitor-capsule');
+  const capsuleBtn = capsuleHost.shadowRoot.querySelector('.wm-capsule-btn');
+  const multiBtn = capsuleHost.shadowRoot.querySelector('.wm-multi-btn');
+  // Topbar capsule occupies 900..1080 x 6..32; everything else counts as "outside the capsule".
+  capsuleBtn.setRect({ left: 900, right: 1080, top: 6, bottom: 32, width: 180, height: 26 });
+  const openHoverHud = async () => {
+    capsuleBtn.dispatchEvent({ type: 'mouseenter', clientX: 960, clientY: 18 });
+    assert.equal(ov.isHoverOpen(), true, 'Hover HUD opens on capsule mouseenter');
+  };
+  try {
+    assert.ok(ov, 'Overlay initialized');
+    assert.equal(ov.isHoverOpen(), false);
+
+    // 1. Window pointermove self-heal: no capsule mouseleave is ever dispatched.
+    await openHoverHud();
+    dispatchWin('pointermove', { type: 'pointermove', clientX: 1000, clientY: 20 });
+    assert.equal(ov.isHoverOpen(), true, 'pointermove inside capsule rect keeps hover HUD open');
+    dispatchWin('pointermove', { type: 'pointermove', clientX: 500, clientY: 400 });
+    assert.equal(ov.isHoverOpen(), false, 'pointermove outside capsule rect closes hover HUD without mouseleave');
+
+    // 2. Outside mousedown (document capture phase) closes hover HUD; mousedown inside capsule does not.
+    await openHoverHud();
+    mockDocument.dispatchEvent({ type: 'mousedown', target: capsuleHost, composedPath: () => [capsuleBtn, capsuleHost] });
+    assert.equal(ov.isHoverOpen(), true, 'mousedown inside capsule host keeps hover HUD open');
+    mockDocument.dispatchEvent({ type: 'mousedown', target: body, composedPath: () => [body] });
+    assert.equal(ov.isHoverOpen(), false, 'Outside mousedown closes hover HUD');
+
+    // 3. Escape keydown closes hover HUD.
+    await openHoverHud();
+    mockDocument.dispatchEvent({ type: 'keydown', key: 'Escape' });
+    assert.equal(ov.isHoverOpen(), false, 'Escape closes hover HUD');
+
+    // 4. Document mouseleave (pointer leaves viewport, relatedTarget === null) closes hover HUD
+    //    and unpinned multi-session panel, but leaves a pinned multi-session panel untouched.
+    await openHoverHud();
+    mockDocument.dispatchEvent({ type: 'mouseleave', relatedTarget: body });
+    assert.equal(ov.isHoverOpen(), true, 'mouseleave with a relatedTarget (internal DOM transition) is ignored');
+    mockDocument.dispatchEvent({ type: 'mouseleave', relatedTarget: null });
+    assert.equal(ov.isHoverOpen(), false, 'Viewport mouseleave closes hover HUD');
+
+    multiBtn.dispatchEvent({ type: 'mouseenter', clientX: 930, clientY: 18 });
+    assert.equal(ov.isMultiHoverOpen(), true, 'Unpinned multi-session panel opens on hover');
+    mockDocument.dispatchEvent({ type: 'mouseleave', relatedTarget: null });
+    assert.equal(ov.isMultiOpen(), false, 'Viewport mouseleave closes unpinned multi-session panel');
+
+    multiBtn.dispatchEvent({ type: 'click', stopPropagation() {} });
+    assert.equal(ov.isMultiPinnedOpen(), true, 'Multi-session panel pinned by click');
+    mockDocument.dispatchEvent({ type: 'mouseleave', relatedTarget: null });
+    assert.equal(ov.isMultiPinnedOpen(), true, 'Viewport mouseleave keeps pinned multi-session panel open');
+  } finally {
+    ov?.dispose?.();
+  }
+  assert.equal((docListeners.get('mouseleave') || []).length, 0, 'dispose() removes document mouseleave listener');
+  assert.equal((winListeners.get('pointermove') || []).length, 0, 'dispose() removes window pointermove listener');
 });
 
 test('Antigravity IDE dual mode (双栖挂载) probes live chat iframe DOM cascade ID and syncs workbench.html on conversation switch', async () => {
@@ -7763,6 +8084,105 @@ test('WindowOverlayShell mirrors host --font-sans and --font-mono onto portalHos
   }
 });
 
+test('WindowOverlayShell and buildHostThemeProbeSnippet fall back to --font-family and --editor-font-family before VS Code or body defaults', async () => {
+  const { mountWindowOverlay } = await import('../src/components/layout/WindowOverlayShell.js');
+  const { buildHostThemeProbeSnippet } = await import('../backend/window-bridge.mjs');
+  const { createMockDom } = await import('./mock-dom.mjs');
+  const { WINDOW_BRIDGE_KEY } = await import('../shared/window-bridge-protocol.mjs');
+  const prevDoc = globalThis.document;
+  const prevWin = globalThis.window;
+  const prevRo = globalThis.ResizeObserver;
+  const prevMo = globalThis.MutationObserver;
+  const prevFetch = globalThis.fetch;
+
+  const { document } = createMockDom();
+  const hostSans = '"Google Sans Flex", "PingFang SC", sans-serif';
+  const hostMono = '"Google Sans Code", monospace';
+  globalThis.document = document;
+  globalThis.ResizeObserver = class {
+    observe() {}
+    disconnect() {}
+  };
+  globalThis.MutationObserver = class {
+    observe() {}
+    disconnect() {}
+  };
+  globalThis.fetch = async () => ({
+    ok: true,
+    status: 200,
+    json: async () => ({ settings: { modernUi: true, fontScale: 'md' } }),
+    text: async () => JSON.stringify({ settings: { modernUi: true, fontScale: 'md' } }),
+  });
+  globalThis.window = {
+    innerWidth: 1440,
+    innerHeight: 900,
+    location: { pathname: '/', href: 'http://127.0.0.1:41234/' },
+    [WINDOW_BRIDGE_KEY]: {
+      port: 0,
+      token: 't',
+      bundleVersion: 'v-font-fallback',
+      stylesCss: ':host{}',
+      initialTelemetry: { settings: { modernUi: true, fontScale: 'md' } },
+    },
+    getComputedStyle: (el) => {
+      if (el === document.documentElement) {
+        return {
+          fontFamily: 'Segoe UI, sans-serif',
+          getPropertyValue: (prop) => {
+            if (prop === '--background') return 'hsl(222 18% 10%)';
+            if (prop === '--font-family') return hostSans;
+            if (prop === '--editor-font-family') return hostMono;
+            if (prop === '--vscode-font-family') return 'Consolas, sans-serif';
+            if (prop === '--vscode-editor-font-family') return 'Courier New, monospace';
+            return '';
+          },
+        };
+      }
+      if (el === document.body) {
+        return {
+          fontFamily: 'Segoe UI, sans-serif',
+          getPropertyValue: () => '',
+        };
+      }
+      return { getPropertyValue: () => '' };
+    },
+    addEventListener() {},
+    removeEventListener() {},
+    requestAnimationFrame: (cb) => setTimeout(cb, 0),
+    cancelAnimationFrame: (id) => clearTimeout(id),
+  };
+
+  let ov = null;
+  try {
+    // 1. CDP probe prefers --font-family / --editor-font-family over --vscode-* and body fontFamily
+    const probeRes = eval(buildHostThemeProbeSnippet());
+    assert.equal(probeRes?.vars?.['--font-sans'], hostSans);
+    assert.equal(probeRes?.vars?.['--font-mono'], hostMono);
+
+    // 2. WindowOverlayShell mirrors fallback fonts onto portalHost while isolating capsuleHost
+    ov = mountWindowOverlay();
+    const portalHost = document.getElementById('ag-usage-monitor-portal');
+    const capsuleHost = document.getElementById('ag-usage-monitor-capsule');
+    assert.ok(portalHost, 'portalHost mounted');
+    assert.equal(portalHost.style.getPropertyValue('--font-sans'), hostSans);
+    assert.equal(portalHost.style.getPropertyValue('--host-font-sans'), hostSans);
+    assert.equal(portalHost.style.getPropertyValue('--font-mono'), hostMono);
+    assert.equal(portalHost.style.getPropertyValue('--host-font-mono'), hostMono);
+    assert.equal(
+      capsuleHost?.style?.getPropertyValue?.('--font-sans') || '',
+      '',
+      'capsuleHost retains its own titlebar typography isolation'
+    );
+  } finally {
+    ov?.dispose?.();
+    globalThis.document = prevDoc;
+    globalThis.window = prevWin;
+    globalThis.ResizeObserver = prevRo;
+    globalThis.MutationObserver = prevMo;
+    globalThis.fetch = prevFetch;
+  }
+});
+
 test('isOneShotCliParentCommand & shouldSkipDaemonForParentProcess detect one-shot agy CLI across direct and shell-wrapped parents', async () => {
   assert.equal(
     isOneShotCliParentCommand(
@@ -8030,5 +8450,484 @@ test('window-bridge stop({ disposeWindows: true }) preserves Desktop overlay usi
   } finally {
     await new Promise((resolve) => cdpServer.close(resolve));
     fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test('WindowOverlayShell enforces running_only visibility, right-sidebar multi-panel clamping, compact empty width, and progress pill CSS alignment', async (t) => {
+  const [{ mountWindowOverlay }, { getRightSidebarLeftEdge }, { WINDOW_BRIDGE_KEY }, { telemetryStore }, { uiStore }] =
+    await Promise.all([
+      import('../src/components/layout/WindowOverlayShell.js'),
+      import('../src/components/layout/overlayHostAnchors.js'),
+      import('../shared/window-bridge-protocol.mjs'),
+      import('../src/store/telemetryStore.js'),
+      import('../src/store/uiStore.js'),
+    ]);
+
+  const stylesCss = fs.readFileSync(new URL('../styles.css', import.meta.url), 'utf8');
+  assert.match(
+    stylesCss,
+    /\.wm-multi-panel\s*\{[^}]*width:\s*min\(calc\(376px \* var\(--ui-panel-scale, 1\)\),\s*calc\(100vw - 24px\)\);/,
+    'Multi-session popover base width trimmed to 376px'
+  );
+  assert.match(
+    stylesCss,
+    /\.wm-multi-panel\.is-empty\s*\{[^}]*width:\s*min\(calc\(256px \* var\(--ui-panel-scale, 1\)\),\s*calc\(100vw - 24px\)\);/,
+    'Empty multi-session popover uses compact 256px width'
+  );
+  assert.match(
+    stylesCss,
+    /\.live-activity-progress\s*\{[^}]*display:\s*inline-flex;[^}]*align-items:\s*center;[^}]*justify-content:\s*center;[^}]*font-size:\s*var\(--fs-sm\);[^}]*line-height:\s*1;[^}]*min-height:\s*calc\(17px \* var\(--ui-font-scale, 1\)\);[^}]*padding:\s*2px 6px;/s,
+    'Activity progress pill uses inline-flex centering and var(--fs-sm) alignment'
+  );
+
+  const prevDoc = globalThis.document;
+  const prevWin = globalThis.window;
+  const prevRO = globalThis.ResizeObserver;
+  const prevMO = globalThis.MutationObserver;
+  const prevTel = telemetryStore.getState();
+  const prevUi = uiStore.getState();
+
+  const { document: doc, body, makeElement } = createMockDom({
+    defaultRect: { left: 760, right: 980, top: 6, bottom: 32, width: 220, height: 26 },
+  });
+
+  // Host left sidebar (0..240), main titlebar (240..1000), right aux pane sash at x=1000 inside vw=1440
+  const navEl = makeElement('div');
+  navEl.setAttribute('role', 'navigation');
+  navEl.getBoundingClientRect = () => ({ left: 0, right: 240, top: 0, bottom: 900, width: 240, height: 900 });
+  body.appendChild(navEl);
+
+  const titlebar = makeElement('div');
+  titlebar.className = 'flex items-center @container/titlebar';
+  titlebar.getBoundingClientRect = () => ({ left: 240, right: 1000, top: 0, bottom: 40, width: 760, height: 40 });
+  const titleLeft = makeElement('div');
+  titleLeft.getBoundingClientRect = () => ({ left: 252, right: 410, top: 8, bottom: 32, width: 158, height: 24 });
+  const titleRight = makeElement('div');
+  titleRight.className = 'shrink-0 flex items-center';
+  const nativeBtn = makeElement('button');
+  nativeBtn.getBoundingClientRect = () => ({ left: 952, right: 992, top: 8, bottom: 32, width: 40, height: 24 });
+  titleRight.appendChild(nativeBtn);
+  titlebar.appendChild(titleLeft);
+  titlebar.appendChild(titleRight);
+  body.appendChild(titlebar);
+
+  const auxSash = makeElement('div');
+  auxSash.setAttribute('data-testid', 'aux-pane-sash');
+  auxSash.getBoundingClientRect = () => ({ left: 1000, right: 1004, top: 0, bottom: 900, width: 4, height: 900 });
+  body.appendChild(auxSash);
+
+  globalThis.document = doc;
+  globalThis.ResizeObserver = class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  };
+  globalThis.MutationObserver = class {
+    observe() {}
+    disconnect() {}
+  };
+  globalThis.window = {
+    innerWidth: 1440,
+    innerHeight: 900,
+    document: doc,
+    location: { pathname: '/c/aaaaaaaa-1111-2222-3333-bbbbbbbbbbbb' },
+    getComputedStyle: () => ({ display: 'flex', visibility: 'visible', paddingRight: '8px', getPropertyValue: () => '' }),
+    [WINDOW_BRIDGE_KEY]: {
+      port: 49153,
+      token: 'multi-bounds-tok',
+      bundleVersion: '1',
+      stylesCss,
+    },
+    addEventListener() {},
+    removeEventListener() {},
+    requestAnimationFrame: (cb) => {
+      cb();
+      return 1;
+    },
+    cancelAnimationFrame() {},
+  };
+
+  let ov = null;
+  t.after(() => {
+    ov?.dispose?.();
+    telemetryStore.setState(prevTel, { sync: true });
+    uiStore.setState(prevUi, { sync: true });
+    globalThis.document = prevDoc;
+    globalThis.window = prevWin;
+    globalThis.ResizeObserver = prevRO;
+    globalThis.MutationObserver = prevMO;
+  });
+
+  // 1. getRightSidebarLeftEdge resolves aux-pane-sash and falls back to titlebar right edge when sash is absent
+  assert.equal(getRightSidebarLeftEdge(1440), 1000);
+  auxSash.setAttribute('hidden', '');
+  assert.equal(getRightSidebarLeftEdge(1440), 1000, 'Falls back to main titlebar right edge when aux sash is absent');
+  auxSash.removeAttribute('hidden');
+
+  const mkPayload = ({ mode = 'show', running = [] } = {}) => ({
+    settings: {
+      windowMountMode: 'dual',
+      enableWindowOverlay: true,
+      topbarMultiSessionMode: mode,
+      showTopbarMultiSession: mode !== 'hide',
+      topbarCapsuleSlots: ['tps', 'ttft', 'context'],
+      fontScale: 'md',
+    },
+    runningConversations: running,
+    activeConversation: {
+      cascadeId: 'aaaaaaaa-1111-2222-3333-bbbbbbbbbbbb',
+      title: 'Main Window',
+      isRunning: running.length > 0,
+      latestTokPerSec: 65,
+      contextUsedPct: 35,
+    },
+    conversations: [],
+    quotas: { pools: [] },
+  });
+
+  const runningFixture = [
+    {
+      cascadeId: 'aaaaaaaa-1111-2222-3333-bbbbbbbbbbbb',
+      title: 'Long Session Title That Must Stay Readable',
+      isRunning: true,
+      isMainRunning: true,
+      latestTokPerSec: 65,
+      contextUsedPct: 35,
+      mainActivity: {
+        phase: 'tool',
+        actionKey: 'edit_file',
+        label: '修改文件',
+        detail: 'WindowOverlayShell.js',
+        stepProgress: '3/5',
+        startedAtMs: Date.now() - 3000,
+        signature: 'edit:3/5',
+      },
+      subagentCount: 0,
+      runningSubagentCount: 0,
+      subagents: [],
+    },
+  ];
+
+  telemetryStore.setState({ telemetry: mkPayload({ mode: 'show', running: [] }) }, { sync: true });
+  ov = mountWindowOverlay();
+  const capsuleHost = doc.getElementById('ag-usage-monitor-capsule');
+  const portalHost = doc.getElementById('ag-usage-monitor-portal');
+  const multiBtn = capsuleHost.shadowRoot.querySelector('.wm-multi-btn');
+  const multiPanelEl = portalHost.shadowRoot.querySelector('.wm-multi-panel');
+  const multiRunningMetaEl = multiPanelEl.querySelector('.wm-multi-header .panel-meta');
+  multiBtn.getBoundingClientRect = () => ({ left: 740, right: 820, top: 6, bottom: 32, width: 80, height: 26 });
+  multiPanelEl.getBoundingClientRect = () => {
+    const isEmpty = multiPanelEl.classList.contains('is-empty');
+    return { left: 0, right: isEmpty ? 256 : 376, top: 0, bottom: isEmpty ? 88 : 280, width: isEmpty ? 256 : 376, height: isEmpty ? 88 : 280 };
+  };
+
+  // 2. Empty state in 'show' mode: .is-empty active, duplicate header meta hidden, clamped strictly left of auxSash (x=1000)
+  multiBtn.dispatchEvent({ type: 'click', stopPropagation() {} });
+  assert.equal(ov.isMultiOpen(), true);
+  assert.equal(multiPanelEl.classList.contains('is-empty'), true);
+  assert.equal(multiRunningMetaEl.hasAttribute('hidden'), true, 'Empty state omits redundant header idle copy');
+  const emptyLeft = parseFloat(multiPanelEl.style.left);
+  assert.equal(multiPanelEl.style.maxWidth, '738px', 'maxWidth constrained to [minLeft=252, maxRight=990]');
+  assert.ok(emptyLeft >= 252 && emptyLeft + 256 <= 990, `Empty multi-panel stays clear of right sidebar (left=${emptyLeft})`);
+
+  // 3. Running session arrives: .is-empty cleared, meta restored, 376px panel shifts left so left + 376 <= 990
+  telemetryStore.setState({ telemetry: mkPayload({ mode: 'show', running: runningFixture }) }, { sync: true });
+  assert.equal(multiPanelEl.classList.contains('is-empty'), false);
+  assert.equal(multiRunningMetaEl.hasAttribute('hidden'), false);
+  const busyLeft = parseFloat(multiPanelEl.style.left);
+  assert.ok(busyLeft >= 252 && busyLeft + 376 <= 990, `Active 376px multi-panel clamped clear of right sidebar (left=${busyLeft})`);
+
+  // 4. Switch to 'running_only' while running -> still visible & stays open; once idle -> button hides & pinned popover auto-closes
+  telemetryStore.setState({ telemetry: mkPayload({ mode: 'running_only', running: runningFixture }) }, { sync: true });
+  assert.equal(multiBtn.hasAttribute('hidden'), false);
+  assert.equal(capsuleHost.getAttribute('data-multi'), 'on');
+
+  telemetryStore.setState({ telemetry: mkPayload({ mode: 'running_only', running: [] }) }, { sync: true });
+  assert.equal(multiBtn.hasAttribute('hidden'), true, 'running_only hides multiBtn when 0 sessions are running');
+  assert.equal(capsuleHost.getAttribute('data-multi'), 'off');
+  assert.equal(ov.isMultiOpen(), false, 'Open/pinned multi-session popover closes when running_only hides trigger');
+  assert.equal(multiPanelEl.hasAttribute('hidden'), true);
+
+  // Attempting to open via hover/click while hidden stays blocked
+  multiBtn.dispatchEvent({ type: 'mouseenter', clientX: 760, clientY: 18 });
+  assert.equal(ov.isMultiOpen(), false);
+
+  // When a running session reappears in running_only mode, button returns immediately
+  telemetryStore.setState({ telemetry: mkPayload({ mode: 'running_only', running: runningFixture }) }, { sync: true });
+  assert.equal(multiBtn.hasAttribute('hidden'), false);
+  assert.equal(capsuleHost.getAttribute('data-multi'), 'on');
+});
+
+test('shouldDeferDaemonToActiveSidecar parks bridge-daemon when Desktop sidecar holds fresh lease and standalonePort is 0', () => {
+  const nowMs = 1_795_836_900_000;
+  const makeFs = ({ settings = {}, lease = null } = {}) => {
+    const files = new Map();
+    if (settings !== null) {
+      files.set('/mock-data/settings.json', JSON.stringify(settings));
+    }
+    if (lease !== null) {
+      files.set('/mock-data/window-bridge-lease.json', JSON.stringify(lease));
+    }
+    const norm = (p) => String(p || '').replace(/\\/g, '/');
+    return {
+      existsSyncFn: (p) => files.has(norm(p)),
+      readFileSyncFn: (p) => files.get(norm(p)) || '',
+    };
+  };
+
+  // 1. Active sidecar leader + standalonePort=0 -> defer daemon spawn
+  assert.equal(
+    shouldDeferDaemonToActiveSidecar({
+      env: {},
+      dataDir: '/mock-data',
+      nowMs,
+      ...makeFs({
+        settings: { standalonePort: 0 },
+        lease: {
+          pid: 42001,
+          updatedAtMs: nowMs - 2000,
+          peers: { '42001': { role: 'sidecar', updatedAtMs: nowMs - 2000 } },
+        },
+      }),
+      isPidAliveFn: (pid) => pid === 42001,
+    }),
+    true
+  );
+
+  // 2. standalonePort configured in settings -> MUST spawn daemon to host Web UI
+  assert.equal(
+    shouldDeferDaemonToActiveSidecar({
+      env: {},
+      dataDir: '/mock-data',
+      nowMs,
+      ...makeFs({
+        settings: { standalonePort: 8787 },
+        lease: {
+          pid: 42001,
+          updatedAtMs: nowMs - 2000,
+          peers: { '42001': { role: 'sidecar', updatedAtMs: nowMs - 2000 } },
+        },
+      }),
+      isPidAliveFn: (pid) => pid === 42001,
+    }),
+    false
+  );
+
+  // 3. Leader is another daemon (IDE mode) or dead PID or stale lease -> do NOT defer
+  assert.equal(
+    shouldDeferDaemonToActiveSidecar({
+      env: {},
+      dataDir: '/mock-data',
+      nowMs,
+      ...makeFs({
+        settings: { standalonePort: 0 },
+        lease: {
+          pid: 42002,
+          updatedAtMs: nowMs - 2000,
+          peers: { '42002': { role: 'daemon', updatedAtMs: nowMs - 2000 } },
+        },
+      }),
+      isPidAliveFn: (pid) => pid === 42002,
+    }),
+    false
+  );
+  assert.equal(
+    shouldDeferDaemonToActiveSidecar({
+      env: {},
+      dataDir: '/mock-data',
+      nowMs,
+      ...makeFs({
+        settings: { standalonePort: 0 },
+        lease: {
+          pid: 42001,
+          updatedAtMs: nowMs - 2000,
+          peers: { '42001': { role: 'sidecar', updatedAtMs: nowMs - 2000 } },
+        },
+      }),
+      isPidAliveFn: () => false,
+    }),
+    false
+  );
+  assert.equal(
+    shouldDeferDaemonToActiveSidecar({
+      env: {},
+      dataDir: '/mock-data',
+      nowMs,
+      ...makeFs({
+        settings: { standalonePort: 0 },
+        lease: {
+          pid: 42001,
+          updatedAtMs: nowMs - 20_000,
+          peers: { '42001': { role: 'sidecar', updatedAtMs: nowMs - 20_000 } },
+        },
+      }),
+      isPidAliveFn: (pid) => pid === 42001,
+    }),
+    false
+  );
+});
+
+test('buildDaemonSpawnArgs caps V8 semi-space to 4MB by default while respecting explicit NODE_OPTIONS', async () => {
+  const { buildDaemonSpawnArgs } = await import('../mcp-entry.mjs');
+  assert.deepEqual(buildDaemonSpawnArgs('/path/to/bridge-daemon.mjs', {}), [
+    '--max-semi-space-size=4',
+    '/path/to/bridge-daemon.mjs',
+  ]);
+  assert.deepEqual(
+    buildDaemonSpawnArgs('/path/to/bridge-daemon.mjs', {
+      NODE_OPTIONS: '--max-old-space-size=512 --max-semi-space-size=16',
+    }),
+    ['/path/to/bridge-daemon.mjs']
+  );
+});
+
+test('Issue #67: shared lease path decouples from DATA_DIR, sidecar preempts daemon, and daemon aligns DATA_DIR & defers cleanly', async () => {
+  const {
+    resolveBridgeLeaseFilePath,
+    resolveSharedSidecarDataDir,
+  } = await import('../backend/bridge-paths.mjs');
+  const { resolveDefaultDataDir } = await import('../backend/config.mjs');
+  const { createWindowBridgeController } = await import('../backend/window-bridge.mjs');
+  const { shouldDeferDaemonToActiveSidecar } = await import('../mcp-entry.mjs');
+
+  const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'ag-issue67-'));
+  try {
+    const sidecarDataDir = path.join(tmpRoot, 'sidecar_data', 'usage-monitor-zip', 'panel', 'data');
+    const pluginDataDir = path.join(tmpRoot, 'plugin_data', 'usage-monitor');
+    fs.mkdirSync(sidecarDataDir, { recursive: true });
+    fs.mkdirSync(pluginDataDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(sidecarDataDir, 'settings.json'),
+      JSON.stringify({ standalonePort: 0, topbarCapsuleSlots: ['cost', 'session_cost', 'gemini_5h', 'gemini_weekly'] }),
+      'utf8'
+    );
+
+    // 1. Sidecar (with ANTIGRAVITY_EXECUTABLE_DATA_DIR) and MCP daemon (without it) resolve the EXACT same shared lease path
+    const sidecarEnv = {
+      ANTIGRAVITY_GEMINI_DIR: path.join(tmpRoot, '.gemini'),
+      ANTIGRAVITY_EXECUTABLE_DATA_DIR: sidecarDataDir,
+    };
+    const daemonEnv = {
+      ANTIGRAVITY_GEMINI_DIR: path.join(tmpRoot, '.gemini'),
+      USAGE_MONITOR_PLUGIN_DATA: pluginDataDir,
+    };
+    const sidecarLeasePath = resolveBridgeLeaseFilePath({ env: sidecarEnv, tmpDir: tmpRoot });
+    const daemonLeasePath = resolveBridgeLeaseFilePath({ env: daemonEnv, tmpDir: tmpRoot });
+    assert.equal(sidecarLeasePath, daemonLeasePath, 'Sidecar and MCP daemon must share one lease path regardless of DATA_DIR');
+    assert.ok(sidecarLeasePath.startsWith(tmpRoot), 'Shared lease lives in tmpDir, decoupled from DATA_DIR');
+
+    // Test harness stays isolated to its own dataDir
+    assert.equal(
+      resolveBridgeLeaseFilePath({
+        env: { ANTIGRAVITY_LS_ADDRESS: 'test.invalid' },
+        dataDir: sidecarDataDir,
+        tmpDir: tmpRoot,
+      }),
+      path.join(sidecarDataDir, 'window-bridge-lease.json')
+    );
+
+    // 2. Role preemption: live daemon holds the shared lease -> sidecar preempts it and writes role='sidecar' + sidecarDataDir
+    const externalAlivePid = process.ppid > 0 && process.ppid !== process.pid ? process.ppid : 1;
+    fs.writeFileSync(
+      sidecarLeasePath,
+      JSON.stringify({
+        pid: externalAlivePid,
+        role: 'daemon',
+        bundleVersion: '1795870000000',
+        updatedAtMs: Date.now(),
+        peers: { [String(externalAlivePid)]: { role: 'daemon', updatedAtMs: Date.now() } },
+      }),
+      'utf8'
+    );
+
+    const sidecarCtrl = createWindowBridgeController({
+      handleApiRequest: async () => ({ status: 200, body: '{}' }),
+      readAssetFn: () => '',
+      getSettingsFn: () => ({ enableWindowOverlay: true, windowMountMode: 'dual', autoConfigureLaunch: false }),
+      getBundleVersionFn: () => '1795870000000',
+      env: sidecarEnv,
+      homeDir: tmpRoot,
+      leaseFilePath: sidecarLeasePath,
+      dataDir: sidecarDataDir,
+      hostRole: 'sidecar',
+      autoConfigureIdeArgv: false,
+      existsHostFn: () => false,
+    });
+    const sidecarSync = await sidecarCtrl.syncAllWindows();
+    assert.notEqual(sidecarSync.reason, 'follower_yield', 'Sidecar must preempt an active daemon leader');
+    const updatedLease = JSON.parse(fs.readFileSync(sidecarLeasePath, 'utf8'));
+    assert.equal(updatedLease.pid, process.pid);
+    assert.equal(updatedLease.role, 'sidecar');
+    assert.equal(updatedLease.sidecarDataDir, sidecarDataDir);
+    await sidecarCtrl.stop({ disposeWindows: false });
+
+    // 3. Re-seed lease as active external sidecar -> daemon controller yields cleanly AND resolveDefaultDataDir aligns to sidecarDataDir
+    fs.writeFileSync(
+      sidecarLeasePath,
+      JSON.stringify({
+        pid: externalAlivePid,
+        role: 'sidecar',
+        sidecarDataDir,
+        bundleVersion: '1795870000000',
+        updatedAtMs: Date.now(),
+        peers: { [String(externalAlivePid)]: { role: 'sidecar', updatedAtMs: Date.now() } },
+      }),
+      'utf8'
+    );
+
+    assert.equal(
+      resolveSharedSidecarDataDir({ env: daemonEnv, leaseFilePath: daemonLeasePath }),
+      sidecarDataDir
+    );
+    assert.equal(
+      resolveDefaultDataDir(daemonEnv, { homeDir: tmpRoot, leaseFilePath: daemonLeasePath }),
+      sidecarDataDir,
+      'Daemon DATA_DIR aligns to active sidecarDataDir from shared lease'
+    );
+
+    const daemonCtrl = createWindowBridgeController({
+      handleApiRequest: async () => ({ status: 200, body: '{}' }),
+      readAssetFn: () => '',
+      getSettingsFn: () => ({ enableWindowOverlay: true, windowMountMode: 'dual', autoConfigureLaunch: false }),
+      getBundleVersionFn: () => '1795870000000',
+      env: { ...daemonEnv, USAGE_MONITOR_HOST_PPID: '1,2' },
+      homeDir: tmpRoot,
+      leaseFilePath: daemonLeasePath,
+      dataDir: pluginDataDir,
+      hostRole: 'daemon',
+      autoConfigureIdeArgv: false,
+      existsHostFn: () => false,
+    });
+    const daemonSync = await daemonCtrl.syncAllWindows();
+    assert.equal(daemonSync.reason, 'follower_yield', 'Daemon must yield to active sidecar leader');
+    await daemonCtrl.stop({ disposeWindows: false });
+
+    // 4. mcp-entry shouldDeferDaemonToActiveSidecar defers across differing DATA_DIRs via shared lease and respects sidecarDataDir settings
+    assert.equal(
+      shouldDeferDaemonToActiveSidecar({
+        env: daemonEnv,
+        leaseFilePath: daemonLeasePath,
+        nowMs: Date.now(),
+        isPidAliveFn: (pid) => pid === externalAlivePid,
+      }),
+      true
+    );
+    fs.writeFileSync(
+      path.join(sidecarDataDir, 'settings.json'),
+      JSON.stringify({ standalonePort: 38123 }),
+      'utf8'
+    );
+    assert.equal(
+      shouldDeferDaemonToActiveSidecar({
+        env: daemonEnv,
+        leaseFilePath: daemonLeasePath,
+        nowMs: Date.now(),
+        isPidAliveFn: (pid) => pid === externalAlivePid,
+      }),
+      false,
+      'Must respect standalonePort enabled inside sidecarDataDir/settings.json'
+    );
+  } finally {
+    fs.rmSync(tmpRoot, { recursive: true, force: true });
   }
 });

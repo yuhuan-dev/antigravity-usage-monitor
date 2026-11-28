@@ -25,15 +25,21 @@ async function getDevToolsProbeHttpModule() {
 }
 
 /**
- * 根据 `DevToolsActivePort` 候选路径识别其所属宿主产品（`'ide'` 或 `'desktop'`）。
+ * 根据 `DevToolsActivePort` 候选路径识别其所属宿主产品（`'ide'`、`'vscode'` 或 `'desktop'`）。
  *
  * @param {unknown} filePath
- * @returns {'ide'|'desktop'}
+ * @returns {'ide'|'vscode'|'desktop'}
  */
 export function classifyDevToolsPortProduct(filePath) {
   const norm = String(filePath || '').replace(/\\/g, '/');
   if (/(?:^|\/)antigravity[\s_-]*ide(?:\/|$)/i.test(norm) || /\.antigravity-ide(?:\/|$)/i.test(norm)) {
     return 'ide';
+  }
+  if (
+    /(?:^|\/)(?:code|code\s*-\s*insiders|code-insiders)\/devtoolsactiveport$/i.test(norm) ||
+    /(?:^|\/)\.vscode(?:-insiders)?(?:\/|$)/i.test(norm)
+  ) {
+    return 'vscode';
   }
   return 'desktop';
 }
@@ -394,6 +400,7 @@ export function createDevToolsPortProber(options = {}) {
 
     const livePorts = [];
     const seenLivePorts = new Set();
+    const vsCodeLivePortsSet = new Set();
     let explicitPortUnreachable = false;
 
     for (const item of toProbe) {
@@ -415,6 +422,9 @@ export function createDevToolsPortProber(options = {}) {
           }
           if (item.source === 'file') {
             liveProductsSet.add(item.product);
+            if (item.product === 'vscode') {
+              vsCodeLivePortsSet.add(item.port);
+            }
           }
           if (!seenLivePorts.has(item.port)) {
             seenLivePorts.add(item.port);
@@ -482,6 +492,7 @@ export function createDevToolsPortProber(options = {}) {
 
     return {
       livePorts,
+      vsCodeLivePorts: Array.from(vsCodeLivePortsSet),
       liveProducts: Array.from(liveProductsSet),
       staleFiles,
       transientTimeoutFiles,

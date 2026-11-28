@@ -86,7 +86,7 @@ export async function openGoogleAccountBrowser(
   return false;
 }
 
-const LOGIN_CALLBACK_COPY = Object.freeze({
+export const LOGIN_CALLBACK_COPY = Object.freeze({
   'zh-CN': {
     htmlLang: 'zh-CN',
     okTitle: '账号已添加',
@@ -128,6 +128,12 @@ const LOGIN_CALLBACK_COPY = Object.freeze({
     okTitle: 'Compte ajouté',
     failTitle: 'Connexion incomplète',
     detail: 'Retournez sur la page de compte Antigravity. Vous pouvez fermer cet onglet.',
+  },
+  'vi-VN': {
+    htmlLang: 'vi-VN',
+    okTitle: 'Đã thêm tài khoản',
+    failTitle: 'Đăng nhập chưa hoàn tất',
+    detail: 'Quay lại trang tài khoản Antigravity. Bạn có thể đóng tab trình duyệt này.',
   },
 });
 

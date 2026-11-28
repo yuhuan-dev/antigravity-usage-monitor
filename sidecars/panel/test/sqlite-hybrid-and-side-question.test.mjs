@@ -1532,3 +1532,140 @@ test('Empty-shell .db + encrypted .pb fallback recovers CLI conversation steps, 
     'poll 1 and post-growth poll 3 attempted RPC once each; steady poll 2 hit cooldown without hammering LS'
   );
 });
+
+test('readLocalSqliteTrajectoryIncremental matches full extraction bit-for-bit on append and falls back cleanly on undo/truncation', async (t) => {
+  const { DatabaseSync } = await import('node:sqlite');
+  const { readLocalSqliteTrajectoryIncremental } = await import('../backend/cli-sqlite-reader.mjs');
+  const { extractModelSteps } = await import('../trajectory-metrics.mjs');
+  const dir = mkdtempSync(join(tmpdir(), 'ag-um-sqlite-inc-'));
+  t.after(() => {
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  const cid = 'a1b2c3d4-1111-4222-8333-444455556666';
+  const dbPath = join(dir, `${cid}.db`);
+  const db = new DatabaseSync(dbPath);
+  db.exec(`
+    PRAGMA journal_mode = WAL;
+    CREATE TABLE trajectory_meta (trajectory_id TEXT PRIMARY KEY, cascade_id TEXT, trajectory_type INTEGER, source INTEGER);
+    CREATE TABLE steps (idx INTEGER PRIMARY KEY, step_type INTEGER, status INTEGER, metadata BLOB, step_payload BLOB);
+    CREATE TABLE gen_metadata (idx INTEGER PRIMARY KEY, data BLOB);
+    CREATE TABLE trajectory_metadata_blob (id TEXT PRIMARY KEY, data BLOB);
+  `);
+  db.prepare('INSERT INTO trajectory_meta VALUES (?, ?, 0, 0)').run(cid, cid);
+  db.prepare("INSERT INTO trajectory_metadata_blob VALUES ('main', X'')").run();
+
+  const insStep = db.prepare('INSERT INTO steps (idx, step_type, status, metadata) VALUES (?, ?, ?, ?)');
+  // Insert 10 model steps across 2 turns (idx 0 = USER_INPUT, idx 1..5 = PLANNER, idx 6 = USER_INPUT, idx 7..11 = PLANNER)
+  insStep.run(0, 14, 3, encodeStepMeta({ createdSec: 1795600000, stepIndex: 0, originCascadeId: cid }));
+  for (let i = 1; i <= 5; i += 1) {
+    insStep.run(
+      i,
+      15,
+      3,
+      encodeStepMeta({
+        createdSec: 1795600000 + i * 5,
+        finishedSec: 1795600000 + i * 5 + 2,
+        stepIndex: i,
+        originCascadeId: cid,
+        modelEnumInt: 1429,
+        inputTokens: 1000 + i * 100,
+        outputTokens: 80 + i * 10,
+      })
+    );
+  }
+  insStep.run(6, 14, 3, encodeStepMeta({ createdSec: 1795600100, stepIndex: 6, originCascadeId: cid }));
+  for (let i = 7; i <= 11; i += 1) {
+    insStep.run(
+      i,
+      15,
+      3,
+      encodeStepMeta({
+        createdSec: 1795600100 + (i - 6) * 5,
+        finishedSec: 1795600100 + (i - 6) * 5 + 2,
+        stepIndex: i,
+        originCascadeId: cid,
+        modelEnumInt: 1429,
+        inputTokens: 2000 + i * 100,
+        outputTokens: 120 + i * 10,
+      })
+    );
+  }
+
+  const initialFull = readLocalSqliteTrajectory(dbPath, { cascadeId: cid, isRunning: true });
+  const initialSteps = extractModelSteps(initialFull.steps, initialFull.generatorMetadata);
+  assert.equal(initialSteps.length, 10);
+
+  // Build cursor at model step index 7 (raw idx = 9, leaving raw idx 10..11 in tail)
+  const cutPos = 7;
+  const cutStep = initialSteps[cutPos];
+  const stableRawIdx = cutStep.stepIndex; // 9
+  const stableRawRowCount = initialFull.steps.filter((s) => s.idx <= stableRawIdx).length;
+  const cursor = {
+    stableRawIdx,
+    stableRawRowCount,
+    stableMaxGenIdx: -1,
+    isChildTrajectory: false,
+    isSideQuestion: false,
+    trajectoryType: 0,
+    forkParentConversationId: '',
+    firstOwnUserPrompt: '',
+    rootConversationId: '',
+    parentConversationId: '',
+    trajectoryMetadata: initialFull.trajectory.metadata,
+  };
+
+  // Append a new user turn + 2 new model steps
+  insStep.run(12, 14, 3, encodeStepMeta({ createdSec: 1795600200, stepIndex: 12, originCascadeId: cid }));
+  insStep.run(
+    13,
+    15,
+    3,
+    encodeStepMeta({
+      createdSec: 1795600205,
+      finishedSec: 1795600208,
+      stepIndex: 13,
+      originCascadeId: cid,
+      modelEnumInt: 1429,
+      inputTokens: 4200,
+      outputTokens: 260,
+    })
+  );
+  insStep.run(
+    14,
+    15,
+    3,
+    encodeStepMeta({
+      createdSec: 1795600215,
+      finishedSec: 1795600218,
+      stepIndex: 14,
+      originCascadeId: cid,
+      modelEnumInt: 1429,
+      inputTokens: 4600,
+      outputTokens: 310,
+    })
+  );
+
+  const incRes = readLocalSqliteTrajectoryIncremental(dbPath, cursor, { cascadeId: cid, isRunning: true });
+  assert.ok(incRes && incRes.incremental, 'incremental read succeeds on append-only growth');
+  assert.equal(incRes.steps.length, 5, 'incremental read only loads tail rows idx 10..14');
+
+  const incTailModel = extractModelSteps(incRes.steps, incRes.generatorMetadata, {
+    turnCounter: cutStep.turnIndex,
+    activeTurnIndex: cutStep.turnIndex,
+    hasHumanUserTurn: true,
+    lastCompactionStepIdx: -1,
+    lastKnownGmStepIdx: stableRawIdx,
+  });
+  const combinedSteps = initialSteps.slice(0, cutPos + 1).concat(incTailModel);
+
+  const postFull = readLocalSqliteTrajectory(dbPath, { cascadeId: cid, isRunning: true });
+  const postFullSteps = extractModelSteps(postFull.steps, postFull.generatorMetadata);
+  assert.deepEqual(combinedSteps, postFullSteps, 'incremental extraction matches full scan bit-for-bit');
+
+  // Simulate undo/truncation deleting prefix rows -> incremental reader MUST return null for full fallback
+  db.prepare('DELETE FROM steps WHERE idx >= 8').run();
+  db.close();
+  const afterUndo = readLocalSqliteTrajectoryIncremental(dbPath, cursor, { cascadeId: cid, isRunning: false });
+  assert.equal(afterUndo, null, 'incremental read returns null on prefix truncation so caller falls back to full scan');
+});

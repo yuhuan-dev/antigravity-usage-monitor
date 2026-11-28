@@ -976,6 +976,12 @@ function collectLinuxDesktopCandidates(dirPath, ops, { filterByName = false, fal
   return files;
 }
 
+function isBlockedInTestSandbox(allowInTest = false) {
+  if (allowInTest) return false;
+  if (lsRuntimeEndpoint.addr === 'test.invalid') return true;
+  return Boolean(typeof process !== 'undefined' && process?.env?.NODE_TEST_CONTEXT);
+}
+
 /**
  * 自动同步当前系统下用户空间启动入口（Windows `.lnk` / `HKCU:Run` / `HKCU:Classes`、Linux `.desktop`）中的 `--remote-debugging-port=0`。
  *
@@ -1011,7 +1017,7 @@ export async function ensureDesktopLaunchEntriesConfigured({
   allowInTest = false,
 } = {}) {
   const normProd = normalizeLauncherProduct(product, 'desktop');
-  if (lsRuntimeEndpoint.addr === 'test.invalid' && !allowInTest) {
+  if (isBlockedInTestSandbox(allowInTest)) {
     return {
       checked: false,
       updated: false,
@@ -1604,6 +1610,9 @@ export function buildWindowsRelaunchInnerScript(
 
   return `
 param([string]$HostElevated = '0')
+if ($PSCommandPath) {
+  try { [System.IO.File]::WriteAllText(($PSCommandPath + '.ack'), [string]$PID) } catch {}
+}
 Start-Sleep -Milliseconds 480
 $exe = ${psSingleQuote(executablePath)}
 $procName = ${psSingleQuote(procName)}
@@ -1679,6 +1688,7 @@ if ((& $findTargets).Count -gt 0 -and -not $isSelfElevated -and $exe -and (Test-
     '& $findTargets | Stop-Process -Force -ErrorAction SilentlyContinue',
     'for ($i = 0; $i -lt 25; $i++) { if ((& $findTargets).Count -eq 0) { break }; Start-Sleep -Milliseconds 200 }',
     'foreach ($fp in $staleList) { if ($fp -and (Test-Path -LiteralPath $fp)) { Remove-Item -LiteralPath $fp -Force -ErrorAction SilentlyContinue } }',
+    'foreach ($ev in @(''ELECTRON_RUN_AS_NODE'', ''ELECTRON_NO_ATTACH_CONSOLE'', ''VSCODE_IPC_HOOK'', ''CHROME_CRASHPAD_PIPE_NAME'')) { Remove-Item -Path (''Env:\\'' + $ev) -ErrorAction SilentlyContinue }',
     '$wd = Split-Path -Parent $exe',
     'Start-Process -FilePath $exe -ArgumentList ''--remote-debugging-port=0'' -WorkingDirectory $wd',
     'Remove-Item -LiteralPath $PSCommandPath -Force -ErrorAction SilentlyContinue'
@@ -1686,8 +1696,10 @@ if ((& $findTargets).Count -gt 0 -and -not $isSelfElevated -and $exe -and (Test-
   try {
     [System.IO.File]::WriteAllText($elevRelaunchPs1, $elevKillBody, (New-Object System.Text.UTF8Encoding($true)))
     Start-Process -FilePath $psExe -Verb RunAs -WindowStyle Hidden -ArgumentList @('-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', $elevRelaunchPs1) -ErrorAction Stop
-    if ($PSCommandPath -and (Test-Path -LiteralPath $PSCommandPath)) {
-      Remove-Item -LiteralPath $PSCommandPath -Force -ErrorAction SilentlyContinue
+    if ($PSCommandPath) {
+      $ackPath = $PSCommandPath + '.ack'
+      if (Test-Path -LiteralPath $ackPath) { Remove-Item -LiteralPath $ackPath -Force -ErrorAction SilentlyContinue }
+      if (Test-Path -LiteralPath $PSCommandPath) { Remove-Item -LiteralPath $PSCommandPath -Force -ErrorAction SilentlyContinue }
     }
     exit 0
   } catch {
@@ -1702,6 +1714,9 @@ foreach ($fp in $staleList) {
 }
 
 if ($exe -and (Test-Path -LiteralPath $exe)) {
+  foreach ($ev in @('ELECTRON_RUN_AS_NODE', 'ELECTRON_NO_ATTACH_CONSOLE', 'VSCODE_IPC_HOOK', 'CHROME_CRASHPAD_PIPE_NAME')) {
+    Remove-Item -Path ('Env:\\' + $ev) -ErrorAction SilentlyContinue
+  }
   $workDir = Split-Path -Parent $exe
   if ($isSelfElevated -and -not $wasHostElevated) {
     try {
@@ -1715,8 +1730,14 @@ if ($exe -and (Test-Path -LiteralPath $exe)) {
   }
 }
 
-if ($PSCommandPath -and (Test-Path -LiteralPath $PSCommandPath)) {
-  Remove-Item -LiteralPath $PSCommandPath -Force -ErrorAction SilentlyContinue
+if ($PSCommandPath) {
+  $ackPath = $PSCommandPath + '.ack'
+  if (Test-Path -LiteralPath $ackPath) {
+    Remove-Item -LiteralPath $ackPath -Force -ErrorAction SilentlyContinue
+  }
+  if (Test-Path -LiteralPath $PSCommandPath) {
+    Remove-Item -LiteralPath $PSCommandPath -Force -ErrorAction SilentlyContinue
+  }
 }
 `.trim();
 }
@@ -1725,42 +1746,94 @@ const WIN_OUT_OF_JOB_DISPATCH_PS = `
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $ErrorActionPreference = 'Stop'
 $psBin = if ($env:AGY_PS_EXE) { $env:AGY_PS_EXE } else { 'powershell.exe' }
-$isElev = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+$relaunchPs1 = [string]$env:AGY_RELAUNCH_PS1
+$ackFile = if ($relaunchPs1) { $relaunchPs1 + '.ack' } else { '' }
+if ($ackFile -and (Test-Path -LiteralPath $ackFile)) {
+  Remove-Item -LiteralPath $ackFile -Force -ErrorAction SilentlyContinue
+}
+$curIdent = [Security.Principal.WindowsIdentity]::GetCurrent()
+$isElev = ([Security.Principal.WindowsPrincipal]$curIdent).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+$mySid = (Get-Process -Id $PID).SessionId
 $elevFlag = if ($isElev) { '1' } else { '0' }
 $env:AGY_HOST_WAS_ELEVATED = $elevFlag
-$innerArgs = '-NoProfile -NonInteractive -ExecutionPolicy Bypass -WindowStyle Hidden -File "' + $env:AGY_RELAUNCH_PS1 + '" -HostElevated ' + $elevFlag
+$innerArgs = '-NoProfile -NonInteractive -ExecutionPolicy Bypass -WindowStyle Hidden -File "' + $relaunchPs1 + '" -HostElevated ' + $elevFlag
 $fullCmd = '"' + $psBin + '" ' + $innerArgs
 
+function Wait-RelaunchAck([int]$TimeoutMs = 1600, [int]$CandidatePid = 0) {
+  if (-not $ackFile) { return $true }
+  $sw = [System.Diagnostics.Stopwatch]::StartNew()
+  while ($sw.ElapsedMilliseconds -lt $TimeoutMs) {
+    if (Test-Path -LiteralPath $ackFile) { return $true }
+    if ($CandidatePid -gt 0 -and -not (Get-Process -Id $CandidatePid -ErrorAction SilentlyContinue)) {
+      Start-Sleep -Milliseconds 60
+      return [bool](Test-Path -LiteralPath $ackFile)
+    }
+    Start-Sleep -Milliseconds 50
+  }
+  return [bool](Test-Path -LiteralPath $ackFile)
+}
+
+$shellPreservesElev = -not $isElev
 if ($isElev) {
   try {
+    $uacKey = Get-ItemProperty -LiteralPath 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System' -ErrorAction SilentlyContinue
+    $luaOff = ($null -ne $uacKey) -and ($uacKey.EnableLUA -eq 0)
+    $isBuiltInAdmin = ($null -ne $curIdent.User) -and $curIdent.User.Value.EndsWith('-500')
+    $filterAdmin = ($null -ne $uacKey) -and ($uacKey.FilterAdministratorToken -eq 1)
+    if ($luaOff -or ($isBuiltInAdmin -and -not $filterAdmin)) {
+      $shellPreservesElev = $true
+    }
+  } catch {}
+}
+
+$triedWmi = $false
+if ($isElev -and -not $shellPreservesElev) {
+  $triedWmi = $true
+  try {
     $wmiRes = ([wmiclass]'Win32_Process').Create($fullCmd)
-    if ($wmiRes -and $wmiRes.ReturnValue -eq 0) {
+    if ($wmiRes -and $wmiRes.ReturnValue -eq 0 -and (Wait-RelaunchAck 1600 ([int]$wmiRes.ProcessId))) {
       Write-Output '{"ok":true,"method":"wmi_elevated"}'
       exit 0
     }
   } catch {}
-  Start-Process -FilePath $psBin -ArgumentList $innerArgs -WindowStyle Hidden
-  Write-Output '{"ok":true,"method":"start_process_elevated"}'
-  exit 0
 }
 
-try {
-  $shellApp = New-Object -ComObject Shell.Application
-  $shellApp.ShellExecute($psBin, $innerArgs, '', 'open', 0)
-  Write-Output '{"ok":true,"method":"shell_application"}'
+if (@(Get-Process -Name 'explorer' -ErrorAction SilentlyContinue | Where-Object { $_.SessionId -eq $mySid }).Count -gt 0) {
+  try {
+    $shellApp = New-Object -ComObject Shell.Application
+    $shellApp.ShellExecute($psBin, $innerArgs, '', 'open', 0)
+    if (Wait-RelaunchAck 1800 0) {
+      Write-Output '{"ok":true,"method":"shell_application"}'
+      exit 0
+    }
+  } catch {}
+}
+
+if (-not $triedWmi) {
+  try {
+    $wmiRes = ([wmiclass]'Win32_Process').Create($fullCmd)
+    if ($wmiRes -and $wmiRes.ReturnValue -eq 0 -and (Wait-RelaunchAck 1600 ([int]$wmiRes.ProcessId))) {
+      $wmiMethod = if ($isElev) { 'wmi_elevated' } else { 'wmi_fallback' }
+      Write-Output ('{"ok":true,"method":"' + $wmiMethod + '"}')
+      exit 0
+    }
+  } catch {}
+}
+
+$psi = New-Object System.Diagnostics.ProcessStartInfo
+$psi.FileName = $psBin
+$psi.Arguments = $innerArgs
+$psi.WindowStyle = [System.Diagnostics.ProcessWindowStyle]::Hidden
+$psi.UseShellExecute = $true
+$sp = [System.Diagnostics.Process]::Start($psi)
+$spPid = if ($sp) { [int]$sp.Id } else { 0 }
+if (Wait-RelaunchAck 1800 $spPid) {
+  $mName = if ($isElev) { 'start_process_elevated' } else { 'start_process' }
+  Write-Output ('{"ok":true,"method":"' + $mName + '"}')
   exit 0
-} catch {}
-
-try {
-  $wmiRes = ([wmiclass]'Win32_Process').Create($fullCmd)
-  if ($wmiRes -and $wmiRes.ReturnValue -eq 0) {
-    Write-Output '{"ok":true,"method":"wmi_fallback"}'
-    exit 0
-  }
-} catch {}
-
-Start-Process -FilePath $psBin -ArgumentList $innerArgs -WindowStyle Hidden
-Write-Output '{"ok":true,"method":"start_process"}'
+}
+Write-Output '{"ok":false,"error":"relaunch_script_blocked"}'
+exit 1
 `.trim();
 
 /**
@@ -1923,7 +1996,7 @@ export async function createMacOsLaunchWrapper({
   fsOps = null,
   allowInTest = false,
 } = {}) {
-  if (lsRuntimeEndpoint.addr === 'test.invalid' && !allowInTest) {
+  if (isBlockedInTestSandbox(allowInTest)) {
     return { ok: false, status: 403, error: 'Disabled in test sandbox' };
   }
   if (platform !== 'darwin') {
@@ -2126,7 +2199,7 @@ export function removeMacOsLaunchWrapper({
   fsOps = null,
   allowInTest = false,
 } = {}) {
-  if (lsRuntimeEndpoint.addr === 'test.invalid' && !allowInTest) {
+  if (isBlockedInTestSandbox(allowInTest)) {
     return { ok: false, status: 403, error: 'Disabled in test sandbox' };
   }
   if (platform !== 'darwin') {
@@ -2182,7 +2255,7 @@ export async function triggerDesktopHostRelaunch({
   mkdirFn = mkdirSync,
   allowInTest = false,
 } = {}) {
-  if (lsRuntimeEndpoint.addr === 'test.invalid' && !allowInTest) {
+  if (isBlockedInTestSandbox(allowInTest)) {
     return { ok: false, status: 403, error: 'Disabled in test sandbox' };
   }
 
@@ -2285,26 +2358,61 @@ export async function triggerDesktopHostRelaunch({
     writeFileFn(relaunchPs1Path, `\uFEFF${innerScript}\r\n`, 'utf8');
 
     const runner = execFileFn || runLauncherExecFile;
-    await runner(
-      psExe,
-      [
-        '-Sta',
-        '-NoProfile',
-        '-NonInteractive',
-        '-ExecutionPolicy',
-        'Bypass',
-        '-Command',
-        WIN_OUT_OF_JOB_DISPATCH_PS,
-      ],
-      {
-        timeoutMs: 6000,
-        env: {
-          ...cleanEnv,
-          AGY_PS_EXE: psExe,
-          AGY_RELAUNCH_PS1: relaunchPs1Path,
-        },
+    try {
+      const dispatchOut = await runner(
+        psExe,
+        [
+          '-Sta',
+          '-NoProfile',
+          '-NonInteractive',
+          '-ExecutionPolicy',
+          'Bypass',
+          '-Command',
+          WIN_OUT_OF_JOB_DISPATCH_PS,
+        ],
+        {
+          timeoutMs: 9000,
+          env: {
+            ...cleanEnv,
+            AGY_PS_EXE: psExe,
+            AGY_RELAUNCH_PS1: relaunchPs1Path,
+          },
+        }
+      );
+      const lastJsonLine =
+        String(dispatchOut || '')
+          .trim()
+          .split(/\r?\n/)
+          .reverse()
+          .find((l) => l.trim().startsWith('{')) || '';
+      if (lastJsonLine) {
+        let parsedDispatch = null;
+        try {
+          parsedDispatch = JSON.parse(lastJsonLine);
+        } catch {
+          parsedDispatch = null;
+        }
+        if (parsedDispatch && parsedDispatch.ok === false) {
+          throw new Error(parsedDispatch.error || 'Windows relaunch dispatch reported failure');
+        }
       }
-    );
+    } catch (err) {
+      try {
+        unlinkSync(relaunchPs1Path);
+      } catch {
+        // Ignore cleanup errors when custom writeFileFn was used in unit tests
+      }
+      try {
+        unlinkSync(`${relaunchPs1Path}.ack`);
+      } catch {
+        // Ignore missing ack file
+      }
+      return {
+        ok: false,
+        status: 500,
+        error: err?.message || 'Failed to dispatch Windows host relaunch',
+      };
+    }
     return {
       ok: true,
       relaunching: true,

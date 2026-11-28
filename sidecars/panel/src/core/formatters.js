@@ -25,6 +25,7 @@ import {
 
 const LOCALE_MONTH_SHORT = Object.freeze({
   'en-US': Object.freeze(['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']),
+  'vi-VN': Object.freeze(['Th1', 'Th2', 'Th3', 'Th4', 'Th5', 'Th6', 'Th7', 'Th8', 'Th9', 'Th10', 'Th11', 'Th12']),
   'de-DE': Object.freeze(['Jan.', 'Feb.', 'Mär.', 'Apr.', 'Mai', 'Jun.', 'Jul.', 'Aug.', 'Sep.', 'Okt.', 'Nov.', 'Dez.']),
   'fr-FR': Object.freeze(['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.']),
 });
@@ -33,11 +34,70 @@ const LOCALE_WEEKDAY_SHORT = Object.freeze({
   'zh-CN': Object.freeze(['周日', '周一', '周二', '周三', '周四', '周五', '周六']),
   'zh-TW': Object.freeze(['週日', '週一', '週二', '週三', '週四', '週五', '週六']),
   'en-US': Object.freeze(['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']),
+  'vi-VN': Object.freeze(['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7']),
   'ja-JP': Object.freeze(['日', '月', '火', '水', '木', '金', '土']),
   'ko-KR': Object.freeze(['일', '월', '화', '수', '목', '금', '토']),
   'de-DE': Object.freeze(['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa']),
   'fr-FR': Object.freeze(['dim.', 'lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.']),
 });
+
+const MAX_INTL_LOCALE_CACHE = 64;
+const INTL_SHORT_MONTHS_CACHE = new Map();
+const INTL_SHORT_WEEKDAYS_CACHE = new Map();
+
+function getLocaleShortMonths(locale) {
+  if (LOCALE_MONTH_SHORT[locale]) return LOCALE_MONTH_SHORT[locale];
+  if (INTL_SHORT_MONTHS_CACHE.has(locale)) return INTL_SHORT_MONTHS_CACHE.get(locale);
+  let resolved = LOCALE_MONTH_SHORT['en-US'];
+  try {
+    if (typeof Intl !== 'undefined' && typeof Intl.DateTimeFormat === 'function') {
+      const fmt = new Intl.DateTimeFormat(locale, { month: 'short', timeZone: 'UTC' });
+      const list = Array.from({ length: 12 }, (_, m) => fmt.format(new Date(Date.UTC(2024, m, 15))));
+      if (list.every((s) => typeof s === 'string' && s.trim().length > 0)) {
+        resolved = Object.freeze(list);
+      }
+    }
+  } catch {
+    // Fallback to en-US short months if Intl lacks locale data
+  }
+  if (INTL_SHORT_MONTHS_CACHE.size < MAX_INTL_LOCALE_CACHE) {
+    INTL_SHORT_MONTHS_CACHE.set(locale, resolved);
+  }
+  return resolved;
+}
+
+function getLocaleShortWeekdays(locale) {
+  if (LOCALE_WEEKDAY_SHORT[locale]) return LOCALE_WEEKDAY_SHORT[locale];
+  if (INTL_SHORT_WEEKDAYS_CACHE.has(locale)) return INTL_SHORT_WEEKDAYS_CACHE.get(locale);
+  let resolved = LOCALE_WEEKDAY_SHORT['en-US'];
+  try {
+    if (typeof Intl !== 'undefined' && typeof Intl.DateTimeFormat === 'function') {
+      const fmt = new Intl.DateTimeFormat(locale, { weekday: 'short', timeZone: 'UTC' });
+      // 2024-01-07 is Sunday in UTC
+      const list = Array.from({ length: 7 }, (_, d) => fmt.format(new Date(Date.UTC(2024, 0, 7 + d))));
+      if (list.every((s) => typeof s === 'string' && s.trim().length > 0)) {
+        resolved = Object.freeze(list);
+      }
+    }
+  } catch {
+    // Fallback to en-US short weekdays if Intl lacks locale data
+  }
+  if (INTL_SHORT_WEEKDAYS_CACHE.size < MAX_INTL_LOCALE_CACHE) {
+    INTL_SHORT_WEEKDAYS_CACHE.set(locale, resolved);
+  }
+  return resolved;
+}
+
+export function formatShortMonthName(monthIndex, locale, { stripTrailingDot = false } = {}) {
+  const loc = resolveFormatterLocale(locale);
+  const raw = getLocaleShortMonths(loc)[monthIndex] || '';
+  return stripTrailingDot ? raw.replace(/\.$/, '') : raw;
+}
+
+export function formatShortWeekdayName(dayIndex, locale) {
+  const loc = resolveFormatterLocale(locale);
+  return getLocaleShortWeekdays(loc)[dayIndex] || '';
+}
 
 function resolveFormatterLocale(explicitLocale) {
   if (typeof explicitLocale === 'string' && explicitLocale.trim()) {
@@ -111,6 +171,28 @@ export function formatTokensPrecise(num) {
   return String(Math.round(n));
 }
 
+/**
+ * 将磁盘字节数格式化为紧凑易读的存储占用文本（支持 B / KB / MB / GB，并平滑处理 0 / 负数 / NaN 及单位进位边界）。
+ *
+ * @param {number|string|null|undefined} bytes
+ * @returns {string}
+ */
+export function formatCompactBytes(bytes) {
+  const n = Number(bytes);
+  if (!Number.isFinite(n) || n <= 0) return '0 B';
+  if (n < 1024) return `${Math.round(n)} B`;
+  const kb = n / 1024;
+  if (kb < 1023.5) {
+    return kb < 10 ? `${Number(kb.toFixed(1))} KB` : `${Math.round(kb)} KB`;
+  }
+  const mb = n / (1024 * 1024);
+  if (mb < 1023.95) {
+    return `${mb.toFixed(1)} MB`;
+  }
+  const gb = n / (1024 * 1024 * 1024);
+  return gb >= 10 ? `${gb.toFixed(1)} GB` : `${gb.toFixed(2)} GB`;
+}
+
 export function formatCnyApprox(usdAmount, rate = 7.2) {
   return formatConvertedApprox(usdAmount, {
     displayCurrency: 'CNY',
@@ -174,11 +256,11 @@ function formatLocalizedDayDate(dateObj, locale, includeYear) {
   if (locale === 'ko-KR') {
     return includeYear ? `${y}년 ${m}월 ${d}일` : `${m}월 ${d}일`;
   }
-  const mon = (LOCALE_MONTH_SHORT[locale] || LOCALE_MONTH_SHORT['en-US'])[dateObj.getMonth()] || '';
+  const mon = formatShortMonthName(dateObj.getMonth(), locale);
   if (locale === 'de-DE') {
     return includeYear ? `${d}. ${mon} ${y}` : `${d}. ${mon}`;
   }
-  if (locale === 'fr-FR') {
+  if (locale === 'fr-FR' || locale === 'vi-VN') {
     return includeYear ? `${d} ${mon} ${y}` : `${d} ${mon}`;
   }
   return includeYear ? `${mon} ${d}, ${y}` : `${mon} ${d}`;
@@ -240,7 +322,7 @@ export function formatTrendSlotFullLabel(slot, { locale, showFullYear = false } 
       return `${datePart}${sep}${hh} - ${endHh}`;
     }
 
-    const wday = (LOCALE_WEEKDAY_SHORT[loc] || LOCALE_WEEKDAY_SHORT['en-US'])[sd.getDay()] || '';
+    const wday = formatShortWeekdayName(sd.getDay(), loc);
     return `${datePart} (${wday})`;
   }
 
@@ -1397,6 +1479,37 @@ export function formatLiveActivityDetail(act) {
     return t('live.act.compactionResuming');
   }
   return String(act.detail || '');
+}
+
+/**
+ * 为 `liveActivity.taskSteps` 生成稳定的轻量级变更签名，供遥测等价判断与列表键控复用。
+ *
+ * @param {object|null|undefined} taskSteps
+ * @returns {string}
+ */
+export function getTaskStepsSignature(taskSteps) {
+  if (!taskSteps || typeof taskSteps !== 'object' || !(Number(taskSteps.total) > 0)) {
+    return '';
+  }
+  const items = Array.isArray(taskSteps.items) ? taskSteps.items : [];
+  const itemsPart = items
+    .map((it) => `${String(it?.status || 'pending')[0] || 'p'}:${String(it?.title || '')}`)
+    .join('|');
+  return `${Number(taskSteps.done || 0)}/${Number(taskSteps.total || 0)}:${Number(taskSteps.inProgress || 0)}:${Number(taskSteps.failed || 0)}:${Number(taskSteps.skipped || 0)}:${String(taskSteps.currentTitle || '')}:${itemsPart}`;
+}
+
+/**
+ * 格式化任务步骤清单的紧凑状态文案（如 `步骤 2/5`）。
+ *
+ * @param {object|null|undefined} taskSteps
+ * @returns {string}
+ */
+export function formatLiveTaskStepsProgress(taskSteps) {
+  if (!taskSteps || !(Number(taskSteps.total) > 0)) return '';
+  return t('live.stepsProgress', {
+    done: Math.max(0, Number(taskSteps.done || 0)),
+    total: Math.max(1, Number(taskSteps.total || 0)),
+  });
 }
 
 /**

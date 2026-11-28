@@ -65,6 +65,7 @@ import {
   resolveNoFollowFile,
   resolveNoFollowPath,
   resolveScopedTrajectoryCacheStore,
+  sumVerifiedDirTreeBytes,
 } from './session-store.mjs';
 import {
   computeSqliteWalSig,
@@ -197,53 +198,32 @@ function lstatMtimeAndSizeSig(filePath) {
   }
 }
 
-function sumVerifiedFlatDirFilesBytes(dirPath) {
-  let entries = [];
-  try {
-    entries = readdirSync(dirPath, { withFileTypes: true });
-  } catch {
-    return 0;
-  }
-  let total = 0;
-  for (const entry of entries) {
-    if (!entry || entry.isSymbolicLink() || !entry.isFile()) continue;
-    try {
-      const st = lstatSync(join(dirPath, entry.name));
-      if (!st.isSymbolicLink() && st.isFile()) {
-        total += Number(st.size || 0);
-      }
-    } catch {
-      // 忽略并发移除文件
-    }
-  }
-  return total;
-}
-
-function inspectBrainDirInfo(brainPath, brainStat) {
+function inspectBrainDirInfo(brainPath, brainStat, extraSig = '') {
   if (!brainPath || !brainStat || !brainStat.isDirectory()) {
-    return { sizeBytes: 0, hasTranscript: false, transcriptPath: '', transcriptStat: null };
+    return { sizeBytes: 0, truncated: false, hasTranscript: false, transcriptPath: '', transcriptStat: null };
   }
-  const sysDir = join(brainPath, '.system_generated');
-  const logsDir = join(sysDir, 'logs');
-  const fullLogPath = join(logsDir, 'transcript_full.jsonl');
-  const shortLogPath = join(logsDir, 'transcript.jsonl');
+  const sysCheck = lstatVerifiedChild(brainPath, '.system_generated', { expectDir: true });
+  const sysDir = sysCheck.ok && sysCheck.exists ? sysCheck.path : '';
+  const logsCheck = sysDir ? lstatVerifiedChild(sysDir, 'logs', { expectDir: true }) : null;
+  const logsDir = logsCheck && logsCheck.ok && logsCheck.exists ? logsCheck.path : '';
+  const stepsDir = sysDir ? join(sysDir, 'steps') : '';
+  const tasksDir = sysDir ? join(sysDir, 'tasks') : '';
   const uploadsDir = join(brainPath, '.user_uploaded');
   const scratchDir = join(brainPath, 'scratch');
+  const browserSandboxDir = join(brainPath, 'browser_sandbox');
 
-  let fullLogStat = null;
-  try {
-    const st = lstatSync(fullLogPath);
-    if (!st.isSymbolicLink() && st.isFile()) fullLogStat = st;
-  } catch {
-    fullLogStat = null;
-  }
-  let shortLogStat = null;
-  try {
-    const st = lstatSync(shortLogPath);
-    if (!st.isSymbolicLink() && st.isFile()) shortLogStat = st;
-  } catch {
-    shortLogStat = null;
-  }
+  const fullLogCheck = logsDir
+    ? lstatVerifiedChild(logsDir, 'transcript_full.jsonl', { expectFile: true })
+    : null;
+  const fullLogStat = fullLogCheck && fullLogCheck.ok && fullLogCheck.exists ? fullLogCheck.stat : null;
+  const fullLogPath = fullLogStat ? fullLogCheck.path : '';
+
+  const shortLogCheck = logsDir
+    ? lstatVerifiedChild(logsDir, 'transcript.jsonl', { expectFile: true })
+    : null;
+  const shortLogStat = shortLogCheck && shortLogCheck.ok && shortLogCheck.exists ? shortLogCheck.stat : null;
+  const shortLogPath = shortLogStat ? shortLogCheck.path : '';
+
   const transcriptPath = fullLogStat ? fullLogPath : shortLogStat ? shortLogPath : '';
   const transcriptStat = fullLogStat || shortLogStat || null;
   const hasTranscript = Boolean(transcriptStat);
@@ -252,8 +232,14 @@ function inspectBrainDirInfo(brainPath, brainStat) {
     Math.trunc(brainStat.mtimeMs),
     fullLogStat ? `${Math.trunc(fullLogStat.mtimeMs)}:${fullLogStat.size}` : '0',
     shortLogStat ? `${Math.trunc(shortLogStat.mtimeMs)}:${shortLogStat.size}` : '0',
+    sysCheck.ok && sysCheck.exists && sysCheck.stat ? `${Math.trunc(sysCheck.stat.mtimeMs)}:${sysCheck.stat.size}` : '0',
+    logsCheck && logsCheck.ok && logsCheck.exists && logsCheck.stat ? `${Math.trunc(logsCheck.stat.mtimeMs)}:${logsCheck.stat.size}` : '0',
+    stepsDir ? lstatMtimeAndSizeSig(stepsDir) : '0',
+    tasksDir ? lstatMtimeAndSizeSig(tasksDir) : '0',
     lstatMtimeAndSizeSig(uploadsDir),
     lstatMtimeAndSizeSig(scratchDir),
+    lstatMtimeAndSizeSig(browserSandboxDir),
+    extraSig || '',
   ].join('|');
 
   const hit = lruGet(brainInfoMemo, brainPath);
@@ -261,19 +247,10 @@ function inspectBrainDirInfo(brainPath, brainStat) {
     return hit;
   }
 
-  // 仅统计顶层产物、上传附件、scratch 与 .system_generated/logs（跳过数万个零散 steps/*/output.txt 避免冷扫卡顿）
-  let sizeBytes = sumVerifiedFlatDirFilesBytes(brainPath);
-  for (const subDir of [logsDir, uploadsDir, scratchDir]) {
-    try {
-      const st = lstatSync(subDir);
-      if (!st.isSymbolicLink() && st.isDirectory()) {
-        sizeBytes += sumVerifiedFlatDirFilesBytes(subDir);
-      }
-    } catch {
-      // 子目录不存在时跳过
-    }
-  }
-  const info = { sig, sizeBytes, hasTranscript, transcriptPath, transcriptStat };
+  // 全量递归统计 brain/<cid> 磁盘占用（含 .system_generated/steps、browser_sandbox、媒体与嵌套子目录），
+  // 严格拦截符号链接并对遍历深度与条目数设置安全上界，通过 signature + LRU 缓存规避重复冷扫开销
+  const { sizeBytes, truncated } = sumVerifiedDirTreeBytes(brainPath);
+  const info = { sig, sizeBytes, truncated, hasTranscript, transcriptPath, transcriptStat };
   lruSet(brainInfoMemo, brainPath, info, MAX_BRAIN_SIZE_CACHE);
   return info;
 }
@@ -767,6 +744,7 @@ function scanSingleClientSessions(
         onlineDeleteSupported,
         sessionCount: 0,
         indexOnlyCount: 0,
+        totalSizeBytes: 0,
       },
       sessions: [],
       migrationInfo: {
@@ -817,6 +795,7 @@ function scanSingleClientSessions(
   const dbFileSet = new Set();
   const pbFileSet = new Set();
   const walFileSet = new Set();
+  const shmFileSet = new Set();
   const convCheck = resolveNoFollowPath(clientRoot, ['conversations']);
   const verifiedConvDir =
     convCheck.ok && convCheck.exists && convCheck.stat?.isDirectory() ? convCheck.path : '';
@@ -832,6 +811,8 @@ function scanSingleClientSessions(
           if (id) pbFileSet.add(id);
         } else if (lower.endsWith('.db-wal')) {
           walFileSet.add(lower);
+        } else if (lower.endsWith('.db-shm')) {
+          shmFileSet.add(lower);
         }
       }
     } catch {
@@ -906,14 +887,16 @@ function scanSingleClientSessions(
 
     const indexOnly = hasIndex && !hasDb && !hasPb && !hasBrain && !hasAnn;
 
-    // 估算磁盘体积与文件修改时间
+    // 精确统计磁盘体积与文件修改时间（涵盖 .db / .db-wal / .db-shm / .pb / brain/<cid> / annotations）
     let sizeBytes = 0;
     let dbSizeBytes = 0;
+    let brainSizeBytes = 0;
     let fileMtimeMs = 0;
     let hasNonEmptyWal = false;
     let primaryFilePath = '';
     let dbStat = null;
     let walStat = null;
+    let dbFilesSig = '';
 
     if (hasDb && verifiedConvDir) {
       const dbCheck = lstatVerifiedChild(verifiedConvDir, `${cid}.db`, { expectFile: true });
@@ -924,6 +907,8 @@ function scanSingleClientSessions(
         sizeBytes += dbBytes;
         dbSizeBytes += dbBytes;
         fileMtimeMs = Math.max(fileMtimeMs, Number(dbCheck.stat.mtimeMs || 0));
+        let walSigPart = '0';
+        let shmSigPart = '0';
         if (walFileSet.has(`${cid}.db-wal`)) {
           const walCheck = lstatVerifiedChild(verifiedConvDir, `${cid}.db-wal`, { expectFile: true });
           if (walCheck.ok && walCheck.exists && walCheck.stat) {
@@ -931,17 +916,29 @@ function scanSingleClientSessions(
             const ws = Number(walCheck.stat.size || 0);
             sizeBytes += ws;
             dbSizeBytes += ws;
+            walSigPart = `${Math.trunc(walCheck.stat.mtimeMs)}:${ws}`;
             if (ws > 0) {
               hasNonEmptyWal = true;
               fileMtimeMs = Math.max(fileMtimeMs, Number(walCheck.stat.mtimeMs || 0));
             }
           }
         }
+        if (shmFileSet.has(`${cid}.db-shm`)) {
+          const shmCheck = lstatVerifiedChild(verifiedConvDir, `${cid}.db-shm`, { expectFile: true });
+          if (shmCheck.ok && shmCheck.exists && shmCheck.stat) {
+            const ss = Number(shmCheck.stat.size || 0);
+            sizeBytes += ss;
+            dbSizeBytes += ss;
+            shmSigPart = `${Math.trunc(shmCheck.stat.mtimeMs)}:${ss}`;
+          }
+        }
+        dbFilesSig = `${Math.trunc(dbCheck.stat.mtimeMs)}:${dbBytes}:${walSigPart}:${shmSigPart}`;
       }
-    } else if (hasPb && verifiedConvDir) {
+    }
+    if (hasPb && verifiedConvDir) {
       const pbCheck = lstatVerifiedChild(verifiedConvDir, `${cid}.pb`, { expectFile: true });
       if (pbCheck.ok && pbCheck.exists && pbCheck.stat) {
-        primaryFilePath = pbCheck.path;
+        if (!primaryFilePath) primaryFilePath = pbCheck.path;
         sizeBytes += Number(pbCheck.stat.size || 0);
         fileMtimeMs = Math.max(fileMtimeMs, Number(pbCheck.stat.mtimeMs || 0));
       }
@@ -953,8 +950,9 @@ function scanSingleClientSessions(
       const brCheck = lstatVerifiedChild(verifiedBrainDir, cid, { expectDir: true });
       if (brCheck.ok && brCheck.exists && brCheck.stat) {
         brainPath = brCheck.path;
-        brainInfo = inspectBrainDirInfo(brCheck.path, brCheck.stat);
-        sizeBytes += brainInfo.sizeBytes;
+        brainInfo = inspectBrainDirInfo(brCheck.path, brCheck.stat, dbFilesSig);
+        brainSizeBytes = Number(brainInfo.sizeBytes || 0);
+        sizeBytes += brainSizeBytes;
         if (!primaryFilePath) primaryFilePath = brCheck.path;
         fileMtimeMs = Math.max(fileMtimeMs, Number(brCheck.stat.mtimeMs || 0));
       }
@@ -994,6 +992,7 @@ function scanSingleClientSessions(
       protection,
       sizeBytes,
       dbSizeBytes,
+      brainSizeBytes,
       primaryFilePath,
       brainPath,
       brainInfo,
@@ -1025,6 +1024,7 @@ function scanSingleClientSessions(
       protection,
       sizeBytes,
       dbSizeBytes,
+      brainSizeBytes,
       primaryFilePath,
       brainInfo,
       dbStat,
@@ -1154,7 +1154,8 @@ function scanSingleClientSessions(
         workspaceName,
         workspacePath,
         projectId,
-        sizeBytes: dbSizeBytes,
+        sizeBytes,
+        dbSizeBytes,
         hasBrain,
         isRunning: sessionRunning,
       });
@@ -1171,6 +1172,9 @@ function scanSingleClientSessions(
       workspacePath,
       projectDir,
       sizeBytes,
+      dbSizeBytes,
+      brainSizeBytes,
+      subagentSizeBytes: 0,
       lastModifiedMs: effectiveLastModMs,
       stepCount: Math.max(
         0,
@@ -1205,41 +1209,55 @@ function scanSingleClientSessions(
     });
   }
 
-  // 将同源有效父会话下的嵌套子代理隐藏并累加父会话的 subagentCount（/fork 保持独立可见）
+  // 将同源有效父会话下的嵌套子代理（含多级嵌套）隐藏并累加父会话的 subagentCount 与占用存储体积（/fork 保持独立可见）
   const hiddenSubagents = new Set();
   for (const [cid, rec] of rawRecords.entries()) {
-    if (!rec.isSubagent) continue;
-    if (rec.parentConversationId && rawRecords.has(rec.parentConversationId)) {
-      const parentRec = rawRecords.get(rec.parentConversationId);
-      if (parentRec && !parentRec.isSubagent) {
-        parentRec.subagentCount += 1;
+    if (!rec.isSubagent || !rec.parentConversationId) continue;
+    const directParentExists = rawRecords.has(rec.parentConversationId);
+    let cursor = rec.parentConversationId;
+    let hops = 0;
+    let rootParent = null;
+    const seen = new Set([cid]);
+    while (cursor && hops < 8 && !seen.has(cursor)) {
+      seen.add(cursor);
+      const anc = rawRecords.get(cursor);
+      if (!anc) break;
+      if (!anc.isSubagent) {
+        rootParent = anc;
+        break;
       }
+      cursor = anc.parentConversationId;
+      hops += 1;
+    }
+    if (rootParent) {
+      const subBytes = Number(rec.sizeBytes || 0);
+      rootParent.subagentCount += 1;
+      rootParent.sizeBytes += subBytes;
+      rootParent.dbSizeBytes += Number(rec.dbSizeBytes || 0);
+      rootParent.brainSizeBytes += Number(rec.brainSizeBytes || 0);
+      rootParent.subagentSizeBytes += subBytes;
       hiddenSubagents.add(cid);
-    } else if (rec.parentConversationId) {
-      // 追溯多级嵌套祖先
-      let cursor = rec.parentConversationId;
-      let hops = 0;
-      while (cursor && hops < 8) {
-        const anc = rawRecords.get(cursor);
-        if (!anc) break;
-        if (!anc.isSubagent) {
-          anc.subagentCount += 1;
-          hiddenSubagents.add(cid);
-          break;
-        }
-        cursor = anc.parentConversationId;
-        hops += 1;
-      }
+    } else if (directParentExists) {
+      hiddenSubagents.add(cid);
+    }
+  }
+
+  for (const migItem of migrationSessions) {
+    const rec = rawRecords.get(migItem.cascadeId);
+    if (rec) {
+      migItem.sizeBytes = Number(rec.sizeBytes || 0);
     }
   }
 
   let visibleCount = 0;
   let indexOnlyCount = 0;
+  let totalSizeBytes = 0;
   const clientSessions = [];
   for (const [cid, rec] of rawRecords.entries()) {
     if (hiddenSubagents.has(cid)) continue;
     visibleCount += 1;
     if (rec.indexOnly) indexOnlyCount += 1;
+    totalSizeBytes += Number(rec.sizeBytes || 0);
     clientSessions.push(rec);
   }
 
@@ -1258,6 +1276,7 @@ function scanSingleClientSessions(
       onlineDeleteSupported,
       sessionCount: visibleCount,
       indexOnlyCount,
+      totalSizeBytes,
     },
     sessions: clientSessions,
     migrationInfo: {
@@ -1286,14 +1305,22 @@ function finalizeLocalSessionsScan(
   migrationParts = []
 ) {
   allSessions.sort((a, b) => (b.lastModifiedMs || 0) - (a.lastModifiedMs || 0));
+  const byClientSizeBytes = {
+    desktop: clients.find((c) => c.id === 'desktop')?.totalSizeBytes || 0,
+    cli: clients.find((c) => c.id === 'cli')?.totalSizeBytes || 0,
+    ide_legacy: clients.find((c) => c.id === 'ide_legacy')?.totalSizeBytes || 0,
+  };
+  const totalSizeBytes = allSessions.reduce((sum, s) => sum + Number(s.sizeBytes || 0), 0);
   const counts = {
     total: allSessions.length,
     indexOnly: allSessions.filter((s) => s.indexOnly).length,
+    totalSizeBytes,
     byClient: {
       desktop: clients.find((c) => c.id === 'desktop')?.sessionCount || 0,
       cli: clients.find((c) => c.id === 'cli')?.sessionCount || 0,
       ide_legacy: clients.find((c) => c.id === 'ide_legacy')?.sessionCount || 0,
     },
+    byClientSizeBytes,
   };
 
   const sqliteSupported = hasBuiltinNodeSqlite();
@@ -1556,6 +1583,65 @@ function inspectTargetSessionsForOnlineGuards(def, clientRoot, idList) {
   return map;
 }
 
+function computeClientTargetsDiskSizeBytes(clientRoot, idIterable) {
+  const uniqueIds = Array.from(new Set(idIterable || [])).filter(Boolean);
+  if (uniqueIds.length === 0 || !existsSync(clientRoot)) return 0;
+
+  const convCheck = resolveNoFollowPath(clientRoot, ['conversations']);
+  const verifiedConvDir =
+    convCheck.ok && convCheck.exists && convCheck.stat?.isDirectory() ? convCheck.path : '';
+  const brainCheck = resolveNoFollowPath(clientRoot, ['brain']);
+  const verifiedBrainDir =
+    brainCheck.ok && brainCheck.exists && brainCheck.stat?.isDirectory() ? brainCheck.path : '';
+  const annCheck = resolveNoFollowPath(clientRoot, ['annotations']);
+  const verifiedAnnDir =
+    annCheck.ok && annCheck.exists && annCheck.stat?.isDirectory() ? annCheck.path : '';
+
+  let total = 0;
+  for (const cid of uniqueIds) {
+    let dbFilesSig = '';
+    if (verifiedConvDir) {
+      const dbCheck = lstatVerifiedChild(verifiedConvDir, `${cid}.db`, { expectFile: true });
+      if (dbCheck.ok && dbCheck.exists && dbCheck.stat) {
+        const dbBytes = Number(dbCheck.stat.size || 0);
+        total += dbBytes;
+        let walSigPart = '0';
+        let shmSigPart = '0';
+        const walCheck = lstatVerifiedChild(verifiedConvDir, `${cid}.db-wal`, { expectFile: true });
+        if (walCheck.ok && walCheck.exists && walCheck.stat) {
+          const ws = Number(walCheck.stat.size || 0);
+          total += ws;
+          walSigPart = `${Math.trunc(walCheck.stat.mtimeMs)}:${ws}`;
+        }
+        const shmCheck = lstatVerifiedChild(verifiedConvDir, `${cid}.db-shm`, { expectFile: true });
+        if (shmCheck.ok && shmCheck.exists && shmCheck.stat) {
+          const ss = Number(shmCheck.stat.size || 0);
+          total += ss;
+          shmSigPart = `${Math.trunc(shmCheck.stat.mtimeMs)}:${ss}`;
+        }
+        dbFilesSig = `${Math.trunc(dbCheck.stat.mtimeMs)}:${dbBytes}:${walSigPart}:${shmSigPart}`;
+      }
+      const pbCheck = lstatVerifiedChild(verifiedConvDir, `${cid}.pb`, { expectFile: true });
+      if (pbCheck.ok && pbCheck.exists && pbCheck.stat) {
+        total += Number(pbCheck.stat.size || 0);
+      }
+    }
+    if (verifiedBrainDir) {
+      const brCheck = lstatVerifiedChild(verifiedBrainDir, cid, { expectDir: true });
+      if (brCheck.ok && brCheck.exists && brCheck.stat) {
+        total += Number(inspectBrainDirInfo(brCheck.path, brCheck.stat, dbFilesSig).sizeBytes || 0);
+      }
+    }
+    if (verifiedAnnDir) {
+      const annCheckFile = lstatVerifiedChild(verifiedAnnDir, `${cid}.pbtxt`, { expectFile: true });
+      if (annCheckFile.ok && annCheckFile.exists && annCheckFile.stat) {
+        total += Number(annCheckFile.stat.size || 0);
+      }
+    }
+  }
+  return total;
+}
+
 function previewSessionCleanupCore({ targets = [], runningClients, onlineDeleteClients, options = {} }) {
   const rawGeminiOverride = String(options.geminiDir || '').trim();
   const geminiDir = resolveGeminiDir(options.geminiDir);
@@ -1570,6 +1656,8 @@ function previewSessionCleanupCore({ targets = [], runningClients, onlineDeleteC
   let onlineDeletableCount = 0;
   let protectedMigrationOnlineCount = 0;
   let cascadeSubagentCount = 0;
+  let reclaimableSizeBytes = 0;
+  let protectedOnlineSizeBytes = 0;
   const protectedMigrationItems = [];
 
   for (const [clientId, idList] of byClient.entries()) {
@@ -1602,6 +1690,10 @@ function previewSessionCleanupCore({ targets = [], runningClients, onlineDeleteC
     if (!isRunning) {
       const { cascadeSubagentIds } = expandStoreCascadeTargets(clientRoot, new Set(idList));
       cascadeSubagentCount += cascadeSubagentIds.length;
+      reclaimableSizeBytes += computeClientTargetsDiskSizeBytes(clientRoot, [
+        ...idList,
+        ...cascadeSubagentIds,
+      ]);
 
       for (const cid of idList) {
         deletableTargets.push({ clientId, sessionId: cid, mode: 'offline' });
@@ -1623,6 +1715,7 @@ function previewSessionCleanupCore({ targets = [], runningClients, onlineDeleteC
     // 运行中客户端且支持在线删除：逐条检查运行中会话 / 仅索引残留 / 迁移归档保护
     const localGuards = inspectTargetSessionsForOnlineGuards(def, clientRoot, idList);
     const allowedOnlineIds = [];
+    const protectedOnlineIds = [];
     for (const cid of idList) {
       const guard = localGuards.get(cid);
       if (guard?.sessionRunning) {
@@ -1640,6 +1733,7 @@ function previewSessionCleanupCore({ targets = [], runningClients, onlineDeleteC
       const prot = protectedMap.get(cid);
       if (prot) {
         protectedMigrationOnlineCount += 1;
+        protectedOnlineIds.push(cid);
         protectedMigrationItems.push({
           clientId,
           sessionId: cid,
@@ -1651,6 +1745,23 @@ function previewSessionCleanupCore({ targets = [], runningClients, onlineDeleteC
     if (allowedOnlineIds.length > 0) {
       const { cascadeSubagentIds } = expandStoreCascadeTargets(clientRoot, new Set(allowedOnlineIds));
       cascadeSubagentCount += cascadeSubagentIds.length;
+      const clientAllBytes = computeClientTargetsDiskSizeBytes(clientRoot, [
+        ...allowedOnlineIds,
+        ...cascadeSubagentIds,
+      ]);
+      reclaimableSizeBytes += clientAllBytes;
+      if (protectedOnlineIds.length > 0) {
+        const nonProtectedIds = allowedOnlineIds.filter((cid) => !protectedMap.has(cid));
+        const nonProtCascade =
+          nonProtectedIds.length > 0
+            ? expandStoreCascadeTargets(clientRoot, new Set(nonProtectedIds)).cascadeSubagentIds
+            : [];
+        const nonProtBytes = computeClientTargetsDiskSizeBytes(clientRoot, [
+          ...nonProtectedIds,
+          ...nonProtCascade,
+        ]);
+        protectedOnlineSizeBytes += Math.max(0, clientAllBytes - nonProtBytes);
+      }
     }
   }
 
@@ -1688,6 +1799,8 @@ function previewSessionCleanupCore({ targets = [], runningClients, onlineDeleteC
     offlineDeletableCount,
     onlineDeletableCount,
     protectedMigrationOnlineCount,
+    reclaimableSizeBytes,
+    protectedOnlineSizeBytes,
     blockedByRunning,
     cascadeSubagentCount,
     crossSourceIndexMatches,
@@ -1781,9 +1894,16 @@ export async function previewSessionCleanupAsync({ targets = [] } = {}, options 
         (item) => item.mode === 'online'
       ).length;
 
-      // 重算受影响的级联子代理总数
+      // 重算受影响的级联子代理总数与可释放磁盘空间
       let recalculatedCascade = 0;
+      let recalculatedReclaimableBytes = 0;
+      let recalculatedProtectedOnlineBytes = 0;
       const keptByClient = new Map();
+      const protectedOnlineKeySet = new Set(
+        res.protectedMigrationItems
+          .filter((item) => item.mode === 'online')
+          .map((item) => `${item.clientId}:${item.sessionId}`)
+      );
       for (const item of keptTargets) {
         if (!keptByClient.has(item.clientId)) keptByClient.set(item.clientId, []);
         keptByClient.get(item.clientId).push(item.sessionId);
@@ -1793,9 +1913,27 @@ export async function previewSessionCleanupAsync({ targets = [] } = {}, options 
         if (!def) continue;
         const root = join(geminiDir, def.dirName);
         if (!existsSync(root)) continue;
-        recalculatedCascade += expandStoreCascadeTargets(root, new Set(ids)).cascadeSubagentIds.length;
+        const { cascadeSubagentIds } = expandStoreCascadeTargets(root, new Set(ids));
+        recalculatedCascade += cascadeSubagentIds.length;
+        const clientAllBytes = computeClientTargetsDiskSizeBytes(root, [...ids, ...cascadeSubagentIds]);
+        recalculatedReclaimableBytes += clientAllBytes;
+        const clientProtectedOnline = ids.filter((cid) => protectedOnlineKeySet.has(`${clientId}:${cid}`));
+        if (clientProtectedOnline.length > 0) {
+          const nonProtIds = ids.filter((cid) => !protectedOnlineKeySet.has(`${clientId}:${cid}`));
+          const nonProtCascade =
+            nonProtIds.length > 0
+              ? expandStoreCascadeTargets(root, new Set(nonProtIds)).cascadeSubagentIds
+              : [];
+          const nonProtBytes = computeClientTargetsDiskSizeBytes(root, [
+            ...nonProtIds,
+            ...nonProtCascade,
+          ]);
+          recalculatedProtectedOnlineBytes += Math.max(0, clientAllBytes - nonProtBytes);
+        }
       }
       res.cascadeSubagentCount = recalculatedCascade;
+      res.reclaimableSizeBytes = recalculatedReclaimableBytes;
+      res.protectedOnlineSizeBytes = recalculatedProtectedOnlineBytes;
 
       // 若被拦截的目标在离线客户端有跨源索引匹配，从 crossSourceIndexMatches 降级移除
       const remainingIds = new Set(keptTargets.map((item) => item.sessionId));

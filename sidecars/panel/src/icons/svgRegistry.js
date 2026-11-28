@@ -159,4 +159,9 @@ export const SVG_ICON_DEFS = Object.freeze({
     { tag: 'path', attrs: { d: 'M8 2L3 4v3.8c0 3.1 2.1 5.3 5 6.2 2.9-.9 5-3.1 5-6.2V4L8 2z' } },
     { tag: 'path', attrs: { d: 'M6 8l1.4 1.4L10.3 6.5' } },
   ],
+  database: [
+    { tag: 'ellipse', attrs: { cx: '8', cy: '4', rx: '5', ry: '1.8' } },
+    { tag: 'path', attrs: { d: 'M3 4v8c0 1 2.24 1.8 5 1.8s5-.8 5-1.8V4' } },
+    { tag: 'path', attrs: { d: 'M3 8c0 1 2.24 1.8 5 1.8s5-.8 5-1.8' } },
+  ],
 });

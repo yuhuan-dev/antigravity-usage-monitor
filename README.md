@@ -4,7 +4,7 @@
 
 # Antigravity Usage & Speed Monitor
 
-Local usage, speed, context, and quota monitor for Google Antigravity 2.0, Antigravity IDE, and Antigravity CLI, with no external npm dependencies.
+Local usage, speed, context, and quota monitor for Google Antigravity 2.0, Antigravity IDE, VS Code (official extension), and Antigravity CLI, with no external npm dependencies.
 
 [![Release](https://img.shields.io/github/v/release/yuhuan-dev/antigravity-usage-monitor?style=flat-square&color=2A5E76&label=release)](https://github.com/yuhuan-dev/antigravity-usage-monitor/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/yuhuan-dev/antigravity-usage-monitor/total?style=flat-square&color=0ea5e9)](https://github.com/yuhuan-dev/antigravity-usage-monitor/releases)
@@ -41,6 +41,7 @@ English · [简体中文](README.zh-CN.md)
 - **Native `.xlsx` / Markdown Exports & Settings Backup**: Exports multi-sheet localized Excel (`.xlsx`) workbooks and Markdown summaries for both Usage Statistics and Call Details directly to `~/Downloads` with an in-app reveal toast, plus portable JSON preference backup/import.
 - **Cross-Client Session Migration**: Built-in opt-in session migrator (`Preferences → Other`) moves or clones conversations across `Antigravity CLI` ↔ `Desktop App / IDE` and `Legacy IDE (.db)` with isolated UUID rewriting to prevent cross-client mirror collisions or double billing.
 - **Multi-Client Capsules & CLI `statusLine` Modes**: Integrates as a titlebar or composer capsule (with ring quota gauges and main-agent context lock) and auxiliary sidebar in Antigravity 2.0, a titlebar/composer capsule in Antigravity IDE, a single-line 24-bit ANSI `statusLine` in Antigravity CLI (`--style pill|bar|compact`, `--preset compact|balanced|full`, `--json`), and a standalone local web UI.
+- **VS Code Extension & Remote-SSH Support**: Auto-provisions `~/.vscode/argv.json` (respecting `autoConfigureLaunch`) and mounts inside the chat input box by default via an independent `vsCodeMountMode` setting (switchable to Top Bar, without Sidebar Only); supports local and Remote-SSH endpoint isolation, instant conversation following, and remote `agy` CLI plugin fallback on the Top Bar while skipping hosts without Antigravity plugins.
 - **No `app.asar` Modification & Desktop 2.33.0+ Auto-Provisioning**: Titlebar/composer injection and context hooks run in memory over local CDP (`DevToolsActivePort`). Automatically provisions Desktop `2.33.0+` user shortcuts/launchers (with one-click out-of-job host relaunch) and `~/.antigravity-ide/argv.json` without touching installation binaries or `app.asar`.
 - **Per-Model Context Windows (Main & Subagent/Swarm)**: Sets context window limits per model series or follows host defaults, with independent toggles for the main agent (CDP request hook), spawned subagents / Swarm workers (local loopback CloudCode proxy), and CLI (`AGY_CLI_AUTO_COMPACT_OVERRIDE`).
 - **Appearance, Offline Storage & Cloud Updates**: Supports `zh-CN` / `en-US` / host language, borderless Modern UI, `sm / md / lg / xl` font scaling, 6 theme accents plus host matching, offline reading from CLI SQLite + WAL, `annotations/*.pbtxt`, `transcript.jsonl`, and `.deep_stats_cache.json`, GitHub [`pricing-catalog.json`](pricing-catalog.json) sync, and in-panel release updates (`manual` / `auto` / `off`).
@@ -108,6 +109,7 @@ English · [简体中文](README.zh-CN.md)
 | :--- | :---: | :---: | :---: | :---: | :---: |
 | **Antigravity 2.0 (Desktop)** | Titlebar / Composer | Popover + Right Sidebar | Yes | CDP Hook + Local CloudCode Proxy | No |
 | **Antigravity IDE** | Titlebar / Composer | Capsule Popover | Yes | CDP Hook + Local CloudCode Proxy | No |
+| **VS Code (Extension / Remote-SSH)** | Input Box (Default) / Top Bar | Capsule Popover | Yes | Per-Host / Endpoint | No |
 | **Antigravity CLI (`agy`)** | Native ANSI `statusLine` | Standalone Web (`--port`) | Yes (`node:sqlite` + `.pbtxt`) | `AGY_CLI_AUTO_COMPACT_OVERRIDE` | No |
 | **SSH Remote / Headless Linux** | Per-Endpoint Capsule / ANSI `statusLine` | SSH Overlay / `--token` Web | Yes | Per-Endpoint Hook / Env | No |
 
@@ -163,10 +165,12 @@ Clone https://github.com/yuhuan-dev/antigravity-usage-monitor with --filter=blob
    - Mounts a capsule in the top-right titlebar (**hover** for summary, **click** for the 4-tab popover, **right-click** to refresh), alongside the right auxiliary sidebar pane.
 3. **Antigravity IDE**:
    - **Restart Antigravity IDE once** after enabling for the first time. Keep **Mount Mode** on **Dual-mount** and click the top-bar capsule to open the panel.
-4. **Antigravity CLI (`agy`)**:
+4. **VS Code (Extension / Remote-SSH)**:
+   - **Restart VS Code once** after first activation (`~/.vscode/argv.json` is auto-configured when `autoConfigureLaunch` is enabled). Mounts inside the chat **Input Box** by default (switchable to **Top Bar**, independent of Desktop's mount setting). Remote-SSH windows isolate endpoints per host and follow conversations automatically; hosts with only the `agy` CLI `usage-monitor` plugin mount on the Top Bar automatically, while hosts with neither plugin are skipped.
+5. **Antigravity CLI (`agy`)**:
    - When `~/.gemini/antigravity-cli` exists, `statusLine` in `settings.json` is configured automatically (existing third-party `statusLine.command` entries are left untouched) to render a single-line ANSI bar (`● 1 active   38.1 t/s | 0.85s | ◎ 17%`).
    - Toggle via `/statusline` in `agy` or **Preferences → Structure → Mount & Capsule Bar**.
-5. **Standalone Web Server (Headless / Remote)**:
+6. **Standalone Web Server (Headless / Remote)**:
 
 ```bash
 # 1. Start on the host (listens on 127.0.0.1:8787 by default)

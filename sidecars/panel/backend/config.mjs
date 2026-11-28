@@ -8,10 +8,15 @@
  * 4. 跨子系统共享的内存态缓存容器（采用对象属性就地更新设计，兼容 ES Module 与 VM 沙箱）。
  */
 
-import { existsSync, mkdirSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+  resolveBridgeLeaseFilePath,
+  resolveSharedGeminiBaseDir,
+  resolveSharedSidecarDataDir,
+} from './bridge-paths.mjs';
 import { writeJsonAtomicSync } from './fs-atomic.mjs';
 import { isPlainObject } from './http-helpers.mjs';
 import { writeTrajectoryCacheFile } from './trajectory-cache-file.mjs';
@@ -29,26 +34,42 @@ export {
   DEFAULT_CLI_STATUSLINE_SLOTS,
   DEFAULT_CONTEXT_AGENT_MODE,
   DEFAULT_DISPLAY_CURRENCY,
+  DEFAULT_ENABLE_SAFETY_MONITOR,
   DEFAULT_HOVER_METRICS,
+  DEFAULT_HOVER_METRIC_ROWS,
+  DEFAULT_HOVER_METRIC_SIZES,
   DEFAULT_HOVER_METRIC_STYLE,
+  DEFAULT_HOVER_METRIC_TEXT_MODE,
   DEFAULT_HOVER_MODULES,
   DEFAULT_HOVER_SYNC_OVERVIEW_METRICS,
+  DEFAULT_METRIC_ROWS,
+  DEFAULT_METRIC_TEXT_MODE,
   DEFAULT_OVERVIEW_METRICS,
+  DEFAULT_OVERVIEW_METRIC_ROWS,
+  DEFAULT_OVERVIEW_METRIC_SIZES,
   DEFAULT_OVERVIEW_METRIC_STYLE,
+  DEFAULT_OVERVIEW_METRIC_TEXT_MODE,
   DEFAULT_OVERVIEW_MODULES,
   DEFAULT_POPOVER_WIDTH,
   DEFAULT_QUOTA_DISPLAY_MODE,
   DEFAULT_SETTINGS_SCHEMA,
   DEFAULT_STEP_TABLE_COLUMNS,
   DEFAULT_STEP_TOKEN_COMBO_FORMAT,
+  DEFAULT_TOPBAR_MULTI_SESSION_MODE,
   DEFAULT_TOPBAR_SLOTS,
+  DEFAULT_VSCODE_MOUNT_MODE,
   FONT_SCALE_KEYS,
   HOVER_METRIC_STYLES,
   MAX_CLI_STATUSLINE_SLOTS,
   MAX_LARGE_METRIC_SLOTS,
+  MAX_OVERVIEW_METRICS,
   MAX_POPOVER_WIDTH,
   MAX_TOPBAR_SLOTS,
+  METRIC_CARD_SIZES,
   METRIC_CARD_STYLES,
+  METRIC_GRID_COLS,
+  METRIC_GRID_ROWS,
+  METRIC_TEXT_MODES,
   MIN_CLI_STATUSLINE_SLOTS,
   MIN_POPOVER_WIDTH,
   MIN_TOPBAR_SLOTS,
@@ -59,29 +80,44 @@ export {
   SUPPORTED_DISPLAY_CURRENCIES,
   SUPPORTED_LANGUAGES,
   THEME_ACCENT_KEYS,
+  TOPBAR_MULTI_SESSION_MODES,
   TOPBAR_SLOT_KEYS,
+  VSCODE_MOUNT_MODES,
   createDefaultSettingsObject,
+  deriveMetricCardStyleFromLayout,
   isAccountSwitchFeatureActive,
   isContextWindowFeatureActive,
   isRiskyFeaturesGateOpen,
+  isTopbarMultiSessionVisible,
   normalizeAutoConfigureLaunch,
   normalizeCliStatusLineSlots,
   normalizeContextAgentMode,
   normalizeDeveloperModeEnabled,
   normalizeDisplayCurrency,
   normalizeEnableRemoteSshTelemetry,
+  normalizeEnableSafetyMonitor,
   normalizeExperimentalQuotaReservation,
   normalizeFontScale,
   normalizeFullSettings,
+  normalizeHoverMetricRows,
+  normalizeHoverMetricSizes,
   normalizeHoverMetricStyle,
+  normalizeHoverMetricTextMode,
   normalizeHoverMetrics,
   normalizeHoverModules,
   normalizeHoverSyncOverviewMetrics,
   normalizeLanguageSetting,
+  normalizeMetricCardSize,
+  normalizeMetricCardSizes,
   normalizeMetricCardStyle,
+  normalizeMetricGridRows,
+  normalizeMetricTextMode,
   normalizeModelDisplayMode,
   normalizeModernUi,
+  normalizeOverviewMetricRows,
+  normalizeOverviewMetricSizes,
   normalizeOverviewMetricStyle,
+  normalizeOverviewMetricTextMode,
   normalizeOverviewMetrics,
   normalizeOverviewModules,
   normalizePluginUpdateMode,
@@ -94,10 +130,14 @@ export {
   normalizeStepTokenComboFormat,
   normalizeThemeAccent,
   normalizeTopbarCapsuleSlots,
+  normalizeTopbarMultiSessionMode,
+  normalizeVsCodeMountMode,
   normalizeWeeklyLimitMode,
   normalizeWindowMountMode,
+  packMetricBentoLayout,
   parseStepTokenComboSegments,
   resolveEffectiveCliStatusLineSlots,
+  resolveEffectiveMetricMatrixConfig,
 } from './settings-schema.mjs';
 
 /**
@@ -111,9 +151,8 @@ export const PLUGIN_ROOT = dirname(dirname(HERE));
 export const PLUGIN_MANIFEST_FILE = join(PLUGIN_ROOT, 'plugin.json');
 export const LOCAL_CATALOG_FILE = join(PLUGIN_ROOT, 'pricing-catalog.json');
 
-function resolveGeminiBaseDir() {
-  const envGemini = String(process.env.ANTIGRAVITY_GEMINI_DIR || '').trim();
-  return envGemini || join(homedir(), '.gemini');
+function resolveGeminiBaseDir(env = process.env, homeDir = homedir()) {
+  return resolveSharedGeminiBaseDir(env, homeDir);
 }
 
 function dedupeDirCandidates(list) {
@@ -122,7 +161,10 @@ function dedupeDirCandidates(list) {
   for (const item of list) {
     const clean = String(item || '').trim();
     if (!clean) continue;
-    const key = process.platform === 'win32' ? clean.toLowerCase() : clean;
+    const key =
+      process.platform === 'win32'
+        ? clean.replace(/\//g, '\\').replace(/\\+$/, '').toLowerCase()
+        : clean.replace(/\/+$/, '') || '/';
     if (seen.has(key)) continue;
     seen.add(key);
     out.push(clean);
@@ -152,21 +194,41 @@ function resolveProductDataRoots() {
 /**
  * 插件持久化数据目录（默认由 Antigravity 宿主注入 `~/.gemini/antigravity/sidecar_data/usage-monitor/panel/data`）。
  * 兼容桌面端、Antigravity IDE 与无头 `agy` CLI（`~/.gemini/antigravity-cli`）：
- * 优先使用已存在的持久化目录，纯 CLI 服务器自动落入 `~/.gemini/antigravity-cli/sidecar_data/usage-monitor/panel/data`，
- * 避免落入插件源码目录而在自更新时丢失缓存与设置。
+ * 优先使用已存在的持久化目录，并在缺失 `ANTIGRAVITY_EXECUTABLE_DATA_DIR`（如 MCP `bridge-daemon`）时
+ * 优先对齐共享租约中记录的活跃 Sidecar 数据目录（`sidecarDataDir`），彻底避免 2.36.0 下双进程配置分叉。
  */
-function resolveDefaultDataDir() {
-  const explicitDataDir = String(process.env.USAGE_MONITOR_DATA_DIR || '').trim();
+export function resolveDefaultDataDir(
+  env = process.env,
+  {
+    existsSyncFn = existsSync,
+    readFileSyncFn = readFileSync,
+    homeDir = homedir(),
+    leaseFilePath = '',
+    platform = process.platform,
+  } = {}
+) {
+  const explicitDataDir = String(env?.USAGE_MONITOR_DATA_DIR || '').trim();
   if (explicitDataDir) {
     return explicitDataDir;
   }
-  if (process.env.ANTIGRAVITY_EXECUTABLE_DATA_DIR) {
-    return process.env.ANTIGRAVITY_EXECUTABLE_DATA_DIR;
+  if (env?.ANTIGRAVITY_EXECUTABLE_DATA_DIR) {
+    return String(env.ANTIGRAVITY_EXECUTABLE_DATA_DIR).trim();
   }
-  if (String(process.env.ANTIGRAVITY_LS_ADDRESS || '').trim() === 'test.invalid') {
+  if (String(env?.ANTIGRAVITY_LS_ADDRESS || '').trim() === 'test.invalid') {
     return join(HERE, '.data');
   }
-  const geminiBase = resolveGeminiBaseDir();
+  const sharedSidecarDir = resolveSharedSidecarDataDir({
+    env,
+    leaseFilePath,
+    existsSyncFn,
+    readFileSyncFn,
+    homeDir,
+    platform,
+  });
+  if (sharedSidecarDir) {
+    return sharedSidecarDir;
+  }
+  const geminiBase = resolveGeminiBaseDir(env, homeDir);
   const antigravityRoot = join(geminiBase, 'antigravity');
   const ideRoot = join(geminiBase, 'antigravity-ide');
   const cliRoot = join(geminiBase, 'antigravity-cli');
@@ -175,22 +237,23 @@ function resolveDefaultDataDir() {
   const idePanelDataDir = join(ideRoot, 'sidecar_data', 'usage-monitor', 'panel', 'data');
   const cliPanelDataDir = join(cliRoot, 'sidecar_data', 'usage-monitor', 'panel', 'data');
   const pluginEnvDataDir =
-    process.env.USAGE_MONITOR_PLUGIN_DATA && !process.env.USAGE_MONITOR_PLUGIN_DATA.includes('${')
-      ? process.env.USAGE_MONITOR_PLUGIN_DATA
+    env?.USAGE_MONITOR_PLUGIN_DATA && !String(env.USAGE_MONITOR_PLUGIN_DATA).includes('${')
+      ? String(env.USAGE_MONITOR_PLUGIN_DATA).trim()
       : '';
-  if (existsSync(panelDataDir)) return panelDataDir;
-  if (existsSync(legacyDataDir)) return legacyDataDir;
-  if (pluginEnvDataDir && existsSync(pluginEnvDataDir)) return pluginEnvDataDir;
-  if (existsSync(idePanelDataDir)) return idePanelDataDir;
-  if (existsSync(cliPanelDataDir)) return cliPanelDataDir;
-  if (existsSync(antigravityRoot)) return panelDataDir;
+  if (existsSyncFn(panelDataDir)) return panelDataDir;
+  if (existsSyncFn(legacyDataDir)) return legacyDataDir;
+  if (pluginEnvDataDir && existsSyncFn(pluginEnvDataDir)) return pluginEnvDataDir;
+  if (existsSyncFn(idePanelDataDir)) return idePanelDataDir;
+  if (existsSyncFn(cliPanelDataDir)) return cliPanelDataDir;
+  if (existsSyncFn(antigravityRoot)) return panelDataDir;
   if (pluginEnvDataDir) return pluginEnvDataDir;
-  if (existsSync(ideRoot)) return idePanelDataDir;
-  if (existsSync(cliRoot)) return cliPanelDataDir;
+  if (existsSyncFn(ideRoot)) return idePanelDataDir;
+  if (existsSyncFn(cliRoot)) return cliPanelDataDir;
   return join(HERE, '.data');
 }
 
 export const DATA_DIR = resolveDefaultDataDir();
+export const SHARED_BRIDGE_LEASE_FILE = resolveBridgeLeaseFilePath({ dataDir: DATA_DIR });
 export const SETTINGS_FILE = join(DATA_DIR, 'settings.json');
 export const CACHE_FILE = join(DATA_DIR, 'trajectory_usage_cache.json');
 export const TRAJECTORY_DB_FILE = join(DATA_DIR, 'trajectory_store.sqlite');
@@ -198,7 +261,9 @@ export const REMOTE_CATALOG_CACHE_FILE = join(DATA_DIR, 'remote_pricing_cache.js
 export const FX_RATES_CACHE_FILE = join(DATA_DIR, 'fx_rates_cache.json');
 export const CLI_STATUS_SNAPSHOT_FILE = join(DATA_DIR, 'cli-status-snapshot.json');
 export const QUOTA_RESERVATION_STATE_FILE = join(DATA_DIR, 'quota_reservation_state.json');
+export const SAFETY_MONITOR_STATE_FILE = join(DATA_DIR, 'safety_monitor_state.json');
 export const ACCOUNT_QUOTA_HISTORY_FILE = join(DATA_DIR, 'account_quota_history.json');
+export const DEEP_STATS_COVERAGE_MEMO_FILE = join(DATA_DIR, 'deep_stats_coverage_memo.json');
 
 /**
  * 本地对话记录目录、脑图日志目录、守护发现目录与跨端深层统计缓存路径候选列表（联合覆盖 Desktop / CLI / IDE）。
@@ -425,18 +490,29 @@ export function computeRuntimeCodeVersion(options = {}) {
       // 忽略目录列举异常
     }
   }
+  candidates.sort();
+  let hash = 0x811c9dc5;
+  let counted = 0;
   for (const file of candidates) {
     try {
       const st = statSync(file, { throwIfNoEntry: false });
       if (st) {
         const mtime = Math.floor(st.mtimeMs || 0);
+        const size = Math.floor(st.size || 0);
         if (mtime > maxMtime) maxMtime = mtime;
+        counted += 1;
+        const entry = `${file}|${mtime}|${size}`;
+        for (let i = 0; i < entry.length; i += 1) {
+          hash ^= entry.charCodeAt(i);
+          hash = Math.imul(hash, 0x01000193);
+        }
       }
     } catch {
       // 忽略单文件 stat 异常
     }
   }
-  cachedRuntimeCodeVersion = String(maxMtime || nowMs);
+  const digest = (hash >>> 0).toString(16).padStart(8, '0');
+  cachedRuntimeCodeVersion = `${maxMtime || nowMs}-${counted}-${digest}`;
   cachedRuntimeCodeVersionExpiresAt = nowMs + RUNTIME_CODE_VERSION_TTL_MS;
   return cachedRuntimeCodeVersion;
 }
@@ -512,6 +588,9 @@ export function persistTrajectoryCacheIfNeeded(options = {}) {
 
 export const externalDeepStatsMemo = {
   sig: '',
+  loaded: false,
+  pruned: false,
+  coveredPairs: null,
   convos: new Map(),
 };
 
@@ -574,7 +653,23 @@ export const pluginUpdateState = {
 export function clearRuntimeCaches(options = {}) {
   if (!localTrajectoryCacheStore.clearCache(options)) return false;
   externalDeepStatsMemo.sig = '';
+  externalDeepStatsMemo.loaded = false;
+  externalDeepStatsMemo.pruned = false;
+  externalDeepStatsMemo.coveredPairs = null;
   externalDeepStatsMemo.convos.clear();
+  try {
+    const normMemo = String(DEEP_STATS_COVERAGE_MEMO_FILE || '').replace(/\\/g, '/');
+    if (
+      normMemo &&
+      !normMemo.startsWith('/test/') &&
+      !normMemo.startsWith('/test-home/') &&
+      existsSync(DEEP_STATS_COVERAGE_MEMO_FILE)
+    ) {
+      rmSync(DEEP_STATS_COVERAGE_MEMO_FILE, { force: true });
+    }
+  } catch {
+    // 忽略清理覆盖跳过缓存异常
+  }
   if (!options?.preserveFreshSummaryMemo) {
     localSummaryMemo.sig = '';
     localSummaryMemo.byId.clear();

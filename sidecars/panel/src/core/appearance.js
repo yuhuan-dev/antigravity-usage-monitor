@@ -749,9 +749,9 @@ export function syncHostThemeFallback(
 
   const syncBridgedTypography = (normalizedSnap) => {
     const body = doc?.body || null;
-    for (const [cssVar, hostVar] of [
-      ['--font-sans', '--host-font-sans'],
-      ['--font-mono', '--host-font-mono'],
+    for (const [cssVar, hostVar, fallbackVar] of [
+      ['--font-sans', '--host-font-sans', '--font-family'],
+      ['--font-mono', '--host-font-mono', '--editor-font-family'],
     ]) {
       const hasNativeInlineFont = Boolean(
         readInlineStyleVar(root, cssVar) || readInlineStyleVar(body, cssVar)
@@ -762,6 +762,9 @@ export function syncHostThemeFallback(
       }
       const bridgedVal =
         String(normalizedSnap?.vars?.[cssVar] || '').trim() ||
+        String(normalizedSnap?.vars?.[fallbackVar] || '').trim() ||
+        readInlineStyleVar(root, fallbackVar) ||
+        readInlineStyleVar(body, fallbackVar) ||
         String(ssrFallbackFonts?.[cssVar] || '').trim();
       if (bridgedVal) {
         setOrClearStyleVar(root, hostVar, bridgedVal);

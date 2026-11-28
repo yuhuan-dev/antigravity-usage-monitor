@@ -8,14 +8,14 @@
 
 import { statSync } from 'node:fs';
 import { join } from 'node:path';
-import { DATA_DIR, loadJson, saveJson } from './config.mjs';
+import { DATA_DIR, SHARED_BRIDGE_LEASE_FILE, loadJson, saveJson } from './config.mjs';
 import {
   getHostThemeSignature,
   normalizeHostThemeSnapshot,
 } from '../shared/host-theme.mjs';
 
 export const HOST_THEME_CACHE_FILE = join(DATA_DIR, 'host-theme-cache.json');
-const DEFAULT_BRIDGE_LEASE_FILE = join(DATA_DIR, 'window-bridge-lease.json');
+const DEFAULT_BRIDGE_LEASE_FILE = SHARED_BRIDGE_LEASE_FILE;
 const LEASE_FRESH_WINDOW_MS = 45_000;
 
 let liveCdpState = { snapshot: null, sig: '', updatedAtMs: 0 };

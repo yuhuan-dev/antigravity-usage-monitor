@@ -15,6 +15,7 @@ import {
 } from '../../core/domPatch.js';
 import {
   formatDateSpanBadge,
+  formatShortMonthName,
   formatTokensPrecise,
   formatTrendSlotFullLabel,
   formatUsd,
@@ -204,12 +205,6 @@ function buildHeatmapMonthTicks(slots, firstDow, totalWeeks) {
   }
   return ticks;
 }
-
-const LOCALE_SHORT_MONTHS = Object.freeze({
-  'en-US': Object.freeze(['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']),
-  'de-DE': Object.freeze(['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez']),
-  'fr-FR': Object.freeze(['janv', 'févr', 'mars', 'avr', 'mai', 'juin', 'juil', 'août', 'sept', 'oct', 'nov', 'déc']),
-});
 
 function normalizeHeatmapMode(mode) {
   return mode === 'week' || mode === 'month' || mode === 'all' ? mode : 'day';
@@ -441,7 +436,11 @@ function buildHeatmapBarView(slots, firstDow, totalWeeks, mode, buildSegmentsFn)
     let activeMonths = 0;
     const nonZero = [];
     const activeLocale = getEffectiveLocale();
-    const shortMonths = LOCALE_SHORT_MONTHS[activeLocale] || null;
+    const useCjkMonthTemplate =
+      activeLocale === 'zh-CN' ||
+      activeLocale === 'zh-TW' ||
+      activeLocale === 'ja-JP' ||
+      activeLocale === 'ko-KR';
     const buckets = monthAccs.map((acc, idx) => {
       if (acc.tokens > 0) {
         activeMonths++;
@@ -452,11 +451,13 @@ function buildHeatmapBarView(slots, firstDow, totalWeeks, mode, buildSegmentsFn)
         peakIdx = idx;
       }
       const mNum = acc.month || 1;
-      const monShort = shortMonths ? shortMonths[mNum - 1] || `M${mNum}` : '';
-      const fullTitle = shortMonths
-        ? `${monShort} ${acc.year}`
-        : t('cons.monthFullLabel', { year: acc.year, m: mNum });
-      const shortLbl = shortMonths ? monShort : t('cons.monthLabel', { m: mNum });
+      const monShort = useCjkMonthTemplate
+        ? ''
+        : formatShortMonthName(mNum - 1, activeLocale, { stripTrailingDot: true }) || `M${mNum}`;
+      const fullTitle = useCjkMonthTemplate
+        ? t('cons.monthFullLabel', { year: acc.year, m: mNum })
+        : `${monShort} ${acc.year}`;
+      const shortLbl = useCjkMonthTemplate ? t('cons.monthLabel', { m: mNum }) : monShort;
       return finalizeHeatmapBucket(acc, fullTitle, shortLbl, buildSegmentsFn);
     });
     nonZero.sort((a, b) => a - b);

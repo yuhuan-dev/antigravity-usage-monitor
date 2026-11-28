@@ -104,7 +104,7 @@ function extractBearerToken(authHeader) {
   return m ? m[1].trim() : '';
 }
 
-const STANDALONE_LOCALE_COPY = Object.freeze({
+export const STANDALONE_LOCALE_COPY = Object.freeze({
   'zh-CN': {
     htmlLang: 'zh-CN',
     title: '用量监控',
@@ -167,6 +167,15 @@ const STANDALONE_LOCALE_COPY = Object.freeze({
     err: 'Jeton d’accès invalide. Veuillez vérifier et réessayer.',
     placeholder: 'Saisir la clé d’accès --token',
     submit: 'Vérifier et ouvrir le moniteur',
+  },
+  'vi-VN': {
+    htmlLang: 'vi-VN',
+    title: 'Giám sát Dung lượng & Tốc độ',
+    authTitle: 'Giám sát Dung lượng & Tốc độ · Xác minh truy cập',
+    desc: 'Trình giám sát độc lập này đã bật bảo vệ bằng mã truy cập. Nhập token của bạn để tiếp tục.',
+    err: 'Mã truy cập không hợp lệ. Vui lòng kiểm tra và nhập lại.',
+    placeholder: 'Nhập khóa truy cập --token',
+    submit: 'Xác minh & Mở trình giám sát',
   },
 });
 

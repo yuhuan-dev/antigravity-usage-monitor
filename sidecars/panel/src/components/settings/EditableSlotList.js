@@ -1,15 +1,15 @@
 /**
  * @fileoverview Reusable Drag-Sortable & `+` / `-` / `↑` / `↓` Dynamic Slot List (`EditableSlotList.js`).
  * Powers Topbar Capsule Slots (1..5), Hover Popup Modules (0..4),
- * Live Overview Modules (1..4), First-Row Metrics (1..4), and Step Table Columns (2..12).
- * Supports smooth pointer-based drag reordering with live preview callbacks (`onPreview`)
- * and single-commit persistence on drop (`onChange`).
+ * Live Overview Modules (1..4), Bento Metrics (1..8), and Step Table Columns (2..12).
+ * Supports smooth pointer-based drag reordering with live preview callbacks (`onPreview`),
+ * single-commit persistence on drop (`onChange`), exact dimmed item sets, and optional
+ * per-row interactive pill badges (e.g. `小 / 宽 / 大` Bento size cycling).
  */
 
 import { defineComponent } from '../../core/component.js';
 import {
   areSlotListsEqual,
-  buildReorderedItems,
   createDropSettleAnimator,
   h,
   patchAttr,
@@ -30,11 +30,18 @@ function isNodeWithin(target, container) {
   return false;
 }
 
+function normalizeDimmedValues(raw) {
+  if (raw == null) return null;
+  if (raw instanceof Set) return new Set(raw);
+  if (Array.isArray(raw)) return new Set(raw);
+  return null;
+}
+
 export const EditableSlotList = defineComponent({
   name: 'EditableSlotList',
   setup({ props, onCleanup }) {
     const minItems = Math.max(0, Number(props.minItems ?? 1));
-    const maxItems = Math.max(minItems, Number(props.maxItems ?? 5));
+    let maxItems = Math.max(minItems, Number(props.maxItems ?? 5));
     let currentItems = Array.isArray(props.items) ? [...props.items] : [];
     let currentOptions = Array.isArray(props.options) ? [...props.options] : [];
     let emptyHintText = String(props.emptyHintText || '');
@@ -43,7 +50,11 @@ export const EditableSlotList = defineComponent({
       Number.isInteger(props.dimmedFromIndex) && props.dimmedFromIndex >= 0
         ? props.dimmedFromIndex
         : null;
+    let dimmedValuesSet = normalizeDimmedValues(props.dimmedValues);
     let dimmedTagText = String(props.dimmedTagText || '');
+    let getItemBadge = typeof props.getItemBadge === 'function' ? props.getItemBadge : null;
+    let onClickItemBadge =
+      typeof props.onClickItemBadge === 'function' ? props.onClickItemBadge : null;
     let activeDrag = null;
     const settleAnimator = createDropSettleAnimator('is-settling', ' scale(1.015)');
     let suppressClickTimer = null;
@@ -78,6 +89,13 @@ export const EditableSlotList = defineComponent({
     const rootEl = h('div', { className: 'editable-slot-wrap' }, [emptyEl, listEl, footerEl]);
 
     const rowPool = [];
+
+    function isSlotDimmed(itemVal, visualSlot) {
+      if (dimmedValuesSet !== null) {
+        return dimmedValuesSet.has(itemVal);
+      }
+      return dimmedFromIndex !== null && visualSlot >= dimmedFromIndex;
+    }
 
     function clearSettleAnimation() {
       settleAnimator.clear();
@@ -146,8 +164,8 @@ export const EditableSlotList = defineComponent({
       const count = startItems.length;
       const startIdx = initialRowIdx;
 
-      function applySlotDimState(entry, visualSlot) {
-        const isDimmed = dimmedFromIndex !== null && visualSlot >= dimmedFromIndex;
+      function applySlotDimState(entry, itemVal, visualSlot) {
+        const isDimmed = isSlotDimmed(itemVal, visualSlot);
         patchClasses(entry.rowEl, { 'is-dimmed': isDimmed });
         patchAttr(entry.dimmedTagEl, 'hidden', !isDimmed || !dimmedTagText);
         if (dimmedTagText) patchText(entry.dimmedTagEl, dimmedTagText);
@@ -180,10 +198,11 @@ export const EditableSlotList = defineComponent({
         },
         onLayout: ({ perm }) => {
           for (let visualSlot = 0; visualSlot < perm.length; visualSlot += 1) {
-            const entry = rowPool[perm[visualSlot]];
+            const origIdx = perm[visualSlot];
+            const entry = rowPool[origIdx];
             if (!entry) continue;
             patchText(entry.indexBadge, String(visualSlot + 1));
-            applySlotDimState(entry, visualSlot);
+            applySlotDimState(entry, startItems[origIdx], visualSlot);
           }
         },
         onPreview: (working) => {
@@ -230,6 +249,20 @@ export const EditableSlotList = defineComponent({
           const next = [...currentItems];
           next[rowIndex] = nextVal;
           emitChange(next);
+        },
+      });
+
+      const itemBadgeBtn = h('button', {
+        type: 'button',
+        className: 'slot-size-pill',
+        hidden: true,
+        text: '',
+        onClick: (e) => {
+          e.stopPropagation();
+          const val = currentItems[rowIndex];
+          if (val !== undefined) {
+            onClickItemBadge?.(val, rowIndex);
+          }
         },
       });
 
@@ -294,12 +327,13 @@ export const EditableSlotList = defineComponent({
           className: 'editable-slot-row',
           onPointerdown: (e) => {
             if (isNodeWithin(e?.target, orderBtnsEl)) return;
+            if (isNodeWithin(e?.target, itemBadgeBtn)) return;
             if (selectMenuEl && isNodeWithin(e?.target, selectMenuEl)) return;
             const onSelectTrigger = isNodeWithin(e?.target, selectComp.el);
             startPointerDrag(e, rowIndex, { threshold: onSelectTrigger ? 5 : 3 });
           },
         },
-        [dragHandle, indexBadge, selectComp.el, dimmedTagEl, orderBtnsEl]
+        [dragHandle, indexBadge, selectComp.el, dimmedTagEl, itemBadgeBtn, orderBtnsEl]
       );
       if (typeof rowEl.addEventListener === 'function') {
         rowEl.addEventListener(
@@ -319,6 +353,7 @@ export const EditableSlotList = defineComponent({
         dragHandle,
         indexBadge,
         dimmedTagEl,
+        itemBadgeBtn,
         selectComp,
         upBtn,
         downBtn,
@@ -358,14 +393,28 @@ export const EditableSlotList = defineComponent({
         const entry = rowPool[i];
         const itemVal = currentItems[i];
         entry.setIndex(i);
-        const isDimmed = dimmedFromIndex !== null && i >= dimmedFromIndex;
+        const isDimmed = isSlotDimmed(itemVal, i);
         patchAttr(entry.rowEl, 'data-slot-row', String(i));
+        patchAttr(entry.rowEl, 'data-slot-value', String(itemVal));
         patchClasses(entry.rowEl, { 'is-dimmed': isDimmed });
         patchText(entry.indexBadge, String(i + 1));
         patchAttr(entry.dimmedTagEl, 'hidden', !isDimmed || !dimmedTagText);
         if (dimmedTagText) {
           patchText(entry.dimmedTagEl, dimmedTagText);
         }
+
+        const badge = getItemBadge ? getItemBadge(itemVal, i) : null;
+        if (badge && badge.text) {
+          patchAttr(entry.itemBadgeBtn, 'hidden', false);
+          patchText(entry.itemBadgeBtn, badge.text);
+          patchAttr(entry.itemBadgeBtn, 'title', badge.title || null);
+          patchAttr(entry.itemBadgeBtn, 'aria-label', badge.ariaLabel || badge.title || badge.text);
+          patchAttr(entry.itemBadgeBtn, 'data-badge-tone', badge.tone || null);
+          patchClasses(entry.itemBadgeBtn, { 'is-active': Boolean(badge.active) });
+        } else {
+          patchAttr(entry.itemBadgeBtn, 'hidden', true);
+        }
+
         patchClasses(entry.dragHandle, { 'is-disabled': !canDrag });
         patchAttr(entry.dragHandle, 'title', dragTitle || null);
 
@@ -425,6 +474,9 @@ export const EditableSlotList = defineComponent({
       if (Array.isArray(next.options)) {
         currentOptions = [...next.options];
       }
+      if (next.maxItems !== undefined && Number.isFinite(Number(next.maxItems))) {
+        maxItems = Math.max(minItems, Number(next.maxItems));
+      }
       if (next.emptyHintText !== undefined) {
         emptyHintText = String(next.emptyHintText || '');
       }
@@ -437,11 +489,32 @@ export const EditableSlotList = defineComponent({
             ? next.dimmedFromIndex
             : null;
       }
+      if (next.dimmedValues !== undefined) {
+        dimmedValuesSet = normalizeDimmedValues(next.dimmedValues);
+      }
       if (next.dimmedTagText !== undefined) {
         dimmedTagText = String(next.dimmedTagText || '');
       }
+      if (next.getItemBadge !== undefined) {
+        getItemBadge = typeof next.getItemBadge === 'function' ? next.getItemBadge : null;
+      }
+      if (next.onClickItemBadge !== undefined) {
+        onClickItemBadge =
+          typeof next.onClickItemBadge === 'function' ? next.onClickItemBadge : null;
+      }
       if (activeDrag) {
         pendingSyncAfterDrag = true;
+        if (next.dimmedValues !== undefined || next.dimmedFromIndex !== undefined) {
+          for (let k = 0; k < activeDrag.startItems.length; k += 1) {
+            const entry = rowPool[k];
+            if (!entry) continue;
+            const itemVal = activeDrag.startItems[k];
+            const isDimmed = isSlotDimmed(itemVal, k);
+            patchClasses(entry.rowEl, { 'is-dimmed': isDimmed });
+            patchAttr(entry.dimmedTagEl, 'hidden', !isDimmed || !dimmedTagText);
+            if (dimmedTagText) patchText(entry.dimmedTagEl, dimmedTagText);
+          }
+        }
         return;
       }
       syncRows();

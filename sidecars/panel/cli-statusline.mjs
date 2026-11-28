@@ -55,6 +55,7 @@ import {
   loadJson,
   loadSettings,
   normalizeCliStatusLineSlots,
+  normalizeTopbarMultiSessionMode,
   resolveEffectiveCliStatusLineSlots,
   saveJson,
 } from './backend/config.mjs';
@@ -1134,13 +1135,20 @@ export async function runCliStatusLineMain(argv = process.argv.slice(2)) {
     return;
   }
 
+  const multiSessionMode =
+    cliArgs.showMultiSession !== null
+      ? cliArgs.showMultiSession
+        ? 'show'
+        : 'hide'
+      : normalizeTopbarMultiSessionMode(
+          settings?.topbarMultiSessionMode,
+          settings?.showTopbarMultiSession
+        );
   const line = formatCliStatusLineCapsule(slotCtx, {
     slots: effectiveSlots,
     gaugeStyle: cliArgs.style || undefined,
-    showMultiSession:
-      cliArgs.showMultiSession !== null
-        ? cliArgs.showMultiSession
-        : settings?.showTopbarMultiSession !== false,
+    multiSessionMode,
+    showMultiSession: multiSessionMode !== 'hide',
     showAnomaly: cliArgs.showAnomaly !== null ? cliArgs.showAnomaly : true,
     language: cliArgs.language || settings?.language,
     color: useColor,

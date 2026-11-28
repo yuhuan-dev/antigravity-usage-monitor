@@ -1523,17 +1523,28 @@ test('5h quota cycle includes cycle-opening compaction CHECKPOINT and cross-boun
   assert.equal(payload.consumption.account.totalTokens, 491_000);
 });
 
-test('i18n static t(...) key completeness guard across all 7 locales, scopeAll formatters, and localized trend/export outputs', async () => {
+test('i18n static t(...) key completeness guard across all supported locales, backend copy, currency, and localized trend/export outputs', async () => {
   const { I18N_DICTIONARIES, setI18nLanguage } = await import('../src/i18n/index.js');
   const {
+    SUPPORTED_LOCALE_ENTRIES,
     SUPPORTED_LOCALES,
     normalizeLanguageSetting,
     resolveLocaleFromLanguageTag,
   } = await import('../shared/settings-normalization.mjs');
   const {
+    LOCALE_DEFAULT_CURRENCY,
+    SUPPORTED_CURRENCY_CODES,
+  } = await import('../shared/currency-catalog.mjs');
+  const { LOGIN_CALLBACK_COPY } = await import('../backend/account-login.mjs');
+  const { CLI_STATUS_COPY } = await import('../backend/cli-statusline-config.mjs');
+  const { STANDALONE_LOCALE_COPY } = await import('../backend/standalone-server.mjs');
+  const {
     formatAgentBadgeText,
     formatAgentLabel,
+    formatDateSpanBadge,
     formatQuotaPoolLabel,
+    formatShortMonthName,
+    formatShortWeekdayName,
     formatTrendSlotFullLabel,
   } = await import('../src/core/formatters.js');
   const { buildStructurePreviewTelemetry } = await import('../src/components/settings/structurePreviewMock.js');
@@ -1547,7 +1558,7 @@ test('i18n static t(...) key completeness guard across all 7 locales, scopeAll f
   const { createTrendAreaChart } = await import('../src/components/charts/TrendAreaChart.js');
   const { createMockDom } = await import('./mock-dom.mjs');
 
-  // 1. Every static t('...') call across sidecars/panel/src/** resolves in all 7 locales with 100% key & placeholder parity
+  // 1. Every registered locale in SUPPORTED_LOCALE_ENTRIES has full end-to-end coverage
   const srcRoot = fileURLToPath(new URL('../src', import.meta.url));
   const walkJs = (dir) => {
     const out = [];
@@ -1558,6 +1569,11 @@ test('i18n static t(...) key completeness guard across all 7 locales, scopeAll f
     }
     return out;
   };
+  assert.equal(new Set(SUPPORTED_LOCALES).size, SUPPORTED_LOCALES.length, 'SUPPORTED_LOCALES must have no duplicates');
+  for (const entry of SUPPORTED_LOCALE_ENTRIES) {
+    assert.equal(typeof entry.locale === 'string' && entry.locale.length > 0, true);
+    assert.equal(typeof entry.nativeName === 'string' && entry.nativeName.trim().length > 0, true);
+  }
   assert.deepEqual(
     Object.keys(I18N_DICTIONARIES).sort(),
     [...SUPPORTED_LOCALES].sort(),
@@ -1567,7 +1583,47 @@ test('i18n static t(...) key completeness guard across all 7 locales, scopeAll f
   const enKeys = new Set(Object.keys(enDict));
   const extractPh = (str) => [...String(str).matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort().join(',');
   const emojiRe = /\p{Extended_Pictographic}/u;
+  const currencyCodeSet = new Set(SUPPORTED_CURRENCY_CODES);
+  const sampleMs = new Date(2026, 10, 24, 10, 0, 0, 0).getTime();
   for (const loc of SUPPORTED_LOCALES) {
+    assert.equal(
+      fs.existsSync(join(srcRoot, 'i18n', `${loc}.js`)),
+      true,
+      `src/i18n/${loc}.js must exist for build-bundle.mjs`
+    );
+    assert.equal(resolveLocaleFromLanguageTag(loc), loc, `${loc} must round-trip in resolveLocaleFromLanguageTag`);
+    assert.equal(normalizeLanguageSetting(loc), loc, `${loc} must round-trip in normalizeLanguageSetting`);
+    assert.equal(
+      currencyCodeSet.has(LOCALE_DEFAULT_CURRENCY[loc]),
+      true,
+      `LOCALE_DEFAULT_CURRENCY[${loc}] must map to a supported currency`
+    );
+
+    const loginCopy = LOGIN_CALLBACK_COPY[loc];
+    assert.ok(loginCopy, `LOGIN_CALLBACK_COPY missing ${loc}`);
+    for (const field of ['htmlLang', 'okTitle', 'failTitle', 'detail']) {
+      assert.equal(typeof loginCopy[field] === 'string' && loginCopy[field].length > 0, true, `LOGIN_CALLBACK_COPY.${loc}.${field}`);
+    }
+
+    const standaloneCopy = STANDALONE_LOCALE_COPY[loc];
+    assert.ok(standaloneCopy, `STANDALONE_LOCALE_COPY missing ${loc}`);
+    for (const field of ['htmlLang', 'title', 'authTitle', 'desc', 'err', 'placeholder', 'submit']) {
+      assert.equal(typeof standaloneCopy[field] === 'string' && standaloneCopy[field].length > 0, true, `STANDALONE_LOCALE_COPY.${loc}.${field}`);
+    }
+
+    const cliCopy = CLI_STATUS_COPY[loc];
+    assert.ok(cliCopy, `CLI_STATUS_COPY missing ${loc}`);
+    for (const field of ['ctx', 'gen', 'idle', 'avg', 'sum', 'cache', 'quotaAuto', 'quotaEmpty', 'wk', 'idleZero']) {
+      assert.equal(typeof cliCopy[field] === 'string' && cliCopy[field].length > 0, true, `CLI_STATUS_COPY.${loc}.${field}`);
+    }
+    assert.equal(typeof cliCopy.active, 'function', `CLI_STATUS_COPY.${loc}.active`);
+    assert.equal(typeof cliCopy.activeSub, 'function', `CLI_STATUS_COPY.${loc}.activeSub`);
+    assert.ok(cliCopy.anom && typeof cliCopy.anom.error === 'function', `CLI_STATUS_COPY.${loc}.anom`);
+
+    assert.ok(formatShortMonthName(0, loc).length > 0, `${loc} short month name`);
+    assert.ok(formatShortWeekdayName(1, loc).length > 0, `${loc} short weekday name`);
+    assert.ok(formatDateSpanBadge(sampleMs, sampleMs + 86400_000, { locale: loc }).length > 0, `${loc} date span`);
+
     const dict = I18N_DICTIONARIES[loc];
     const locKeys = new Set(Object.keys(dict));
     assert.deepEqual([...enKeys].filter((k) => !locKeys.has(k)), [], `${loc} missing keys`);
@@ -1583,7 +1639,15 @@ test('i18n static t(...) key completeness guard across all 7 locales, scopeAll f
     }
   }
 
-  // BCP-47 tag normalization across all 7 locales + regional aliases
+  // Registered & unlisted locales format month/weekday names cleanly (with Intl.DateTimeFormat fallback)
+  assert.equal(formatShortMonthName(2, 'de-DE', { stripTrailingDot: true }), 'Mär');
+  assert.equal(formatShortMonthName(0, 'fr-FR', { stripTrailingDot: true }), 'janv');
+  assert.equal(formatShortMonthName(0, 'vi-VN'), 'Th1');
+  assert.equal(formatShortWeekdayName(1, 'vi-VN'), 'T2');
+  assert.ok(formatShortMonthName(0, 'es-ES').length > 0);
+  assert.ok(formatShortWeekdayName(1, 'es-ES').length > 0);
+
+  // BCP-47 tag normalization + regional aliases
   assert.equal(resolveLocaleFromLanguageTag('zh-HK'), 'zh-TW');
   assert.equal(resolveLocaleFromLanguageTag('zh-Hant-TW'), 'zh-TW');
   assert.equal(resolveLocaleFromLanguageTag('zh-Hans-CN'), 'zh-CN');
@@ -1591,11 +1655,7 @@ test('i18n static t(...) key completeness guard across all 7 locales, scopeAll f
   assert.equal(resolveLocaleFromLanguageTag('ko'), 'ko-KR');
   assert.equal(resolveLocaleFromLanguageTag('de-AT'), 'de-DE');
   assert.equal(resolveLocaleFromLanguageTag('fr-CA'), 'fr-FR');
-  assert.equal(normalizeLanguageSetting('ja-JP'), 'ja-JP');
-  assert.equal(normalizeLanguageSetting('zh-TW'), 'zh-TW');
-  assert.equal(normalizeLanguageSetting('ko-KR'), 'ko-KR');
-  assert.equal(normalizeLanguageSetting('de-DE'), 'de-DE');
-  assert.equal(normalizeLanguageSetting('fr-FR'), 'fr-FR');
+  assert.equal(resolveLocaleFromLanguageTag('vi'), 'vi-VN');
 
   const missingKeys = [];
   for (const filePath of walkJs(srcRoot)) {
@@ -1783,6 +1843,15 @@ test('i18n static t(...) key completeness guard across all 7 locales, scopeAll f
     assert.doesNotMatch(stepsCsvKo, /[\u4e00-\u9fff]/);
     const stepsCsvTw = buildStepsCsv(backendLikeSteps, { locale: 'zh-TW', includeBom: false });
     assert.match(stepsCsvTw, /carbon-4-high·壓縮/);
+
+    // Every registered locale exports cleanly without leaking raw Chinese in non-CJK locales
+    for (const loc of SUPPORTED_LOCALES) {
+      const csv = buildStepsCsv(backendLikeSteps, { locale: loc, includeBom: false });
+      assert.ok(csv.length > 0, `${loc} CSV export non-empty`);
+      if (loc !== 'zh-CN' && loc !== 'zh-TW' && loc !== 'ja-JP') {
+        assert.doesNotMatch(csv, /[\u4e00-\u9fff]/, `${loc} CSV must not leak Chinese characters`);
+      }
+    }
   } finally {
     setI18nLanguage('zh-CN');
     globalThis.document = prevDoc;
@@ -2276,4 +2345,579 @@ test('Conversation undo UI & SQLite persistence: reverted steps keep distinct ke
   assert.match(stylesCss, /\.data-table\s+tbody\s+tr\.is-reverted\s*\{/);
   assert.match(stylesCss, /\.data-table\s+tbody\s+tr\.is-reverted\s+td\s*\{[^}]*opacity:\s*0\.62/);
   assert.match(stylesCss, /\[data-modern-ui="true"\]\s+\.data-table\s+tbody\s+tr\.is-reverted/);
+});
+
+test('Running sessions 3-way mode, update_steps forwarding/UI, bracketless progress pills, and 7-locale i18n', async () => {
+  const {
+    TOPBAR_MULTI_SESSION_MODES,
+    normalizeTopbarMultiSessionMode,
+    isTopbarMultiSessionVisible,
+    SUPPORTED_LOCALES,
+  } = await import('../shared/settings-normalization.mjs');
+  const { normalizeFullSettings } = await import('../backend/settings-schema.mjs');
+  const { formatCliStatusLineCapsule } = await import('../backend/cli-statusline-config.mjs');
+  const { I18N_DICTIONARIES, setI18nLanguage } = await import('../src/i18n/index.js');
+  const { LiveActivityWidget } = await import('../src/components/widgets/LiveActivityWidget.js');
+  const { createMockDom } = await import('./mock-dom.mjs');
+
+  // 1. Shared normalization & legacy showTopbarMultiSession compatibility
+  assert.deepEqual(TOPBAR_MULTI_SESSION_MODES, ['show', 'running_only', 'hide']);
+  assert.equal(normalizeTopbarMultiSessionMode(undefined, undefined), 'show');
+  assert.equal(normalizeTopbarMultiSessionMode(undefined, false), 'hide');
+  assert.equal(normalizeTopbarMultiSessionMode(undefined, true), 'show');
+  assert.equal(normalizeTopbarMultiSessionMode('running_only', false), 'running_only');
+  assert.equal(isTopbarMultiSessionVisible('show', 0), true);
+  assert.equal(isTopbarMultiSessionVisible('running_only', 0), false);
+  assert.equal(isTopbarMultiSessionVisible('running_only', 2), true);
+  assert.equal(isTopbarMultiSessionVisible('hide', 5), false);
+
+  // 2. Settings schema normalizer reconciles explicit mode and legacy boolean configs
+  const sRunOnly = normalizeFullSettings({ topbarMultiSessionMode: 'running_only', showTopbarMultiSession: false });
+  assert.equal(sRunOnly.topbarMultiSessionMode, 'running_only');
+  assert.equal(sRunOnly.showTopbarMultiSession, true);
+  const sLegacyHide = normalizeFullSettings({ showTopbarMultiSession: false });
+  assert.equal(sLegacyHide.topbarMultiSessionMode, 'hide');
+  assert.equal(sLegacyHide.showTopbarMultiSession, false);
+  const sLegacyShow = normalizeFullSettings({ showTopbarMultiSession: true });
+  assert.equal(sLegacyShow.topbarMultiSessionMode, 'show');
+  assert.equal(sLegacyShow.showTopbarMultiSession, true);
+
+  // 3. CLI statusLine omits multiCore when running_only & runningCount === 0, shows when > 0
+  const cliIdle = formatCliStatusLineCapsule(
+    { hasTelemetry: true, runningCount: 0, usedPct: 42 },
+    { language: 'zh-CN', multiSessionMode: 'running_only', slots: ['context'], color: false }
+  );
+  assert.equal(cliIdle.includes('运行中'), false, 'running_only hides 0 running badge in CLI statusLine');
+  assert.match(cliIdle, /42%/);
+
+  const cliBusy = formatCliStatusLineCapsule(
+    { hasTelemetry: true, runningCount: 2, usedPct: 42 },
+    { language: 'zh-CN', multiSessionMode: 'running_only', slots: ['context'], color: false }
+  );
+  assert.match(cliBusy, /2 运行中/, 'running_only shows running badge when runningCount > 0');
+
+  // 4. Backend telemetry-builder forwards taskSteps into activeConversation & runningConversations and invalidates cache on update
+  const stepUpdate1 = {
+    type: 'CORTEX_STEP_TYPE_PLANNER_RESPONSE',
+    status: 'CORTEX_STEP_STATUS_DONE',
+    metadata: { createdAt: '2026-01-01T00:00:05Z' },
+    plannerResponse: {
+      toolCalls: [
+        {
+          name: 'update_steps',
+          argumentsJson: JSON.stringify({
+            steps: [
+              { title: 'Audit anchors', status: 'done' },
+              { title: 'Render steps bar', status: 'in_progress' },
+            ],
+          }),
+        },
+      ],
+    },
+  };
+  const stepUpdate2 = {
+    type: 'CORTEX_STEP_TYPE_PLANNER_RESPONSE',
+    status: 'CORTEX_STEP_STATUS_DONE',
+    metadata: { createdAt: '2026-01-01T00:00:12Z' },
+    plannerResponse: {
+      toolCalls: [
+        {
+          name: 'update_steps',
+          argumentsJson: JSON.stringify({
+            steps: [
+              { title: 'Audit anchors', status: 'done' },
+              { title: 'Render steps bar', status: 'done' },
+            ],
+          }),
+        },
+      ],
+    },
+  };
+  const stepsRef = [stepUpdate1];
+  const h = backendHarness({
+    summaries: {
+      'conv-steps': {
+        summary: 'Steps Pipeline Session',
+        stepCount: 2,
+        lastModifiedTime: new Date().toISOString(),
+        status: 'CASCADE_RUN_STATUS_RUNNING',
+      },
+    },
+    trajectories: {
+      'conv-steps': { trajectory: { steps: stepsRef } },
+    },
+  });
+  const payload1 = await h.buildTelemetryPayloadInternal('conv-steps', false, {});
+  assert.equal(payload1.activeConversation.liveActivity?.taskSteps?.done, 1);
+  assert.equal(payload1.activeConversation.liveActivity?.taskSteps?.total, 2);
+  assert.equal(payload1.runningConversations[0]?.mainActivity?.taskSteps?.currentTitle, 'Render steps bar');
+
+  stepsRef.push(stepUpdate2);
+  const payload2 = await h.buildTelemetryPayloadInternal('conv-steps', false, {});
+  assert.equal(payload2.activeConversation.liveActivity?.taskSteps?.done, 2);
+  assert.equal(payload2.runningConversations[0]?.mainActivity?.taskSteps?.done, 2);
+
+  // 5. All 7 locales have updated multiToggle label and new runningOnly/update_steps/update_focus/steps keys
+  assert.equal(I18N_DICTIONARIES['zh-CN']['settings.str.multiToggle'], '实时运行会话');
+  assert.equal(I18N_DICTIONARIES['zh-TW']['settings.str.multiToggle'], '即時執行工作階段');
+  assert.equal(I18N_DICTIONARIES['en-US']['settings.str.multiToggle'], 'Running sessions');
+  for (const loc of SUPPORTED_LOCALES) {
+    const d = I18N_DICTIONARIES[loc];
+    for (const k of [
+      'settings.str.multiToggle',
+      'settings.str.runningOnly',
+      'live.act.update_steps',
+      'live.act.update_focus',
+      'live.stepsProgress',
+      'live.stepsExpandTitle',
+      'live.stepsCollapseTitle',
+      'live.stepsAllDone',
+    ]) {
+      assert.equal(typeof d[k] === 'string' && d[k].length > 0, true, `${loc}.${k} missing`);
+    }
+  }
+
+  // 6. LiveActivityWidget renders bracketless progress (5/5, not [5/5]) and expandable .live-steps-box
+  const prevDoc = globalThis.document;
+  const prevWin = globalThis.window;
+  const { document: doc } = createMockDom();
+  globalThis.document = doc;
+  globalThis.window = {
+    innerWidth: 960,
+    innerHeight: 720,
+    getComputedStyle: () => ({}),
+    addEventListener() {},
+    removeEventListener() {},
+  };
+  try {
+    setI18nLanguage('zh-CN');
+    const widget = LiveActivityWidget({
+      interactive: true,
+      defaultExpandRunningSubs: true,
+      showSessionExtras: true,
+    });
+    doc.body.appendChild(widget.el);
+    widget.refs.update({
+      items: [
+        {
+          cascadeId: 'conv-ui-steps',
+          title: 'Long Running Refactor Session',
+          isRunning: true,
+          isMainRunning: true,
+          latestTokPerSec: 88.4,
+          contextUsedPct: 41,
+          subagentCount: 1,
+          runningSubagentCount: 1,
+          mainActivity: {
+            phase: 'tool',
+            actionKey: 'edit_file',
+            label: '修改文件',
+            detail: 'LiveActivityWidget.js',
+            stepProgress: '5/5',
+            startedAtMs: Date.now() - 5000,
+            signature: 'edit:5/5',
+            taskSteps: {
+              total: 3,
+              done: 1,
+              inProgress: 1,
+              failed: 0,
+              skipped: 0,
+              currentTitle: 'Fix progress pill alignment',
+              items: [
+                { title: 'Rename running sessions toggle', status: 'done' },
+                { title: 'Fix progress pill alignment', status: 'in_progress' },
+                { title: 'Verify build and tests', status: 'pending' },
+              ],
+            },
+          },
+          subagents: [
+            {
+              cascadeId: 'conv-ui-steps:sub1',
+              index: 1,
+              role: 'UI Verifier',
+              isRunning: true,
+              stepCount: 4,
+              liveActivity: {
+                phase: 'tool',
+                actionKey: 'read_file',
+                label: '读取文件',
+                detail: 'overlay.css',
+                stepProgress: '2/3',
+                startedAtMs: Date.now() - 2000,
+                signature: 'sub:2/3',
+              },
+            },
+          ],
+        },
+      ],
+    });
+
+    const card = widget.el.querySelector('.live-task-card');
+    assert.ok(card);
+    // Bracketless progress on both main pill and subagent summary
+    assert.equal(card.querySelector('.live-activity-progress').textContent, '5/5');
+    assert.equal(card.querySelector('.live-activity-progress').textContent.includes('['), false);
+    const subSummaryText = card.querySelector('.live-sub-summary').textContent;
+    assert.match(subSummaryText, /读取文件 2\/3 · overlay\.css/);
+    assert.equal(subSummaryText.includes('['), false);
+
+    // Compact header keeps metrics + subagent toggle in secondary .live-task-meta-row
+    assert.equal(card.querySelector('.live-task-header-right').querySelector('.wm-task-metrics'), null);
+    assert.equal(card.querySelector('.live-task-header-right').querySelector('.live-sub-toggle'), null);
+    assert.equal(card.querySelector('.live-task-meta-row .wm-task-metrics').textContent, '88.4 t/s · 41%');
+    assert.ok(card.querySelector('.live-task-meta-row .live-sub-toggle'));
+
+    // Expandable .live-steps-box
+    const stepsBox = card.querySelector('.live-steps-box');
+    assert.equal(stepsBox.hasAttribute('hidden'), false);
+    assert.equal(stepsBox.querySelector('.live-steps-count').textContent, '步骤 1/3');
+    assert.equal(stepsBox.querySelector('.live-steps-current').textContent, 'Fix progress pill alignment');
+    assert.equal(stepsBox.querySelector('.live-steps-list').hasAttribute('hidden'), true, 'Steps list collapsed by default');
+
+    stepsBox.querySelector('.live-steps-summary').onclick({ stopPropagation() {} });
+    assert.equal(stepsBox.querySelector('.live-steps-list').hasAttribute('hidden'), false, 'Clicking steps summary expands checklist');
+    const stepRows = stepsBox.querySelectorAll('.live-step-item');
+    assert.equal(stepRows.length, 3);
+    assert.equal(stepRows[0].classList.contains('is-done'), true);
+    assert.equal(stepRows[1].classList.contains('is-in-progress'), true);
+    assert.equal(stepRows[2].classList.contains('is-pending'), true);
+
+    widget.destroy();
+  } finally {
+    setI18nLanguage('zh-CN');
+    globalThis.document = prevDoc;
+    globalThis.window = prevWin;
+  }
+});
+
+test('Background task tracking: SQLite not_fully_idle + RUNNING task_details preserves runningConversations, taskSteps across fast-path polls, and clears on completion', async () => {
+  const { DatabaseSync } = await import('node:sqlite');
+  const { execFileSync } = await import('node:child_process');
+  const { mkdirSync, mkdtempSync, rmSync, writeFileSync } = await import('node:fs');
+  const { join } = await import('node:path');
+  const { tmpdir } = await import('node:os');
+  const { decodeProtoTaskDetails, readLocalSqliteActiveTasks } = await import(
+    '../backend/cli-sqlite-reader.mjs'
+  );
+  const { formatLiveActivityLabel } = await import('../src/core/formatters.js');
+  const { setI18nLanguage } = await import('../src/i18n/index.js');
+
+  const encodeVarint = (val) => {
+    let v = BigInt(val);
+    const out = [];
+    do {
+      let b = Number(v & 0x7fn);
+      v >>= 7n;
+      if (v > 0n) b |= 0x80;
+      out.push(b);
+    } while (v > 0n);
+    return Buffer.from(out);
+  };
+  const encodeLen = (fieldNum, bytes) => {
+    const buf = Buffer.isBuffer(bytes) ? bytes : Buffer.from(String(bytes), 'utf8');
+    return Buffer.concat([encodeVarint((fieldNum << 3) | 2), encodeVarint(buf.length), buf]);
+  };
+  const encodeTs = (sec) =>
+    Buffer.concat([encodeVarint((1 << 3) | 0), encodeVarint(sec)]);
+  const encodeToolCall = (name, argsObj) =>
+    Buffer.concat([
+      encodeLen(2, name),
+      encodeLen(3, JSON.stringify(argsObj)),
+    ]);
+  const encodeStepMeta = ({ createdSec, toolCall, stepIndex }) =>
+    Buffer.concat([
+      ...(createdSec ? [encodeLen(1, encodeTs(createdSec))] : []),
+      ...(toolCall ? [encodeLen(4, toolCall)] : []),
+      encodeLen(20, Buffer.concat([encodeVarint((2 << 3) | 0), encodeVarint(stepIndex)])),
+    ]);
+  const encodeTaskDetails = ({ id, logUri, progress, description, title, movedSec }) =>
+    Buffer.concat([
+      ...(id ? [encodeLen(1, id)] : []),
+      ...(logUri ? [encodeLen(2, logUri)] : []),
+      ...(progress ? [encodeLen(3, progress)] : []),
+      ...(description ? [encodeLen(4, description)] : []),
+      ...(title ? [encodeLen(7, title)] : []),
+      ...(movedSec ? [encodeLen(8, encodeTs(movedSec))] : []),
+    ]);
+  const encodePlannerPayload = (responseText) =>
+    encodeLen(1, responseText);
+
+  const cid = 'a1b2c3d4-1111-4222-8333-444455556666';
+  const baseSec = Math.floor(Date.now() / 1000) - 20;
+
+  // 1. decodeProtoTaskDetails skips progress/logUri and decodes id/title/description/movedToBackgroundAt
+  const rawTd = encodeTaskDetails({
+    id: `${cid}/task-2`,
+    logUri: 'file:///tmp/huge.log',
+    progress: 'x'.repeat(2048),
+    description: 'node --test sidecars/panel/test/*.test.mjs',
+    title: 'Rebuild bundle and run all regression tests',
+    movedSec: baseSec + 5,
+  });
+  const decodedTd = decodeProtoTaskDetails(rawTd);
+  assert.equal(decodedTd.id, `${cid}/task-2`);
+  assert.equal(decodedTd.title, 'Rebuild bundle and run all regression tests');
+  assert.equal(decodedTd.description, 'node --test sidecars/panel/test/*.test.mjs');
+  assert.equal(Date.parse(decodedTd.movedToBackgroundAt), (baseSec + 5) * 1000);
+  assert.equal('progress' in decodedTd, false, 'Must skip large progress buffer');
+  assert.equal('logUri' in decodedTd, false);
+
+  const root = mkdtempSync(join(tmpdir(), 'ag-bg-task-track-'));
+  const geminiDir = join(root, '.gemini');
+  const agyDir = join(geminiDir, 'antigravity');
+  const convDir = join(agyDir, 'conversations');
+  const logsDir = join(agyDir, 'brain', cid, '.system_generated', 'logs');
+  mkdirSync(convDir, { recursive: true });
+  mkdirSync(logsDir, { recursive: true });
+
+  try {
+    const sumDbPath = join(agyDir, 'conversation_summaries.db');
+    const sumDb = new DatabaseSync(sumDbPath);
+    sumDb.exec(`
+      CREATE TABLE conversation_summaries (
+        conversation_id TEXT PRIMARY KEY,
+        title TEXT, preview TEXT, status TEXT, source TEXT,
+        parent_conversation_id TEXT, nesting_depth INTEGER, agent_name TEXT,
+        not_fully_idle INTEGER, killed INTEGER, step_count INTEGER,
+        last_modified_time TEXT, app_data_dir TEXT, raw_summary BLOB
+      );
+      CREATE TABLE conversation_parents (conversation_id TEXT, parent_id TEXT);
+    `);
+    sumDb
+      .prepare(
+        `INSERT INTO conversation_summaries
+         (conversation_id, title, preview, status, source, parent_conversation_id, nesting_depth, agent_name, not_fully_idle, killed, step_count, last_modified_time, app_data_dir)
+         VALUES (?, ?, '', 'CASCADE_RUN_STATUS_IDLE', 'CORTEX_TRAJECTORY_SOURCE_INTERACTIVE_CASCADE', '', 0, '', 1, 0, 5, ?, 'antigravity')`
+      )
+      .run(cid, 'Bento Grid Verification', new Date((baseSec + 10) * 1000).toISOString());
+    sumDb.close();
+
+    const convDbPath = join(convDir, `${cid}.db`);
+    const convDb = new DatabaseSync(convDbPath);
+    convDb.exec(`
+      CREATE TABLE trajectory_meta (trajectory_id TEXT PRIMARY KEY, cascade_id TEXT, trajectory_type INTEGER, source INTEGER);
+      CREATE TABLE steps (
+        idx INTEGER PRIMARY KEY, step_type INTEGER, status INTEGER,
+        metadata BLOB, task_details BLOB, step_payload BLOB
+      );
+      CREATE TABLE gen_metadata (idx INTEGER PRIMARY KEY, data BLOB);
+    `);
+    convDb.prepare('INSERT INTO trajectory_meta VALUES (?, ?, 4, 12)').run(cid, cid);
+    const insStep = convDb.prepare(
+      'INSERT INTO steps (idx, step_type, status, metadata, task_details, step_payload) VALUES (?, ?, ?, ?, ?, ?)'
+    );
+    // idx 0: USER_INPUT
+    insStep.run(
+      0,
+      14,
+      3,
+      encodeStepMeta({ createdSec: baseSec, stepIndex: 0 }),
+      null,
+      encodeLen(1, 'Rebuild bundle and verify all tests')
+    );
+    // idx 1: update_steps (1/4 steps)
+    insStep.run(
+      1,
+      132,
+      3,
+      encodeStepMeta({
+        createdSec: baseSec + 1,
+        stepIndex: 1,
+        toolCall: encodeToolCall('update_steps', {
+          steps: [
+            { title: 'Bundle frontend assets', status: 'done' },
+            { title: 'Run regression suites', status: 'in_progress' },
+            { title: 'Sync installed plugin', status: 'pending' },
+            { title: 'Summarize status', status: 'pending' },
+          ],
+        }),
+      }),
+      null,
+      null
+    );
+    // idx 2: RUNNING non-daemon background run_command
+    insStep.run(
+      2,
+      132,
+      2,
+      encodeStepMeta({
+        createdSec: baseSec + 3,
+        stepIndex: 2,
+        toolCall: encodeToolCall('run_command', {
+          CommandLine: 'node --test',
+          toolSummary: 'Rebuild bundle and run all regression tests',
+        }),
+      }),
+      rawTd,
+      null
+    );
+    // idx 3: RUNNING daemon task (must be excluded)
+    insStep.run(
+      3,
+      132,
+      2,
+      encodeStepMeta({
+        createdSec: baseSec + 4,
+        stepIndex: 3,
+        toolCall: encodeToolCall('run_command', {
+          CommandLine: 'npm run dev',
+          IsDaemon: true,
+          toolSummary: 'Persistent dev server',
+        }),
+      }),
+      encodeTaskDetails({
+        id: `${cid}/task-3`,
+        title: 'Persistent dev server',
+        movedSec: baseSec + 4,
+      }),
+      null
+    );
+    // idx 4: Final PLANNER_RESPONSE DONE (turn ended while task-2 is still running)
+    insStep.run(
+      4,
+      15,
+      3,
+      encodeStepMeta({ createdSec: baseSec + 8, stepIndex: 4 }),
+      null,
+      encodePlannerPayload('回归套件正在后台跑完剩余用例，稍等片刻拿到全绿结果后再同步。')
+    );
+    convDb.close();
+
+    // Also write append-only transcript.jsonl ending with PLANNER_RESPONSE DONE at idx 4
+    writeFileSync(
+      join(logsDir, 'transcript.jsonl'),
+      [
+        JSON.stringify({
+          step_index: 2,
+          source: 'MODEL',
+          type: 'GENERIC',
+          status: 'RUNNING',
+          created_at: new Date((baseSec + 3) * 1000).toISOString(),
+          content: 'Tool is running as a background task',
+        }),
+        JSON.stringify({
+          step_index: 4,
+          source: 'MODEL',
+          type: 'PLANNER_RESPONSE',
+          status: 'DONE',
+          created_at: new Date((baseSec + 8) * 1000).toISOString(),
+          content: '回归套件正在后台跑完剩余用例，稍等片刻拿到全绿结果后再同步。',
+        }),
+      ].join('\n') + '\n',
+      'utf8'
+    );
+
+    const activeTasks = readLocalSqliteActiveTasks(convDbPath);
+    assert.equal(activeTasks.length, 1, 'Only non-daemon active background task is returned');
+    assert.equal(activeTasks[0].idx, 2);
+    assert.equal(activeTasks[0].taskDetails.title, 'Rebuild bundle and run all regression tests');
+
+    // 2. Full isolated ESM runtime: LS RPC returns CASCADE_RUN_STATUS_IDLE (without notFullyIdle),
+    //    yet SQLite not_fully_idle=1 + active task_details keeps runningConversations + taskSteps alive
+    const dataDir = join(root, 'um-data');
+    mkdirSync(dataDir, { recursive: true });
+    const telUrl = new URL('../backend/telemetry-builder.mjs', import.meta.url).href;
+    const cfgUrl = new URL('../backend/config.mjs', import.meta.url).href;
+    const childScript = `
+      import http from 'node:http';
+      import { buildTelemetryPayloadInternal } from ${JSON.stringify(telUrl)};
+      import { setLsRuntimeEndpoint } from ${JSON.stringify(cfgUrl)};
+      const { DatabaseSync } = process.getBuiltinModule('node:sqlite');
+
+      const cid = ${JSON.stringify(cid)};
+      const baseSec = ${baseSec};
+      const srv = http.createServer((req, res) => {
+        req.resume();
+        if (String(req.url || '').includes('GetAllCascadeTrajectories')) {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({
+            trajectorySummaries: {
+              [cid]: {
+                summary: 'Bento Grid Verification',
+                stepCount: 5,
+                status: 'CASCADE_RUN_STATUS_IDLE',
+                lastModifiedTime: new Date((baseSec + 10) * 1000).toISOString(),
+                createdTime: new Date(baseSec * 1000).toISOString(),
+              },
+            },
+          }));
+          return;
+        }
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end('{}');
+      });
+      await new Promise((r) => srv.listen(0, '127.0.0.1', r));
+      setLsRuntimeEndpoint('http://127.0.0.1:' + srv.address().port, 'test-csrf', { isDynamic: false });
+
+      try {
+        const t1 = await buildTelemetryPayloadInternal(cid, { range: 'all', forceRefresh: true });
+        const t2 = await buildTelemetryPayloadInternal(cid, { range: 'all', forceRefresh: false });
+
+        const updConvDb = new DatabaseSync(${JSON.stringify(convDbPath)});
+        updConvDb.prepare('UPDATE steps SET status = 3 WHERE idx = 2').run();
+        updConvDb.close();
+        const updSumDb = new DatabaseSync(${JSON.stringify(sumDbPath)});
+        updSumDb
+          .prepare('UPDATE conversation_summaries SET not_fully_idle = 0, last_modified_time = ? WHERE conversation_id = ?')
+          .run(new Date((baseSec + 25) * 1000).toISOString(), cid);
+        updSumDb.close();
+
+        const t3 = await buildTelemetryPayloadInternal(cid, { range: 'all', forceRefresh: false });
+        console.log(JSON.stringify({
+          rc1: t1.runningConversations,
+          rc2: t2.runningConversations,
+          rc3: t3.runningConversations,
+        }));
+      } finally {
+        srv.closeAllConnections?.();
+        srv.close();
+      }
+      process.exit(0);
+    `;
+    const childOut = execFileSync(process.execPath, ['--input-type=module', '-e', childScript], {
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        ANTIGRAVITY_GEMINI_DIR: geminiDir,
+        ANTIGRAVITY_APP_DATA_DIR: '',
+        USAGE_MONITOR_APP_DATA_DIR: '',
+        ANTIGRAVITY_EXECUTABLE_DATA_DIR: dataDir,
+        ANTIGRAVITY_LS_ADDRESS: 'test.invalid',
+      },
+      timeout: 20_000,
+    });
+    const parsed = JSON.parse(childOut.trim().split('\n').pop());
+    assert.equal(parsed.rc1.length, 1, 'Background task session stays in runningConversations');
+    const rc1 = parsed.rc1[0];
+    assert.equal(rc1.cascadeId, cid);
+    assert.equal(rc1.mainActivity?.actionKey, 'background_task');
+    assert.equal(rc1.mainActivity?.detail, 'Rebuild bundle and run all regression tests');
+    assert.equal(rc1.mainActivity?.startedAtMs, (baseSec + 3) * 1000);
+    assert.ok(rc1.mainActivity?.taskSteps, 'update_steps checklist preserved alongside background task');
+    assert.equal(rc1.mainActivity.taskSteps.done, 1);
+    assert.equal(rc1.mainActivity.taskSteps.total, 4);
+
+    // Second poll with unchanged SQLite file (fast-skip path) must retain both bg-task & 1/4 taskSteps
+    assert.equal(parsed.rc2.length, 1);
+    assert.equal(parsed.rc2[0].mainActivity?.actionKey, 'background_task');
+    assert.equal(
+      parsed.rc2[0].mainActivity?.signature,
+      rc1.mainActivity.signature,
+      'Fast-path poll keeps identical signature so elapsed timer never resets'
+    );
+    assert.equal(parsed.rc2[0].mainActivity?.taskSteps?.done, 1);
+    assert.equal(parsed.rc2[0].mainActivity?.taskSteps?.total, 4);
+
+    // Once task-2 finishes (status -> 3 DONE, not_fully_idle -> 0), session immediately exits runningConversations
+    assert.equal(parsed.rc3.length, 0, 'Completed background task clears runningConversations');
+
+    // 4. Verify localized label for background_task
+    setI18nLanguage('zh-CN');
+    assert.equal(formatLiveActivityLabel({ actionKey: 'background_task' }), '后台任务');
+    setI18nLanguage('en-US');
+    assert.equal(formatLiveActivityLabel({ actionKey: 'background_task' }), 'Background Task');
+    setI18nLanguage('zh-CN');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });

@@ -27,6 +27,7 @@ import {
   loadSettings,
   localSummaryMemo,
   lsRuntimeEndpoint,
+  normalizeEnableSafetyMonitor,
   roundMetric,
   saveJson,
 } from './config.mjs';
@@ -53,6 +54,7 @@ import { getCloudStatus, getPricingPhaseEpoch, pricingCatalogRevision } from './
 import { getFxStatus } from './fx-rates.mjs';
 import { buildOfficialQuotaPools } from './quota-pools.mjs';
 import { recordAccountQuotaSnapshot } from './account-quota-history.mjs';
+import { refreshSafetyMonitorTelemetry } from './safety-monitor-scanner.mjs';
 import { updatePoolQuotaReservationEstimates } from './quota-reservation.mjs';
 import { getDefaultCloudCodeProxyStatus } from './cloudcode-proxy.mjs';
 import { getEffectiveHostTheme } from './host-theme-store.mjs';
@@ -69,7 +71,8 @@ import {
 } from './usage-aggregator.mjs';
 
 const MAX_RECENT_QUICK_STATS = 30;
-const MAX_CONVERSATION_ASSEMBLY_CACHE = 8;
+const MAX_CONVERSATION_ASSEMBLY_CACHE = 4;
+const MAX_CONVERSATION_ASSEMBLY_TOTAL_STEPS = 4000;
 const MAX_TELEMETRY_SNAPSHOT_ENDPOINTS = 8;
 const POOL_PRIORITY_ORDER = ['Gemini', 'Argon', 'Carbon', 'Claude & GPT'];
 const inFlightTelemetrySources = new Map();
@@ -1165,6 +1168,10 @@ function buildActiveConversationAssembly({
     }
   }
 
+  const taskStepsMetaSig = (ts) =>
+    ts && Number(ts.total) > 0
+      ? `${ts.done}/${ts.total}:${ts.inProgress || 0}:${ts.failed || 0}:${ts.skipped || 0}:${ts.currentTitle || ''}:${(ts.items || []).map((x) => `${x.status}:${x.title}`).join('|')}`
+      : '';
   const assemblyMetaSig = JSON.stringify([
     activeCascadeId || '',
     activeConvSummary?.title || '',
@@ -1173,6 +1180,7 @@ function buildActiveConversationAssembly({
     activeConvSummary?.lastModifiedMs || activeEntry?.lastModifiedMs || 0,
     activeConvSummary?.liveActivity?.signature || '',
     activeConvSummary?.liveActivity?.startedAtMs || 0,
+    taskStepsMetaSig(activeConvSummary?.liveActivity?.taskSteps),
     activeEntry?.lastKnownStaticContext || null,
     subagentSummaries.map((subSum, idx) => {
       const subEntry = subEntries[idx];
@@ -1190,6 +1198,7 @@ function buildActiveConversationAssembly({
         subSum.lastModifiedMs || subEntry?.lastModifiedMs || 0,
         subSum.liveActivity?.signature || '',
         subSum.liveActivity?.startedAtMs || 0,
+        taskStepsMetaSig(subSum.liveActivity?.taskSteps),
         subEntry?.lastKnownStaticContext || null,
         subSpec?.role || '',
         subSpec?.typeName || '',
@@ -1624,11 +1633,9 @@ function buildActiveConversationAssembly({
     latestFamilyStep,
   };
 
-  if (
-    !conversationAssemblyCache.has(cacheKey) &&
-    conversationAssemblyCache.size >= MAX_CONVERSATION_ASSEMBLY_CACHE
-  ) {
-    conversationAssemblyCache.delete(conversationAssemblyCache.keys().next().value);
+  let assemblyStepBudget = Array.isArray(activeSteps) ? activeSteps.length : 0;
+  for (const subSteps of subRawStepsList) {
+    if (Array.isArray(subSteps)) assemblyStepBudget += subSteps.length;
   }
   conversationAssemblyCache.delete(cacheKey);
   conversationAssemblyCache.set(cacheKey, {
@@ -1639,8 +1646,24 @@ function buildActiveConversationAssembly({
     phaseEpoch: modelInputs.phaseEpoch,
     dynamicModelMap: modelInputs.dynamicModelMap,
     fallbackUpstreams: snapshotFallbackUpstreams(combinedFallbackKeys, knownUpstreamByModelKey),
+    stepBudget: assemblyStepBudget,
     result,
   });
+  let totalAssemblySteps = 0;
+  for (const rec of conversationAssemblyCache.values()) {
+    totalAssemblySteps += Number(rec?.stepBudget || 0);
+  }
+  while (
+    conversationAssemblyCache.size > MAX_CONVERSATION_ASSEMBLY_CACHE ||
+    (conversationAssemblyCache.size > 1 &&
+      totalAssemblySteps > MAX_CONVERSATION_ASSEMBLY_TOTAL_STEPS)
+  ) {
+    const oldestKey = conversationAssemblyCache.keys().next().value;
+    if (oldestKey === undefined) break;
+    const evicted = conversationAssemblyCache.get(oldestKey);
+    conversationAssemblyCache.delete(oldestKey);
+    totalAssemblySteps -= Number(evicted?.stepBudget || 0);
+  }
 
   return result;
 }
@@ -1742,10 +1765,14 @@ function buildActivePoolAndWeeklyQuotas({
     remainingPct: activeLive5h?.remainingPct ?? null,
     remainingIntPct: activeLive5h?.remainingIntPct ?? null,
     usedPct: activeLive5h?.usedPct ?? null,
+    externalUsedPct: 0,
+    safetyReviewUsedPct: 0,
     resetTime: activeLive5h?.resetTime || null,
     weeklyRemainingPct: activeLiveWeekly?.remainingPct ?? null,
     weeklyRemainingIntPct: activeLiveWeekly?.remainingIntPct ?? null,
     weeklyUsedPct: activeLiveWeekly?.usedPct ?? null,
+    weeklyExternalUsedPct: 0,
+    weeklySafetyReviewUsedPct: 0,
     weeklyResetTime: activeLiveWeekly?.resetTime || null,
     cycle5h: createEmptyCycleSummary(),
     cycleWeekly: createEmptyCycleSummary(),
@@ -2018,7 +2045,7 @@ export async function buildTelemetryPayloadInternal(
       }
     };
 
-    if (isMainRunning) recordRunningPool(rootConv.cascadeId);
+    if (isMainRunning && !rootConv?.isBackgroundTaskOnly) recordRunningPool(rootConv.cascadeId);
     for (const sub of runningSubs) {
       recordRunningPool(sub.cascadeId);
     }
@@ -2028,37 +2055,6 @@ export async function buildTelemetryPayloadInternal(
     (!isRemote && getLocalCacheRebuildStatus()?.active) ||
       (deferredCascadeIds instanceof Set && deferredCascadeIds.size > 0)
   );
-
-  updatePoolQuotaReservationEstimates({
-    endpointId,
-    accountScope: accountScope || '',
-    quotaPoolsMap,
-    poolCycleStats,
-    runningPoolKeys,
-    hasUnknownRunningPool,
-    localScanIncomplete,
-    quotaFetchedAtMs: officialQuotaInfo?.fetchedAtMs || 0,
-    nowMs: Date.now(),
-  });
-
-  // 6. 组装当前活跃配额池与每周限额视图数据
-  const { activePoolQuota, weeklyQuota } = buildActivePoolAndWeeklyQuotas({
-    activePoolKey,
-    activeLive5h,
-    activeLiveWeekly,
-    quotaPoolsMap,
-    isCustomWeeklyMode,
-    settings,
-    weekBucket,
-    quotaWeekBucket,
-    poolsWeeklySummary,
-  });
-
-  const g1CreditEntry = (userStatus?.userTier?.availableCredits || []).find(
-    (c) => c?.creditType === 'GOOGLE_ONE_AI'
-  );
-  const realAiCredits = Number(g1CreditEntry?.creditAmount || 0);
-  const uiBundleVersion = computeRuntimeCodeVersion();
 
   const rawTierId = String(userStatus?.userTier?.id || '').trim();
   const rawTierName = String(userStatus?.userTier?.name || '').trim();
@@ -2093,15 +2089,69 @@ export async function buildTelemetryPayloadInternal(
     ? resolvedTierMultiplier ||
       (rawPlanName && !/^pro$/i.test(rawPlanName) ? rawPlanName : 'Ultra')
     : rawPlanName || inferredPlanFallback;
+  const hasExplicitPlanInfo = Boolean(rawTierId || rawTierName || rawPlanName);
+  const quotaPlanTier = !hasExplicitPlanInfo
+    ? ''
+    : isUltraTier
+      ? resolvedTierMultiplier
+        ? `ultra-${resolvedTierMultiplier}`
+        : 'ultra'
+      : /\bfree\b|standard/i.test(`${rawTierId} ${resolvedTierName} ${rawPlanName}`)
+        ? 'free'
+        : /\bpro\b/i.test(`${rawTierId} ${resolvedTierName} ${rawPlanName}`)
+          ? 'pro'
+          : String(rawTierId || resolvedPlanName || resolvedTierName)
+              .trim()
+              .toLowerCase()
+              .replace(/\s+/g, '-')
+              .slice(0, 32);
 
-  // 预计算近期会话与运行中会话的轻量缓存速览指标（零额外 RPC 开销）
+  const nowMs = Date.now();
+  const safetyMonitorEnabled = normalizeEnableSafetyMonitor(settings?.enableSafetyMonitor);
+  const safetyMonitorSnapshot =
+    !isRemote && safetyMonitorEnabled ? refreshSafetyMonitorTelemetry({ nowMs }) : null;
+
+  updatePoolQuotaReservationEstimates({
+    endpointId,
+    accountScope: accountScope || '',
+    planTier: quotaPlanTier,
+    quotaPoolsMap,
+    poolCycleStats,
+    runningPoolKeys,
+    hasUnknownRunningPool,
+    localScanIncomplete,
+    safetyMonitor: safetyMonitorSnapshot,
+    quotaFetchedAtMs: officialQuotaInfo?.fetchedAtMs || 0,
+    nowMs,
+  });
+
+  // 6. 组装当前活跃配额池与每周限额视图数据
+  const { activePoolQuota, weeklyQuota } = buildActivePoolAndWeeklyQuotas({
+    activePoolKey,
+    activeLive5h,
+    activeLiveWeekly,
+    quotaPoolsMap,
+    isCustomWeeklyMode,
+    settings,
+    weekBucket,
+    quotaWeekBucket,
+    poolsWeeklySummary,
+  });
+
+  const g1CreditEntry = (userStatus?.userTier?.availableCredits || []).find(
+    (c) => c?.creditType === 'GOOGLE_ONE_AI'
+  );
+  const realAiCredits = Number(g1CreditEntry?.creditAmount || 0);
+  const uiBundleVersion = computeRuntimeCodeVersion();
+
+  // 预计算近期会话与运行中会话的轻量缓存速览指标（零额外 RPC 与零 SQLite 冷会话水合开销）
   const quickStatsMemo = new Map();
   const getConversationQuickStats = (rootConv) => {
     const cidKey = String(rootConv?.cascadeId || '').toLowerCase();
     if (cidKey && quickStatsMemo.has(cidKey)) {
       return quickStatsMemo.get(cidKey);
     }
-    const rootEntry = findTrajectoryCacheEntry(rootConv?.cascadeId, cacheStore, { hydrate: true });
+    const rootEntry = findTrajectoryCacheEntry(rootConv?.cascadeId, cacheStore, { hydrate: false });
     const rootSteps = rootEntry?.steps || [];
     const rawSubs = Array.isArray(rootConv?.subagents) ? rootConv.subagents : [];
 
@@ -2141,9 +2191,30 @@ export async function buildTelemetryPayloadInternal(
 
     let contextUsedPct = null;
     if (lastRootStep) {
+      let quickLastStep = lastRootStep;
+      if (rootEntry?._coldSteps && !lastRootStep.maxContextBudgetTokens) {
+        let coldLimit = 0;
+        const limitsList = Array.isArray(rootEntry._stepFlags?.modelLimits)
+          ? rootEntry._stepFlags.modelLimits
+          : [];
+        for (let i = 0; i < limitsList.length; i += 1) {
+          const item = limitsList[i];
+          if (item && item[0] === lastRootStep.modelKey && Number(item[1]) > 0) {
+            coldLimit = Number(item[1]);
+            break;
+          }
+        }
+        if (coldLimit > 0) {
+          quickLastStep = {
+            ...lastRootStep,
+            maxContextBudgetTokens: coldLimit,
+            reportedContextLimitTokens: coldLimit,
+          };
+        }
+      }
       contextUsedPct = extractActiveContextTelemetry(
         rootSteps,
-        lastRootStep,
+        quickLastStep,
         0,
         0,
         rootEntry?.lastKnownStaticContext || null
@@ -2425,6 +2496,16 @@ export async function buildTelemetryPayloadInternal(
     hasOfficialData: Boolean(officialQuotaInfo?.data),
   });
 
+  const hasSafetyMonitorData = Boolean(
+    safetyMonitorEnabled &&
+      safetyMonitorSnapshot &&
+      (safetyMonitorSnapshot.hasActiveSources ||
+        (safetyMonitorSnapshot.window5h?.flashLiteCalls || 0) > 0 ||
+        (safetyMonitorSnapshot.window5h?.heavyCalls || 0) > 0 ||
+        (safetyMonitorSnapshot.window24h?.flashLiteCalls || 0) > 0 ||
+        (safetyMonitorSnapshot.window24h?.heavyCalls || 0) > 0)
+  );
+
   const finalPayload = {
     timestamp: new Date().toISOString(),
     hostPlatform: process.platform || 'unknown',
@@ -2438,6 +2519,19 @@ export async function buildTelemetryPayloadInternal(
     hostTheme: getEffectiveHostTheme(),
     cloudCodeProxy: getDefaultCloudCodeProxyStatus(),
     cliStatusLine: getCliStatusLineRuntimeStatus(),
+    ...(hasSafetyMonitorData
+      ? {
+          safetyMonitor: {
+            scannedAtMs: safetyMonitorSnapshot.scannedAtMs,
+            sourceCount: safetyMonitorSnapshot.sourceCount,
+            window5h: safetyMonitorSnapshot.window5h,
+            window24h: safetyMonitorSnapshot.window24h,
+            lastHeavyEventAtMs: safetyMonitorSnapshot.lastHeavyEventAtMs,
+            lastFallbackAtMs: safetyMonitorSnapshot.lastFallbackAtMs,
+            alerts: safetyMonitorSnapshot.alerts,
+          },
+        }
+      : {}),
     settings,
     contextWindowModels: getContextWindowGroups(getContextWindowModels(clientConfigs, contextModelCatalog)).map((group) => {
       const latest = group.members.reduce((previous, id) => {
@@ -2565,7 +2659,14 @@ export async function buildTelemetryPayloadInternal(
       weeklyCostBudget: settings.weeklyCostBudget,
       catalogRevision: modelInputs.catalogRevision,
       phaseEpoch: modelInputs.phaseEpoch,
-      basePayload: finalPayload,
+      basePayload: {
+        endpoint: finalPayload.endpoint,
+        uiBundleVersion: finalPayload.uiBundleVersion,
+        account: finalPayload.account,
+        quotas: {
+          weeklyCapacityEstimate: finalPayload.quotas?.weeklyCapacityEstimate || null,
+        },
+      },
       deferredCascadeIds: deferredCascadeIds instanceof Set ? deferredCascadeIds : null,
       sessions: {
         conversations,

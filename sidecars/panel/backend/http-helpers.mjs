@@ -9,6 +9,11 @@ import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { normalizeHostThemeSnapshot } from '../shared/host-theme.mjs';
+import {
+  readBridgeLeaseSync,
+  resolveBridgeLeaseFilePath,
+  resolveSharedSidecarDataDir,
+} from './bridge-paths.mjs';
 
 function resolveHttpHelperPanelDir() {
   const modDir = dirname(fileURLToPath(import.meta.url));
@@ -21,6 +26,8 @@ function resolveHttpHelperDataDir() {
   if (process?.env?.ANTIGRAVITY_EXECUTABLE_DATA_DIR) {
     return process.env.ANTIGRAVITY_EXECUTABLE_DATA_DIR;
   }
+  const sharedSidecarDir = resolveSharedSidecarDataDir();
+  if (sharedSidecarDir) return sharedSidecarDir;
   const geminiBase = String(process?.env?.ANTIGRAVITY_GEMINI_DIR || '').trim() || join(homedir(), '.gemini');
   const candidates = [
     join(geminiBase, 'antigravity', 'sidecar_data', 'usage-monitor', 'panel', 'data'),
@@ -43,22 +50,26 @@ export function readCachedHostThemeSnapshotSync({
   dataDir = '',
   nowMs = Date.now(),
 } = {}) {
-  const baseDir = String(dataDir || '').trim() || resolveHttpHelperDataDir();
-  if (!baseDir) return null;
+  const explicitDir = String(dataDir || '').trim();
+  const baseDir = explicitDir || resolveHttpHelperDataDir();
 
-  try {
-    const leasePath = join(baseDir, 'window-bridge-lease.json');
-    if (existsSync(leasePath)) {
-      const lease = JSON.parse(readFileSync(leasePath, 'utf8'));
-      const updatedAtMs = Number(lease?.updatedAtMs || 0);
-      if (updatedAtMs > 0 && nowMs - updatedAtMs >= -5000 && nowMs - updatedAtMs <= 45_000) {
-        const leaseTheme = normalizeHostThemeSnapshot(lease?.hostTheme);
-        if (leaseTheme) return leaseTheme;
-      }
+  const leaseCandidates = explicitDir
+    ? [join(explicitDir, 'window-bridge-lease.json')]
+    : [
+        resolveBridgeLeaseFilePath({ dataDir: baseDir }),
+        ...(baseDir ? [join(baseDir, 'window-bridge-lease.json')] : []),
+      ];
+  for (const leasePath of leaseCandidates) {
+    const lease = readBridgeLeaseSync(leasePath);
+    if (!lease) continue;
+    const updatedAtMs = Number(lease?.updatedAtMs || 0);
+    if (updatedAtMs > 0 && nowMs - updatedAtMs >= -5000 && nowMs - updatedAtMs <= 45_000) {
+      const leaseTheme = normalizeHostThemeSnapshot(lease?.hostTheme);
+      if (leaseTheme) return leaseTheme;
     }
-  } catch {
-    // 忽略租约读取或瞬态解析错误
   }
+
+  if (!baseDir) return null;
 
   try {
     const cachePath = join(baseDir, 'host-theme-cache.json');

@@ -10,8 +10,15 @@
 
 import { defineComponent } from '../../core/component.js';
 import { h, patchAttr, patchClasses, patchText } from '../../core/domPatch.js';
-import { formatCompactDateTime, formatTokensPrecise, formatUsd } from '../../core/formatters.js';
+import {
+  formatCompactBytes,
+  formatCompactDateTime,
+  formatTokensPrecise,
+  formatUsd,
+} from '../../core/formatters.js';
 import { createSvgIcon } from '../../icons/SvgIcon.js';
+
+export { formatCompactBytes };
 import { t } from '../../i18n/index.js';
 import {
   deleteLocalSessionsAction,
@@ -68,12 +75,24 @@ function saveCleanupPrefs(prefs) {
   }
 }
 
-function formatCompactBytes(bytes) {
-  const n = Number(bytes || 0);
-  if (!Number.isFinite(n) || n <= 0) return '';
-  if (n < 1024) return `${n} B`;
-  if (n < 1024 * 1024) return `${(n / 1024).toFixed(0)} KB`;
-  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+const SMGR_LARGE_SESSION_BYTES = 50 * 1024 * 1024;
+
+function buildSessionSizeTooltip(session) {
+  const totalBytes = Math.max(0, Number(session?.sizeBytes || 0));
+  const totalLine = t('settings.smgr.sizeTooltipTotal', {
+    size: formatCompactBytes(totalBytes),
+  });
+  const dbBytes = Math.max(0, Number(session?.dbSizeBytes || 0));
+  const brainBytes = Math.max(0, Number(session?.brainSizeBytes || 0));
+  const subBytes = Math.max(0, Number(session?.subagentSizeBytes || 0));
+  const parts = [];
+  if (dbBytes > 0) parts.push(t('settings.smgr.sizePartDb', { size: formatCompactBytes(dbBytes) }));
+  if (brainBytes > 0) parts.push(t('settings.smgr.sizePartBrain', { size: formatCompactBytes(brainBytes) }));
+  if (subBytes > 0) parts.push(t('settings.smgr.sizePartSubagents', { size: formatCompactBytes(subBytes) }));
+  if (parts.length >= 2 || (parts.length === 1 && (brainBytes > 0 || subBytes > 0))) {
+    return `${totalLine}\n${parts.join(' · ')}`;
+  }
+  return totalLine;
 }
 
 function getClientDisplayName(clientId) {
@@ -182,6 +201,12 @@ export const SessionManagerCard = defineComponent({
     // 1. 顶栏
     const titleTextEl = h('span', { text: t('settings.smgr.title') });
     const totalCountBadge = h('span', { className: 'smgr-title-count', text: '0' });
+    const totalSizeTextEl = h('span', { text: '' });
+    const totalSizeBadge = h(
+      'span',
+      { className: 'smgr-title-size', hidden: true },
+      [createSvgIcon('database', { size: 10 }), totalSizeTextEl]
+    );
     const refreshBtnTextEl = h('span', { text: t('settings.smgr.refresh') });
     const refreshBtn = h(
       'button',
@@ -206,6 +231,7 @@ export const SessionManagerCard = defineComponent({
         createSvgIcon('layers', { size: 13 }),
         titleTextEl,
         totalCountBadge,
+        totalSizeBadge,
       ]),
       h('div', { className: 'smgr-header-actions' }, [refreshBtn, moreMenu.el]),
     ]);
@@ -399,8 +425,15 @@ export const SessionManagerCard = defineComponent({
       [createSvgIcon('trash', { size: 12 }), batchDeleteTextEl]
     );
 
+    const selectedSizeTextEl = h('span', { text: '' });
+    const selectedSizeEl = h(
+      'span',
+      { className: 'smgr-selected-size', hidden: true },
+      [createSvgIcon('database', { size: 10 }), selectedSizeTextEl]
+    );
+
     const actionBarEl = h('div', { className: 'smgr-action-bar' }, [
-      h('div', { className: 'smgr-action-left' }, [toggleAllBtn, clearSelBtn]),
+      h('div', { className: 'smgr-action-left' }, [toggleAllBtn, clearSelBtn, selectedSizeEl]),
       h('div', { className: 'smgr-action-right' }, [hideIdxBtn, batchDeleteBtn]),
     ]);
 
@@ -463,14 +496,53 @@ export const SessionManagerCard = defineComponent({
       return getAllSessions().find((s) => sessionItemKey(s) === key) || null;
     }
 
-    function getSelectedTargets() {
+    function getSelectedStats() {
       const targets = [];
+      let totalSizeBytes = 0;
       for (const s of getAllSessions()) {
         if (s.canDelete && selectedKeys.has(sessionItemKey(s))) {
           targets.push({ clientId: s.clientId, sessionId: s.sessionId });
+          totalSizeBytes += Math.max(0, Number(s.sizeBytes || 0));
         }
       }
-      return targets;
+      return { targets, count: targets.length, totalSizeBytes };
+    }
+
+    function getSelectedTargets() {
+      return getSelectedStats().targets;
+    }
+
+    function computeAllSessionsTotalBytes() {
+      const all = getAllSessions();
+      if (all.length > 0) {
+        return all.reduce((sum, s) => sum + Math.max(0, Number(s.sizeBytes || 0)), 0);
+      }
+      return Math.max(0, Number(catalog?.counts?.totalSizeBytes || 0));
+    }
+
+    function syncTotalSizeBadge(filtered) {
+      if (!catalog || remoteUnsupported) {
+        patchAttr(totalSizeBadge, 'hidden', true);
+        return;
+      }
+      const allTotalBytes = computeAllSessionsTotalBytes();
+      const filteredBytes = Array.isArray(filtered)
+        ? filtered.reduce((sum, s) => sum + Math.max(0, Number(s.sizeBytes || 0)), 0)
+        : allTotalBytes;
+      const isNarrowed = sourceFilter !== 'all' || Boolean(searchQuery);
+      const displayBytes = isNarrowed ? filteredBytes : filteredBytes || allTotalBytes;
+      const formattedDisplay = formatCompactBytes(displayBytes);
+      patchText(totalSizeTextEl, formattedDisplay);
+      patchClasses(totalSizeBadge, { 'is-filtered': isNarrowed });
+      const tip = isNarrowed
+        ? t('settings.smgr.filteredSizeTitle', {
+            filtered: formattedDisplay,
+            total: formatCompactBytes(allTotalBytes),
+          })
+        : t('settings.smgr.totalSizeTitle', { size: formattedDisplay });
+      patchAttr(totalSizeBadge, 'title', tip);
+      patchAttr(totalSizeBadge, 'aria-label', tip);
+      patchAttr(totalSizeBadge, 'hidden', false);
     }
 
     function rebuildTopMoreMenu() {
@@ -513,12 +585,23 @@ export const SessionManagerCard = defineComponent({
 
     function syncSourceSegments() {
       const counts = catalog?.counts?.byClient || { desktop: 0, cli: 0, ide_legacy: 0 };
+      const sizeByClient = catalog?.counts?.byClientSizeBytes || {};
       const total = Number(catalog?.counts?.total || 0);
       const running = catalog?.runningClients || {};
       const clientsList = Array.isArray(catalog?.clients) ? catalog.clients : [];
+      const allTotalBytes = computeAllSessionsTotalBytes();
 
       const formatLabel = (base, count, isRun) => `${base} (${count})${isRun ? ' •' : ''}`;
-      const opts = [{ value: 'all', label: `${t('settings.smgr.sourceAll')} (${total})` }];
+      const opts = [
+        {
+          value: 'all',
+          label: `${t('settings.smgr.sourceAll')} (${total})`,
+          title:
+            allTotalBytes > 0
+              ? t('settings.smgr.totalSizeTitle', { size: formatCompactBytes(allTotalBytes) })
+              : '',
+        },
+      ];
 
       for (const defId of ['desktop', 'cli', 'ide_legacy']) {
         const info = clientsList.find((c) => c.id === defId);
@@ -526,14 +609,22 @@ export const SessionManagerCard = defineComponent({
         if (info?.exists || cnt > 0 || defId === 'desktop') {
           const isRun = Boolean(running[defId]);
           const isOnline = isRun && isClientOnlineDeleteSupported(defId);
+          const clientBytes = Number(info?.totalSizeBytes ?? sizeByClient[defId] ?? 0);
+          const titleParts = [];
+          if (clientBytes > 0) {
+            titleParts.push(
+              t('settings.smgr.totalSizeTitle', { size: formatCompactBytes(clientBytes) })
+            );
+          }
+          if (isRun) {
+            titleParts.push(
+              isOnline ? t('settings.smgr.runningDotOnlineTitle') : t('settings.smgr.runningDotTitle')
+            );
+          }
           opts.push({
             value: defId,
             label: formatLabel(getClientDisplayName(defId), cnt, isRun),
-            title: isRun
-              ? isOnline
-                ? t('settings.smgr.runningDotOnlineTitle')
-                : t('settings.smgr.runningDotTitle')
-              : '',
+            title: titleParts.join(' · '),
           });
         }
       }
@@ -605,7 +696,7 @@ export const SessionManagerCard = defineComponent({
         selectAllCheckBoxEl.appendChild(h('span', { className: 'smgr-partial-dash' }));
       }
 
-      const selCount = getSelectedTargets().length;
+      const { count: selCount, totalSizeBytes: selSizeBytes } = getSelectedStats();
       patchText(
         toggleAllTextEl,
         allSelected
@@ -617,6 +708,15 @@ export const SessionManagerCard = defineComponent({
       patchAttr(toggleAllBtn, 'disabled', deletableFiltered.length === 0 || isDeleting);
       patchAttr(clearSelBtn, 'hidden', selCount === 0 || allSelected);
       patchAttr(clearSelBtn, 'disabled', isDeleting);
+
+      patchAttr(selectedSizeEl, 'hidden', selCount === 0);
+      if (selCount > 0) {
+        const formattedSelSize = formatCompactBytes(selSizeBytes);
+        patchText(selectedSizeTextEl, formattedSelSize);
+        const selSizeTip = t('settings.smgr.selectedSizeTitle', { size: formattedSelSize });
+        patchAttr(selectedSizeEl, 'title', selSizeTip);
+        patchAttr(selectedSizeEl, 'aria-label', selSizeTip);
+      }
 
       patchAttr(batchDeleteBtn, 'hidden', selCount === 0);
       patchAttr(batchDeleteBtn, 'disabled', selCount === 0 || isDeleting);
@@ -675,6 +775,37 @@ export const SessionManagerCard = defineComponent({
       confirmBoxEl.appendChild(header);
 
       const bullets = [t('settings.smgr.confirmSummary', { n: effectiveDeletableN })];
+      let reclaimableBytes = 0;
+      if (preview && Number.isFinite(Number(preview.reclaimableSizeBytes))) {
+        const rawReclaim = Math.max(0, Number(preview.reclaimableSizeBytes));
+        const protOnlineBytes = Math.max(0, Number(preview.protectedOnlineSizeBytes || 0));
+        reclaimableBytes = purgeProtectedBrain
+          ? rawReclaim
+          : Math.max(0, rawReclaim - protOnlineBytes);
+      } else if (Array.isArray(targets) && targets.length > 0) {
+        const blockedSet = new Set(
+          (Array.isArray(preview?.blockedByRunning) ? preview.blockedByRunning : []).map(
+            (b) => `${b.clientId}:${b.sessionId}`
+          )
+        );
+        const protOnlineSet = new Set(
+          protectedItems
+            .filter((it) => it?.mode === 'online')
+            .map((it) => `${it.clientId}:${it.sessionId}`)
+        );
+        for (const item of targets) {
+          const itemKey = `${item.clientId}:${item.sessionId}`;
+          if (blockedSet.has(itemKey)) continue;
+          if (!purgeProtectedBrain && protOnlineSet.has(itemKey)) continue;
+          const hit = getSessionByKey(itemKey);
+          reclaimableBytes += Math.max(0, Number(hit?.sizeBytes || 0));
+        }
+      }
+      if (effectiveDeletableN > 0 && reclaimableBytes > 0) {
+        bullets.push(
+          t('settings.smgr.confirmReclaimSize', { size: formatCompactBytes(reclaimableBytes) })
+        );
+      }
       if (onlineDeletableN > 0 && offlineDeletableN > 0) {
         bullets.push(
           t('settings.smgr.confirmOnlineMixed', { online: onlineDeletableN, offline: offlineDeletableN })
@@ -842,12 +973,14 @@ export const SessionManagerCard = defineComponent({
         listEl.appendChild(
           h('div', { className: 'smgr-empty', text: t('settings.smgr.emptyLoading') })
         );
+        syncTotalSizeBadge([]);
         syncSelectionButtons([]);
         listScrollbar.refresh();
         return;
       }
 
       const filtered = getFilteredSessions();
+      syncTotalSizeBadge(filtered);
       syncSelectionButtons(filtered);
 
       if (filtered.length === 0) {
@@ -881,11 +1014,31 @@ export const SessionManagerCard = defineComponent({
           isChecked ? [createSvgIcon('check', { size: 9 })] : []
         );
 
+        const sessionSizeBytes = Math.max(0, Number(s.sizeBytes || 0));
+        const sizeBadgeClass = [
+          'smgr-badge',
+          'smgr-size-badge',
+          sessionSizeBytes >= SMGR_LARGE_SESSION_BYTES ? 'is-large' : '',
+          sessionSizeBytes === 0 ? 'is-zero' : '',
+        ]
+          .filter(Boolean)
+          .join(' ');
         const tags = [
           h('span', {
             className: `smgr-badge is-client-${s.clientId}`,
             text: getClientDisplayName(s.clientId),
           }),
+          h(
+            'span',
+            {
+              className: sizeBadgeClass,
+              title: buildSessionSizeTooltip(s),
+            },
+            [
+              createSvgIcon('database', { size: 10 }),
+              h('span', { text: formatCompactBytes(sessionSizeBytes) }),
+            ]
+          ),
         ];
         if (s.indexOnly) {
           tags.push(h('span', { className: 'smgr-badge is-muted', text: t('settings.smgr.tagIndexOnly') }));
@@ -911,7 +1064,6 @@ export const SessionManagerCard = defineComponent({
         }
 
         const rightMetaParts = [];
-        if (s.sizeBytes > 0) rightMetaParts.push(formatCompactBytes(s.sizeBytes));
         if (s.lastModifiedMs > 0) rightMetaParts.push(formatCompactDateTime(s.lastModifiedMs));
 
         const telNodes = [];
@@ -1230,6 +1382,8 @@ export const SessionManagerCard = defineComponent({
       el: rootEl,
       refs: {
         refreshBtn,
+        totalSizeBadge,
+        selectedSizeEl,
         searchInput: searchControl.inputEl,
         sortSelect,
         hideIdxBtn,
