@@ -34,6 +34,7 @@ test('pack-release-zip ships only runtime-essential files, excludes dev bloat, a
     'sidecars/panel/backend/api-actions.mjs',
     'sidecars/panel/backend/devtools-port-probe.mjs',
     'sidecars/panel/backend/ide-remote-ssh.mjs',
+    'sidecars/panel/backend/vscode-host-support.mjs',
     'sidecars/panel/backend/session-store.mjs',
     'sidecars/panel/backend/session-cleaner.mjs',
     'sidecars/panel/backend/session-manager.mjs',

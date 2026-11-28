@@ -2,7 +2,7 @@
 'use strict';
 
 // --- shared/settings-normalization.mjs ---
-const { SUPPORTED_LOCALE_ENTRIES, SUPPORTED_LOCALES, SUPPORTED_LANGUAGES, THEME_ACCENT_KEYS, FONT_SCALE_KEYS, TOPBAR_SLOT_KEYS, DEFAULT_TOPBAR_SLOTS, MIN_TOPBAR_SLOTS, MAX_TOPBAR_SLOTS, DEFAULT_CLI_STATUSLINE_SLOTS, MIN_CLI_STATUSLINE_SLOTS, MAX_CLI_STATUSLINE_SLOTS, CLI_STATUSLINE_PRESETS, OVERVIEW_MODULE_KEYS, DEFAULT_OVERVIEW_MODULES, DEFAULT_HOVER_MODULES, METRIC_CARD_STYLES, HOVER_METRIC_STYLES, DEFAULT_OVERVIEW_METRIC_STYLE, DEFAULT_HOVER_METRIC_STYLE, DEFAULT_HOVER_SYNC_OVERVIEW_METRICS, MAX_LARGE_METRIC_SLOTS, METRIC_GRID_COLS, METRIC_GRID_ROWS, DEFAULT_METRIC_ROWS, DEFAULT_OVERVIEW_METRIC_ROWS, DEFAULT_HOVER_METRIC_ROWS, METRIC_CARD_SIZES, DEFAULT_OVERVIEW_METRIC_SIZES, DEFAULT_HOVER_METRIC_SIZES, METRIC_TEXT_MODES, DEFAULT_METRIC_TEXT_MODE, DEFAULT_OVERVIEW_METRIC_TEXT_MODE, DEFAULT_HOVER_METRIC_TEXT_MODE, MAX_OVERVIEW_METRICS, OVERVIEW_METRIC_KEYS, DEFAULT_OVERVIEW_METRICS, DEFAULT_HOVER_METRICS, STEP_TABLE_COLUMN_KEYS, DEFAULT_STEP_TABLE_COLUMNS, DEFAULT_STEP_TOKEN_COMBO_FORMAT, STEP_TOKEN_SEGMENT_ALIASES, POPOVER_WIDTH_MODES, MIN_POPOVER_WIDTH, MAX_POPOVER_WIDTH, DEFAULT_POPOVER_WIDTH, resolveLocaleFromLanguageTag, normalizeLanguageSetting, normalizeThemeAccent, normalizeFontScale, normalizeModelDisplayMode, normalizePopoverWidthMode, normalizePopoverWidth, parseStepTokenComboSegments, normalizeStepTokenComboFormat, normalizePluginUpdateMode, normalizeWindowMountMode, normalizeWeeklyLimitMode, normalizeTopbarCapsuleSlots, normalizeCliStatusLineSlots, resolveEffectiveCliStatusLineSlots, normalizeOverviewMetrics, normalizeOverviewModules, normalizeHoverModules, normalizeMetricCardStyle, normalizeOverviewMetricStyle, normalizeHoverMetricStyle, normalizeMetricGridRows, normalizeOverviewMetricRows, normalizeHoverMetricRows, normalizeMetricCardSize, normalizeMetricCardSizes, normalizeOverviewMetricSizes, normalizeHoverMetricSizes, normalizeMetricTextMode, normalizeOverviewMetricTextMode, normalizeHoverMetricTextMode, deriveMetricCardStyleFromLayout, packMetricBentoLayout, normalizeHoverSyncOverviewMetrics, normalizeHoverMetrics, resolveEffectiveMetricMatrixConfig, normalizeStepTableColumns, normalizeStandalonePort, normalizeModernUi, CONTEXT_AGENT_MODES, DEFAULT_CONTEXT_AGENT_MODE, TOPBAR_MULTI_SESSION_MODES, DEFAULT_TOPBAR_MULTI_SESSION_MODE, normalizeTopbarMultiSessionMode, isTopbarMultiSessionVisible, QUOTA_DISPLAY_MODES, DEFAULT_QUOTA_DISPLAY_MODE, normalizeQuotaDisplayMode, ACCOUNT_QUOTA_REFRESH_MINUTES, DEFAULT_ACCOUNT_QUOTA_REFRESH_MINUTES, normalizeAccountQuotaRefreshMinutes, normalizeContextAgentMode, normalizeExperimentalQuotaReservation, normalizeExperimentalModernUi, normalizeAutoConfigureLaunch, normalizeEnableRemoteSshTelemetry, normalizeDeveloperModeEnabled, normalizeRiskyFeaturesEnabled, isRiskyFeaturesGateOpen, isContextWindowFeatureActive, isAccountSwitchFeatureActive } = (() => {
+const { SUPPORTED_LOCALE_ENTRIES, SUPPORTED_LOCALES, SUPPORTED_LANGUAGES, THEME_ACCENT_KEYS, FONT_SCALE_KEYS, TOPBAR_SLOT_KEYS, DEFAULT_TOPBAR_SLOTS, MIN_TOPBAR_SLOTS, MAX_TOPBAR_SLOTS, DEFAULT_CLI_STATUSLINE_SLOTS, MIN_CLI_STATUSLINE_SLOTS, MAX_CLI_STATUSLINE_SLOTS, CLI_STATUSLINE_PRESETS, OVERVIEW_MODULE_KEYS, DEFAULT_OVERVIEW_MODULES, DEFAULT_HOVER_MODULES, METRIC_CARD_STYLES, HOVER_METRIC_STYLES, DEFAULT_OVERVIEW_METRIC_STYLE, DEFAULT_HOVER_METRIC_STYLE, DEFAULT_HOVER_SYNC_OVERVIEW_METRICS, MAX_LARGE_METRIC_SLOTS, METRIC_GRID_COLS, METRIC_GRID_ROWS, DEFAULT_METRIC_ROWS, DEFAULT_OVERVIEW_METRIC_ROWS, DEFAULT_HOVER_METRIC_ROWS, METRIC_CARD_SIZES, DEFAULT_OVERVIEW_METRIC_SIZES, DEFAULT_HOVER_METRIC_SIZES, METRIC_TEXT_MODES, DEFAULT_METRIC_TEXT_MODE, DEFAULT_OVERVIEW_METRIC_TEXT_MODE, DEFAULT_HOVER_METRIC_TEXT_MODE, MAX_OVERVIEW_METRICS, OVERVIEW_METRIC_KEYS, DEFAULT_OVERVIEW_METRICS, DEFAULT_HOVER_METRICS, STEP_TABLE_COLUMN_KEYS, DEFAULT_STEP_TABLE_COLUMNS, DEFAULT_STEP_TOKEN_COMBO_FORMAT, STEP_TOKEN_SEGMENT_ALIASES, POPOVER_WIDTH_MODES, MIN_POPOVER_WIDTH, MAX_POPOVER_WIDTH, DEFAULT_POPOVER_WIDTH, resolveLocaleFromLanguageTag, normalizeLanguageSetting, normalizeThemeAccent, normalizeFontScale, normalizeModelDisplayMode, normalizePopoverWidthMode, normalizePopoverWidth, parseStepTokenComboSegments, normalizeStepTokenComboFormat, normalizePluginUpdateMode, normalizeWindowMountMode, VSCODE_MOUNT_MODES, DEFAULT_VSCODE_MOUNT_MODE, normalizeVsCodeMountMode, normalizeWeeklyLimitMode, normalizeTopbarCapsuleSlots, normalizeCliStatusLineSlots, resolveEffectiveCliStatusLineSlots, normalizeOverviewMetrics, normalizeOverviewModules, normalizeHoverModules, normalizeMetricCardStyle, normalizeOverviewMetricStyle, normalizeHoverMetricStyle, normalizeMetricGridRows, normalizeOverviewMetricRows, normalizeHoverMetricRows, normalizeMetricCardSize, normalizeMetricCardSizes, normalizeOverviewMetricSizes, normalizeHoverMetricSizes, normalizeMetricTextMode, normalizeOverviewMetricTextMode, normalizeHoverMetricTextMode, deriveMetricCardStyleFromLayout, packMetricBentoLayout, normalizeHoverSyncOverviewMetrics, normalizeHoverMetrics, resolveEffectiveMetricMatrixConfig, normalizeStepTableColumns, normalizeStandalonePort, normalizeModernUi, CONTEXT_AGENT_MODES, DEFAULT_CONTEXT_AGENT_MODE, TOPBAR_MULTI_SESSION_MODES, DEFAULT_TOPBAR_MULTI_SESSION_MODE, normalizeTopbarMultiSessionMode, isTopbarMultiSessionVisible, QUOTA_DISPLAY_MODES, DEFAULT_QUOTA_DISPLAY_MODE, normalizeQuotaDisplayMode, ACCOUNT_QUOTA_REFRESH_MINUTES, DEFAULT_ACCOUNT_QUOTA_REFRESH_MINUTES, normalizeAccountQuotaRefreshMinutes, normalizeContextAgentMode, normalizeExperimentalQuotaReservation, normalizeExperimentalModernUi, normalizeAutoConfigureLaunch, normalizeEnableRemoteSshTelemetry, normalizeDeveloperModeEnabled, normalizeRiskyFeaturesEnabled, isRiskyFeaturesGateOpen, isContextWindowFeatureActive, isAccountSwitchFeatureActive } = (() => {
 const SUPPORTED_LOCALE_ENTRIES = Object.freeze([
   Object.freeze({
     locale: 'zh-CN',
@@ -339,6 +339,15 @@ function normalizeWindowMountMode(mode, legacyEnableOverlay) {
   if (m === 'dual' || m === 'topbar') return 'dual';
   if (legacyEnableOverlay === false) return 'sidebar';
   return 'dual';
+}
+
+const VSCODE_MOUNT_MODES = Object.freeze(['composer', 'dual']);
+const DEFAULT_VSCODE_MOUNT_MODE = 'composer';
+
+function normalizeVsCodeMountMode(mode) {
+  const m = String(mode ?? '').trim().toLowerCase();
+  if (m === 'dual' || m === 'topbar') return 'dual';
+  return 'composer';
 }
 
 function normalizeWeeklyLimitMode(mode) {
@@ -1087,7 +1096,7 @@ function isAccountSwitchFeatureActive(settings) {
     isRiskyFeaturesGateOpen(settings) && settings.accountSwitchRiskAccepted === true
   );
 }
-return { SUPPORTED_LOCALE_ENTRIES, SUPPORTED_LOCALES, SUPPORTED_LANGUAGES, THEME_ACCENT_KEYS, FONT_SCALE_KEYS, TOPBAR_SLOT_KEYS, DEFAULT_TOPBAR_SLOTS, MIN_TOPBAR_SLOTS, MAX_TOPBAR_SLOTS, DEFAULT_CLI_STATUSLINE_SLOTS, MIN_CLI_STATUSLINE_SLOTS, MAX_CLI_STATUSLINE_SLOTS, CLI_STATUSLINE_PRESETS, OVERVIEW_MODULE_KEYS, DEFAULT_OVERVIEW_MODULES, DEFAULT_HOVER_MODULES, METRIC_CARD_STYLES, HOVER_METRIC_STYLES, DEFAULT_OVERVIEW_METRIC_STYLE, DEFAULT_HOVER_METRIC_STYLE, DEFAULT_HOVER_SYNC_OVERVIEW_METRICS, MAX_LARGE_METRIC_SLOTS, METRIC_GRID_COLS, METRIC_GRID_ROWS, DEFAULT_METRIC_ROWS, DEFAULT_OVERVIEW_METRIC_ROWS, DEFAULT_HOVER_METRIC_ROWS, METRIC_CARD_SIZES, DEFAULT_OVERVIEW_METRIC_SIZES, DEFAULT_HOVER_METRIC_SIZES, METRIC_TEXT_MODES, DEFAULT_METRIC_TEXT_MODE, DEFAULT_OVERVIEW_METRIC_TEXT_MODE, DEFAULT_HOVER_METRIC_TEXT_MODE, MAX_OVERVIEW_METRICS, OVERVIEW_METRIC_KEYS, DEFAULT_OVERVIEW_METRICS, DEFAULT_HOVER_METRICS, STEP_TABLE_COLUMN_KEYS, DEFAULT_STEP_TABLE_COLUMNS, DEFAULT_STEP_TOKEN_COMBO_FORMAT, STEP_TOKEN_SEGMENT_ALIASES, POPOVER_WIDTH_MODES, MIN_POPOVER_WIDTH, MAX_POPOVER_WIDTH, DEFAULT_POPOVER_WIDTH, resolveLocaleFromLanguageTag, normalizeLanguageSetting, normalizeThemeAccent, normalizeFontScale, normalizeModelDisplayMode, normalizePopoverWidthMode, normalizePopoverWidth, parseStepTokenComboSegments, normalizeStepTokenComboFormat, normalizePluginUpdateMode, normalizeWindowMountMode, normalizeWeeklyLimitMode, normalizeTopbarCapsuleSlots, normalizeCliStatusLineSlots, resolveEffectiveCliStatusLineSlots, normalizeOverviewMetrics, normalizeOverviewModules, normalizeHoverModules, normalizeMetricCardStyle, normalizeOverviewMetricStyle, normalizeHoverMetricStyle, normalizeMetricGridRows, normalizeOverviewMetricRows, normalizeHoverMetricRows, normalizeMetricCardSize, normalizeMetricCardSizes, normalizeOverviewMetricSizes, normalizeHoverMetricSizes, normalizeMetricTextMode, normalizeOverviewMetricTextMode, normalizeHoverMetricTextMode, deriveMetricCardStyleFromLayout, packMetricBentoLayout, normalizeHoverSyncOverviewMetrics, normalizeHoverMetrics, resolveEffectiveMetricMatrixConfig, normalizeStepTableColumns, normalizeStandalonePort, normalizeModernUi, CONTEXT_AGENT_MODES, DEFAULT_CONTEXT_AGENT_MODE, TOPBAR_MULTI_SESSION_MODES, DEFAULT_TOPBAR_MULTI_SESSION_MODE, normalizeTopbarMultiSessionMode, isTopbarMultiSessionVisible, QUOTA_DISPLAY_MODES, DEFAULT_QUOTA_DISPLAY_MODE, normalizeQuotaDisplayMode, ACCOUNT_QUOTA_REFRESH_MINUTES, DEFAULT_ACCOUNT_QUOTA_REFRESH_MINUTES, normalizeAccountQuotaRefreshMinutes, normalizeContextAgentMode, normalizeExperimentalQuotaReservation, normalizeExperimentalModernUi, normalizeAutoConfigureLaunch, normalizeEnableRemoteSshTelemetry, normalizeDeveloperModeEnabled, normalizeRiskyFeaturesEnabled, isRiskyFeaturesGateOpen, isContextWindowFeatureActive, isAccountSwitchFeatureActive };
+return { SUPPORTED_LOCALE_ENTRIES, SUPPORTED_LOCALES, SUPPORTED_LANGUAGES, THEME_ACCENT_KEYS, FONT_SCALE_KEYS, TOPBAR_SLOT_KEYS, DEFAULT_TOPBAR_SLOTS, MIN_TOPBAR_SLOTS, MAX_TOPBAR_SLOTS, DEFAULT_CLI_STATUSLINE_SLOTS, MIN_CLI_STATUSLINE_SLOTS, MAX_CLI_STATUSLINE_SLOTS, CLI_STATUSLINE_PRESETS, OVERVIEW_MODULE_KEYS, DEFAULT_OVERVIEW_MODULES, DEFAULT_HOVER_MODULES, METRIC_CARD_STYLES, HOVER_METRIC_STYLES, DEFAULT_OVERVIEW_METRIC_STYLE, DEFAULT_HOVER_METRIC_STYLE, DEFAULT_HOVER_SYNC_OVERVIEW_METRICS, MAX_LARGE_METRIC_SLOTS, METRIC_GRID_COLS, METRIC_GRID_ROWS, DEFAULT_METRIC_ROWS, DEFAULT_OVERVIEW_METRIC_ROWS, DEFAULT_HOVER_METRIC_ROWS, METRIC_CARD_SIZES, DEFAULT_OVERVIEW_METRIC_SIZES, DEFAULT_HOVER_METRIC_SIZES, METRIC_TEXT_MODES, DEFAULT_METRIC_TEXT_MODE, DEFAULT_OVERVIEW_METRIC_TEXT_MODE, DEFAULT_HOVER_METRIC_TEXT_MODE, MAX_OVERVIEW_METRICS, OVERVIEW_METRIC_KEYS, DEFAULT_OVERVIEW_METRICS, DEFAULT_HOVER_METRICS, STEP_TABLE_COLUMN_KEYS, DEFAULT_STEP_TABLE_COLUMNS, DEFAULT_STEP_TOKEN_COMBO_FORMAT, STEP_TOKEN_SEGMENT_ALIASES, POPOVER_WIDTH_MODES, MIN_POPOVER_WIDTH, MAX_POPOVER_WIDTH, DEFAULT_POPOVER_WIDTH, resolveLocaleFromLanguageTag, normalizeLanguageSetting, normalizeThemeAccent, normalizeFontScale, normalizeModelDisplayMode, normalizePopoverWidthMode, normalizePopoverWidth, parseStepTokenComboSegments, normalizeStepTokenComboFormat, normalizePluginUpdateMode, normalizeWindowMountMode, VSCODE_MOUNT_MODES, DEFAULT_VSCODE_MOUNT_MODE, normalizeVsCodeMountMode, normalizeWeeklyLimitMode, normalizeTopbarCapsuleSlots, normalizeCliStatusLineSlots, resolveEffectiveCliStatusLineSlots, normalizeOverviewMetrics, normalizeOverviewModules, normalizeHoverModules, normalizeMetricCardStyle, normalizeOverviewMetricStyle, normalizeHoverMetricStyle, normalizeMetricGridRows, normalizeOverviewMetricRows, normalizeHoverMetricRows, normalizeMetricCardSize, normalizeMetricCardSizes, normalizeOverviewMetricSizes, normalizeHoverMetricSizes, normalizeMetricTextMode, normalizeOverviewMetricTextMode, normalizeHoverMetricTextMode, deriveMetricCardStyleFromLayout, packMetricBentoLayout, normalizeHoverSyncOverviewMetrics, normalizeHoverMetrics, resolveEffectiveMetricMatrixConfig, normalizeStepTableColumns, normalizeStandalonePort, normalizeModernUi, CONTEXT_AGENT_MODES, DEFAULT_CONTEXT_AGENT_MODE, TOPBAR_MULTI_SESSION_MODES, DEFAULT_TOPBAR_MULTI_SESSION_MODE, normalizeTopbarMultiSessionMode, isTopbarMultiSessionVisible, QUOTA_DISPLAY_MODES, DEFAULT_QUOTA_DISPLAY_MODE, normalizeQuotaDisplayMode, ACCOUNT_QUOTA_REFRESH_MINUTES, DEFAULT_ACCOUNT_QUOTA_REFRESH_MINUTES, normalizeAccountQuotaRefreshMinutes, normalizeContextAgentMode, normalizeExperimentalQuotaReservation, normalizeExperimentalModernUi, normalizeAutoConfigureLaunch, normalizeEnableRemoteSshTelemetry, normalizeDeveloperModeEnabled, normalizeRiskyFeaturesEnabled, isRiskyFeaturesGateOpen, isContextWindowFeatureActive, isAccountSwitchFeatureActive };
 })();
 
 // --- shared/currency-catalog.mjs ---
@@ -1488,11 +1497,12 @@ return { THIRD_PARTY_POOL_RE, isThirdPartyPoolText, classifySpeedTier, classifyC
 })();
 
 // --- shared/window-bridge-protocol.mjs ---
-const { WINDOW_BRIDGE_KEY, WINDOW_BRIDGE_ROUTE_KEY, WINDOW_BRIDGE_ENDPOINT_KEY, WINDOW_BRIDGE_ENDPOINT_HEADER, LOCAL_ENDPOINT_ID, WINDOW_OVERLAY_KEY, CONTEXT_WINDOWS_GLOBAL_KEY, WINDOW_OVERLAY_METHODS, BRIDGE_API_ROUTE_DEFS, BRIDGE_API_PATHS, readInjectedWindowBridge } = (() => {
+const { WINDOW_BRIDGE_KEY, WINDOW_BRIDGE_ROUTE_KEY, WINDOW_BRIDGE_ENDPOINT_KEY, WINDOW_BRIDGE_ENDPOINT_HEADER, BRIDGE_ROUTE_PING_PATH, LOCAL_ENDPOINT_ID, WINDOW_OVERLAY_KEY, CONTEXT_WINDOWS_GLOBAL_KEY, WINDOW_OVERLAY_METHODS, BRIDGE_API_ROUTE_DEFS, BRIDGE_API_PATHS, readInjectedWindowBridge, isVsCodeHostUrl, detectVsCodeVariantFromUrl, isVsCodeExtensionHost, isForceTopbarOverlay, resolveClientEffectiveOverlayMountMode } = (() => {
 const WINDOW_BRIDGE_KEY = '__AGUsageMonitorBridge';
 const WINDOW_BRIDGE_ROUTE_KEY = 'hostRouteCascadeId';
 const WINDOW_BRIDGE_ENDPOINT_KEY = 'endpointId';
 const WINDOW_BRIDGE_ENDPOINT_HEADER = 'X-Usage-Monitor-Endpoint';
+const BRIDGE_ROUTE_PING_PATH = '/api/bridge-route-ping';
 const LOCAL_ENDPOINT_ID = 'local';
 const WINDOW_OVERLAY_KEY = '__AGUsageMonitorOverlay';
 const CONTEXT_WINDOWS_GLOBAL_KEY = '__AGUsageMonitorContextWindows';
@@ -1559,7 +1569,85 @@ const BRIDGE_API_PATHS = Object.freeze(BRIDGE_API_ROUTE_DEFS.map((r) => r.path))
 function readInjectedWindowBridge() {
   return typeof window === 'undefined' ? undefined : window[WINDOW_BRIDGE_KEY];
 }
-return { WINDOW_BRIDGE_KEY, WINDOW_BRIDGE_ROUTE_KEY, WINDOW_BRIDGE_ENDPOINT_KEY, WINDOW_BRIDGE_ENDPOINT_HEADER, LOCAL_ENDPOINT_ID, WINDOW_OVERLAY_KEY, CONTEXT_WINDOWS_GLOBAL_KEY, WINDOW_OVERLAY_METHODS, BRIDGE_API_ROUTE_DEFS, BRIDGE_API_PATHS, readInjectedWindowBridge };
+
+function isVsCodeHostUrl(rawUrl) {
+  const url = String(rawUrl || '').trim();
+  if (!url) return false;
+  if (/[?&]extensionVariant=vs-code(?:[&#]|$)/i.test(url)) {
+    return true;
+  }
+  const pathOnly = url.split(/[?#]/, 1)[0];
+  let decodedPath = pathOnly;
+  try {
+    decodedPath = decodeURIComponent(pathOnly);
+  } catch {
+    decodedPath = pathOnly.replace(/%20/gi, ' ');
+  }
+  if (/antigravity/i.test(decodedPath)) {
+    return false;
+  }
+  const normalized = decodedPath.replace(/\\/g, '/');
+  if (/(?:visual[\s-]+studio[\s-]+code|microsoft\s+vs\s+code|code\s*-?\s*insiders)/i.test(normalized)) {
+    return true;
+  }
+  if (/(?:^|\/)(?:code|code-insiders|vscode(?:-[a-z0-9._-]+)?)\/resources\/app\//i.test(normalized)) {
+    return true;
+  }
+  return false;
+}
+
+function detectVsCodeVariantFromUrl(rawUrl) {
+  const pathOnly = String(rawUrl || '').trim().split(/[?#]/, 1)[0];
+  let decodedPath = pathOnly;
+  try {
+    decodedPath = decodeURIComponent(pathOnly);
+  } catch {
+    decodedPath = pathOnly.replace(/%20/gi, ' ');
+  }
+  const normalized = decodedPath.replace(/\\/g, '/');
+  if (/(?:code\s*-\s*insiders|code-insiders|vscode-insiders|visual[\s-]+studio[\s-]+code[\s-]+insiders)/i.test(normalized)) {
+    return 'insiders';
+  }
+  return 'stable';
+}
+
+function isVsCodeExtensionHost(bridge = readInjectedWindowBridge()) {
+  if (bridge?.isVsCodeHost === true) return true;
+  if (bridge?.isVsCodeHost === false) return false;
+  if (typeof window !== 'undefined') {
+    const href = String(window.location?.href || '');
+    const search = String(window.location?.search || '');
+    if (isVsCodeHostUrl(href) || /[?&]extensionVariant=vs-code(?:[&#]|$)/i.test(search)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function isForceTopbarOverlay(bridge = readInjectedWindowBridge()) {
+  return bridge?.forceTopbarMode === true;
+}
+
+function resolveClientEffectiveOverlayMountMode(
+  settings,
+  bridge = readInjectedWindowBridge()
+) {
+  if (isForceTopbarOverlay(bridge)) {
+    return 'dual';
+  }
+  if (isVsCodeExtensionHost(bridge)) {
+    if (settings && settings.vsCodeMountMode !== undefined) {
+      return normalizeVsCodeMountMode(settings.vsCodeMountMode);
+    }
+    if (bridge?.mountMode !== undefined) {
+      return normalizeVsCodeMountMode(bridge.mountMode);
+    }
+    return 'composer';
+  }
+  const rawMode = settings?.windowMountMode ?? bridge?.mountMode;
+  return normalizeWindowMountMode(rawMode, settings?.enableWindowOverlay);
+}
+return { WINDOW_BRIDGE_KEY, WINDOW_BRIDGE_ROUTE_KEY, WINDOW_BRIDGE_ENDPOINT_KEY, WINDOW_BRIDGE_ENDPOINT_HEADER, BRIDGE_ROUTE_PING_PATH, LOCAL_ENDPOINT_ID, WINDOW_OVERLAY_KEY, CONTEXT_WINDOWS_GLOBAL_KEY, WINDOW_OVERLAY_METHODS, BRIDGE_API_ROUTE_DEFS, BRIDGE_API_PATHS, readInjectedWindowBridge, isVsCodeHostUrl, detectVsCodeVariantFromUrl, isVsCodeExtensionHost, isForceTopbarOverlay, resolveClientEffectiveOverlayMountMode };
 })();
 
 // --- shared/host-i18n-protocol.mjs ---
@@ -2897,6 +2985,8 @@ const I18N_MESSAGES_ZH_CN = Object.freeze({
   'settings.str.mountDual': '双栖挂载 (顶部栏 + 侧边栏)',
   'settings.str.mountComposer': '输入框挂载 (输入框 + 侧边栏)',
   'settings.str.mountSidebar': '仅侧边栏',
+  'settings.str.mountVsCodeComposer': '输入框',
+  'settings.str.mountVsCodeTopbar': '顶部栏',
   'settings.bridge.restartTitle': '已自动补齐启动参数，重启一次即可启用悬浮胶囊',
   'settings.bridge.ctxRestartTitle': '已自动补齐启动参数，重启一次即可激活上下文覆写',
   'settings.bridge.restartBody': '已自动为快捷方式、自启项及协议关联写入 --remote-debugging-port=0（后续通过常规快捷方式打开均自动生效）。点击下方按钮即可退出后台进程并立即生效。',
@@ -4173,6 +4263,8 @@ const I18N_MESSAGES_ZH_TW = Object.freeze({
   "settings.str.mountDual": "雙重掛載 (標題列 + 側邊欄)",
   "settings.str.mountComposer": "輸入框掛載 (輸入框 + 側邊欄)",
   "settings.str.mountSidebar": "僅側邊欄",
+  "settings.str.mountVsCodeComposer": "輸入框",
+  "settings.str.mountVsCodeTopbar": "頂部列",
   "settings.bridge.restartTitle": "已自動補齊啟動參數，重新啟動一次即可啟用懸浮膠囊",
   "settings.bridge.ctxRestartTitle": "已自動補齊啟動參數，重新啟動一次即可啟用上下文覆寫",
   "settings.bridge.restartBody": "已自動為捷徑、開機自啟項目及通訊協定關聯寫入 --remote-debugging-port=0（後續透過一般捷徑開啟皆會自動生效）。點擊下方按鈕即可關閉背景處理程序並立即重新啟動。",
@@ -5464,6 +5556,8 @@ const I18N_MESSAGES_EN_US = Object.freeze({
   'settings.str.mountDual': 'Dual Mount (Titlebar + Sidebar)',
   'settings.str.mountComposer': 'Composer Mount (Input Box + Sidebar)',
   'settings.str.mountSidebar': 'Sidebar Only',
+  'settings.str.mountVsCodeComposer': 'Input Box',
+  'settings.str.mountVsCodeTopbar': 'Top Bar',
   'settings.bridge.restartTitle': 'Launch Flag Auto-Configured — Restart Once to Activate',
   'settings.bridge.ctxRestartTitle': 'Launch Flag Auto-Configured — Restart Once for Context Override',
   'settings.bridge.restartBody': 'Automatically added --remote-debugging-port=0 to your shortcuts, startup entries, and protocol handlers (subsequent shortcut launches mount automatically). Click below to close background processes and relaunch now.',
@@ -6740,6 +6834,8 @@ const I18N_MESSAGES_JA_JP = Object.freeze({
   "settings.str.mountDual": "デュアル配置 (タイトルバー + サイドバー)",
   "settings.str.mountComposer": "入力欄配置 (入力欄 + サイドバー)",
   "settings.str.mountSidebar": "サイドバーのみ",
+  "settings.str.mountVsCodeComposer": "入力欄",
+  "settings.str.mountVsCodeTopbar": "トップバー",
   "settings.bridge.restartTitle": "起動引数を自動設定済み — 一度再起動すると有効化されます",
   "settings.bridge.ctxRestartTitle": "起動引数を自動設定済み — 一度再起動するとコンテキスト上書きが有効になります",
   "settings.bridge.restartBody": "ショートカット、自動起動項目、プロトコル関連付けに --remote-debugging-port=0 を自動追加しました（次回以降の通常起動から自動適用）。下ボタンでバックグラウンドプロセスを終了し今すぐ再起動します。",
@@ -8011,6 +8107,8 @@ const I18N_MESSAGES_KO_KR = Object.freeze({
   "settings.str.mountDual": "듀얼 마운트 (제목 표시줄 + 사이드바)",
   "settings.str.mountComposer": "입력창 마운트 (입력창 + 사이드바)",
   "settings.str.mountSidebar": "사이드바 전용",
+  "settings.str.mountVsCodeComposer": "입력창",
+  "settings.str.mountVsCodeTopbar": "상단 바",
   "settings.bridge.restartTitle": "실행 플래그 자동 설정 완료 — 한 번 재시작하여 활성화",
   "settings.bridge.ctxRestartTitle": "실행 플래그 자동 설정 완료 — 컨텍스트 재정의를 위해 한 번 재시작",
   "settings.bridge.restartBody": "바로가기, 시작 프로그램 및 프로토콜 핸들러에 --remote-debugging-port=0을 자동으로 추가했습니다(이후 바로가기 실행 시 자동 마운트). 아래 버튼을 클릭해 백그라운드 프로세스를 종료하고 지금 다시 실행하세요.",
@@ -9282,6 +9380,8 @@ const I18N_MESSAGES_DE_DE = Object.freeze({
   "settings.str.mountDual": "Dual (Titelleiste + Seitenleiste)",
   "settings.str.mountComposer": "Composer (Eingabefeld + Seitenleiste)",
   "settings.str.mountSidebar": "Nur Seitenleiste",
+  "settings.str.mountVsCodeComposer": "Eingabefeld",
+  "settings.str.mountVsCodeTopbar": "Obere Leiste",
   "settings.bridge.restartTitle": "Startflag eingerichtet — Einmal neu starten",
   "settings.bridge.ctxRestartTitle": "Startflag eingerichtet — Neustart für Kontext-Override",
   "settings.bridge.restartBody": "--remote-debugging-port=0 wurde zu Verknüpfungen, Autostart und Protokollhandlern hinzugefügt (künftige Starts docken automatisch an). Unten klicken, um Hintergrundprozesse zu beenden und neu zu starten.",
@@ -10553,6 +10653,8 @@ const I18N_MESSAGES_FR_FR = Object.freeze({
   "settings.str.mountDual": "Double ancrage (Barre de titre + Latérale)",
   "settings.str.mountComposer": "Ancrage saisie (Zone de saisie + Latérale)",
   "settings.str.mountSidebar": "Barre latérale seule",
+  "settings.str.mountVsCodeComposer": "Zone de saisie",
+  "settings.str.mountVsCodeTopbar": "Barre supérieure",
   "settings.bridge.restartTitle": "Option de lancement configurée — Redémarrez pour activer",
   "settings.bridge.ctxRestartTitle": "Option de lancement configurée — Redémarrez pour le contexte",
   "settings.bridge.restartBody": "--remote-debugging-port=0 ajouté automatiquement aux raccourcis, démarrages et protocoles (les prochains lancements monteront d’office). Cliquez ci-dessous pour fermer l’arrière-plan et relancer.",
@@ -14961,6 +15063,7 @@ const PORTABLE_SETTING_DESCRIPTORS = Object.freeze([
       }
     },
   },
+  normField('vsCodeMountMode', normalizeVsCodeMountMode),
   normField('popoverWidthMode', normalizePopoverWidthMode),
   normField('popoverWidth', normalizePopoverWidth),
   boolField('enableCliStatusLine', true),
@@ -17841,68 +17944,76 @@ return { fetchHostI18nStatus, refreshHostI18nManifest, selectHostI18nLanguage, u
 })();
 
 // --- src/store/telemetryStore.js ---
-const { extractHostRouteCascadeId, telemetryStore, clearConsumptionRangeCache, clearConversationViewCache, CLIENT_TOPBAR_SLOT_KEYS, DEFAULT_CLIENT_TOPBAR_SLOTS, CLIENT_TOPBAR_MULTI_SESSION_MODES, DEFAULT_CLIENT_TOPBAR_MULTI_SESSION_MODE, DEFAULT_CLIENT_CONTEXT_AGENT_MODE, CLIENT_CLI_STATUSLINE_PRESETS, DEFAULT_CLIENT_CLI_STATUSLINE_SLOTS, CLIENT_OVERVIEW_MODULE_KEYS, DEFAULT_CLIENT_OVERVIEW_MODULES, DEFAULT_CLIENT_HOVER_MODULES, DEFAULT_CLIENT_HOVER_SYNC_OVERVIEW_METRICS, DEFAULT_CLIENT_HOVER_METRIC_STYLE, DEFAULT_CLIENT_HOVER_METRIC_ROWS, DEFAULT_CLIENT_HOVER_METRIC_SIZES, DEFAULT_CLIENT_HOVER_METRIC_TEXT_MODE, DEFAULT_CLIENT_HOVER_METRICS, DEFAULT_CLIENT_OVERVIEW_METRIC_STYLE, DEFAULT_CLIENT_OVERVIEW_METRIC_ROWS, DEFAULT_CLIENT_OVERVIEW_METRIC_SIZES, DEFAULT_CLIENT_OVERVIEW_METRIC_TEXT_MODE, DEFAULT_CLIENT_METRIC_ROWS, DEFAULT_CLIENT_METRIC_TEXT_MODE, CLIENT_METRIC_GRID_COLS, CLIENT_METRIC_GRID_ROWS, CLIENT_METRIC_CARD_SIZES, CLIENT_METRIC_TEXT_MODES, MAX_CLIENT_OVERVIEW_METRICS, MAX_CLIENT_LARGE_METRIC_SLOTS, CLIENT_OVERVIEW_METRIC_KEYS, DEFAULT_CLIENT_OVERVIEW_METRICS, CLIENT_STEP_COLUMN_KEYS, DEFAULT_CLIENT_STEP_COLUMNS, DEFAULT_CLIENT_STEP_TOKEN_COMBO_FORMAT, MIN_CLIENT_POPOVER_WIDTH, MAX_CLIENT_POPOVER_WIDTH, DEFAULT_CLIENT_POPOVER_WIDTH, DEFAULT_CLIENT_QUOTA_DISPLAY_MODE, parseClientStepTokenComboSegments, normalizeClientStepTokenComboFormat, normalizeClientPopoverWidthMode, normalizeClientPopoverWidth, normalizeClientModelDisplayMode, normalizeClientTopbarSlots, normalizeClientTopbarMultiSessionMode, isClientTopbarMultiSessionVisible, normalizeClientContextAgentMode, normalizeClientQuotaDisplayMode, normalizeClientExperimentalQuotaReservation, normalizeClientAccountQuotaRefreshMinutes, normalizeClientCliStatusLineSlots, getDefaultCtxInspectorAgentId, resolveOverlayCtxInspectorAgentId, resolveEffectiveClientCliStatusLineSlots, normalizeClientHoverModules, normalizeClientHoverSyncOverviewMetrics, normalizeClientHoverMetricStyle, normalizeClientHoverMetricRows, normalizeClientHoverMetricSizes, normalizeClientHoverMetricTextMode, normalizeClientHoverMetrics, normalizeClientOverviewModules, normalizeClientOverviewMetricStyle, normalizeClientOverviewMetricRows, normalizeClientOverviewMetricSizes, normalizeClientOverviewMetricTextMode, normalizeClientOverviewMetrics, normalizeClientMetricCardSize, normalizeClientMetricCardSizes, normalizeClientMetricGridRows, normalizeClientMetricTextMode, deriveClientMetricCardStyle, packClientMetricBentoLayout, resolveEffectiveClientMetricMatrixConfig, normalizeClientStepColumns, normalizeClientUpdateMode, normalizeClientWindowMountMode, normalizeClientDisplayCurrency, isEquivalentTelemetry, resetTelemetryForEndpointSwitch, fetchTelemetry, selectConversation, selectConsumptionTimeRange, selectConsumptionCyclePool, prefetchConsumptionPresets, saveSettingsPatch, saveModelContextWindow, resetAllSettings, rebuildTrajectoryCache, triggerCloudSync, triggerFxSync, normalizeClientAutoConfigureLaunch, normalizeClientEnableRemoteSshTelemetry, triggerBridgeHostRelaunch, triggerCliStatusLineAction, fetchSessionMigrationCatalog, fetchQuotaReservationLog, executeSessionMigration, fetchLocalSessionsList, fetchSessionCleanupPreview, deleteLocalSessionsAction, redactLocalLedgerPrivacy, revealLocalSessionPathAction, triggerPluginUpdate, startAsyncTelemetryLoop, stopAsyncTelemetryLoop, resolveHostRouteMatch, resolveScopedConversation, isMacHostPlatform } = (() => {
+const { extractHostRouteCascadeId, telemetryStore, clearConsumptionRangeCache, clearConversationViewCache, CLIENT_TOPBAR_SLOT_KEYS, DEFAULT_CLIENT_TOPBAR_SLOTS, CLIENT_TOPBAR_MULTI_SESSION_MODES, DEFAULT_CLIENT_TOPBAR_MULTI_SESSION_MODE, DEFAULT_CLIENT_CONTEXT_AGENT_MODE, CLIENT_CLI_STATUSLINE_PRESETS, DEFAULT_CLIENT_CLI_STATUSLINE_SLOTS, CLIENT_OVERVIEW_MODULE_KEYS, DEFAULT_CLIENT_OVERVIEW_MODULES, DEFAULT_CLIENT_HOVER_MODULES, DEFAULT_CLIENT_HOVER_SYNC_OVERVIEW_METRICS, DEFAULT_CLIENT_HOVER_METRIC_STYLE, DEFAULT_CLIENT_HOVER_METRIC_ROWS, DEFAULT_CLIENT_HOVER_METRIC_SIZES, DEFAULT_CLIENT_HOVER_METRIC_TEXT_MODE, DEFAULT_CLIENT_HOVER_METRICS, DEFAULT_CLIENT_OVERVIEW_METRIC_STYLE, DEFAULT_CLIENT_OVERVIEW_METRIC_ROWS, DEFAULT_CLIENT_OVERVIEW_METRIC_SIZES, DEFAULT_CLIENT_OVERVIEW_METRIC_TEXT_MODE, DEFAULT_CLIENT_METRIC_ROWS, DEFAULT_CLIENT_METRIC_TEXT_MODE, CLIENT_METRIC_GRID_COLS, CLIENT_METRIC_GRID_ROWS, CLIENT_METRIC_CARD_SIZES, CLIENT_METRIC_TEXT_MODES, MAX_CLIENT_OVERVIEW_METRICS, MAX_CLIENT_LARGE_METRIC_SLOTS, CLIENT_OVERVIEW_METRIC_KEYS, DEFAULT_CLIENT_OVERVIEW_METRICS, CLIENT_STEP_COLUMN_KEYS, DEFAULT_CLIENT_STEP_COLUMNS, DEFAULT_CLIENT_STEP_TOKEN_COMBO_FORMAT, MIN_CLIENT_POPOVER_WIDTH, MAX_CLIENT_POPOVER_WIDTH, DEFAULT_CLIENT_POPOVER_WIDTH, DEFAULT_CLIENT_QUOTA_DISPLAY_MODE, parseClientStepTokenComboSegments, normalizeClientStepTokenComboFormat, normalizeClientPopoverWidthMode, normalizeClientPopoverWidth, normalizeClientModelDisplayMode, normalizeClientTopbarSlots, normalizeClientTopbarMultiSessionMode, isClientTopbarMultiSessionVisible, normalizeClientContextAgentMode, normalizeClientQuotaDisplayMode, normalizeClientExperimentalQuotaReservation, normalizeClientAccountQuotaRefreshMinutes, normalizeClientCliStatusLineSlots, getDefaultCtxInspectorAgentId, resolveOverlayCtxInspectorAgentId, resolveEffectiveClientCliStatusLineSlots, normalizeClientHoverModules, normalizeClientHoverSyncOverviewMetrics, normalizeClientHoverMetricStyle, normalizeClientHoverMetricRows, normalizeClientHoverMetricSizes, normalizeClientHoverMetricTextMode, normalizeClientHoverMetrics, normalizeClientOverviewModules, normalizeClientOverviewMetricStyle, normalizeClientOverviewMetricRows, normalizeClientOverviewMetricSizes, normalizeClientOverviewMetricTextMode, normalizeClientOverviewMetrics, normalizeClientMetricCardSize, normalizeClientMetricCardSizes, normalizeClientMetricGridRows, normalizeClientMetricTextMode, deriveClientMetricCardStyle, packClientMetricBentoLayout, resolveEffectiveClientMetricMatrixConfig, normalizeClientStepColumns, normalizeClientUpdateMode, normalizeClientWindowMountMode, normalizeClientVsCodeMountMode, normalizeClientDisplayCurrency, isEquivalentTelemetry, resetTelemetryForEndpointSwitch, fetchTelemetry, selectConversation, selectConsumptionTimeRange, selectConsumptionCyclePool, prefetchConsumptionPresets, saveSettingsPatch, saveModelContextWindow, resetAllSettings, rebuildTrajectoryCache, triggerCloudSync, triggerFxSync, normalizeClientAutoConfigureLaunch, normalizeClientEnableRemoteSshTelemetry, triggerBridgeHostRelaunch, triggerCliStatusLineAction, fetchSessionMigrationCatalog, fetchQuotaReservationLog, executeSessionMigration, fetchLocalSessionsList, fetchSessionCleanupPreview, deleteLocalSessionsAction, redactLocalLedgerPrivacy, revealLocalSessionPathAction, triggerPluginUpdate, startAsyncTelemetryLoop, stopAsyncTelemetryLoop, resolveHostRouteMatch, resolveScopedConversation, isMacHostPlatform } = (() => {
 const CASCADE_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function extractHostRouteCascadeId() {
   if (typeof window === 'undefined' || !isWindowOverlayMode()) return '';
+  const bridge = readInjectedWindowBridge();
+  const isExtView =
+    bridge?.isIdeChatFrame === true ||
+    /[?&]extension(?:View|Variant)=/i.test(String(window.location?.search || ''));
   const pathname = String(window.location?.pathname || '');
   const m = pathname.match(/^\/c\/([a-f0-9-]{36})(?:\/|$)/i);
-  if (m && CASCADE_UUID_RE.test(m[1])) {
-    return m[1];
+  const pathId = m && CASCADE_UUID_RE.test(m[1]) ? m[1] : '';
+  if (!isExtView && pathId) {
+    return pathId;
   }
-  const extBridgeRouteId = String(readInjectedWindowBridge()?.[WINDOW_BRIDGE_ROUTE_KEY] || '').trim();
-  if (extBridgeRouteId && CASCADE_UUID_RE.test(extBridgeRouteId)) {
+  const extBridgeRouteId = String(bridge?.[WINDOW_BRIDGE_ROUTE_KEY] || '').trim();
+  if (!isExtView && extBridgeRouteId && CASCADE_UUID_RE.test(extBridgeRouteId)) {
     return extBridgeRouteId;
   }
   try {
-    if (typeof document === 'undefined' || typeof document.querySelector !== 'function') {
-      return '';
-    }
-    const selectedRow = document.querySelector(
-      '[data-testid^="conversation-row-"][data-selected="true"][data-cascade-id]'
-    );
-    const selectedRowId = String(selectedRow?.getAttribute?.('data-cascade-id') || '').trim();
+    if (typeof document !== 'undefined' && typeof document.querySelector === 'function') {
+      const selectedRow = document.querySelector(
+        '[data-testid^="conversation-row-"][data-selected="true"][data-cascade-id]'
+      );
+      const selectedRowId = String(selectedRow?.getAttribute?.('data-cascade-id') || '').trim();
 
-    if (typeof document.querySelectorAll === 'function') {
-      const views = document.querySelectorAll('[data-testid="conversation-view"][data-cascade-id]');
-      const visibleIds = [];
-      let focusedId = '';
-      const activeEl = document.activeElement || null;
-      for (const viewEl of views) {
-        const cid = String(viewEl?.getAttribute?.('data-cascade-id') || '').trim();
-        if (!CASCADE_UUID_RE.test(cid)) continue;
-        if (viewEl.hasAttribute?.('hidden')) continue;
-        if (viewEl.getBoundingClientRect) {
-          const r = viewEl.getBoundingClientRect();
-          if (r.width <= 0 && r.height <= 0) continue;
+      if (typeof document.querySelectorAll === 'function') {
+        const views = document.querySelectorAll('[data-testid="conversation-view"][data-cascade-id]');
+        const visibleIds = [];
+        let focusedId = '';
+        const activeEl = document.activeElement || null;
+        for (const viewEl of views) {
+          const cid = String(viewEl?.getAttribute?.('data-cascade-id') || '').trim();
+          if (!CASCADE_UUID_RE.test(cid)) continue;
+          if (viewEl.hasAttribute?.('hidden')) continue;
+          if (viewEl.getBoundingClientRect) {
+            const r = viewEl.getBoundingClientRect();
+            if (r.width <= 0 && r.height <= 0) continue;
+          }
+          visibleIds.push(cid);
+          if (activeEl && viewEl.contains?.(activeEl)) {
+            focusedId = cid;
+          }
         }
-        visibleIds.push(cid);
-        if (activeEl && viewEl.contains?.(activeEl)) {
-          focusedId = cid;
+        if (focusedId) return focusedId;
+        if (
+          selectedRowId &&
+          CASCADE_UUID_RE.test(selectedRowId) &&
+          visibleIds.some((id) => id.toLowerCase() === selectedRowId.toLowerCase())
+        ) {
+          return selectedRowId;
         }
+        if (visibleIds.length > 0) return visibleIds[0];
       }
-      if (focusedId) return focusedId;
-      if (
-        selectedRowId &&
-        CASCADE_UUID_RE.test(selectedRowId) &&
-        visibleIds.some((id) => id.toLowerCase() === selectedRowId.toLowerCase())
-      ) {
+
+      const singleView = document.querySelector('[data-testid="conversation-view"][data-cascade-id]');
+      const singleViewId = String(singleView?.getAttribute?.('data-cascade-id') || '').trim();
+      if (CASCADE_UUID_RE.test(singleViewId)) {
+        return singleViewId;
+      }
+      if (CASCADE_UUID_RE.test(selectedRowId)) {
         return selectedRowId;
       }
-      if (visibleIds.length > 0) return visibleIds[0];
-    }
-
-    const singleView = document.querySelector('[data-testid="conversation-view"][data-cascade-id]');
-    const singleViewId = String(singleView?.getAttribute?.('data-cascade-id') || '').trim();
-    if (CASCADE_UUID_RE.test(singleViewId)) {
-      return singleViewId;
-    }
-    if (CASCADE_UUID_RE.test(selectedRowId)) {
-      return selectedRowId;
     }
   } catch {
 
+  }
+  if (pathId) return pathId;
+  if (extBridgeRouteId && CASCADE_UUID_RE.test(extBridgeRouteId)) {
+    return extBridgeRouteId;
   }
   return '';
 }
@@ -17956,6 +18067,7 @@ const TELEMETRY_RECOMPUTE_SETTING_KEYS = new Set([
   'weeklyTokenBudget',
   'weeklyCostBudget',
   'windowMountMode',
+  'vsCodeMountMode',
   'enableWindowOverlay',
   'autoConfigureLaunch',
   'enableRemoteSshTelemetry',
@@ -18344,6 +18456,7 @@ const resolveEffectiveClientMetricMatrixConfig = resolveEffectiveMetricMatrixCon
 const normalizeClientStepColumns = normalizeStepTableColumns;
 const normalizeClientUpdateMode = normalizePluginUpdateMode;
 const normalizeClientWindowMountMode = normalizeWindowMountMode;
+const normalizeClientVsCodeMountMode = normalizeVsCodeMountMode;
 const normalizeClientDisplayCurrency = normalizeDisplayCurrency;
 
 function isEquivalentTelemetry(prev, next) {
@@ -18440,6 +18553,12 @@ function isEquivalentTelemetry(prev, next) {
   if (
     normalizeClientWindowMountMode(pSet?.windowMountMode, pSet?.enableWindowOverlay) !==
     normalizeClientWindowMountMode(nSet?.windowMountMode, nSet?.enableWindowOverlay)
+  ) {
+    return false;
+  }
+  if (
+    normalizeClientVsCodeMountMode(pSet?.vsCodeMountMode) !==
+    normalizeClientVsCodeMountMode(nSet?.vsCodeMountMode)
   ) {
     return false;
   }
@@ -20083,6 +20202,9 @@ async function saveSettingsPatch(patch) {
     safePatch.enableWindowOverlay = Boolean(safePatch.enableWindowOverlay);
     safePatch.windowMountMode = safePatch.enableWindowOverlay ? 'dual' : 'sidebar';
   }
+  if (Object.prototype.hasOwnProperty.call(safePatch, 'vsCodeMountMode')) {
+    safePatch.vsCodeMountMode = normalizeClientVsCodeMountMode(safePatch.vsCodeMountMode);
+  }
   const myRev = ++settingsRevision;
   const prevTelemetry = telemetryStore.getState().telemetry;
   const patchKeys = Object.keys(safePatch);
@@ -20502,7 +20624,16 @@ function startAsyncTelemetryLoop(intervalMs = 2000) {
       return Math.min(loopIntervalMs, 800);
     }
     if (isWindowOverlayMode() && typeof document !== 'undefined' && document.hidden) {
-      return Math.max(loopIntervalMs, 8000);
+      return Math.max(loopIntervalMs, 10000);
+    }
+    if (isWindowOverlayMode() && readInjectedWindowBridge()?.isRemoteEndpoint) {
+      const tel = telemetryStore.getState().telemetry;
+      const hasRunning =
+        (Array.isArray(tel?.runningConversations) && tel.runningConversations.length > 0) ||
+        tel?.activeConversation?.status === 'CASCADE_RUN_STATUS_RUNNING';
+      if (!hasRunning) {
+        return Math.max(loopIntervalMs, 6000);
+      }
     }
     return loopIntervalMs;
   };
@@ -20712,7 +20843,7 @@ function isMacHostPlatform(telemetry) {
   }
   return false;
 }
-return { extractHostRouteCascadeId, telemetryStore, clearConsumptionRangeCache, clearConversationViewCache, CLIENT_TOPBAR_SLOT_KEYS, DEFAULT_CLIENT_TOPBAR_SLOTS, CLIENT_TOPBAR_MULTI_SESSION_MODES, DEFAULT_CLIENT_TOPBAR_MULTI_SESSION_MODE, DEFAULT_CLIENT_CONTEXT_AGENT_MODE, CLIENT_CLI_STATUSLINE_PRESETS, DEFAULT_CLIENT_CLI_STATUSLINE_SLOTS, CLIENT_OVERVIEW_MODULE_KEYS, DEFAULT_CLIENT_OVERVIEW_MODULES, DEFAULT_CLIENT_HOVER_MODULES, DEFAULT_CLIENT_HOVER_SYNC_OVERVIEW_METRICS, DEFAULT_CLIENT_HOVER_METRIC_STYLE, DEFAULT_CLIENT_HOVER_METRIC_ROWS, DEFAULT_CLIENT_HOVER_METRIC_SIZES, DEFAULT_CLIENT_HOVER_METRIC_TEXT_MODE, DEFAULT_CLIENT_HOVER_METRICS, DEFAULT_CLIENT_OVERVIEW_METRIC_STYLE, DEFAULT_CLIENT_OVERVIEW_METRIC_ROWS, DEFAULT_CLIENT_OVERVIEW_METRIC_SIZES, DEFAULT_CLIENT_OVERVIEW_METRIC_TEXT_MODE, DEFAULT_CLIENT_METRIC_ROWS, DEFAULT_CLIENT_METRIC_TEXT_MODE, CLIENT_METRIC_GRID_COLS, CLIENT_METRIC_GRID_ROWS, CLIENT_METRIC_CARD_SIZES, CLIENT_METRIC_TEXT_MODES, MAX_CLIENT_OVERVIEW_METRICS, MAX_CLIENT_LARGE_METRIC_SLOTS, CLIENT_OVERVIEW_METRIC_KEYS, DEFAULT_CLIENT_OVERVIEW_METRICS, CLIENT_STEP_COLUMN_KEYS, DEFAULT_CLIENT_STEP_COLUMNS, DEFAULT_CLIENT_STEP_TOKEN_COMBO_FORMAT, MIN_CLIENT_POPOVER_WIDTH, MAX_CLIENT_POPOVER_WIDTH, DEFAULT_CLIENT_POPOVER_WIDTH, DEFAULT_CLIENT_QUOTA_DISPLAY_MODE, parseClientStepTokenComboSegments, normalizeClientStepTokenComboFormat, normalizeClientPopoverWidthMode, normalizeClientPopoverWidth, normalizeClientModelDisplayMode, normalizeClientTopbarSlots, normalizeClientTopbarMultiSessionMode, isClientTopbarMultiSessionVisible, normalizeClientContextAgentMode, normalizeClientQuotaDisplayMode, normalizeClientExperimentalQuotaReservation, normalizeClientAccountQuotaRefreshMinutes, normalizeClientCliStatusLineSlots, getDefaultCtxInspectorAgentId, resolveOverlayCtxInspectorAgentId, resolveEffectiveClientCliStatusLineSlots, normalizeClientHoverModules, normalizeClientHoverSyncOverviewMetrics, normalizeClientHoverMetricStyle, normalizeClientHoverMetricRows, normalizeClientHoverMetricSizes, normalizeClientHoverMetricTextMode, normalizeClientHoverMetrics, normalizeClientOverviewModules, normalizeClientOverviewMetricStyle, normalizeClientOverviewMetricRows, normalizeClientOverviewMetricSizes, normalizeClientOverviewMetricTextMode, normalizeClientOverviewMetrics, normalizeClientMetricCardSize, normalizeClientMetricCardSizes, normalizeClientMetricGridRows, normalizeClientMetricTextMode, deriveClientMetricCardStyle, packClientMetricBentoLayout, resolveEffectiveClientMetricMatrixConfig, normalizeClientStepColumns, normalizeClientUpdateMode, normalizeClientWindowMountMode, normalizeClientDisplayCurrency, isEquivalentTelemetry, resetTelemetryForEndpointSwitch, fetchTelemetry, selectConversation, selectConsumptionTimeRange, selectConsumptionCyclePool, prefetchConsumptionPresets, saveSettingsPatch, saveModelContextWindow, resetAllSettings, rebuildTrajectoryCache, triggerCloudSync, triggerFxSync, normalizeClientAutoConfigureLaunch, normalizeClientEnableRemoteSshTelemetry, triggerBridgeHostRelaunch, triggerCliStatusLineAction, fetchSessionMigrationCatalog, fetchQuotaReservationLog, executeSessionMigration, fetchLocalSessionsList, fetchSessionCleanupPreview, deleteLocalSessionsAction, redactLocalLedgerPrivacy, revealLocalSessionPathAction, triggerPluginUpdate, startAsyncTelemetryLoop, stopAsyncTelemetryLoop, resolveHostRouteMatch, resolveScopedConversation, isMacHostPlatform };
+return { extractHostRouteCascadeId, telemetryStore, clearConsumptionRangeCache, clearConversationViewCache, CLIENT_TOPBAR_SLOT_KEYS, DEFAULT_CLIENT_TOPBAR_SLOTS, CLIENT_TOPBAR_MULTI_SESSION_MODES, DEFAULT_CLIENT_TOPBAR_MULTI_SESSION_MODE, DEFAULT_CLIENT_CONTEXT_AGENT_MODE, CLIENT_CLI_STATUSLINE_PRESETS, DEFAULT_CLIENT_CLI_STATUSLINE_SLOTS, CLIENT_OVERVIEW_MODULE_KEYS, DEFAULT_CLIENT_OVERVIEW_MODULES, DEFAULT_CLIENT_HOVER_MODULES, DEFAULT_CLIENT_HOVER_SYNC_OVERVIEW_METRICS, DEFAULT_CLIENT_HOVER_METRIC_STYLE, DEFAULT_CLIENT_HOVER_METRIC_ROWS, DEFAULT_CLIENT_HOVER_METRIC_SIZES, DEFAULT_CLIENT_HOVER_METRIC_TEXT_MODE, DEFAULT_CLIENT_HOVER_METRICS, DEFAULT_CLIENT_OVERVIEW_METRIC_STYLE, DEFAULT_CLIENT_OVERVIEW_METRIC_ROWS, DEFAULT_CLIENT_OVERVIEW_METRIC_SIZES, DEFAULT_CLIENT_OVERVIEW_METRIC_TEXT_MODE, DEFAULT_CLIENT_METRIC_ROWS, DEFAULT_CLIENT_METRIC_TEXT_MODE, CLIENT_METRIC_GRID_COLS, CLIENT_METRIC_GRID_ROWS, CLIENT_METRIC_CARD_SIZES, CLIENT_METRIC_TEXT_MODES, MAX_CLIENT_OVERVIEW_METRICS, MAX_CLIENT_LARGE_METRIC_SLOTS, CLIENT_OVERVIEW_METRIC_KEYS, DEFAULT_CLIENT_OVERVIEW_METRICS, CLIENT_STEP_COLUMN_KEYS, DEFAULT_CLIENT_STEP_COLUMNS, DEFAULT_CLIENT_STEP_TOKEN_COMBO_FORMAT, MIN_CLIENT_POPOVER_WIDTH, MAX_CLIENT_POPOVER_WIDTH, DEFAULT_CLIENT_POPOVER_WIDTH, DEFAULT_CLIENT_QUOTA_DISPLAY_MODE, parseClientStepTokenComboSegments, normalizeClientStepTokenComboFormat, normalizeClientPopoverWidthMode, normalizeClientPopoverWidth, normalizeClientModelDisplayMode, normalizeClientTopbarSlots, normalizeClientTopbarMultiSessionMode, isClientTopbarMultiSessionVisible, normalizeClientContextAgentMode, normalizeClientQuotaDisplayMode, normalizeClientExperimentalQuotaReservation, normalizeClientAccountQuotaRefreshMinutes, normalizeClientCliStatusLineSlots, getDefaultCtxInspectorAgentId, resolveOverlayCtxInspectorAgentId, resolveEffectiveClientCliStatusLineSlots, normalizeClientHoverModules, normalizeClientHoverSyncOverviewMetrics, normalizeClientHoverMetricStyle, normalizeClientHoverMetricRows, normalizeClientHoverMetricSizes, normalizeClientHoverMetricTextMode, normalizeClientHoverMetrics, normalizeClientOverviewModules, normalizeClientOverviewMetricStyle, normalizeClientOverviewMetricRows, normalizeClientOverviewMetricSizes, normalizeClientOverviewMetricTextMode, normalizeClientOverviewMetrics, normalizeClientMetricCardSize, normalizeClientMetricCardSizes, normalizeClientMetricGridRows, normalizeClientMetricTextMode, deriveClientMetricCardStyle, packClientMetricBentoLayout, resolveEffectiveClientMetricMatrixConfig, normalizeClientStepColumns, normalizeClientUpdateMode, normalizeClientWindowMountMode, normalizeClientVsCodeMountMode, normalizeClientDisplayCurrency, isEquivalentTelemetry, resetTelemetryForEndpointSwitch, fetchTelemetry, selectConversation, selectConsumptionTimeRange, selectConsumptionCyclePool, prefetchConsumptionPresets, saveSettingsPatch, saveModelContextWindow, resetAllSettings, rebuildTrajectoryCache, triggerCloudSync, triggerFxSync, normalizeClientAutoConfigureLaunch, normalizeClientEnableRemoteSshTelemetry, triggerBridgeHostRelaunch, triggerCliStatusLineAction, fetchSessionMigrationCatalog, fetchQuotaReservationLog, executeSessionMigration, fetchLocalSessionsList, fetchSessionCleanupPreview, deleteLocalSessionsAction, redactLocalLedgerPrivacy, revealLocalSessionPathAction, triggerPluginUpdate, startAsyncTelemetryLoop, stopAsyncTelemetryLoop, resolveHostRouteMatch, resolveScopedConversation, isMacHostPlatform };
 })();
 
 // --- src/components/ui/TopLongPillNav.js ---
@@ -44797,6 +44928,17 @@ function normalizeStructureTabKey(raw) {
 }
 
 function getMountModeOptions() {
+  if (isVsCodeExtensionHost()) {
+    const lockedTopbar = isForceTopbarOverlay();
+    return [
+      {
+        value: 'composer',
+        label: t('settings.str.mountVsCodeComposer'),
+        disabled: lockedTopbar,
+      },
+      { value: 'dual', label: t('settings.str.mountVsCodeTopbar') },
+    ];
+  }
   return [
     { value: 'dual', label: t('settings.str.mountDual') },
     { value: 'composer', label: t('settings.str.mountComposer') },
@@ -45043,7 +45185,11 @@ const SettingsStructureTab = defineComponent({
   name: 'SettingsStructureTab',
   setup({ props, onCleanup }) {
     let activeThirdTab = normalizeStructureTabKey(uiStore.getState().settingsStructureTab);
-    let draftWindowMountMode = 'dual';
+    let draftWindowMountMode = isVsCodeExtensionHost()
+      ? isForceTopbarOverlay()
+        ? 'dual'
+        : 'composer'
+      : 'dual';
     let draftPopoverWidthMode = 'auto';
     let draftPopoverWidth = DEFAULT_CLIENT_POPOVER_WIDTH;
     let draftEnableCliStatusLine = true;
@@ -45104,11 +45250,16 @@ const SettingsStructureTab = defineComponent({
         draftOverviewMetrics,
         draftOverviewMetricSizes
       );
+      const vsCodeHost = isVsCodeExtensionHost();
       return buildStructurePreviewTelemetry(
         latestSettings,
         {
-          windowMountMode: draftWindowMountMode,
-          enableWindowOverlay: draftWindowMountMode !== 'sidebar',
+          ...(vsCodeHost
+            ? { vsCodeMountMode: normalizeClientVsCodeMountMode(draftWindowMountMode) }
+            : {
+                windowMountMode: draftWindowMountMode,
+                enableWindowOverlay: draftWindowMountMode !== 'sidebar',
+              }),
           popoverWidthMode: draftPopoverWidthMode,
           popoverWidth: draftPopoverWidth,
           enableCliStatusLine: draftEnableCliStatusLine,
@@ -45308,6 +45459,21 @@ const SettingsStructureTab = defineComponent({
       icon: 'dock',
       options: getMountModeOptions(),
       onUpdateModelValue: (val) => {
+        if (isVsCodeExtensionHost()) {
+          if (isForceTopbarOverlay()) {
+            draftWindowMountMode = 'dual';
+            syncMountSectionMeta();
+            return;
+          }
+          const nextVsMode = normalizeClientVsCodeMountMode(val);
+          draftWindowMountMode = nextVsMode;
+          syncMountSectionMeta();
+          props.onLayoutChange?.();
+          void persistStructurePatch(mountSection, {
+            vsCodeMountMode: nextVsMode,
+          });
+          return;
+        }
         const nextMode = normalizeClientWindowMountMode(val);
         draftWindowMountMode = nextMode;
         syncMountSectionMeta();
@@ -45522,7 +45688,9 @@ const SettingsStructureTab = defineComponent({
       title: t('settings.str.mountSection'),
       badgeText: t('settings.str.mountBadge', { count: draftTopbarSlots.length }),
       onReset: () => {
-        draftWindowMountMode = 'dual';
+        const vsCodeHost = isVsCodeExtensionHost();
+        const forceTopbar = vsCodeHost && isForceTopbarOverlay();
+        draftWindowMountMode = vsCodeHost ? (forceTopbar ? 'dual' : 'composer') : 'dual';
         draftPopoverWidthMode = 'auto';
         draftPopoverWidth = DEFAULT_CLIENT_POPOVER_WIDTH;
         popoverWidthStepper.setProps({ modelValue: DEFAULT_CLIENT_POPOVER_WIDTH });
@@ -45535,8 +45703,11 @@ const SettingsStructureTab = defineComponent({
         void persistStructurePatch(
           mountSection,
           {
-            windowMountMode: 'dual',
-            enableWindowOverlay: true,
+            ...(vsCodeHost
+              ? forceTopbar
+                ? {}
+                : { vsCodeMountMode: 'composer' }
+              : { windowMountMode: 'dual', enableWindowOverlay: true }),
             popoverWidthMode: 'auto',
             popoverWidth: DEFAULT_CLIENT_POPOVER_WIDTH,
             topbarMultiSessionMode: DEFAULT_CLIENT_TOPBAR_MULTI_SESSION_MODE,
@@ -45689,12 +45860,15 @@ const SettingsStructureTab = defineComponent({
     }
 
     function syncMountSectionMeta() {
+      const vsCodeHost = isVsCodeExtensionHost();
+      const forceTopbar = vsCodeHost && isForceTopbarOverlay();
+      const effectiveDraftMountMode = forceTopbar ? 'dual' : draftWindowMountMode;
       windowMountSelect.setProps({
-        modelValue: draftWindowMountMode,
+        modelValue: effectiveDraftMountMode,
         options: getMountModeOptions(),
       });
       mountBridgeNotice.refs.update({
-        visible: draftWindowMountMode !== 'sidebar',
+        visible: !vsCodeHost && draftWindowMountMode !== 'sidebar',
         windowBridge: latestWindowBridge,
         hostPlatform: latestHostPlatform,
       });
@@ -45723,8 +45897,9 @@ const SettingsStructureTab = defineComponent({
       mountSection.refs.setBadge(
         t('settings.str.mountBadge', { count: draftTopbarSlots.length })
       );
+      const expectedDefaultMount = vsCodeHost ? (forceTopbar ? 'dual' : 'composer') : 'dual';
       const isDefault =
-        draftWindowMountMode === 'dual' &&
+        effectiveDraftMountMode === expectedDefaultMount &&
         draftPopoverWidthMode === 'auto' &&
         draftPopoverWidth === DEFAULT_CLIENT_POPOVER_WIDTH &&
         draftTopbarMultiSessionMode === DEFAULT_CLIENT_TOPBAR_MULTI_SESSION_MODE &&
@@ -46920,10 +47095,14 @@ const SettingsStructureTab = defineComponent({
       if (hostPlatform) latestHostPlatform = hostPlatform;
       if (cliStatusLine !== undefined) latestCliStatusLine = cliStatusLine;
       if (quotas !== undefined) latestQuotas = quotas;
-      draftWindowMountMode = normalizeClientWindowMountMode(
-        settings.windowMountMode,
-        settings.enableWindowOverlay
-      );
+      draftWindowMountMode = isVsCodeExtensionHost()
+        ? isForceTopbarOverlay()
+          ? 'dual'
+          : normalizeClientVsCodeMountMode(settings.vsCodeMountMode)
+        : normalizeClientWindowMountMode(
+            settings.windowMountMode,
+            settings.enableWindowOverlay
+          );
       draftPopoverWidthMode = normalizeClientPopoverWidthMode(settings.popoverWidthMode);
       draftPopoverWidth = normalizeClientPopoverWidth(settings.popoverWidth);
       draftEnableCliStatusLine = settings.enableCliStatusLine !== false;
@@ -55873,12 +56052,8 @@ function isIdeExtensionChatFrame() {
 
 function resolveActiveDockTarget(options = undefined) {
   const settings = telemetryStore.getState().telemetry?.settings;
-  const rawMode =
-    settings?.windowMountMode ??
-    readInjectedWindowBridge()?.mountMode;
   const mountMode =
-    options?.mountMode ||
-    normalizeClientWindowMountMode(rawMode, settings?.enableWindowOverlay);
+    options?.mountMode || resolveClientEffectiveOverlayMountMode(settings);
   if (isIdeExtensionChatFrame()) {
     if (mountMode !== 'composer') return null;
     return findHostComposerAutoTarget(
@@ -57807,9 +57982,8 @@ function mountWindowOverlay() {
     }
   }
 
-  let lastAppliedMountMode = normalizeClientWindowMountMode(
-    telemetryStore.getState().telemetry?.settings?.windowMountMode,
-    telemetryStore.getState().telemetry?.settings?.enableWindowOverlay
+  let lastAppliedMountMode = resolveClientEffectiveOverlayMountMode(
+    telemetryStore.getState().telemetry?.settings
   );
 
   const unsubStore = telemetryStore.subscribe(
@@ -57820,11 +57994,12 @@ function mountWindowOverlay() {
       selectedConversationId: st.selectedConversationId,
     }),
     (slice) => {
-      const nextMountMode = normalizeClientWindowMountMode(
-        slice.telemetry?.settings?.windowMountMode,
-        slice.telemetry?.settings?.enableWindowOverlay
-      );
-      if (slice.telemetry?.settings?.enableWindowOverlay === false || nextMountMode === 'sidebar') {
+      const nextMountMode = resolveClientEffectiveOverlayMountMode(slice.telemetry?.settings);
+      if (
+        !isVsCodeExtensionHost() &&
+        !isForceTopbarOverlay() &&
+        (slice.telemetry?.settings?.enableWindowOverlay === false || nextMountMode === 'sidebar')
+      ) {
         if (popoverOpen) setPopoverOpen(false);
         if (multiOpen) setMultiOpen(false);
       } else if (nextMountMode !== lastAppliedMountMode) {
@@ -57886,6 +58061,7 @@ function mountWindowOverlay() {
     if (disposed) return;
     const currentRouteId = extractHostRouteCascadeId();
     if (currentRouteId === lastObservedRouteId) return;
+    const prevRouteId = lastObservedRouteId;
     lastObservedRouteId = currentRouteId;
     const st = telemetryStore.getState();
     const activeCascadeId = String(st.telemetry?.activeConversation?.cascadeId || '').trim();
@@ -57898,8 +58074,15 @@ function mountWindowOverlay() {
       Boolean(resolveHostRouteMatch(st.telemetry, currentRouteId)?.isChildRoute);
     const shouldPreserveSameSession =
       !currentRouteId || isSameActiveRoot || isChildOfActiveRoot;
+    const selectedMatchesPrevRoute =
+      Boolean(prevRouteId) &&
+      Boolean(st.selectedConversationId) &&
+      st.selectedConversationId.toLowerCase() === prevRouteId.toLowerCase();
     const nextSelectedId =
-      currentRouteId && st.selectedConversationId && st.selectedConversationId !== currentRouteId
+      st.selectedConversationId &&
+      ((currentRouteId &&
+        st.selectedConversationId.toLowerCase() !== currentRouteId.toLowerCase()) ||
+        (!currentRouteId && selectedMatchesPrevRoute))
         ? ''
         : st.selectedConversationId;
     if (!shouldPreserveSameSession) {
@@ -58110,15 +58293,26 @@ function mountWindowOverlay() {
           : prevEndpointId;
       const portChanged = Number(cur.port || 0) !== port || String(cur.token || '') !== token;
       const endpointChanged = prevEndpointId !== nextEndpointId;
+      const prevForceTopbar = Boolean(cur.forceTopbarMode);
+      const prevIsVsCodeHost = Boolean(cur.isVsCodeHost);
       cur.port = port;
       cur.token = token;
       cur[WINDOW_BRIDGE_ENDPOINT_KEY] = nextEndpointId;
+      if (nextBridge.isVsCodeHost !== undefined) {
+        cur.isVsCodeHost = Boolean(nextBridge.isVsCodeHost);
+      }
+      if (nextBridge.forceTopbarMode !== undefined) {
+        cur.forceTopbarMode = Boolean(nextBridge.forceTopbarMode);
+      }
       if (nextBridge.isRemoteEndpoint !== undefined) {
         cur.isRemoteEndpoint = Boolean(nextBridge.isRemoteEndpoint);
       }
       if (nextBridge.endpointLabel !== undefined) {
         cur.endpointLabel = String(nextBridge.endpointLabel || '');
       }
+      const hostFlagsChanged =
+        Boolean(cur.forceTopbarMode) !== prevForceTopbar ||
+        Boolean(cur.isVsCodeHost) !== prevIsVsCodeHost;
       if (portChanged || endpointChanged) {
         cur.transportMode = 'http';
       }
@@ -58140,6 +58334,13 @@ function mountWindowOverlay() {
         }
       }
       window[WINDOW_BRIDGE_KEY] = cur;
+      if (hostFlagsChanged) {
+        lastAppliedMountMode = resolveClientEffectiveOverlayMountMode(
+          telemetryStore.getState().telemetry?.settings,
+          cur
+        );
+        ensureCapsuleDocked();
+      }
       if (endpointChanged) {
         resetTelemetryForEndpointSwitch();
         void fetchTelemetry({ force: true });
@@ -58183,8 +58384,31 @@ function mountWindowOverlay() {
     [WINDOW_OVERLAY_METHODS.getMountMode]: () => lastAppliedMountMode,
     [WINDOW_OVERLAY_METHODS.applyMountMode](nextMode) {
       if (disposed) return false;
-      const normalized = normalizeClientWindowMountMode(nextMode, nextMode !== 'sidebar');
       const bridgeConfig = readInjectedWindowBridge();
+      if (isForceTopbarOverlay(bridgeConfig)) {
+        if (bridgeConfig) bridgeConfig.mountMode = 'dual';
+        lastAppliedMountMode = 'dual';
+        return ensureCapsuleDocked();
+      }
+      if (isVsCodeExtensionHost(bridgeConfig)) {
+        const normalizedVsCode = normalizeClientVsCodeMountMode(nextMode);
+        if (bridgeConfig) bridgeConfig.mountMode = normalizedVsCode;
+        const curTel = telemetryStore.getState().telemetry;
+        if (curTel?.settings) {
+          telemetryStore.setState({
+            telemetry: {
+              ...curTel,
+              settings: {
+                ...curTel.settings,
+                vsCodeMountMode: normalizedVsCode,
+              },
+            },
+          });
+        }
+        lastAppliedMountMode = normalizedVsCode;
+        return ensureCapsuleDocked();
+      }
+      const normalized = normalizeClientWindowMountMode(nextMode, nextMode !== 'sidebar');
       if (bridgeConfig) bridgeConfig.mountMode = normalized;
       const curTel = telemetryStore.getState().telemetry;
       if (curTel?.settings) {

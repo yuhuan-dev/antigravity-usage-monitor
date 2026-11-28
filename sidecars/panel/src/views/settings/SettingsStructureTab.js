@@ -67,6 +67,7 @@ import {
   normalizeClientStepTokenComboFormat,
   normalizeClientTopbarMultiSessionMode,
   normalizeClientTopbarSlots,
+  normalizeClientVsCodeMountMode,
   normalizeClientWindowMountMode,
   packClientMetricBentoLayout,
   resolveEffectiveClientCliStatusLineSlots,
@@ -76,6 +77,10 @@ import {
   triggerCliStatusLineAction,
 } from '../../store/telemetryStore.js';
 import { getVisibleMonitorView, uiStore } from '../../store/uiStore.js';
+import {
+  isForceTopbarOverlay,
+  isVsCodeExtensionHost,
+} from '../../../shared/window-bridge-protocol.mjs';
 import { BridgeStatusNotice } from '../../components/settings/BridgeStatusNotice.js';
 import { CollapsibleSection } from '../../components/settings/CollapsibleSection.js';
 import { EditableSlotList } from '../../components/settings/EditableSlotList.js';
@@ -103,6 +108,17 @@ function normalizeStructureTabKey(raw) {
 }
 
 function getMountModeOptions() {
+  if (isVsCodeExtensionHost()) {
+    const lockedTopbar = isForceTopbarOverlay();
+    return [
+      {
+        value: 'composer',
+        label: t('settings.str.mountVsCodeComposer'),
+        disabled: lockedTopbar,
+      },
+      { value: 'dual', label: t('settings.str.mountVsCodeTopbar') },
+    ];
+  }
   return [
     { value: 'dual', label: t('settings.str.mountDual') },
     { value: 'composer', label: t('settings.str.mountComposer') },
@@ -349,7 +365,11 @@ export const SettingsStructureTab = defineComponent({
   name: 'SettingsStructureTab',
   setup({ props, onCleanup }) {
     let activeThirdTab = normalizeStructureTabKey(uiStore.getState().settingsStructureTab);
-    let draftWindowMountMode = 'dual';
+    let draftWindowMountMode = isVsCodeExtensionHost()
+      ? isForceTopbarOverlay()
+        ? 'dual'
+        : 'composer'
+      : 'dual';
     let draftPopoverWidthMode = 'auto';
     let draftPopoverWidth = DEFAULT_CLIENT_POPOVER_WIDTH;
     let draftEnableCliStatusLine = true;
@@ -410,11 +430,16 @@ export const SettingsStructureTab = defineComponent({
         draftOverviewMetrics,
         draftOverviewMetricSizes
       );
+      const vsCodeHost = isVsCodeExtensionHost();
       return buildStructurePreviewTelemetry(
         latestSettings,
         {
-          windowMountMode: draftWindowMountMode,
-          enableWindowOverlay: draftWindowMountMode !== 'sidebar',
+          ...(vsCodeHost
+            ? { vsCodeMountMode: normalizeClientVsCodeMountMode(draftWindowMountMode) }
+            : {
+                windowMountMode: draftWindowMountMode,
+                enableWindowOverlay: draftWindowMountMode !== 'sidebar',
+              }),
           popoverWidthMode: draftPopoverWidthMode,
           popoverWidth: draftPopoverWidth,
           enableCliStatusLine: draftEnableCliStatusLine,
@@ -616,6 +641,21 @@ export const SettingsStructureTab = defineComponent({
       icon: 'dock',
       options: getMountModeOptions(),
       onUpdateModelValue: (val) => {
+        if (isVsCodeExtensionHost()) {
+          if (isForceTopbarOverlay()) {
+            draftWindowMountMode = 'dual';
+            syncMountSectionMeta();
+            return;
+          }
+          const nextVsMode = normalizeClientVsCodeMountMode(val);
+          draftWindowMountMode = nextVsMode;
+          syncMountSectionMeta();
+          props.onLayoutChange?.();
+          void persistStructurePatch(mountSection, {
+            vsCodeMountMode: nextVsMode,
+          });
+          return;
+        }
         const nextMode = normalizeClientWindowMountMode(val);
         draftWindowMountMode = nextMode;
         syncMountSectionMeta();
@@ -830,7 +870,9 @@ export const SettingsStructureTab = defineComponent({
       title: t('settings.str.mountSection'),
       badgeText: t('settings.str.mountBadge', { count: draftTopbarSlots.length }),
       onReset: () => {
-        draftWindowMountMode = 'dual';
+        const vsCodeHost = isVsCodeExtensionHost();
+        const forceTopbar = vsCodeHost && isForceTopbarOverlay();
+        draftWindowMountMode = vsCodeHost ? (forceTopbar ? 'dual' : 'composer') : 'dual';
         draftPopoverWidthMode = 'auto';
         draftPopoverWidth = DEFAULT_CLIENT_POPOVER_WIDTH;
         popoverWidthStepper.setProps({ modelValue: DEFAULT_CLIENT_POPOVER_WIDTH });
@@ -843,8 +885,11 @@ export const SettingsStructureTab = defineComponent({
         void persistStructurePatch(
           mountSection,
           {
-            windowMountMode: 'dual',
-            enableWindowOverlay: true,
+            ...(vsCodeHost
+              ? forceTopbar
+                ? {}
+                : { vsCodeMountMode: 'composer' }
+              : { windowMountMode: 'dual', enableWindowOverlay: true }),
             popoverWidthMode: 'auto',
             popoverWidth: DEFAULT_CLIENT_POPOVER_WIDTH,
             topbarMultiSessionMode: DEFAULT_CLIENT_TOPBAR_MULTI_SESSION_MODE,
@@ -997,12 +1042,15 @@ export const SettingsStructureTab = defineComponent({
     }
 
     function syncMountSectionMeta() {
+      const vsCodeHost = isVsCodeExtensionHost();
+      const forceTopbar = vsCodeHost && isForceTopbarOverlay();
+      const effectiveDraftMountMode = forceTopbar ? 'dual' : draftWindowMountMode;
       windowMountSelect.setProps({
-        modelValue: draftWindowMountMode,
+        modelValue: effectiveDraftMountMode,
         options: getMountModeOptions(),
       });
       mountBridgeNotice.refs.update({
-        visible: draftWindowMountMode !== 'sidebar',
+        visible: !vsCodeHost && draftWindowMountMode !== 'sidebar',
         windowBridge: latestWindowBridge,
         hostPlatform: latestHostPlatform,
       });
@@ -1031,8 +1079,9 @@ export const SettingsStructureTab = defineComponent({
       mountSection.refs.setBadge(
         t('settings.str.mountBadge', { count: draftTopbarSlots.length })
       );
+      const expectedDefaultMount = vsCodeHost ? (forceTopbar ? 'dual' : 'composer') : 'dual';
       const isDefault =
-        draftWindowMountMode === 'dual' &&
+        effectiveDraftMountMode === expectedDefaultMount &&
         draftPopoverWidthMode === 'auto' &&
         draftPopoverWidth === DEFAULT_CLIENT_POPOVER_WIDTH &&
         draftTopbarMultiSessionMode === DEFAULT_CLIENT_TOPBAR_MULTI_SESSION_MODE &&
@@ -2231,10 +2280,14 @@ export const SettingsStructureTab = defineComponent({
       if (hostPlatform) latestHostPlatform = hostPlatform;
       if (cliStatusLine !== undefined) latestCliStatusLine = cliStatusLine;
       if (quotas !== undefined) latestQuotas = quotas;
-      draftWindowMountMode = normalizeClientWindowMountMode(
-        settings.windowMountMode,
-        settings.enableWindowOverlay
-      );
+      draftWindowMountMode = isVsCodeExtensionHost()
+        ? isForceTopbarOverlay()
+          ? 'dual'
+          : normalizeClientVsCodeMountMode(settings.vsCodeMountMode)
+        : normalizeClientWindowMountMode(
+            settings.windowMountMode,
+            settings.enableWindowOverlay
+          );
       draftPopoverWidthMode = normalizeClientPopoverWidthMode(settings.popoverWidthMode);
       draftPopoverWidth = normalizeClientPopoverWidth(settings.popoverWidth);
       draftEnableCliStatusLine = settings.enableCliStatusLine !== false;

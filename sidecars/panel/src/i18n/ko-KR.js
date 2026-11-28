@@ -816,6 +816,8 @@ export const I18N_MESSAGES_KO_KR = Object.freeze({
   "settings.str.mountDual": "듀얼 마운트 (제목 표시줄 + 사이드바)",
   "settings.str.mountComposer": "입력창 마운트 (입력창 + 사이드바)",
   "settings.str.mountSidebar": "사이드바 전용",
+  "settings.str.mountVsCodeComposer": "입력창",
+  "settings.str.mountVsCodeTopbar": "상단 바",
   "settings.bridge.restartTitle": "실행 플래그 자동 설정 완료 — 한 번 재시작하여 활성화",
   "settings.bridge.ctxRestartTitle": "실행 플래그 자동 설정 완료 — 컨텍스트 재정의를 위해 한 번 재시작",
   "settings.bridge.restartBody": "바로가기, 시작 프로그램 및 프로토콜 핸들러에 --remote-debugging-port=0을 자동으로 추가했습니다(이후 바로가기 실행 시 자동 마운트). 아래 버튼을 클릭해 백그라운드 프로세스를 종료하고 지금 다시 실행하세요.",

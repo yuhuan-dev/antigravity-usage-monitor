@@ -39,6 +39,7 @@ import {
   normalizeThemeAccent,
   normalizeTopbarCapsuleSlots,
   normalizeTopbarMultiSessionMode,
+  normalizeVsCodeMountMode,
   normalizeWeeklyLimitMode,
   normalizeWindowMountMode,
 } from '../../shared/settings-normalization.mjs';
@@ -210,6 +211,7 @@ const PORTABLE_SETTING_DESCRIPTORS = Object.freeze([
       }
     },
   },
+  normField('vsCodeMountMode', normalizeVsCodeMountMode),
   normField('popoverWidthMode', normalizePopoverWidthMode),
   normField('popoverWidth', normalizePopoverWidth),
   boolField('enableCliStatusLine', true),

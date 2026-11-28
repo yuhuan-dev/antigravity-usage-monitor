@@ -14,7 +14,10 @@ import {
   WINDOW_BRIDGE_KEY,
   WINDOW_OVERLAY_KEY,
   WINDOW_OVERLAY_METHODS,
+  isForceTopbarOverlay,
+  isVsCodeExtensionHost,
   readInjectedWindowBridge,
+  resolveClientEffectiveOverlayMountMode,
 } from '../../../shared/window-bridge-protocol.mjs';
 import { App } from '../../App.js';
 import {
@@ -57,6 +60,7 @@ import {
   normalizeClientTopbarMultiSessionMode,
   normalizeClientTopbarSlots,
   normalizeClientUpdateMode,
+  normalizeClientVsCodeMountMode,
   normalizeClientWindowMountMode,
   resetTelemetryForEndpointSwitch,
   resolveHostRouteMatch,
@@ -1829,9 +1833,8 @@ export function mountWindowOverlay() {
     }
   }
 
-  let lastAppliedMountMode = normalizeClientWindowMountMode(
-    telemetryStore.getState().telemetry?.settings?.windowMountMode,
-    telemetryStore.getState().telemetry?.settings?.enableWindowOverlay
+  let lastAppliedMountMode = resolveClientEffectiveOverlayMountMode(
+    telemetryStore.getState().telemetry?.settings
   );
 
   const unsubStore = telemetryStore.subscribe(
@@ -1842,11 +1845,12 @@ export function mountWindowOverlay() {
       selectedConversationId: st.selectedConversationId,
     }),
     (slice) => {
-      const nextMountMode = normalizeClientWindowMountMode(
-        slice.telemetry?.settings?.windowMountMode,
-        slice.telemetry?.settings?.enableWindowOverlay
-      );
-      if (slice.telemetry?.settings?.enableWindowOverlay === false || nextMountMode === 'sidebar') {
+      const nextMountMode = resolveClientEffectiveOverlayMountMode(slice.telemetry?.settings);
+      if (
+        !isVsCodeExtensionHost() &&
+        !isForceTopbarOverlay() &&
+        (slice.telemetry?.settings?.enableWindowOverlay === false || nextMountMode === 'sidebar')
+      ) {
         if (popoverOpen) setPopoverOpen(false);
         if (multiOpen) setMultiOpen(false);
       } else if (nextMountMode !== lastAppliedMountMode) {
@@ -1909,6 +1913,7 @@ export function mountWindowOverlay() {
     if (disposed) return;
     const currentRouteId = extractHostRouteCascadeId();
     if (currentRouteId === lastObservedRouteId) return;
+    const prevRouteId = lastObservedRouteId;
     lastObservedRouteId = currentRouteId;
     const st = telemetryStore.getState();
     const activeCascadeId = String(st.telemetry?.activeConversation?.cascadeId || '').trim();
@@ -1921,8 +1926,15 @@ export function mountWindowOverlay() {
       Boolean(resolveHostRouteMatch(st.telemetry, currentRouteId)?.isChildRoute);
     const shouldPreserveSameSession =
       !currentRouteId || isSameActiveRoot || isChildOfActiveRoot;
+    const selectedMatchesPrevRoute =
+      Boolean(prevRouteId) &&
+      Boolean(st.selectedConversationId) &&
+      st.selectedConversationId.toLowerCase() === prevRouteId.toLowerCase();
     const nextSelectedId =
-      currentRouteId && st.selectedConversationId && st.selectedConversationId !== currentRouteId
+      st.selectedConversationId &&
+      ((currentRouteId &&
+        st.selectedConversationId.toLowerCase() !== currentRouteId.toLowerCase()) ||
+        (!currentRouteId && selectedMatchesPrevRoute))
         ? ''
         : st.selectedConversationId;
     if (!shouldPreserveSameSession) {
@@ -2133,15 +2145,26 @@ export function mountWindowOverlay() {
           : prevEndpointId;
       const portChanged = Number(cur.port || 0) !== port || String(cur.token || '') !== token;
       const endpointChanged = prevEndpointId !== nextEndpointId;
+      const prevForceTopbar = Boolean(cur.forceTopbarMode);
+      const prevIsVsCodeHost = Boolean(cur.isVsCodeHost);
       cur.port = port;
       cur.token = token;
       cur[WINDOW_BRIDGE_ENDPOINT_KEY] = nextEndpointId;
+      if (nextBridge.isVsCodeHost !== undefined) {
+        cur.isVsCodeHost = Boolean(nextBridge.isVsCodeHost);
+      }
+      if (nextBridge.forceTopbarMode !== undefined) {
+        cur.forceTopbarMode = Boolean(nextBridge.forceTopbarMode);
+      }
       if (nextBridge.isRemoteEndpoint !== undefined) {
         cur.isRemoteEndpoint = Boolean(nextBridge.isRemoteEndpoint);
       }
       if (nextBridge.endpointLabel !== undefined) {
         cur.endpointLabel = String(nextBridge.endpointLabel || '');
       }
+      const hostFlagsChanged =
+        Boolean(cur.forceTopbarMode) !== prevForceTopbar ||
+        Boolean(cur.isVsCodeHost) !== prevIsVsCodeHost;
       if (portChanged || endpointChanged) {
         cur.transportMode = 'http';
       }
@@ -2163,6 +2186,13 @@ export function mountWindowOverlay() {
         }
       }
       window[WINDOW_BRIDGE_KEY] = cur;
+      if (hostFlagsChanged) {
+        lastAppliedMountMode = resolveClientEffectiveOverlayMountMode(
+          telemetryStore.getState().telemetry?.settings,
+          cur
+        );
+        ensureCapsuleDocked();
+      }
       if (endpointChanged) {
         resetTelemetryForEndpointSwitch();
         void fetchTelemetry({ force: true });
@@ -2206,8 +2236,31 @@ export function mountWindowOverlay() {
     [WINDOW_OVERLAY_METHODS.getMountMode]: () => lastAppliedMountMode,
     [WINDOW_OVERLAY_METHODS.applyMountMode](nextMode) {
       if (disposed) return false;
-      const normalized = normalizeClientWindowMountMode(nextMode, nextMode !== 'sidebar');
       const bridgeConfig = readInjectedWindowBridge();
+      if (isForceTopbarOverlay(bridgeConfig)) {
+        if (bridgeConfig) bridgeConfig.mountMode = 'dual';
+        lastAppliedMountMode = 'dual';
+        return ensureCapsuleDocked();
+      }
+      if (isVsCodeExtensionHost(bridgeConfig)) {
+        const normalizedVsCode = normalizeClientVsCodeMountMode(nextMode);
+        if (bridgeConfig) bridgeConfig.mountMode = normalizedVsCode;
+        const curTel = telemetryStore.getState().telemetry;
+        if (curTel?.settings) {
+          telemetryStore.setState({
+            telemetry: {
+              ...curTel,
+              settings: {
+                ...curTel.settings,
+                vsCodeMountMode: normalizedVsCode,
+              },
+            },
+          });
+        }
+        lastAppliedMountMode = normalizedVsCode;
+        return ensureCapsuleDocked();
+      }
+      const normalized = normalizeClientWindowMountMode(nextMode, nextMode !== 'sidebar');
       if (bridgeConfig) bridgeConfig.mountMode = normalized;
       const curTel = telemetryStore.getState().telemetry;
       if (curTel?.settings) {

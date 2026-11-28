@@ -51,6 +51,7 @@ import {
   normalizeModernUi,
   normalizePluginUpdateMode,
   normalizeTopbarMultiSessionMode,
+  normalizeVsCodeMountMode,
   normalizeWindowMountMode,
   saveJson,
 } from './config.mjs';
@@ -411,6 +412,10 @@ export function executeSettingsAction(data) {
             : 'dual'
           : 'sidebar'
         : normalizeWindowMountMode(current.windowMountMode, current.enableWindowOverlay);
+  const nextVsCodeMountMode =
+    payload.vsCodeMountMode !== undefined
+      ? normalizeVsCodeMountMode(payload.vsCodeMountMode)
+      : normalizeVsCodeMountMode(current.vsCodeMountMode);
   const nextModelDisplayMode =
     payload.modelDisplayMode !== undefined
       ? normalizeModelDisplayMode(payload.modelDisplayMode)
@@ -475,6 +480,7 @@ export function executeSettingsAction(data) {
     modelDisplayMode: nextModelDisplayMode,
     pluginUpdateMode: nextPluginUpdateMode,
     windowMountMode: nextWindowMountMode,
+    vsCodeMountMode: nextVsCodeMountMode,
   };
   const updated = normalizeFullSettings(mergedForNorm);
   if (!saveJson(SETTINGS_FILE, updated)) {
@@ -490,6 +496,7 @@ export function executeSettingsAction(data) {
     current.windowMountMode,
     current.enableWindowOverlay
   );
+  const prevVsCodeMountMode = normalizeVsCodeMountMode(current.vsCodeMountMode);
   const prevContextActive = isContextWindowFeatureActive(current);
   const nextContextActive = isContextWindowFeatureActive(updated);
   const riskyGateChanged =
@@ -510,6 +517,7 @@ export function executeSettingsAction(data) {
     updated.weeklyCostBudget !== current.weeklyCostBudget ||
     updated.enableWindowOverlay !== (current.enableWindowOverlay !== false) ||
     updated.windowMountMode !== prevMountMode ||
+    updated.vsCodeMountMode !== prevVsCodeMountMode ||
     bridgeAuxChanged ||
     riskyGateChanged ||
     contextWindowScopeChanged;
@@ -520,6 +528,7 @@ export function executeSettingsAction(data) {
   if (
     updated.enableWindowOverlay !== (current.enableWindowOverlay !== false) ||
     updated.windowMountMode !== prevMountMode ||
+    updated.vsCodeMountMode !== prevVsCodeMountMode ||
     bridgeAuxChanged
   ) {
     void notifyWindowOverlaySetting(updated.enableWindowOverlay);
@@ -646,12 +655,14 @@ export function executeResetSettingsAction() {
     current.windowMountMode,
     current.enableWindowOverlay
   );
+  const prevVsCodeMountMode = normalizeVsCodeMountMode(current.vsCodeMountMode);
   const bridgeAuxChanged =
     (updated.autoConfigureLaunch !== false) !== (current.autoConfigureLaunch !== false) ||
     (updated.enableRemoteSshTelemetry !== false) !== (current.enableRemoteSshTelemetry !== false);
   if (
     updated.enableWindowOverlay !== (current.enableWindowOverlay !== false) ||
     updated.windowMountMode !== prevMountMode ||
+    updated.vsCodeMountMode !== prevVsCodeMountMode ||
     bridgeAuxChanged
   ) {
     void notifyWindowOverlaySetting(updated.enableWindowOverlay);

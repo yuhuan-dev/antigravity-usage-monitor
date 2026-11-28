@@ -855,6 +855,8 @@ export const I18N_MESSAGES_ZH_CN = Object.freeze({
   'settings.str.mountDual': '双栖挂载 (顶部栏 + 侧边栏)',
   'settings.str.mountComposer': '输入框挂载 (输入框 + 侧边栏)',
   'settings.str.mountSidebar': '仅侧边栏',
+  'settings.str.mountVsCodeComposer': '输入框',
+  'settings.str.mountVsCodeTopbar': '顶部栏',
   'settings.bridge.restartTitle': '已自动补齐启动参数，重启一次即可启用悬浮胶囊',
   'settings.bridge.ctxRestartTitle': '已自动补齐启动参数，重启一次即可激活上下文覆写',
   'settings.bridge.restartBody': '已自动为快捷方式、自启项及协议关联写入 --remote-debugging-port=0（后续通过常规快捷方式打开均自动生效）。点击下方按钮即可退出后台进程并立即生效。',

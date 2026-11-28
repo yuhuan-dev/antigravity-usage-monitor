@@ -816,6 +816,8 @@ export const I18N_MESSAGES_JA_JP = Object.freeze({
   "settings.str.mountDual": "デュアル配置 (タイトルバー + サイドバー)",
   "settings.str.mountComposer": "入力欄配置 (入力欄 + サイドバー)",
   "settings.str.mountSidebar": "サイドバーのみ",
+  "settings.str.mountVsCodeComposer": "入力欄",
+  "settings.str.mountVsCodeTopbar": "トップバー",
   "settings.bridge.restartTitle": "起動引数を自動設定済み — 一度再起動すると有効化されます",
   "settings.bridge.ctxRestartTitle": "起動引数を自動設定済み — 一度再起動するとコンテキスト上書きが有効になります",
   "settings.bridge.restartBody": "ショートカット、自動起動項目、プロトコル関連付けに --remote-debugging-port=0 を自動追加しました（次回以降の通常起動から自動適用）。下ボタンでバックグラウンドプロセスを終了し今すぐ再起動します。",

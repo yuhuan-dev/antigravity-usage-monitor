@@ -410,6 +410,21 @@ export function normalizeWindowMountMode(mode, legacyEnableOverlay) {
   return 'dual';
 }
 
+export const VSCODE_MOUNT_MODES = Object.freeze(['composer', 'dual']);
+export const DEFAULT_VSCODE_MOUNT_MODE = 'composer';
+
+/**
+ * 归一化标准 VS Code / VS Code Insiders 宿主挂载方式（默认 `'composer'` 输入框，可选 `'dual'` 顶部栏，严格拒绝 `'sidebar'`）。
+ *
+ * @param {unknown} mode
+ * @returns {'composer'|'dual'}
+ */
+export function normalizeVsCodeMountMode(mode) {
+  const m = String(mode ?? '').trim().toLowerCase();
+  if (m === 'dual' || m === 'topbar') return 'dual';
+  return 'composer';
+}
+
 /**
  * 归一化每周额度统计模式枚举（`'official'` | `'custom_tokens'` | `'custom_cost'`）。
  *

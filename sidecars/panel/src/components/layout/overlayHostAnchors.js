@@ -4,10 +4,12 @@
  * extracted from WindowOverlayShell.js.
  */
 
-import { readInjectedWindowBridge } from '../../../shared/window-bridge-protocol.mjs';
+import {
+  readInjectedWindowBridge,
+  resolveClientEffectiveOverlayMountMode,
+} from '../../../shared/window-bridge-protocol.mjs';
 import {
   extractHostRouteCascadeId,
-  normalizeClientWindowMountMode,
   telemetryStore,
 } from '../../store/telemetryStore.js';
 
@@ -781,12 +783,8 @@ export function isIdeExtensionChatFrame() {
 
 export function resolveActiveDockTarget(options = undefined) {
   const settings = telemetryStore.getState().telemetry?.settings;
-  const rawMode =
-    settings?.windowMountMode ??
-    readInjectedWindowBridge()?.mountMode;
   const mountMode =
-    options?.mountMode ||
-    normalizeClientWindowMountMode(rawMode, settings?.enableWindowOverlay);
+    options?.mountMode || resolveClientEffectiveOverlayMountMode(settings);
   if (isIdeExtensionChatFrame()) {
     if (mountMode !== 'composer') return null;
     return findHostComposerAutoTarget(

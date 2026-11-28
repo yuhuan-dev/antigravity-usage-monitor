@@ -816,6 +816,8 @@ export const I18N_MESSAGES_FR_FR = Object.freeze({
   "settings.str.mountDual": "Double ancrage (Barre de titre + Latérale)",
   "settings.str.mountComposer": "Ancrage saisie (Zone de saisie + Latérale)",
   "settings.str.mountSidebar": "Barre latérale seule",
+  "settings.str.mountVsCodeComposer": "Zone de saisie",
+  "settings.str.mountVsCodeTopbar": "Barre supérieure",
   "settings.bridge.restartTitle": "Option de lancement configurée — Redémarrez pour activer",
   "settings.bridge.ctxRestartTitle": "Option de lancement configurée — Redémarrez pour le contexte",
   "settings.bridge.restartBody": "--remote-debugging-port=0 ajouté automatiquement aux raccourcis, démarrages et protocoles (les prochains lancements monteront d’office). Cliquez ci-dessous pour fermer l’arrière-plan et relancer.",

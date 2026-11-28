@@ -235,7 +235,9 @@ async function callRemoteEndpointLsRpc(endpoint, method, body, timeoutMs) {
   const baseUrl = String(endpoint.baseUrl || endpoint.origin || '').trim().replace(/\/+$/, '');
   const csrfToken = String(endpoint.csrfToken || '').trim();
   const windowInvoker = getRemoteWindowRpcInvoker();
+  const tier1Only = endpoint.tier1Only === true;
   const hasTier2Targets =
+    !tier1Only &&
     typeof windowInvoker === 'function' &&
     (!(endpoint.targets instanceof Map) ||
       endpoint.targets.size === 0 ||

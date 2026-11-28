@@ -2896,7 +2896,7 @@ test('P2 regressions: bundler regex-after-paren lexer, shared URI/prompt/atomic 
   assert.equal(latestQuery, '');
   assert.equal(sBox.clearBtnEl.hasAttribute('hidden'), true);
 
-  // 4. Declarative settingsBackup round-trips all 45 portable keys + coupled legacy flags
+  // 4. Declarative settingsBackup round-trips all 46 portable keys + coupled legacy flags
   const exported = buildExportableSettingsJson({
     language: 'en-US',
     displayCurrency: 'MYR',
@@ -2904,6 +2904,7 @@ test('P2 regressions: bundler regex-after-paren lexer, shared URI/prompt/atomic 
     modelDisplayMode: 'upstream_compact',
     pluginUpdateMode: 'auto',
     windowMountMode: 'composer',
+    vsCodeMountMode: 'dual',
     topbarMultiSessionMode: 'running_only',
     hoverSyncOverviewMetrics: false,
     hoverMetricRows: 2,
@@ -2919,9 +2920,10 @@ test('P2 regressions: bundler regex-after-paren lexer, shared URI/prompt/atomic 
     accountQuotaRefreshMinutes: 180,
   });
   const parsedExport = JSON.parse(exported);
-  assert.equal(Object.keys(parsedExport.settings).length, 45);
+  assert.equal(Object.keys(parsedExport.settings).length, 46);
   assert.equal(parsedExport.settings.displayCurrency, 'MYR');
   assert.equal(parsedExport.settings.quotaDisplayMode, 'remaining');
+  assert.equal(parsedExport.settings.vsCodeMountMode, 'dual');
   assert.equal(parsedExport.settings.topbarMultiSessionMode, 'running_only');
   assert.equal(parsedExport.settings.showTopbarMultiSession, true);
   assert.equal(parsedExport.settings.hoverMetricRows, 2);
@@ -2941,6 +2943,7 @@ test('P2 regressions: bundler regex-after-paren lexer, shared URI/prompt/atomic 
   );
   assert.equal(reimported.ok, true);
   assert.equal('orchestratorIdMode' in reimported.patch, false);
+  assert.equal(reimported.patch.vsCodeMountMode, 'dual');
   assert.equal(reimported.patch.topbarMultiSessionMode, 'running_only');
   assert.equal(reimported.patch.showTopbarMultiSession, true);
   const legacyMultiImport = parseImportedSettingsJson(

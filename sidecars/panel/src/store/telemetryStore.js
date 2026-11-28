@@ -102,6 +102,7 @@ import {
   normalizeStepTokenComboFormat,
   normalizeTopbarCapsuleSlots,
   normalizeTopbarMultiSessionMode,
+  normalizeVsCodeMountMode,
   normalizeWeeklyLimitMode,
   normalizeWindowMountMode,
   packMetricBentoLayout,
@@ -129,63 +130,71 @@ const CASCADE_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-
  */
 export function extractHostRouteCascadeId() {
   if (typeof window === 'undefined' || !isWindowOverlayMode()) return '';
+  const bridge = readInjectedWindowBridge();
+  const isExtView =
+    bridge?.isIdeChatFrame === true ||
+    /[?&]extension(?:View|Variant)=/i.test(String(window.location?.search || ''));
   const pathname = String(window.location?.pathname || '');
   const m = pathname.match(/^\/c\/([a-f0-9-]{36})(?:\/|$)/i);
-  if (m && CASCADE_UUID_RE.test(m[1])) {
-    return m[1];
+  const pathId = m && CASCADE_UUID_RE.test(m[1]) ? m[1] : '';
+  if (!isExtView && pathId) {
+    return pathId;
   }
-  const extBridgeRouteId = String(readInjectedWindowBridge()?.[WINDOW_BRIDGE_ROUTE_KEY] || '').trim();
-  if (extBridgeRouteId && CASCADE_UUID_RE.test(extBridgeRouteId)) {
+  const extBridgeRouteId = String(bridge?.[WINDOW_BRIDGE_ROUTE_KEY] || '').trim();
+  if (!isExtView && extBridgeRouteId && CASCADE_UUID_RE.test(extBridgeRouteId)) {
     return extBridgeRouteId;
   }
   try {
-    if (typeof document === 'undefined' || typeof document.querySelector !== 'function') {
-      return '';
-    }
-    const selectedRow = document.querySelector(
-      '[data-testid^="conversation-row-"][data-selected="true"][data-cascade-id]'
-    );
-    const selectedRowId = String(selectedRow?.getAttribute?.('data-cascade-id') || '').trim();
+    if (typeof document !== 'undefined' && typeof document.querySelector === 'function') {
+      const selectedRow = document.querySelector(
+        '[data-testid^="conversation-row-"][data-selected="true"][data-cascade-id]'
+      );
+      const selectedRowId = String(selectedRow?.getAttribute?.('data-cascade-id') || '').trim();
 
-    if (typeof document.querySelectorAll === 'function') {
-      const views = document.querySelectorAll('[data-testid="conversation-view"][data-cascade-id]');
-      const visibleIds = [];
-      let focusedId = '';
-      const activeEl = document.activeElement || null;
-      for (const viewEl of views) {
-        const cid = String(viewEl?.getAttribute?.('data-cascade-id') || '').trim();
-        if (!CASCADE_UUID_RE.test(cid)) continue;
-        if (viewEl.hasAttribute?.('hidden')) continue;
-        if (viewEl.getBoundingClientRect) {
-          const r = viewEl.getBoundingClientRect();
-          if (r.width <= 0 && r.height <= 0) continue;
+      if (typeof document.querySelectorAll === 'function') {
+        const views = document.querySelectorAll('[data-testid="conversation-view"][data-cascade-id]');
+        const visibleIds = [];
+        let focusedId = '';
+        const activeEl = document.activeElement || null;
+        for (const viewEl of views) {
+          const cid = String(viewEl?.getAttribute?.('data-cascade-id') || '').trim();
+          if (!CASCADE_UUID_RE.test(cid)) continue;
+          if (viewEl.hasAttribute?.('hidden')) continue;
+          if (viewEl.getBoundingClientRect) {
+            const r = viewEl.getBoundingClientRect();
+            if (r.width <= 0 && r.height <= 0) continue;
+          }
+          visibleIds.push(cid);
+          if (activeEl && viewEl.contains?.(activeEl)) {
+            focusedId = cid;
+          }
         }
-        visibleIds.push(cid);
-        if (activeEl && viewEl.contains?.(activeEl)) {
-          focusedId = cid;
+        if (focusedId) return focusedId;
+        if (
+          selectedRowId &&
+          CASCADE_UUID_RE.test(selectedRowId) &&
+          visibleIds.some((id) => id.toLowerCase() === selectedRowId.toLowerCase())
+        ) {
+          return selectedRowId;
         }
+        if (visibleIds.length > 0) return visibleIds[0];
       }
-      if (focusedId) return focusedId;
-      if (
-        selectedRowId &&
-        CASCADE_UUID_RE.test(selectedRowId) &&
-        visibleIds.some((id) => id.toLowerCase() === selectedRowId.toLowerCase())
-      ) {
+
+      const singleView = document.querySelector('[data-testid="conversation-view"][data-cascade-id]');
+      const singleViewId = String(singleView?.getAttribute?.('data-cascade-id') || '').trim();
+      if (CASCADE_UUID_RE.test(singleViewId)) {
+        return singleViewId;
+      }
+      if (CASCADE_UUID_RE.test(selectedRowId)) {
         return selectedRowId;
       }
-      if (visibleIds.length > 0) return visibleIds[0];
-    }
-
-    const singleView = document.querySelector('[data-testid="conversation-view"][data-cascade-id]');
-    const singleViewId = String(singleView?.getAttribute?.('data-cascade-id') || '').trim();
-    if (CASCADE_UUID_RE.test(singleViewId)) {
-      return singleViewId;
-    }
-    if (CASCADE_UUID_RE.test(selectedRowId)) {
-      return selectedRowId;
     }
   } catch {
     // 忽略宿主 DOM 查询异常
+  }
+  if (pathId) return pathId;
+  if (extBridgeRouteId && CASCADE_UUID_RE.test(extBridgeRouteId)) {
+    return extBridgeRouteId;
   }
   return '';
 }
@@ -239,6 +248,7 @@ const TELEMETRY_RECOMPUTE_SETTING_KEYS = new Set([
   'weeklyTokenBudget',
   'weeklyCostBudget',
   'windowMountMode',
+  'vsCodeMountMode',
   'enableWindowOverlay',
   'autoConfigureLaunch',
   'enableRemoteSshTelemetry',
@@ -642,6 +652,7 @@ export const resolveEffectiveClientMetricMatrixConfig = resolveEffectiveMetricMa
 export const normalizeClientStepColumns = normalizeStepTableColumns;
 export const normalizeClientUpdateMode = normalizePluginUpdateMode;
 export const normalizeClientWindowMountMode = normalizeWindowMountMode;
+export const normalizeClientVsCodeMountMode = normalizeVsCodeMountMode;
 export const normalizeClientDisplayCurrency = normalizeDisplayCurrency;
 
 export function isEquivalentTelemetry(prev, next) {
@@ -738,6 +749,12 @@ export function isEquivalentTelemetry(prev, next) {
   if (
     normalizeClientWindowMountMode(pSet?.windowMountMode, pSet?.enableWindowOverlay) !==
     normalizeClientWindowMountMode(nSet?.windowMountMode, nSet?.enableWindowOverlay)
+  ) {
+    return false;
+  }
+  if (
+    normalizeClientVsCodeMountMode(pSet?.vsCodeMountMode) !==
+    normalizeClientVsCodeMountMode(nSet?.vsCodeMountMode)
   ) {
     return false;
   }
@@ -2407,6 +2424,9 @@ export async function saveSettingsPatch(patch) {
     safePatch.enableWindowOverlay = Boolean(safePatch.enableWindowOverlay);
     safePatch.windowMountMode = safePatch.enableWindowOverlay ? 'dual' : 'sidebar';
   }
+  if (Object.prototype.hasOwnProperty.call(safePatch, 'vsCodeMountMode')) {
+    safePatch.vsCodeMountMode = normalizeClientVsCodeMountMode(safePatch.vsCodeMountMode);
+  }
   const myRev = ++settingsRevision;
   const prevTelemetry = telemetryStore.getState().telemetry;
   const patchKeys = Object.keys(safePatch);
@@ -2826,7 +2846,16 @@ export function startAsyncTelemetryLoop(intervalMs = 2000) {
       return Math.min(loopIntervalMs, 800);
     }
     if (isWindowOverlayMode() && typeof document !== 'undefined' && document.hidden) {
-      return Math.max(loopIntervalMs, 8000);
+      return Math.max(loopIntervalMs, 10000);
+    }
+    if (isWindowOverlayMode() && readInjectedWindowBridge()?.isRemoteEndpoint) {
+      const tel = telemetryStore.getState().telemetry;
+      const hasRunning =
+        (Array.isArray(tel?.runningConversations) && tel.runningConversations.length > 0) ||
+        tel?.activeConversation?.status === 'CASCADE_RUN_STATUS_RUNNING';
+      if (!hasRunning) {
+        return Math.max(loopIntervalMs, 6000);
+      }
     }
     return loopIntervalMs;
   };

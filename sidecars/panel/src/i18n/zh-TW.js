@@ -816,6 +816,8 @@ export const I18N_MESSAGES_ZH_TW = Object.freeze({
   "settings.str.mountDual": "雙重掛載 (標題列 + 側邊欄)",
   "settings.str.mountComposer": "輸入框掛載 (輸入框 + 側邊欄)",
   "settings.str.mountSidebar": "僅側邊欄",
+  "settings.str.mountVsCodeComposer": "輸入框",
+  "settings.str.mountVsCodeTopbar": "頂部列",
   "settings.bridge.restartTitle": "已自動補齊啟動參數，重新啟動一次即可啟用懸浮膠囊",
   "settings.bridge.ctxRestartTitle": "已自動補齊啟動參數，重新啟動一次即可啟用上下文覆寫",
   "settings.bridge.restartBody": "已自動為捷徑、開機自啟項目及通訊協定關聯寫入 --remote-debugging-port=0（後續透過一般捷徑開啟皆會自動生效）。點擊下方按鈕即可關閉背景處理程序並立即重新啟動。",
