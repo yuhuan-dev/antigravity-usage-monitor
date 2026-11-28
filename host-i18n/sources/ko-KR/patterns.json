@@ -4350,6 +4350,654 @@
       "flags": "",
       "replace": "/ $1",
       "hint": "of"
+    },
+    {
+      "source": "^Add (.+?): (.+?)$",
+      "flags": "",
+      "replace": "$1 추가: $2",
+      "hint": "Add"
+    },
+    {
+      "source": "^Answered: “(\\d+(?:\\.\\d+)?)”$",
+      "flags": "",
+      "replace": "답변됨: “$1”",
+      "hint": "Answered: “"
+    },
+    {
+      "source": "^Automation error: (.+?)$",
+      "flags": "",
+      "replace": "자동화 오류: $1",
+      "hint": "Automation error:"
+    },
+    {
+      "source": "^Copied link to (.+?)$",
+      "flags": "",
+      "replace": "$1 링크를 복사했습니다",
+      "hint": "Copied link to"
+    },
+    {
+      "source": "^Copy link to (.+?)$",
+      "flags": "",
+      "replace": "$1 링크 복사",
+      "hint": "Copy link to"
+    },
+    {
+      "source": "^Environment variable \"(.+?)\" is already used by (.+?) in this scope\\. Choose a different (.+?) or replace the existing credential\\.$",
+      "flags": "",
+      "replace": "환경 변수 \"$1\"은(는) 이 범위에서 $2이(가) 이미 사용 중입니다. 다른 $3을(를) 선택하거나 기존 자격 증명을 교체하세요.",
+      "hint": "or replace the existing credenti"
+    },
+    {
+      "source": "^Environment variable \"(.+?)\" is reserved by the system and cannot be used\\. Choose a different key\\.$",
+      "flags": "",
+      "replace": "환경 변수 \"$1\"은(는) 시스템에 예약되어 있어 사용할 수 없습니다. 다른 키를 선택하세요.",
+      "hint": "\" is reserved by the system and"
+    },
+    {
+      "source": "^Environment variable \"(.+?)\" is reserved by the system and cannot be used\\. Choose a different name\\.$",
+      "flags": "",
+      "replace": "환경 변수 \"$1\"은(는) 시스템에 예약되어 있어 사용할 수 없습니다. 다른 이름을 선택하세요.",
+      "hint": "\" is reserved by the system and"
+    },
+    {
+      "source": "^Hid (.+?) from sidebar$",
+      "flags": "",
+      "replace": "사이드바에서 $1 숨김",
+      "hint": "from sidebar"
+    },
+    {
+      "source": "^Looks good on (.+?) — go ahead and proceed\\.$",
+      "flags": "",
+      "replace": "$1 확인 완료 — 그대로 진행해 주세요.",
+      "hint": "— go ahead and proceed."
+    },
+    {
+      "source": "^Maximum (.+?) attachments reached$",
+      "flags": "",
+      "replace": "최대 첨부 파일 개수($1개)에 도달했습니다",
+      "hint": "attachments reached"
+    },
+    {
+      "source": "^No settings match (.+?)$",
+      "flags": "",
+      "replace": "$1와(과) 일치하는 설정이 없습니다",
+      "hint": "No settings match"
+    },
+    {
+      "source": "^Open (.+?) preview (.+?) of (.+?)$",
+      "flags": "",
+      "replace": "$1 미리 보기 열기 ($2 / $3)",
+      "hint": "preview"
+    },
+    {
+      "source": "^Permission: (.+?)$",
+      "flags": "",
+      "replace": "권한: $1",
+      "hint": "Permission:"
+    },
+    {
+      "source": "^Preview (.+?)$",
+      "flags": "",
+      "replace": "$1 미리 보기",
+      "hint": "Preview"
+    },
+    {
+      "source": "^Project: (.+?)$",
+      "flags": "",
+      "replace": "프로젝트: $1",
+      "hint": "Project:"
+    },
+    {
+      "source": "^Remove (.+?) reaction$",
+      "flags": "",
+      "replace": "$1 반응 제거",
+      "hint": "reaction"
+    },
+    {
+      "source": "^Replace environment variable: (.+?)$",
+      "flags": "",
+      "replace": "환경 변수 교체: $1",
+      "hint": "Replace environment variable:"
+    },
+    {
+      "source": "^Replace secret: (.+?)$",
+      "flags": "",
+      "replace": "보안 비밀 교체: $1",
+      "hint": "Replace secret:"
+    },
+    {
+      "source": "^Replace (.+?)$",
+      "flags": "",
+      "replace": "$1 교체",
+      "hint": "Replace"
+    },
+    {
+      "source": "^Reply in thread to (.+?)$",
+      "flags": "",
+      "replace": "$1에게 스레드 답글 달기",
+      "hint": "Reply in thread to"
+    },
+    {
+      "source": "^Retry loading (.+?) configuration$",
+      "flags": "",
+      "replace": "$1 구성 다시 불러오기",
+      "hint": "Retry loading"
+    },
+    {
+      "source": "^Retry uploading (.+?)$",
+      "flags": "",
+      "replace": "$1 업로드 다시 시도",
+      "hint": "Retry uploading"
+    },
+    {
+      "source": "^Run failed: (.+?)$",
+      "flags": "",
+      "replace": "실행 실패: $1",
+      "hint": "Run failed:"
+    },
+    {
+      "source": "^Running “(.+?)” now$",
+      "flags": "",
+      "replace": "“$1” 지금 실행 중",
+      "hint": "Running “"
+    },
+    {
+      "source": "^Screenshot for (.+?)$",
+      "flags": "",
+      "replace": "$1 스크린샷",
+      "hint": "Screenshot for"
+    },
+    {
+      "source": "^Scroll to Bottom \\((.+?) unread\\)$",
+      "flags": "",
+      "replace": "맨 아래로 스크롤(읽지 않음 $1개)",
+      "hint": "Scroll to Bottom ("
+    },
+    {
+      "source": "^Send (.+?)$",
+      "flags": "",
+      "replace": "$1 전송",
+      "hint": "Send"
+    },
+    {
+      "source": "^Show in Sidebar \\((.+?)/(.+?)\\)$",
+      "flags": "",
+      "replace": "사이드바에 표시 ($1/$2)",
+      "hint": "Show in Sidebar ("
+    },
+    {
+      "source": "^Still thinking, (\\d+(?:\\.\\d+)?) seconds$",
+      "flags": "",
+      "replace": "계속 생각하는 중, $1초",
+      "hint": "Still thinking,"
+    },
+    {
+      "source": "^Thread (.+?)$",
+      "flags": "",
+      "replace": "스레드 $1",
+      "hint": "Thread"
+    },
+    {
+      "source": "^Thread: (.+?)$",
+      "flags": "",
+      "replace": "스레드: $1",
+      "hint": "Thread:"
+    },
+    {
+      "source": "^Topic (.+?)$",
+      "flags": "",
+      "replace": "주제 $1",
+      "hint": "Topic"
+    },
+    {
+      "source": "^Upload failed for (.+?)$",
+      "flags": "",
+      "replace": "$1 업로드 실패",
+      "hint": "Upload failed for"
+    },
+    {
+      "source": "^Uploading (.+?)$",
+      "flags": "",
+      "replace": "$1 업로드 중",
+      "hint": "Uploading"
+    },
+    {
+      "source": "^Uploading (.+?)…$",
+      "flags": "",
+      "replace": "$1 업로드 중…",
+      "hint": "Uploading"
+    },
+    {
+      "source": "^View (.+?) full screen$",
+      "flags": "",
+      "replace": "$1 전체 화면으로 보기",
+      "hint": "full screen"
+    },
+    {
+      "source": "^Voice open timed out after (\\d+(?:\\.\\d+)?)ms$",
+      "flags": "",
+      "replace": "$1ms 후 음성 연결 열기 시간이 초과되었습니다",
+      "hint": "Voice open timed out after"
+    },
+    {
+      "source": "^You reacted with (.+?)$",
+      "flags": "",
+      "replace": "$1 반응을 남겼습니다",
+      "hint": "You reacted with"
+    },
+    {
+      "source": "^Your quota for (.+?) has been reached\\.$",
+      "flags": "",
+      "replace": "$1 할당량에 도달했습니다.",
+      "hint": "has been reached."
+    },
+    {
+      "source": "^Your quota for (.+?) resets (.+?)\\.$",
+      "flags": "",
+      "replace": "$1 할당량이 $2에 초기화됩니다.",
+      "hint": "Your quota for"
+    },
+    {
+      "source": "^(.+?) \\(Disabled\\)$",
+      "flags": "",
+      "replace": "$1 (비활성화됨)",
+      "hint": "(Disabled)"
+    },
+    {
+      "source": "^(.+?) files?$",
+      "flags": "",
+      "replace": "파일 $1개",
+      "hint": "file"
+    },
+    {
+      "source": "^(.+?) is required\\.$",
+      "flags": "",
+      "replace": "$1은(는) 필수 항목입니다.",
+      "hint": "is required."
+    },
+    {
+      "source": "^(.+?) needing your input$",
+      "flags": "",
+      "replace": "사용자 입력 필요: $1",
+      "hint": "needing your input"
+    },
+    {
+      "source": "^(.+?) of (\\d+(?:\\.\\d+)?) steps done$",
+      "flags": "",
+      "replace": "$2단계 중 $1단계 완료",
+      "hint": "steps done"
+    },
+    {
+      "source": "^(.+?) reacted with (.+?)$",
+      "flags": "",
+      "replace": "$1님이 $2 반응을 남겼습니다",
+      "hint": "reacted with"
+    },
+    {
+      "source": "^(.+?) replies$",
+      "flags": "",
+      "replace": "답글 $1개",
+      "hint": "replies"
+    },
+    {
+      "source": "^(.+?) tab, (.+?)$",
+      "flags": "",
+      "replace": "$1 탭, $2",
+      "hint": "tab,"
+    },
+    {
+      "source": "^(.+?) tasks?$",
+      "flags": "",
+      "replace": "작업 $1개",
+      "hint": "task"
+    },
+    {
+      "source": "^(.+?) — restore split view$",
+      "flags": "",
+      "replace": "$1 — 분할 보기 복원",
+      "hint": "— restore split view"
+    },
+    {
+      "source": "^(.+?)\\. Managed by your organization\\.$",
+      "flags": "",
+      "replace": "$1. 조직에서 관리합니다.",
+      "hint": ". Managed by your organization."
+    },
+    {
+      "source": "^· \\+(\\d+(?:\\.\\d+)?) more$",
+      "flags": "",
+      "replace": "· +$1개 더",
+      "hint": "more"
+    },
+    {
+      "source": "^No automations match “(.+?)”\\.$",
+      "flags": "",
+      "replace": "“$1”와(과) 일치하는 자동화가 없습니다.",
+      "hint": "No automations match"
+    },
+    {
+      "source": "^No (.+?) yet$",
+      "flags": "",
+      "replace": "아직 $1이(가) 없습니다",
+      "hint": "yet"
+    },
+    {
+      "source": "^You can upgrade to a higher (.+?) plan to receive the highest rate limits\\.$",
+      "flags": "",
+      "replace": "더 높은 $1 요금제로 업그레이드하면 최고 수준의 요청 한도를 이용할 수 있습니다.",
+      "hint": "upgrade to a higher"
+    },
+    {
+      "source": "^You can upgrade to a (.+?) plan to receive higher rate limits\\.$",
+      "flags": "",
+      "replace": "$1 요금제로 업그레이드하면 더 높은 요청 한도를 이용할 수 있습니다.",
+      "hint": "receive higher rate limits"
+    },
+    {
+      "source": "^You have used some of your weekly limit, it will fully refresh in (\\d+) days?, (\\d+) hours?\\.$",
+      "flags": "",
+      "replace": "주간 한도의 일부를 사용했으며, $1일 $2시간 후에 완전히 초기화됩니다.",
+      "hint": "your weekly limit, it will fully"
+    },
+    {
+      "source": "^You have used most of your weekly limit, it will fully refresh in (\\d+) days?, (\\d+) hours?\\.$",
+      "flags": "",
+      "replace": "주간 한도의 대부분을 사용했으며, $1일 $2시간 후에 완전히 초기화됩니다.",
+      "hint": "your weekly limit, it will fully"
+    },
+    {
+      "source": "^You have used all of your weekly limit, it will fully refresh in (\\d+) days?, (\\d+) hours?\\.$",
+      "flags": "",
+      "replace": "주간 한도를 모두 사용했으며, $1일 $2시간 후에 완전히 초기화됩니다.",
+      "hint": "your weekly limit, it will fully"
+    },
+    {
+      "source": "^You have used some of your weekly limit, it will fully refresh in (\\d+) hours?, (\\d+) minutes?\\.$",
+      "flags": "",
+      "replace": "주간 한도의 일부를 사용했으며, $1시간 $2분 후에 완전히 초기화됩니다.",
+      "hint": "your weekly limit, it will fully"
+    },
+    {
+      "source": "^You have used most of your weekly limit, it will fully refresh in (\\d+) hours?, (\\d+) minutes?\\.$",
+      "flags": "",
+      "replace": "주간 한도의 대부분을 사용했으며, $1시간 $2분 후에 완전히 초기화됩니다.",
+      "hint": "your weekly limit, it will fully"
+    },
+    {
+      "source": "^You have used all of your weekly limit, it will fully refresh in (\\d+) hours?, (\\d+) minutes?\\.$",
+      "flags": "",
+      "replace": "주간 한도를 모두 사용했으며, $1시간 $2분 후에 완전히 초기화됩니다.",
+      "hint": "your weekly limit, it will fully"
+    },
+    {
+      "source": "^You have used some of your weekly limit, it will fully refresh in (\\d+) days?\\.$",
+      "flags": "",
+      "replace": "주간 한도의 일부를 사용했으며, $1일 후에 완전히 초기화됩니다.",
+      "hint": "your weekly limit, it will fully"
+    },
+    {
+      "source": "^You have used most of your weekly limit, it will fully refresh in (\\d+) days?\\.$",
+      "flags": "",
+      "replace": "주간 한도의 대부분을 사용했으며, $1일 후에 완전히 초기화됩니다.",
+      "hint": "your weekly limit, it will fully"
+    },
+    {
+      "source": "^You have used all of your weekly limit, it will fully refresh in (\\d+) days?\\.$",
+      "flags": "",
+      "replace": "주간 한도를 모두 사용했으며, $1일 후에 완전히 초기화됩니다.",
+      "hint": "your weekly limit, it will fully"
+    },
+    {
+      "source": "^You have used some of your weekly limit, it will fully refresh in (\\d+) hours?\\.$",
+      "flags": "",
+      "replace": "주간 한도의 일부를 사용했으며, $1시간 후에 완전히 초기화됩니다.",
+      "hint": "your weekly limit, it will fully"
+    },
+    {
+      "source": "^You have used most of your weekly limit, it will fully refresh in (\\d+) hours?\\.$",
+      "flags": "",
+      "replace": "주간 한도의 대부분을 사용했으며, $1시간 후에 완전히 초기화됩니다.",
+      "hint": "your weekly limit, it will fully"
+    },
+    {
+      "source": "^You have used all of your weekly limit, it will fully refresh in (\\d+) hours?\\.$",
+      "flags": "",
+      "replace": "주간 한도를 모두 사용했으며, $1시간 후에 완전히 초기화됩니다.",
+      "hint": "your weekly limit, it will fully"
+    },
+    {
+      "source": "^You have used some of your weekly limit, it will fully refresh in (\\d+) minutes?\\.$",
+      "flags": "",
+      "replace": "주간 한도의 일부를 사용했으며, $1분 후에 완전히 초기화됩니다.",
+      "hint": "your weekly limit, it will fully"
+    },
+    {
+      "source": "^You have used most of your weekly limit, it will fully refresh in (\\d+) minutes?\\.$",
+      "flags": "",
+      "replace": "주간 한도의 대부분을 사용했으며, $1분 후에 완전히 초기화됩니다.",
+      "hint": "your weekly limit, it will fully"
+    },
+    {
+      "source": "^You have used all of your weekly limit, it will fully refresh in (\\d+) minutes?\\.$",
+      "flags": "",
+      "replace": "주간 한도를 모두 사용했으며, $1분 후에 완전히 초기화됩니다.",
+      "hint": "your weekly limit, it will fully"
+    },
+    {
+      "source": "^You have used some of your weekly limit, it will fully refresh in less than a minute\\.$",
+      "flags": "",
+      "replace": "주간 한도의 일부를 사용했으며, 1분 이내에 완전히 초기화됩니다.",
+      "hint": "your weekly limit, it will fully"
+    },
+    {
+      "source": "^You have used most of your weekly limit, it will fully refresh in less than a minute\\.$",
+      "flags": "",
+      "replace": "주간 한도의 대부분을 사용했으며, 1분 이내에 완전히 초기화됩니다.",
+      "hint": "your weekly limit, it will fully"
+    },
+    {
+      "source": "^You have used all of your weekly limit, it will fully refresh in less than a minute\\.$",
+      "flags": "",
+      "replace": "주간 한도를 모두 사용했으며, 1분 이내에 완전히 초기화됩니다.",
+      "hint": "your weekly limit, it will fully"
+    },
+    {
+      "source": "^You have used some of your weekly limit, it will fully refresh in (.+?)\\.$",
+      "flags": "",
+      "replace": "주간 한도의 일부를 사용했으며, $1 후에 완전히 초기화됩니다.",
+      "hint": "your weekly limit, it will fully"
+    },
+    {
+      "source": "^You have used most of your weekly limit, it will fully refresh in (.+?)\\.$",
+      "flags": "",
+      "replace": "주간 한도의 대부분을 사용했으며, $1 후에 완전히 초기화됩니다.",
+      "hint": "your weekly limit, it will fully"
+    },
+    {
+      "source": "^You have used all of your weekly limit, it will fully refresh in (.+?)\\.$",
+      "flags": "",
+      "replace": "주간 한도를 모두 사용했으며, $1 후에 완전히 초기화됩니다.",
+      "hint": "your weekly limit, it will fully"
+    },
+    {
+      "source": "^You have used some of your 5-hour limit, it will fully refresh in (\\d+) hours?, (\\d+) minutes?\\.$",
+      "flags": "",
+      "replace": "5시간 한도의 일부를 사용했으며, $1시간 $2분 후에 완전히 초기화됩니다.",
+      "hint": "your 5-hour limit, it will fully"
+    },
+    {
+      "source": "^You have used most of your 5-hour limit, it will fully refresh in (\\d+) hours?, (\\d+) minutes?\\.$",
+      "flags": "",
+      "replace": "5시간 한도의 대부분을 사용했으며, $1시간 $2분 후에 완전히 초기화됩니다.",
+      "hint": "your 5-hour limit, it will fully"
+    },
+    {
+      "source": "^You have used all of your 5-hour limit, it will fully refresh in (\\d+) hours?, (\\d+) minutes?\\.$",
+      "flags": "",
+      "replace": "5시간 한도를 모두 사용했으며, $1시간 $2분 후에 완전히 초기화됩니다.",
+      "hint": "your 5-hour limit, it will fully"
+    },
+    {
+      "source": "^You have used some of your 5-hour limit, it will fully refresh in (\\d+) hours?\\.$",
+      "flags": "",
+      "replace": "5시간 한도의 일부를 사용했으며, $1시간 후에 완전히 초기화됩니다.",
+      "hint": "your 5-hour limit, it will fully"
+    },
+    {
+      "source": "^You have used most of your 5-hour limit, it will fully refresh in (\\d+) hours?\\.$",
+      "flags": "",
+      "replace": "5시간 한도의 대부분을 사용했으며, $1시간 후에 완전히 초기화됩니다.",
+      "hint": "your 5-hour limit, it will fully"
+    },
+    {
+      "source": "^You have used all of your 5-hour limit, it will fully refresh in (\\d+) hours?\\.$",
+      "flags": "",
+      "replace": "5시간 한도를 모두 사용했으며, $1시간 후에 완전히 초기화됩니다.",
+      "hint": "your 5-hour limit, it will fully"
+    },
+    {
+      "source": "^You have used some of your 5-hour limit, it will fully refresh in (\\d+) minutes?\\.$",
+      "flags": "",
+      "replace": "5시간 한도의 일부를 사용했으며, $1분 후에 완전히 초기화됩니다.",
+      "hint": "your 5-hour limit, it will fully"
+    },
+    {
+      "source": "^You have used most of your 5-hour limit, it will fully refresh in (\\d+) minutes?\\.$",
+      "flags": "",
+      "replace": "5시간 한도의 대부분을 사용했으며, $1분 후에 완전히 초기화됩니다.",
+      "hint": "your 5-hour limit, it will fully"
+    },
+    {
+      "source": "^You have used all of your 5-hour limit, it will fully refresh in (\\d+) minutes?\\.$",
+      "flags": "",
+      "replace": "5시간 한도를 모두 사용했으며, $1분 후에 완전히 초기화됩니다.",
+      "hint": "your 5-hour limit, it will fully"
+    },
+    {
+      "source": "^You have used some of your 5-hour limit, it will fully refresh in less than a minute\\.$",
+      "flags": "",
+      "replace": "5시간 한도의 일부를 사용했으며, 1분 이내에 완전히 초기화됩니다.",
+      "hint": "your 5-hour limit, it will fully"
+    },
+    {
+      "source": "^You have used most of your 5-hour limit, it will fully refresh in less than a minute\\.$",
+      "flags": "",
+      "replace": "5시간 한도의 대부분을 사용했으며, 1분 이내에 완전히 초기화됩니다.",
+      "hint": "your 5-hour limit, it will fully"
+    },
+    {
+      "source": "^You have used all of your 5-hour limit, it will fully refresh in less than a minute\\.$",
+      "flags": "",
+      "replace": "5시간 한도를 모두 사용했으며, 1분 이내에 완전히 초기화됩니다.",
+      "hint": "your 5-hour limit, it will fully"
+    },
+    {
+      "source": "^You have used some of your 5-hour limit, it will fully refresh in (.+?)\\.$",
+      "flags": "",
+      "replace": "5시간 한도의 일부를 사용했으며, $1 후에 완전히 초기화됩니다.",
+      "hint": "your 5-hour limit, it will fully"
+    },
+    {
+      "source": "^You have used most of your 5-hour limit, it will fully refresh in (.+?)\\.$",
+      "flags": "",
+      "replace": "5시간 한도의 대부분을 사용했으며, $1 후에 완전히 초기화됩니다.",
+      "hint": "your 5-hour limit, it will fully"
+    },
+    {
+      "source": "^You have used all of your 5-hour limit, it will fully refresh in (.+?)\\.$",
+      "flags": "",
+      "replace": "5시간 한도를 모두 사용했으며, $1 후에 완전히 초기화됩니다.",
+      "hint": "your 5-hour limit, it will fully"
+    },
+    {
+      "source": "^You have used some of your daily limit, it will fully refresh in (\\d+) hours?, (\\d+) minutes?\\.$",
+      "flags": "",
+      "replace": "일일 한도의 일부를 사용했으며, $1시간 $2분 후에 완전히 초기화됩니다.",
+      "hint": "your daily limit, it will fully"
+    },
+    {
+      "source": "^You have used most of your daily limit, it will fully refresh in (\\d+) hours?, (\\d+) minutes?\\.$",
+      "flags": "",
+      "replace": "일일 한도의 대부분을 사용했으며, $1시간 $2분 후에 완전히 초기화됩니다.",
+      "hint": "your daily limit, it will fully"
+    },
+    {
+      "source": "^You have used all of your daily limit, it will fully refresh in (\\d+) hours?, (\\d+) minutes?\\.$",
+      "flags": "",
+      "replace": "일일 한도를 모두 사용했으며, $1시간 $2분 후에 완전히 초기화됩니다.",
+      "hint": "your daily limit, it will fully"
+    },
+    {
+      "source": "^You have used some of your daily limit, it will fully refresh in (\\d+) hours?\\.$",
+      "flags": "",
+      "replace": "일일 한도의 일부를 사용했으며, $1시간 후에 완전히 초기화됩니다.",
+      "hint": "your daily limit, it will fully"
+    },
+    {
+      "source": "^You have used most of your daily limit, it will fully refresh in (\\d+) hours?\\.$",
+      "flags": "",
+      "replace": "일일 한도의 대부분을 사용했으며, $1시간 후에 완전히 초기화됩니다.",
+      "hint": "your daily limit, it will fully"
+    },
+    {
+      "source": "^You have used all of your daily limit, it will fully refresh in (\\d+) hours?\\.$",
+      "flags": "",
+      "replace": "일일 한도를 모두 사용했으며, $1시간 후에 완전히 초기화됩니다.",
+      "hint": "your daily limit, it will fully"
+    },
+    {
+      "source": "^You have used some of your daily limit, it will fully refresh in (\\d+) minutes?\\.$",
+      "flags": "",
+      "replace": "일일 한도의 일부를 사용했으며, $1분 후에 완전히 초기화됩니다.",
+      "hint": "your daily limit, it will fully"
+    },
+    {
+      "source": "^You have used most of your daily limit, it will fully refresh in (\\d+) minutes?\\.$",
+      "flags": "",
+      "replace": "일일 한도의 대부분을 사용했으며, $1분 후에 완전히 초기화됩니다.",
+      "hint": "your daily limit, it will fully"
+    },
+    {
+      "source": "^You have used all of your daily limit, it will fully refresh in (\\d+) minutes?\\.$",
+      "flags": "",
+      "replace": "일일 한도를 모두 사용했으며, $1분 후에 완전히 초기화됩니다.",
+      "hint": "your daily limit, it will fully"
+    },
+    {
+      "source": "^You have used some of your daily limit, it will fully refresh in less than a minute\\.$",
+      "flags": "",
+      "replace": "일일 한도의 일부를 사용했으며, 1분 이내에 완전히 초기화됩니다.",
+      "hint": "your daily limit, it will fully"
+    },
+    {
+      "source": "^You have used most of your daily limit, it will fully refresh in less than a minute\\.$",
+      "flags": "",
+      "replace": "일일 한도의 대부분을 사용했으며, 1분 이내에 완전히 초기화됩니다.",
+      "hint": "your daily limit, it will fully"
+    },
+    {
+      "source": "^You have used all of your daily limit, it will fully refresh in less than a minute\\.$",
+      "flags": "",
+      "replace": "일일 한도를 모두 사용했으며, 1분 이내에 완전히 초기화됩니다.",
+      "hint": "your daily limit, it will fully"
+    },
+    {
+      "source": "^You have used some of your daily limit, it will fully refresh in (.+?)\\.$",
+      "flags": "",
+      "replace": "일일 한도의 일부를 사용했으며, $1 후에 완전히 초기화됩니다.",
+      "hint": "your daily limit, it will fully"
+    },
+    {
+      "source": "^You have used most of your daily limit, it will fully refresh in (.+?)\\.$",
+      "flags": "",
+      "replace": "일일 한도의 대부분을 사용했으며, $1 후에 완전히 초기화됩니다.",
+      "hint": "your daily limit, it will fully"
+    },
+    {
+      "source": "^You have used all of your daily limit, it will fully refresh in (.+?)\\.$",
+      "flags": "",
+      "replace": "일일 한도를 모두 사용했으며, $1 후에 완전히 초기화됩니다.",
+      "hint": "your daily limit, it will fully"
     }
   ],
   "light": [
@@ -5007,6 +5655,48 @@
       "flags": "",
       "replace": "“$1”을(를) 복사했습니다. Coordinator에게 붙여넣고 변경할 내용을 알려주세요.",
       "hint": "Paste it to the coordinator"
+    },
+    {
+      "source": "^Couldn't load plugin configuration: (.+?)$",
+      "flags": "",
+      "replace": "Plugin 구성을 불러올 수 없습니다: $1",
+      "hint": "Couldn't load plugin configurati"
+    },
+    {
+      "source": "^Create plugin, (.+?)$",
+      "flags": "",
+      "replace": "Plugin 만들기, $1",
+      "hint": "Create plugin,"
+    },
+    {
+      "source": "^Failed to enable plugin (.+?)$",
+      "flags": "",
+      "replace": "Plugin $1 활성화에 실패했습니다",
+      "hint": "Failed to enable plugin"
+    },
+    {
+      "source": "^Plugin: (.+?)$",
+      "flags": "",
+      "replace": "Plugin: $1",
+      "hint": "Plugin:"
+    },
+    {
+      "source": "^(.+?) subagents?$",
+      "flags": "",
+      "replace": "Subagent $1개",
+      "hint": "subagent"
+    },
+    {
+      "source": "^(.+?)\\. Managed by your organization\\. Disabling the bundle turns off its plugins\\.$",
+      "flags": "",
+      "replace": "$1. 조직에서 관리합니다. 번들을 비활성화하면 포함된 Plugin이 꺼집니다.",
+      "hint": ". Managed by your organization."
+    },
+    {
+      "source": "^(\\d+) agents? working quietly in the background\\. Anything that needs your input will show up here\\.$",
+      "flags": "",
+      "replace": "Agent $1개가 백그라운드에서 조용히 작업 중입니다. 사용자 입력이 필요한 항목이 여기에 표시됩니다.",
+      "hint": "working quietly in the backgroun"
     }
   ],
   "deep": [
@@ -5664,6 +6354,48 @@
       "flags": "",
       "replace": "“$1”을(를) 복사했습니다. 코디네이터에게 붙여넣고 변경할 내용을 알려주세요.",
       "hint": "Paste it to the coordinator"
+    },
+    {
+      "source": "^Couldn't load plugin configuration: (.+?)$",
+      "flags": "",
+      "replace": "플러그인 구성을 불러올 수 없습니다: $1",
+      "hint": "Couldn't load plugin configurati"
+    },
+    {
+      "source": "^Create plugin, (.+?)$",
+      "flags": "",
+      "replace": "플러그인 만들기, $1",
+      "hint": "Create plugin,"
+    },
+    {
+      "source": "^Failed to enable plugin (.+?)$",
+      "flags": "",
+      "replace": "플러그인 $1 활성화에 실패했습니다",
+      "hint": "Failed to enable plugin"
+    },
+    {
+      "source": "^Plugin: (.+?)$",
+      "flags": "",
+      "replace": "플러그인: $1",
+      "hint": "Plugin:"
+    },
+    {
+      "source": "^(.+?) subagents?$",
+      "flags": "",
+      "replace": "서브에이전트 $1개",
+      "hint": "subagent"
+    },
+    {
+      "source": "^(.+?)\\. Managed by your organization\\. Disabling the bundle turns off its plugins\\.$",
+      "flags": "",
+      "replace": "$1. 조직에서 관리합니다. 번들을 비활성화하면 포함된 플러그인이 꺼집니다.",
+      "hint": ". Managed by your organization."
+    },
+    {
+      "source": "^(\\d+) agents? working quietly in the background\\. Anything that needs your input will show up here\\.$",
+      "flags": "",
+      "replace": "에이전트 $1개가 백그라운드에서 조용히 작업 중입니다. 사용자 입력이 필요한 항목이 여기에 표시됩니다.",
+      "hint": "working quietly in the backgroun"
     }
   ]
 }

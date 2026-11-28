@@ -936,9 +936,14 @@ test('zh-CN@1.0.1 light/deep rules cover Customizations/Workspace/effort tiers/p
     const proseDiv = body.appendChild(new MockElement('div', { className: 'prose' }));
     proseDiv.appendChild(new MockText('Assistant prose paragraph should never leak'));
 
-    // Real Antigravity AI reply bubble (.bleed-contain + data-markdown-block-index), sidebar conversation row,
+    // Real Antigravity AI reply bubble (data-testid="agent-message-bubble" + data-markdown-block-index), sidebar conversation row,
     // file pills, breadcrumbs, step items, and noise tokens (filenames, kebab-case, fullwidth punct, acronyms)
-    const aiBubble = body.appendChild(new MockElement('div', { className: 'bleed-contain bg-muted' }));
+    const aiBubble = body.appendChild(
+      new MockElement('div', {
+        className: 'bleed-contain bg-muted',
+        attrs: { 'data-testid': 'agent-message-bubble' },
+      })
+    );
     const aiBubbleText = aiBubble.appendChild(new MockText('Settings'));
     aiBubble.appendChild(new MockText('Unmapped AI Reply Prose'));
 
@@ -1942,6 +1947,104 @@ test('runtime translator localizes Swarm board UI chrome in light/deep modes whi
     assert.equal(coordBtn.nodeValue, 'Open coordinator chat');
     assert.equal(searchInput.getAttribute('placeholder'), 'Search posts');
     assert.equal(dynJump.getAttribute('title'), 'Go to #12 on the Board');
+  } finally {
+    globalThis.window = prevWindow;
+    globalThis.document = prevDocument;
+  }
+});
+
+test('Issue #68: zh-CN@1.0.5 translates bleed-contain collapsible steps, adjacent text runs, CloudCode quota copy, and Reveal in Finder while keeping agent-message-bubble protected', () => {
+  const { win, doc, body, MockElement, MockText } = createMockDom();
+  const pack = JSON.parse(
+    readFileSync(join(REAL_HOST_I18N_ROOT, 'dist', 'packs', 'zh-CN.json'), 'utf8')
+  );
+  const lightPayload = compileHostI18nRuntimePayload(pack, 'light', sha256(JSON.stringify(pack)));
+
+  const prevWindow = globalThis.window;
+  const prevDocument = globalThis.document;
+  try {
+    globalThis.window = win;
+    globalThis.document = doc;
+
+    // 1. Expanded Worked-for collapsible (.bleed-contain) translates Thought/Ran while agent-message-bubble stays untouched
+    const collapsibleContent = body.appendChild(
+      new MockElement('div', { className: 'overflow-y-auto bleed-contain pl-3 pt-0.5' })
+    );
+    const thoughtSpan = collapsibleContent.appendChild(new MockElement('span'));
+    const txtThought = thoughtSpan.appendChild(new MockText('Thought for 8s'));
+    const ranPrefixSpan = collapsibleContent.appendChild(new MockElement('span'));
+    const txtRan = ranPrefixSpan.appendChild(new MockText('Ran'));
+
+    const agentBubble = body.appendChild(
+      new MockElement('div', {
+        className: 'bleed-contain bg-muted',
+        attrs: { 'data-testid': 'agent-message-bubble' },
+      })
+    );
+    const txtAgentReply = agentBubble.appendChild(new MockText('Settings'));
+
+    // 2. Adjacent multi-text-node run ("No " + "automations" + " yet") avoids split-word mistranslation
+    const emptyP = body.appendChild(new MockElement('p'));
+    const tNo = emptyP.appendChild(new MockText('No '));
+    const tAuto = emptyP.appendChild(new MockText('automations'));
+    const tYet = emptyP.appendChild(new MockText(' yet'));
+
+    // 3. CloudCode server-pushed quota settings strings
+    const quotaBox = body.appendChild(new MockElement('div'));
+    const txtUpgrade = quotaBox.appendChild(new MockElement('div')).appendChild(
+      new MockText('You can upgrade to a higher Google AI Ultra plan to receive the highest rate limits.')
+    );
+    const txtGeminiModels = quotaBox.appendChild(new MockElement('div')).appendChild(new MockText('Gemini Models'));
+    const txtClaudeGpt = quotaBox.appendChild(new MockElement('div')).appendChild(new MockText('Claude and GPT models'));
+    const txtWeeklyTitle = quotaBox.appendChild(new MockElement('div')).appendChild(new MockText('Weekly Limit Remaining'));
+    const txtWeeklyDesc = quotaBox.appendChild(new MockElement('div')).appendChild(
+      new MockText('You have used some of your weekly limit, it will fully refresh in 4 days, 19 hours.')
+    );
+    const txtFiveHourTitle = quotaBox.appendChild(new MockElement('div')).appendChild(new MockText('Five Hour Limit Remaining'));
+    const txtFiveHourDesc = quotaBox.appendChild(new MockElement('div')).appendChild(
+      new MockText('You have used some of your 5-hour limit, it will fully refresh in 38 minutes.')
+    );
+
+    // 4. Project context menu items
+    const menu = body.appendChild(new MockElement('div'));
+    const txtCopyProj = menu.appendChild(new MockElement('div')).appendChild(new MockText('Copy Project Name'));
+    const txtProjSettings = menu.appendChild(new MockElement('div')).appendChild(new MockText('Project Settings'));
+    const txtRevealFinder = menu.appendChild(new MockElement('div')).appendChild(new MockText('Reveal in Finder'));
+    const txtDeleteProj = menu.appendChild(new MockElement('div')).appendChild(new MockText('Delete Project'));
+
+    const res = applyHostI18nInPage(lightPayload, 'boot-issue68', HOST_I18N_GLOBAL_KEY);
+    assert.equal(res.applied, true);
+
+    assert.equal(txtThought.nodeValue, '已思考 8s');
+    assert.equal(txtRan.nodeValue, '已运行');
+    assert.equal(txtAgentReply.nodeValue, 'Settings');
+
+    assert.equal(tNo.nodeValue, '暂无自动化任务');
+    assert.equal(tAuto.nodeValue, '');
+    assert.equal(tYet.nodeValue, '');
+
+    assert.equal(txtUpgrade.nodeValue, '您可以升级到更高级别的 Google AI Ultra 方案以获得最高速率限制。');
+    assert.equal(txtGeminiModels.nodeValue, 'Gemini 模型');
+    assert.equal(txtClaudeGpt.nodeValue, 'Claude 和 GPT 模型');
+    assert.equal(txtWeeklyTitle.nodeValue, '每周剩余额度');
+    assert.equal(txtWeeklyDesc.nodeValue, '您已使用部分每周额度，将在 4 天 19 小时后完全重置。');
+    assert.equal(txtFiveHourTitle.nodeValue, '5 小时剩余额度');
+    assert.equal(txtFiveHourDesc.nodeValue, '您已使用部分 5 小时额度，将在 38 分钟后完全重置。');
+
+    assert.equal(txtCopyProj.nodeValue, '复制项目名称');
+    assert.equal(txtProjSettings.nodeValue, '项目设置');
+    assert.equal(txtRevealFinder.nodeValue, '在访达中显示');
+    assert.equal(txtDeleteProj.nodeValue, '删除项目');
+
+    // Dispose restores adjacent text-node runs losslessly
+    const disposeExpr = createHostI18nDisposeExpression();
+    const disposeRes = new Function(`return (${disposeExpr});`)();
+    assert.equal(disposeRes.disposed, true);
+    assert.equal(tNo.nodeValue, 'No ');
+    assert.equal(tAuto.nodeValue, 'automations');
+    assert.equal(tYet.nodeValue, ' yet');
+    assert.equal(txtThought.nodeValue, 'Thought for 8s');
+    assert.equal(txtRan.nodeValue, 'Ran');
   } finally {
     globalThis.window = prevWindow;
     globalThis.document = prevDocument;

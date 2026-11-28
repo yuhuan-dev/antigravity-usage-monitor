@@ -5129,6 +5129,516 @@
       "flags": "",
       "replace": "/ $1",
       "hint": "of"
+    },
+    {
+      "source": "^No automations match “(.+?)”\\.$",
+      "flags": "",
+      "replace": "未找到匹配“$1”的自动化任务。",
+      "hint": "No automations match"
+    },
+    {
+      "source": "^No (.+?) yet$",
+      "flags": "",
+      "replace": "暂无 $1",
+      "hint": "yet"
+    },
+    {
+      "source": "^You can upgrade to a higher (.+?) plan to receive the highest rate limits\\.$",
+      "flags": "",
+      "replace": "您可以升级到更高级别的 $1 方案以获得最高速率限制。",
+      "hint": "upgrade to a higher"
+    },
+    {
+      "source": "^You can upgrade to a (.+?) plan to receive higher rate limits\\.$",
+      "flags": "",
+      "replace": "您可以升级到 $1 方案以获得更高速率限制。",
+      "hint": "receive higher rate limits"
+    },
+    {
+      "source": "^You have used some of your weekly limit, it will fully refresh in (\\d+) days?, (\\d+) hours?\\.$",
+      "flags": "",
+      "replace": "您已使用部分每周额度，将在 $1 天 $2 小时后完全重置。",
+      "hint": "your weekly limit, it will fully"
+    },
+    {
+      "source": "^You have used most of your weekly limit, it will fully refresh in (\\d+) days?, (\\d+) hours?\\.$",
+      "flags": "",
+      "replace": "您已使用大部分每周额度，将在 $1 天 $2 小时后完全重置。",
+      "hint": "your weekly limit, it will fully"
+    },
+    {
+      "source": "^You have used all of your weekly limit, it will fully refresh in (\\d+) days?, (\\d+) hours?\\.$",
+      "flags": "",
+      "replace": "您已用尽每周额度，将在 $1 天 $2 小时后完全重置。",
+      "hint": "your weekly limit, it will fully"
+    },
+    {
+      "source": "^You have used some of your weekly limit, it will fully refresh in (\\d+) hours?, (\\d+) minutes?\\.$",
+      "flags": "",
+      "replace": "您已使用部分每周额度，将在 $1 小时 $2 分钟后完全重置。",
+      "hint": "your weekly limit, it will fully"
+    },
+    {
+      "source": "^You have used most of your weekly limit, it will fully refresh in (\\d+) hours?, (\\d+) minutes?\\.$",
+      "flags": "",
+      "replace": "您已使用大部分每周额度，将在 $1 小时 $2 分钟后完全重置。",
+      "hint": "your weekly limit, it will fully"
+    },
+    {
+      "source": "^You have used all of your weekly limit, it will fully refresh in (\\d+) hours?, (\\d+) minutes?\\.$",
+      "flags": "",
+      "replace": "您已用尽每周额度，将在 $1 小时 $2 分钟后完全重置。",
+      "hint": "your weekly limit, it will fully"
+    },
+    {
+      "source": "^You have used some of your weekly limit, it will fully refresh in (\\d+) days?\\.$",
+      "flags": "",
+      "replace": "您已使用部分每周额度，将在 $1 天后完全重置。",
+      "hint": "your weekly limit, it will fully"
+    },
+    {
+      "source": "^You have used most of your weekly limit, it will fully refresh in (\\d+) days?\\.$",
+      "flags": "",
+      "replace": "您已使用大部分每周额度，将在 $1 天后完全重置。",
+      "hint": "your weekly limit, it will fully"
+    },
+    {
+      "source": "^You have used all of your weekly limit, it will fully refresh in (\\d+) days?\\.$",
+      "flags": "",
+      "replace": "您已用尽每周额度，将在 $1 天后完全重置。",
+      "hint": "your weekly limit, it will fully"
+    },
+    {
+      "source": "^You have used some of your weekly limit, it will fully refresh in (\\d+) hours?\\.$",
+      "flags": "",
+      "replace": "您已使用部分每周额度，将在 $1 小时后完全重置。",
+      "hint": "your weekly limit, it will fully"
+    },
+    {
+      "source": "^You have used some of your weekly limit, it will fully refresh in (\\d+) minutes?\\.$",
+      "flags": "",
+      "replace": "您已使用部分每周额度，将在 $1 分钟后完全重置。",
+      "hint": "your weekly limit, it will fully"
+    },
+    {
+      "source": "^You have used some of your weekly limit, it will fully refresh in (.+?)\\.$",
+      "flags": "",
+      "replace": "您已使用部分每周额度，将在 $1 后完全重置。",
+      "hint": "your weekly limit, it will fully"
+    },
+    {
+      "source": "^You have used most of your weekly limit, it will fully refresh in (.+?)\\.$",
+      "flags": "",
+      "replace": "您已使用大部分每周额度，将在 $1 后完全重置。",
+      "hint": "your weekly limit, it will fully"
+    },
+    {
+      "source": "^You have used all of your weekly limit, it will fully refresh in (.+?)\\.$",
+      "flags": "",
+      "replace": "您已用尽每周额度，将在 $1 后完全重置。",
+      "hint": "your weekly limit, it will fully"
+    },
+    {
+      "source": "^You have used some of your 5-hour limit, it will fully refresh in (\\d+) hours?, (\\d+) minutes?\\.$",
+      "flags": "",
+      "replace": "您已使用部分 5 小时额度，将在 $1 小时 $2 分钟后完全重置。",
+      "hint": "your 5-hour limit, it will fully"
+    },
+    {
+      "source": "^You have used most of your 5-hour limit, it will fully refresh in (\\d+) hours?, (\\d+) minutes?\\.$",
+      "flags": "",
+      "replace": "您已使用大部分 5 小时额度，将在 $1 小时 $2 分钟后完全重置。",
+      "hint": "your 5-hour limit, it will fully"
+    },
+    {
+      "source": "^You have used all of your 5-hour limit, it will fully refresh in (\\d+) hours?, (\\d+) minutes?\\.$",
+      "flags": "",
+      "replace": "您已用尽 5 小时额度，将在 $1 小时 $2 分钟后完全重置。",
+      "hint": "your 5-hour limit, it will fully"
+    },
+    {
+      "source": "^You have used some of your 5-hour limit, it will fully refresh in (\\d+) hours?\\.$",
+      "flags": "",
+      "replace": "您已使用部分 5 小时额度，将在 $1 小时后完全重置。",
+      "hint": "your 5-hour limit, it will fully"
+    },
+    {
+      "source": "^You have used most of your 5-hour limit, it will fully refresh in (\\d+) hours?\\.$",
+      "flags": "",
+      "replace": "您已使用大部分 5 小时额度，将在 $1 小时后完全重置。",
+      "hint": "your 5-hour limit, it will fully"
+    },
+    {
+      "source": "^You have used all of your 5-hour limit, it will fully refresh in (\\d+) hours?\\.$",
+      "flags": "",
+      "replace": "您已用尽 5 小时额度，将在 $1 小时后完全重置。",
+      "hint": "your 5-hour limit, it will fully"
+    },
+    {
+      "source": "^You have used some of your 5-hour limit, it will fully refresh in (\\d+) minutes?\\.$",
+      "flags": "",
+      "replace": "您已使用部分 5 小时额度，将在 $1 分钟后完全重置。",
+      "hint": "your 5-hour limit, it will fully"
+    },
+    {
+      "source": "^You have used most of your 5-hour limit, it will fully refresh in (\\d+) minutes?\\.$",
+      "flags": "",
+      "replace": "您已使用大部分 5 小时额度，将在 $1 分钟后完全重置。",
+      "hint": "your 5-hour limit, it will fully"
+    },
+    {
+      "source": "^You have used all of your 5-hour limit, it will fully refresh in (\\d+) minutes?\\.$",
+      "flags": "",
+      "replace": "您已用尽 5 小时额度，将在 $1 分钟后完全重置。",
+      "hint": "your 5-hour limit, it will fully"
+    },
+    {
+      "source": "^You have used some of your 5-hour limit, it will fully refresh in less than a minute\\.$",
+      "flags": "",
+      "replace": "您已使用部分 5 小时额度，将在 1 分钟内完全重置。",
+      "hint": "your 5-hour limit, it will fully"
+    },
+    {
+      "source": "^You have used some of your 5-hour limit, it will fully refresh in (.+?)\\.$",
+      "flags": "",
+      "replace": "您已使用部分 5 小时额度，将在 $1 后完全重置。",
+      "hint": "your 5-hour limit, it will fully"
+    },
+    {
+      "source": "^You have used most of your 5-hour limit, it will fully refresh in (.+?)\\.$",
+      "flags": "",
+      "replace": "您已使用大部分 5 小时额度，将在 $1 后完全重置。",
+      "hint": "your 5-hour limit, it will fully"
+    },
+    {
+      "source": "^You have used all of your 5-hour limit, it will fully refresh in (.+?)\\.$",
+      "flags": "",
+      "replace": "您已用尽 5 小时额度，将在 $1 后完全重置。",
+      "hint": "your 5-hour limit, it will fully"
+    },
+    {
+      "source": "^You have used some of your daily limit, it will fully refresh in (.+?)\\.$",
+      "flags": "",
+      "replace": "您已使用部分每日额度，将在 $1 后完全重置。",
+      "hint": "your daily limit, it will fully"
+    },
+    {
+      "source": "^Add (.+?): (.+?)$",
+      "flags": "",
+      "replace": "添加 $1：$2",
+      "hint": "Add"
+    },
+    {
+      "source": "^Answered: “(\\d+(?:\\.\\d+)?)”$",
+      "flags": "",
+      "replace": "已回答：“$1”",
+      "hint": "Answered: “"
+    },
+    {
+      "source": "^Automation error: (.+?)$",
+      "flags": "",
+      "replace": "自动化错误：$1",
+      "hint": "Automation error:"
+    },
+    {
+      "source": "^Copied link to (.+?)$",
+      "flags": "",
+      "replace": "已复制 $1 的链接",
+      "hint": "Copied link to"
+    },
+    {
+      "source": "^Copy link to (.+?)$",
+      "flags": "",
+      "replace": "复制 $1 的链接",
+      "hint": "Copy link to"
+    },
+    {
+      "source": "^Environment variable \"(.+?)\" is already used by (.+?) in this scope\\. Choose a different (.+?) or replace the existing credential\\.$",
+      "flags": "",
+      "replace": "环境变量 \"$1\" 在当前作用域已被 $2 使用。请选择其他 $3 或替换现有凭据。",
+      "hint": "or replace the existing credenti"
+    },
+    {
+      "source": "^Environment variable \"(.+?)\" is reserved by the system and cannot be used\\. Choose a different key\\.$",
+      "flags": "",
+      "replace": "环境变量 \"$1\" 为系统保留键名，无法使用。请选择其他键名。",
+      "hint": "\" is reserved by the system and"
+    },
+    {
+      "source": "^Environment variable \"(.+?)\" is reserved by the system and cannot be used\\. Choose a different name\\.$",
+      "flags": "",
+      "replace": "环境变量 \"$1\" 为系统保留名称，无法使用。请选择其他名称。",
+      "hint": "\" is reserved by the system and"
+    },
+    {
+      "source": "^Hid (.+?) from sidebar$",
+      "flags": "",
+      "replace": "已从侧边栏隐藏 $1",
+      "hint": "from sidebar"
+    },
+    {
+      "source": "^Looks good on (.+?) — go ahead and proceed\\.$",
+      "flags": "",
+      "replace": "$1 看起来不错 — 请继续推进。",
+      "hint": "— go ahead and proceed."
+    },
+    {
+      "source": "^Maximum (.+?) attachments reached$",
+      "flags": "",
+      "replace": "已达到最多 $1 个附件上限",
+      "hint": "attachments reached"
+    },
+    {
+      "source": "^No settings match (.+?)$",
+      "flags": "",
+      "replace": "未找到匹配 $1 的设置",
+      "hint": "No settings match"
+    },
+    {
+      "source": "^Open (.+?) preview (.+?) of (.+?)$",
+      "flags": "",
+      "replace": "打开 $1 预览（第 $2 / $3 项）",
+      "hint": "preview"
+    },
+    {
+      "source": "^Permission: (.+?)$",
+      "flags": "",
+      "replace": "权限：$1",
+      "hint": "Permission:"
+    },
+    {
+      "source": "^Preview (.+?)$",
+      "flags": "",
+      "replace": "预览 $1",
+      "hint": "Preview"
+    },
+    {
+      "source": "^Project: (.+?)$",
+      "flags": "",
+      "replace": "项目：$1",
+      "hint": "Project:"
+    },
+    {
+      "source": "^Remove (.+?) reaction$",
+      "flags": "",
+      "replace": "移除 $1 表情回应",
+      "hint": "reaction"
+    },
+    {
+      "source": "^Replace environment variable: (.+?)$",
+      "flags": "",
+      "replace": "替换环境变量：$1",
+      "hint": "Replace environment variable:"
+    },
+    {
+      "source": "^Replace secret: (.+?)$",
+      "flags": "",
+      "replace": "替换密钥：$1",
+      "hint": "Replace secret:"
+    },
+    {
+      "source": "^Replace (.+?)$",
+      "flags": "",
+      "replace": "替换 $1",
+      "hint": "Replace"
+    },
+    {
+      "source": "^Reply in thread to (.+?)$",
+      "flags": "",
+      "replace": "在讨论串中回复 $1",
+      "hint": "Reply in thread to"
+    },
+    {
+      "source": "^Retry loading (.+?) configuration$",
+      "flags": "",
+      "replace": "重试加载 $1 配置",
+      "hint": "Retry loading"
+    },
+    {
+      "source": "^Retry uploading (.+?)$",
+      "flags": "",
+      "replace": "重试上传 $1",
+      "hint": "Retry uploading"
+    },
+    {
+      "source": "^Run failed: (.+?)$",
+      "flags": "",
+      "replace": "运行失败：$1",
+      "hint": "Run failed:"
+    },
+    {
+      "source": "^Running “(.+?)” now$",
+      "flags": "",
+      "replace": "正在运行“$1”",
+      "hint": "Running “"
+    },
+    {
+      "source": "^Screenshot for (.+?)$",
+      "flags": "",
+      "replace": "$1 的截图",
+      "hint": "Screenshot for"
+    },
+    {
+      "source": "^Scroll to Bottom \\((.+?) unread\\)$",
+      "flags": "",
+      "replace": "滚动到底部（$1 条未读）",
+      "hint": "Scroll to Bottom ("
+    },
+    {
+      "source": "^Send (.+?)$",
+      "flags": "",
+      "replace": "发送 $1",
+      "hint": "Send"
+    },
+    {
+      "source": "^Show in Sidebar \\((.+?)/(.+?)\\)$",
+      "flags": "",
+      "replace": "在侧边栏显示 ($1/$2)",
+      "hint": "Show in Sidebar ("
+    },
+    {
+      "source": "^Still thinking, (\\d+(?:\\.\\d+)?) seconds$",
+      "flags": "",
+      "replace": "仍在思考，$1 秒",
+      "hint": "Still thinking,"
+    },
+    {
+      "source": "^Thread (.+?)$",
+      "flags": "",
+      "replace": "讨论串 $1",
+      "hint": "Thread"
+    },
+    {
+      "source": "^Thread: (.+?)$",
+      "flags": "",
+      "replace": "讨论串：$1",
+      "hint": "Thread:"
+    },
+    {
+      "source": "^Topic (.+?)$",
+      "flags": "",
+      "replace": "主题 $1",
+      "hint": "Topic"
+    },
+    {
+      "source": "^Upload failed for (.+?)$",
+      "flags": "",
+      "replace": "上传 $1 失败",
+      "hint": "Upload failed for"
+    },
+    {
+      "source": "^Uploading (.+?)$",
+      "flags": "",
+      "replace": "正在上传 $1",
+      "hint": "Uploading"
+    },
+    {
+      "source": "^Uploading (.+?)…$",
+      "flags": "",
+      "replace": "正在上传 $1…",
+      "hint": "Uploading"
+    },
+    {
+      "source": "^View (.+?) full screen$",
+      "flags": "",
+      "replace": "全屏查看 $1",
+      "hint": "full screen"
+    },
+    {
+      "source": "^Voice open timed out after (\\d+(?:\\.\\d+)?)ms$",
+      "flags": "",
+      "replace": "语音开启在 $1ms 后超时",
+      "hint": "Voice open timed out after"
+    },
+    {
+      "source": "^You reacted with (.+?)$",
+      "flags": "",
+      "replace": "您回应了 $1",
+      "hint": "You reacted with"
+    },
+    {
+      "source": "^Your quota for (.+?) has been reached\\.$",
+      "flags": "",
+      "replace": "您对 $1 的配额已达上限。",
+      "hint": "has been reached."
+    },
+    {
+      "source": "^Your quota for (.+?) resets (.+?)\\.$",
+      "flags": "",
+      "replace": "您对 $1 的配额将于 $2 重置。",
+      "hint": "Your quota for"
+    },
+    {
+      "source": "^(.+?) \\(Disabled\\)$",
+      "flags": "",
+      "replace": "$1（已禁用）",
+      "hint": "(Disabled)"
+    },
+    {
+      "source": "^(.+?) files?$",
+      "flags": "",
+      "replace": "$1 个文件",
+      "hint": "file"
+    },
+    {
+      "source": "^(.+?) is required\\.$",
+      "flags": "",
+      "replace": "$1 不能为空。",
+      "hint": "is required."
+    },
+    {
+      "source": "^(.+?) needing your input$",
+      "flags": "",
+      "replace": "$1 项需要您的输入",
+      "hint": "needing your input"
+    },
+    {
+      "source": "^(.+?) of (\\d+(?:\\.\\d+)?) steps done$",
+      "flags": "",
+      "replace": "已完成 $1 / $2 步",
+      "hint": "steps done"
+    },
+    {
+      "source": "^(.+?) reacted with (.+?)$",
+      "flags": "",
+      "replace": "$1 回应了 $2",
+      "hint": "reacted with"
+    },
+    {
+      "source": "^(.+?) replies$",
+      "flags": "",
+      "replace": "$1 条回复",
+      "hint": "replies"
+    },
+    {
+      "source": "^(.+?) tab, (.+?)$",
+      "flags": "",
+      "replace": "$1 标签页，$2",
+      "hint": "tab,"
+    },
+    {
+      "source": "^(.+?) tasks?$",
+      "flags": "",
+      "replace": "$1 个任务",
+      "hint": "task"
+    },
+    {
+      "source": "^(.+?) — restore split view$",
+      "flags": "",
+      "replace": "$1 — 恢复分屏视图",
+      "hint": "— restore split view"
+    },
+    {
+      "source": "^(.+?)\\. Managed by your organization\\.$",
+      "flags": "",
+      "replace": "$1。由您的组织管理。",
+      "hint": ". Managed by your organization."
+    },
+    {
+      "source": "^· \\+(\\d+(?:\\.\\d+)?) more$",
+      "flags": "",
+      "replace": "· 还有 +$1 项",
+      "hint": "more"
     }
   ],
   "light": [
@@ -5911,6 +6421,48 @@
       "flags": "",
       "replace": "已复制“$1”。请粘贴给 Coordinator 并说明想要修改的内容。",
       "hint": "Paste it to the coordinator"
+    },
+    {
+      "source": "^Couldn't load plugin configuration: (.+?)$",
+      "flags": "",
+      "replace": "无法加载 Plugin 配置：$1",
+      "hint": "Couldn't load plugin configurati"
+    },
+    {
+      "source": "^Create plugin, (.+?)$",
+      "flags": "",
+      "replace": "创建 Plugin，$1",
+      "hint": "Create plugin,"
+    },
+    {
+      "source": "^Failed to enable plugin (.+?)$",
+      "flags": "",
+      "replace": "启用 Plugin $1 失败",
+      "hint": "Failed to enable plugin"
+    },
+    {
+      "source": "^Plugin: (.+?)$",
+      "flags": "",
+      "replace": "Plugin：$1",
+      "hint": "Plugin:"
+    },
+    {
+      "source": "^(\\d+) agents? working quietly in the background\\. Anything that needs your input will show up here\\.$",
+      "flags": "",
+      "replace": "$1 个 Agent 正在后台静默运行。需要您输入的内容将显示在此处。",
+      "hint": "working quietly in the backgroun"
+    },
+    {
+      "source": "^(.+?) subagents?$",
+      "flags": "",
+      "replace": "$1 个 Subagent",
+      "hint": "subagent"
+    },
+    {
+      "source": "^(.+?)\\. Managed by your organization\\. Disabling the bundle turns off its plugins\\.$",
+      "flags": "",
+      "replace": "$1。由您的组织管理。禁用该扩展包将关闭其包含的所有 Plugin。",
+      "hint": ". Managed by your organization."
     }
   ],
   "deep": [
@@ -6693,6 +7245,48 @@
       "flags": "",
       "replace": "已复制“$1”。请粘贴给协调者并说明想要修改的内容。",
       "hint": "Paste it to the coordinator"
+    },
+    {
+      "source": "^Couldn't load plugin configuration: (.+?)$",
+      "flags": "",
+      "replace": "无法加载插件配置：$1",
+      "hint": "Couldn't load plugin configurati"
+    },
+    {
+      "source": "^Create plugin, (.+?)$",
+      "flags": "",
+      "replace": "创建插件，$1",
+      "hint": "Create plugin,"
+    },
+    {
+      "source": "^Failed to enable plugin (.+?)$",
+      "flags": "",
+      "replace": "启用插件 $1 失败",
+      "hint": "Failed to enable plugin"
+    },
+    {
+      "source": "^Plugin: (.+?)$",
+      "flags": "",
+      "replace": "插件：$1",
+      "hint": "Plugin:"
+    },
+    {
+      "source": "^(\\d+) agents? working quietly in the background\\. Anything that needs your input will show up here\\.$",
+      "flags": "",
+      "replace": "$1 个智能体正在后台静默运行。需要您输入的内容将显示在此处。",
+      "hint": "working quietly in the backgroun"
+    },
+    {
+      "source": "^(.+?) subagents?$",
+      "flags": "",
+      "replace": "$1 个子代理",
+      "hint": "subagent"
+    },
+    {
+      "source": "^(.+?)\\. Managed by your organization\\. Disabling the bundle turns off its plugins\\.$",
+      "flags": "",
+      "replace": "$1。由您的组织管理。禁用该扩展包将关闭其包含的所有插件。",
+      "hint": ". Managed by your organization."
     }
   ]
 }

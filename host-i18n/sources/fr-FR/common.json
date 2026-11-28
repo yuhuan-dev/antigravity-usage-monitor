@@ -839,6 +839,7 @@
     "No": "Non",
     "No Results": "Aucun résultat",
     "No access": "Aucun accès",
+    "No active terminals": "Aucun terminal actif",
     "No background tasks": "Aucune tâche en arrière-plan",
     "No changes": "Aucune modification",
     "No changes to amend": "Aucune modification à amender",
@@ -1268,6 +1269,7 @@
     "Stale info": "Informations obsolètes",
     "Stalled": "Bloqué",
     "Standalone": "Autonome",
+    "Standalone Terminals": "Terminaux autonomes",
     "Start": "Démarrer",
     "Start Best-of-": "Démarrer Best-of-",
     "Started": "Démarré",
@@ -1340,6 +1342,7 @@
     "Task Logs": "Journaux de tâches",
     "Task not found": "Tâche introuvable",
     "Tasks": "Tâches",
+    "Terminals": "Terminaux",
     "Terms of Service": "Conditions d'utilisation",
     "Text Selection": "Sélection de texte",
     "Text viewer": "Visionneuse de texte",
@@ -1632,10 +1635,7 @@
     "yet": "encore",
     "· estimated": "· estimé",
     "↓ Scroll to bottom": "↓ Défiler vers le bas",
-    "✓ Target set": "✓ Cible définie",
-    "No active terminals": "Aucun terminal actif",
-    "Standalone Terminals": "Terminaux autonomes",
-    "Terminals": "Terminaux"
+    "✓ Target set": "✓ Cible définie"
   },
   "light": {
     "Auto": "Auto",

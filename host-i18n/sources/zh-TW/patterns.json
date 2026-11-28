@@ -5129,6 +5129,516 @@
       "flags": "",
       "replace": "/ $1",
       "hint": "of"
+    },
+    {
+      "source": "^Add (.+?): (.+?)$",
+      "flags": "",
+      "replace": "新增 $1：$2",
+      "hint": "Add"
+    },
+    {
+      "source": "^Answered: “(\\d+(?:\\.\\d+)?)”$",
+      "flags": "",
+      "replace": "已回答：「$1」",
+      "hint": "Answered: “"
+    },
+    {
+      "source": "^Automation error: (.+?)$",
+      "flags": "",
+      "replace": "自動化錯誤：$1",
+      "hint": "Automation error:"
+    },
+    {
+      "source": "^Copied link to (.+?)$",
+      "flags": "",
+      "replace": "已複製 $1 的連結",
+      "hint": "Copied link to"
+    },
+    {
+      "source": "^Copy link to (.+?)$",
+      "flags": "",
+      "replace": "複製 $1 的連結",
+      "hint": "Copy link to"
+    },
+    {
+      "source": "^Environment variable \"(.+?)\" is already used by (.+?) in this scope\\. Choose a different (.+?) or replace the existing credential\\.$",
+      "flags": "",
+      "replace": "環境變數「$1」已在此範圍內被 $2 使用。請選擇其他 $3 或取代現有憑證。",
+      "hint": "or replace the existing credenti"
+    },
+    {
+      "source": "^Environment variable \"(.+?)\" is reserved by the system and cannot be used\\. Choose a different key\\.$",
+      "flags": "",
+      "replace": "環境變數「$1」為系統保留，無法使用。請選擇其他鍵名。",
+      "hint": "\" is reserved by the system and"
+    },
+    {
+      "source": "^Environment variable \"(.+?)\" is reserved by the system and cannot be used\\. Choose a different name\\.$",
+      "flags": "",
+      "replace": "環境變數「$1」為系統保留，無法使用。請選擇其他名稱。",
+      "hint": "\" is reserved by the system and"
+    },
+    {
+      "source": "^Hid (.+?) from sidebar$",
+      "flags": "",
+      "replace": "已從側邊欄隱藏 $1",
+      "hint": "from sidebar"
+    },
+    {
+      "source": "^Looks good on (.+?) — go ahead and proceed\\.$",
+      "flags": "",
+      "replace": "$1 看起來沒問題 — 請繼續進行。",
+      "hint": "— go ahead and proceed."
+    },
+    {
+      "source": "^Maximum (.+?) attachments reached$",
+      "flags": "",
+      "replace": "已達附件數量上限（$1 個）",
+      "hint": "attachments reached"
+    },
+    {
+      "source": "^No settings match (.+?)$",
+      "flags": "",
+      "replace": "沒有設定符合 $1",
+      "hint": "No settings match"
+    },
+    {
+      "source": "^Open (.+?) preview (.+?) of (.+?)$",
+      "flags": "",
+      "replace": "開啟 $1 預覽（第 $2 / $3 項）",
+      "hint": "preview"
+    },
+    {
+      "source": "^Permission: (.+?)$",
+      "flags": "",
+      "replace": "權限：$1",
+      "hint": "Permission:"
+    },
+    {
+      "source": "^Preview (.+?)$",
+      "flags": "",
+      "replace": "預覽 $1",
+      "hint": "Preview"
+    },
+    {
+      "source": "^Project: (.+?)$",
+      "flags": "",
+      "replace": "專案：$1",
+      "hint": "Project:"
+    },
+    {
+      "source": "^Remove (.+?) reaction$",
+      "flags": "",
+      "replace": "移除 $1 表情符號回應",
+      "hint": "reaction"
+    },
+    {
+      "source": "^Replace environment variable: (.+?)$",
+      "flags": "",
+      "replace": "取代環境變數：$1",
+      "hint": "Replace environment variable:"
+    },
+    {
+      "source": "^Replace secret: (.+?)$",
+      "flags": "",
+      "replace": "取代密鑰：$1",
+      "hint": "Replace secret:"
+    },
+    {
+      "source": "^Replace (.+?)$",
+      "flags": "",
+      "replace": "取代 $1",
+      "hint": "Replace"
+    },
+    {
+      "source": "^Reply in thread to (.+?)$",
+      "flags": "",
+      "replace": "在討論串中回覆 $1",
+      "hint": "Reply in thread to"
+    },
+    {
+      "source": "^Retry loading (.+?) configuration$",
+      "flags": "",
+      "replace": "重試載入 $1 設定",
+      "hint": "Retry loading"
+    },
+    {
+      "source": "^Retry uploading (.+?)$",
+      "flags": "",
+      "replace": "重試上傳 $1",
+      "hint": "Retry uploading"
+    },
+    {
+      "source": "^Run failed: (.+?)$",
+      "flags": "",
+      "replace": "執行失敗：$1",
+      "hint": "Run failed:"
+    },
+    {
+      "source": "^Running “(.+?)” now$",
+      "flags": "",
+      "replace": "正在執行「$1」",
+      "hint": "Running “"
+    },
+    {
+      "source": "^Screenshot for (.+?)$",
+      "flags": "",
+      "replace": "$1 的螢幕截圖",
+      "hint": "Screenshot for"
+    },
+    {
+      "source": "^Scroll to Bottom \\((.+?) unread\\)$",
+      "flags": "",
+      "replace": "捲動至底部（$1 則未讀）",
+      "hint": "Scroll to Bottom ("
+    },
+    {
+      "source": "^Send (.+?)$",
+      "flags": "",
+      "replace": "傳送 $1",
+      "hint": "Send"
+    },
+    {
+      "source": "^Show in Sidebar \\((.+?)/(.+?)\\)$",
+      "flags": "",
+      "replace": "在側邊欄中顯示（$1/$2）",
+      "hint": "Show in Sidebar ("
+    },
+    {
+      "source": "^Still thinking, (\\d+(?:\\.\\d+)?) seconds$",
+      "flags": "",
+      "replace": "仍在思考中，已耗時 $1 秒",
+      "hint": "Still thinking,"
+    },
+    {
+      "source": "^Thread (.+?)$",
+      "flags": "",
+      "replace": "討論串 $1",
+      "hint": "Thread"
+    },
+    {
+      "source": "^Thread: (.+?)$",
+      "flags": "",
+      "replace": "討論串：$1",
+      "hint": "Thread:"
+    },
+    {
+      "source": "^Topic (.+?)$",
+      "flags": "",
+      "replace": "主題 $1",
+      "hint": "Topic"
+    },
+    {
+      "source": "^Upload failed for (.+?)$",
+      "flags": "",
+      "replace": "上傳 $1 失敗",
+      "hint": "Upload failed for"
+    },
+    {
+      "source": "^Uploading (.+?)…$",
+      "flags": "",
+      "replace": "正在上傳 $1…",
+      "hint": "Uploading"
+    },
+    {
+      "source": "^Uploading (.+?)$",
+      "flags": "",
+      "replace": "正在上傳 $1",
+      "hint": "Uploading"
+    },
+    {
+      "source": "^View (.+?) full screen$",
+      "flags": "",
+      "replace": "全螢幕檢視 $1",
+      "hint": "full screen"
+    },
+    {
+      "source": "^Voice open timed out after (\\d+(?:\\.\\d+)?)ms$",
+      "flags": "",
+      "replace": "語音開啟於 $1ms 後逾時",
+      "hint": "Voice open timed out after"
+    },
+    {
+      "source": "^You reacted with (.+?)$",
+      "flags": "",
+      "replace": "您回應了 $1",
+      "hint": "You reacted with"
+    },
+    {
+      "source": "^Your quota for (.+?) has been reached\\.$",
+      "flags": "",
+      "replace": "您對 $1 的配額已達上限。",
+      "hint": "has been reached."
+    },
+    {
+      "source": "^Your quota for (.+?) resets (.+?)\\.$",
+      "flags": "",
+      "replace": "您對 $1 的配額將於 $2 重設。",
+      "hint": "Your quota for"
+    },
+    {
+      "source": "^(.+?) \\(Disabled\\)$",
+      "flags": "",
+      "replace": "$1（已停用）",
+      "hint": "(Disabled)"
+    },
+    {
+      "source": "^(.+?) files?$",
+      "flags": "",
+      "replace": "$1 個檔案",
+      "hint": "file"
+    },
+    {
+      "source": "^(.+?) is required\\.$",
+      "flags": "",
+      "replace": "$1 為必填項。",
+      "hint": "is required."
+    },
+    {
+      "source": "^(.+?) needing your input$",
+      "flags": "",
+      "replace": "$1 需要您的輸入",
+      "hint": "needing your input"
+    },
+    {
+      "source": "^(.+?) of (\\d+(?:\\.\\d+)?) steps done$",
+      "flags": "",
+      "replace": "已完成 $1 / $2 個步驟",
+      "hint": "steps done"
+    },
+    {
+      "source": "^(.+?) reacted with (.+?)$",
+      "flags": "",
+      "replace": "$1 回應了 $2",
+      "hint": "reacted with"
+    },
+    {
+      "source": "^(.+?) replies$",
+      "flags": "",
+      "replace": "$1 則回覆",
+      "hint": "replies"
+    },
+    {
+      "source": "^(.+?) tab, (.+?)$",
+      "flags": "",
+      "replace": "$1 分頁，$2",
+      "hint": "tab,"
+    },
+    {
+      "source": "^(.+?) tasks?$",
+      "flags": "",
+      "replace": "$1 個任務",
+      "hint": "task"
+    },
+    {
+      "source": "^(.+?) — restore split view$",
+      "flags": "",
+      "replace": "$1 — 還原分割檢視",
+      "hint": "— restore split view"
+    },
+    {
+      "source": "^(.+?)\\. Managed by your organization\\.$",
+      "flags": "",
+      "replace": "$1。由您的組織管理。",
+      "hint": ". Managed by your organization."
+    },
+    {
+      "source": "^· \\+(\\d+(?:\\.\\d+)?) more$",
+      "flags": "",
+      "replace": "· 另外還有 $1 項",
+      "hint": "more"
+    },
+    {
+      "source": "^No automations match “(.+?)”\\.$",
+      "flags": "",
+      "replace": "找不到符合「$1」的自動化任務。",
+      "hint": "No automations match"
+    },
+    {
+      "source": "^No (.+?) yet$",
+      "flags": "",
+      "replace": "尚無 $1",
+      "hint": "yet"
+    },
+    {
+      "source": "^You can upgrade to a higher (.+?) plan to receive the highest rate limits\\.$",
+      "flags": "",
+      "replace": "您可以升級至更高級別的 $1 方案，以獲得最高的速率限制。",
+      "hint": "upgrade to a higher"
+    },
+    {
+      "source": "^You can upgrade to a (.+?) plan to receive higher rate limits\\.$",
+      "flags": "",
+      "replace": "您可以升級至 $1 方案，以獲得更高的速率限制。",
+      "hint": "receive higher rate limits"
+    },
+    {
+      "source": "^You have used some of your weekly limit, it will fully refresh in (\\d+) days?, (\\d+) hours?\\.$",
+      "flags": "",
+      "replace": "您已使用部分每週額度，將於 $1 天 $2 小時後完全重設。",
+      "hint": "your weekly limit, it will fully"
+    },
+    {
+      "source": "^You have used most of your weekly limit, it will fully refresh in (\\d+) days?, (\\d+) hours?\\.$",
+      "flags": "",
+      "replace": "您已使用大部分每週額度，將於 $1 天 $2 小時後完全重設。",
+      "hint": "your weekly limit, it will fully"
+    },
+    {
+      "source": "^You have used all of your weekly limit, it will fully refresh in (\\d+) days?, (\\d+) hours?\\.$",
+      "flags": "",
+      "replace": "您已用盡每週額度，將於 $1 天 $2 小時後完全重設。",
+      "hint": "your weekly limit, it will fully"
+    },
+    {
+      "source": "^You have used some of your weekly limit, it will fully refresh in (\\d+) hours?, (\\d+) minutes?\\.$",
+      "flags": "",
+      "replace": "您已使用部分每週額度，將於 $1 小時 $2 分鐘後完全重設。",
+      "hint": "your weekly limit, it will fully"
+    },
+    {
+      "source": "^You have used most of your weekly limit, it will fully refresh in (\\d+) hours?, (\\d+) minutes?\\.$",
+      "flags": "",
+      "replace": "您已使用大部分每週額度，將於 $1 小時 $2 分鐘後完全重設。",
+      "hint": "your weekly limit, it will fully"
+    },
+    {
+      "source": "^You have used all of your weekly limit, it will fully refresh in (\\d+) hours?, (\\d+) minutes?\\.$",
+      "flags": "",
+      "replace": "您已用盡每週額度，將於 $1 小時 $2 分鐘後完全重設。",
+      "hint": "your weekly limit, it will fully"
+    },
+    {
+      "source": "^You have used some of your weekly limit, it will fully refresh in (\\d+) days?\\.$",
+      "flags": "",
+      "replace": "您已使用部分每週額度，將於 $1 天後完全重設。",
+      "hint": "your weekly limit, it will fully"
+    },
+    {
+      "source": "^You have used most of your weekly limit, it will fully refresh in (\\d+) days?\\.$",
+      "flags": "",
+      "replace": "您已使用大部分每週額度，將於 $1 天後完全重設。",
+      "hint": "your weekly limit, it will fully"
+    },
+    {
+      "source": "^You have used all of your weekly limit, it will fully refresh in (\\d+) days?\\.$",
+      "flags": "",
+      "replace": "您已用盡每週額度，將於 $1 天後完全重設。",
+      "hint": "your weekly limit, it will fully"
+    },
+    {
+      "source": "^You have used some of your weekly limit, it will fully refresh in (\\d+) hours?\\.$",
+      "flags": "",
+      "replace": "您已使用部分每週額度，將於 $1 小時後完全重設。",
+      "hint": "your weekly limit, it will fully"
+    },
+    {
+      "source": "^You have used some of your weekly limit, it will fully refresh in (\\d+) minutes?\\.$",
+      "flags": "",
+      "replace": "您已使用部分每週額度，將於 $1 分鐘後完全重設。",
+      "hint": "your weekly limit, it will fully"
+    },
+    {
+      "source": "^You have used some of your weekly limit, it will fully refresh in (.+?)\\.$",
+      "flags": "",
+      "replace": "您已使用部分每週額度，將於 $1 後完全重設。",
+      "hint": "your weekly limit, it will fully"
+    },
+    {
+      "source": "^You have used most of your weekly limit, it will fully refresh in (.+?)\\.$",
+      "flags": "",
+      "replace": "您已使用大部分每週額度，將於 $1 後完全重設。",
+      "hint": "your weekly limit, it will fully"
+    },
+    {
+      "source": "^You have used all of your weekly limit, it will fully refresh in (.+?)\\.$",
+      "flags": "",
+      "replace": "您已用盡每週額度，將於 $1 後完全重設。",
+      "hint": "your weekly limit, it will fully"
+    },
+    {
+      "source": "^You have used some of your 5-hour limit, it will fully refresh in (\\d+) hours?, (\\d+) minutes?\\.$",
+      "flags": "",
+      "replace": "您已使用部分 5 小時額度，將於 $1 小時 $2 分鐘後完全重設。",
+      "hint": "your 5-hour limit, it will fully"
+    },
+    {
+      "source": "^You have used most of your 5-hour limit, it will fully refresh in (\\d+) hours?, (\\d+) minutes?\\.$",
+      "flags": "",
+      "replace": "您已使用大部分 5 小時額度，將於 $1 小時 $2 分鐘後完全重設。",
+      "hint": "your 5-hour limit, it will fully"
+    },
+    {
+      "source": "^You have used all of your 5-hour limit, it will fully refresh in (\\d+) hours?, (\\d+) minutes?\\.$",
+      "flags": "",
+      "replace": "您已用盡 5 小時額度，將於 $1 小時 $2 分鐘後完全重設。",
+      "hint": "your 5-hour limit, it will fully"
+    },
+    {
+      "source": "^You have used some of your 5-hour limit, it will fully refresh in (\\d+) hours?\\.$",
+      "flags": "",
+      "replace": "您已使用部分 5 小時額度，將於 $1 小時後完全重設。",
+      "hint": "your 5-hour limit, it will fully"
+    },
+    {
+      "source": "^You have used most of your 5-hour limit, it will fully refresh in (\\d+) hours?\\.$",
+      "flags": "",
+      "replace": "您已使用大部分 5 小時額度，將於 $1 小時後完全重設。",
+      "hint": "your 5-hour limit, it will fully"
+    },
+    {
+      "source": "^You have used all of your 5-hour limit, it will fully refresh in (\\d+) hours?\\.$",
+      "flags": "",
+      "replace": "您已用盡 5 小時額度，將於 $1 小時後完全重設。",
+      "hint": "your 5-hour limit, it will fully"
+    },
+    {
+      "source": "^You have used some of your 5-hour limit, it will fully refresh in (\\d+) minutes?\\.$",
+      "flags": "",
+      "replace": "您已使用部分 5 小時額度，將於 $1 分鐘後完全重設。",
+      "hint": "your 5-hour limit, it will fully"
+    },
+    {
+      "source": "^You have used most of your 5-hour limit, it will fully refresh in (\\d+) minutes?\\.$",
+      "flags": "",
+      "replace": "您已使用大部分 5 小時額度，將於 $1 分鐘後完全重設。",
+      "hint": "your 5-hour limit, it will fully"
+    },
+    {
+      "source": "^You have used all of your 5-hour limit, it will fully refresh in (\\d+) minutes?\\.$",
+      "flags": "",
+      "replace": "您已用盡 5 小時額度，將於 $1 分鐘後完全重設。",
+      "hint": "your 5-hour limit, it will fully"
+    },
+    {
+      "source": "^You have used some of your 5-hour limit, it will fully refresh in less than a minute\\.$",
+      "flags": "",
+      "replace": "您已使用部分 5 小時額度，將於 1 分鐘內完全重設。",
+      "hint": "your 5-hour limit, it will fully"
+    },
+    {
+      "source": "^You have used some of your 5-hour limit, it will fully refresh in (.+?)\\.$",
+      "flags": "",
+      "replace": "您已使用部分 5 小時額度，將於 $1 後完全重設。",
+      "hint": "your 5-hour limit, it will fully"
+    },
+    {
+      "source": "^You have used most of your 5-hour limit, it will fully refresh in (.+?)\\.$",
+      "flags": "",
+      "replace": "您已使用大部分 5 小時額度，將於 $1 後完全重設。",
+      "hint": "your 5-hour limit, it will fully"
+    },
+    {
+      "source": "^You have used all of your 5-hour limit, it will fully refresh in (.+?)\\.$",
+      "flags": "",
+      "replace": "您已用盡 5 小時額度，將於 $1 後完全重設。",
+      "hint": "your 5-hour limit, it will fully"
+    },
+    {
+      "source": "^You have used some of your daily limit, it will fully refresh in (.+?)\\.$",
+      "flags": "",
+      "replace": "您已使用部分每日額度，將於 $1 後完全重設。",
+      "hint": "your daily limit, it will fully"
     }
   ],
   "light": [
@@ -5911,6 +6421,48 @@
       "flags": "",
       "replace": "已複製「$1」。請貼給 Coordinator 並說明想要修改的內容。",
       "hint": "Paste it to the coordinator"
+    },
+    {
+      "source": "^Couldn't load plugin configuration: (.+?)$",
+      "flags": "",
+      "replace": "無法載入 Plugin 設定：$1",
+      "hint": "Couldn't load plugin configurati"
+    },
+    {
+      "source": "^Create plugin, (.+?)$",
+      "flags": "",
+      "replace": "建立 Plugin，$1",
+      "hint": "Create plugin,"
+    },
+    {
+      "source": "^Failed to enable plugin (.+?)$",
+      "flags": "",
+      "replace": "啟用 Plugin $1 失敗",
+      "hint": "Failed to enable plugin"
+    },
+    {
+      "source": "^Plugin: (.+?)$",
+      "flags": "",
+      "replace": "Plugin：$1",
+      "hint": "Plugin:"
+    },
+    {
+      "source": "^(.+?) subagents?$",
+      "flags": "",
+      "replace": "$1 個 Subagent",
+      "hint": "subagent"
+    },
+    {
+      "source": "^(.+?)\\. Managed by your organization\\. Disabling the bundle turns off its plugins\\.$",
+      "flags": "",
+      "replace": "$1。由您的組織管理。停用此套件包將會關閉其中的 Plugin。",
+      "hint": ". Managed by your organization."
+    },
+    {
+      "source": "^(\\d+) agents? working quietly in the background\\. Anything that needs your input will show up here\\.$",
+      "flags": "",
+      "replace": "$1 個 Agent 正在背景靜默執行。需要您輸入的事項將顯示於此。",
+      "hint": "working quietly in the backgroun"
     }
   ],
   "deep": [
@@ -6693,6 +7245,48 @@
       "flags": "",
       "replace": "已複製「$1」。請貼給協調者並說明想要修改的內容。",
       "hint": "Paste it to the coordinator"
+    },
+    {
+      "source": "^Couldn't load plugin configuration: (.+?)$",
+      "flags": "",
+      "replace": "無法載入外掛設定：$1",
+      "hint": "Couldn't load plugin configurati"
+    },
+    {
+      "source": "^Create plugin, (.+?)$",
+      "flags": "",
+      "replace": "建立外掛，$1",
+      "hint": "Create plugin,"
+    },
+    {
+      "source": "^Failed to enable plugin (.+?)$",
+      "flags": "",
+      "replace": "啟用外掛 $1 失敗",
+      "hint": "Failed to enable plugin"
+    },
+    {
+      "source": "^Plugin: (.+?)$",
+      "flags": "",
+      "replace": "外掛：$1",
+      "hint": "Plugin:"
+    },
+    {
+      "source": "^(.+?) subagents?$",
+      "flags": "",
+      "replace": "$1 個子代理",
+      "hint": "subagent"
+    },
+    {
+      "source": "^(.+?)\\. Managed by your organization\\. Disabling the bundle turns off its plugins\\.$",
+      "flags": "",
+      "replace": "$1。由您的組織管理。停用此套件包將會關閉其中的外掛。",
+      "hint": ". Managed by your organization."
+    },
+    {
+      "source": "^(\\d+) agents? working quietly in the background\\. Anything that needs your input will show up here\\.$",
+      "flags": "",
+      "replace": "$1 個智能體正在背景靜默執行。需要您輸入的事項將顯示於此。",
+      "hint": "working quietly in the backgroun"
     }
   ]
 }
