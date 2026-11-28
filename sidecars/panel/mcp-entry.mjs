@@ -15,6 +15,11 @@ import { existsSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+  readBridgeLeaseSync,
+  resolveBridgeLeaseFilePath,
+  resolveSharedSidecarDataDir,
+} from './backend/bridge-paths.mjs';
 
 const PANEL_DIR = dirname(fileURLToPath(import.meta.url));
 const PLUGIN_MANIFEST_PATH = join(dirname(dirname(PANEL_DIR)), 'plugin.json');
@@ -39,7 +44,10 @@ function normalizeStandbyPort(raw) {
   return Number.isInteger(n) && n >= 1024 && n <= 65535 ? n : 0;
 }
 
-function resolveLightweightDataDir(env = process.env, { existsSyncFn = existsSync, homeDir = homedir() } = {}) {
+function resolveLightweightDataDir(
+  env = process.env,
+  { existsSyncFn = existsSync, readFileSyncFn = readFileSync, homeDir = homedir() } = {}
+) {
   const explicitDataDir = String(env?.USAGE_MONITOR_DATA_DIR || '').trim();
   if (explicitDataDir) return explicitDataDir;
   if (env?.ANTIGRAVITY_EXECUTABLE_DATA_DIR) {
@@ -48,10 +56,22 @@ function resolveLightweightDataDir(env = process.env, { existsSyncFn = existsSyn
   if (String(env?.ANTIGRAVITY_LS_ADDRESS || '').trim() === 'test.invalid') {
     return join(PANEL_DIR, '.data');
   }
+  const sharedSidecarDir = resolveSharedSidecarDataDir({
+    env,
+    existsSyncFn,
+    readFileSyncFn,
+    homeDir,
+  });
+  if (sharedSidecarDir) return sharedSidecarDir;
   const geminiBase = String(env?.ANTIGRAVITY_GEMINI_DIR || '').trim() || join(homeDir, '.gemini');
+  const pluginEnvDataDir =
+    env?.USAGE_MONITOR_PLUGIN_DATA && !String(env.USAGE_MONITOR_PLUGIN_DATA).includes('${')
+      ? String(env.USAGE_MONITOR_PLUGIN_DATA).trim()
+      : '';
   const candidates = [
     join(geminiBase, 'antigravity', 'sidecar_data', 'usage-monitor', 'panel', 'data'),
     join(geminiBase, 'antigravity', 'sidecar_data', 'usage-monitor', 'data'),
+    ...(pluginEnvDataDir ? [pluginEnvDataDir] : []),
     join(geminiBase, 'antigravity-ide', 'sidecar_data', 'usage-monitor', 'panel', 'data'),
     join(geminiBase, 'antigravity-cli', 'sidecar_data', 'usage-monitor', 'panel', 'data'),
   ];
@@ -71,7 +91,7 @@ function readJsonSilent(filePath, { existsSyncFn = existsSync, readFileSyncFn = 
 }
 
 /**
- * 判断当前是否已有存活的 Desktop Sidecar 进程持有 `window-bridge-lease.json` 租约，
+ * 判断当前是否已有存活的 Desktop Sidecar 进程持有共享桥接租约，
  * 且未启用独立 Web 端口（`standalonePort`）。满足时无需额外维持一份约 60 MB 的空闲 `bridge-daemon.mjs` 进程，
  * 仅由本轻量 MCP 进程周期守望，一旦 Sidecar 退出或用户启用独立端口即在数秒内拉起接管。
  *
@@ -81,6 +101,7 @@ function readJsonSilent(filePath, { existsSyncFn = existsSync, readFileSyncFn = 
 export function shouldDeferDaemonToActiveSidecar({
   env = process.env,
   dataDir = '',
+  leaseFilePath = '',
   daemonPid = 0,
   nowMs = Date.now(),
   existsSyncFn = existsSync,
@@ -93,22 +114,45 @@ export function shouldDeferDaemonToActiveSidecar({
   if (normalizeStandbyPort(env?.USAGE_MONITOR_STANDALONE_PORT) > 0) {
     return false;
   }
-  const resolvedDir = dataDir || resolveLightweightDataDir(env, { existsSyncFn });
-  if (!resolvedDir) return false;
+  const explicitDataDir = String(dataDir || '').trim();
+  const explicitLeasePath = String(leaseFilePath || '').trim();
+  const resolvedDir =
+    explicitDataDir || resolveLightweightDataDir(env, { existsSyncFn, readFileSyncFn });
 
-  const settings = readJsonSilent(join(resolvedDir, 'settings.json'), {
-    existsSyncFn,
-    readFileSyncFn,
-  });
-  if (normalizeStandbyPort(settings?.standalonePort) > 0) {
-    return false;
+  const leaseCandidates = explicitLeasePath
+    ? [explicitLeasePath]
+    : explicitDataDir
+      ? [join(explicitDataDir, 'window-bridge-lease.json')]
+      : [
+          resolveBridgeLeaseFilePath({ env, dataDir: resolvedDir }),
+          ...(resolvedDir ? [join(resolvedDir, 'window-bridge-lease.json')] : []),
+        ];
+
+  let lease = null;
+  for (const candidate of leaseCandidates) {
+    const parsed = readBridgeLeaseSync(candidate, { existsSyncFn, readFileSyncFn });
+    if (parsed) {
+      lease = parsed;
+      break;
+    }
+  }
+  if (!lease || typeof lease !== 'object') return false;
+
+  const settingsDir =
+    (String(lease.sidecarDataDir || '').trim() &&
+    existsSyncFn(join(String(lease.sidecarDataDir).trim(), 'settings.json'))
+      ? String(lease.sidecarDataDir).trim()
+      : '') || resolvedDir;
+  if (settingsDir) {
+    const settings = readJsonSilent(join(settingsDir, 'settings.json'), {
+      existsSyncFn,
+      readFileSyncFn,
+    });
+    if (normalizeStandbyPort(settings?.standalonePort) > 0) {
+      return false;
+    }
   }
 
-  const lease = readJsonSilent(join(resolvedDir, 'window-bridge-lease.json'), {
-    existsSyncFn,
-    readFileSyncFn,
-  });
-  if (!lease || typeof lease !== 'object') return false;
   const leasePid = Number(lease.pid || 0);
   if (
     !Number.isInteger(leasePid) ||
@@ -122,8 +166,8 @@ export function shouldDeferDaemonToActiveSidecar({
   if (!(ageMs >= 0 && ageMs < MCP_SIDECAR_LEASE_TTL_MS)) {
     return false;
   }
-  const peerRole = String(lease?.peers?.[String(leasePid)]?.role || '').trim();
-  if (peerRole !== 'sidecar') {
+  const leaderRole = String(lease?.role || lease?.peers?.[String(leasePid)]?.role || '').trim();
+  if (leaderRole !== 'sidecar') {
     return false;
   }
   return Boolean(isPidAliveFn(leasePid));

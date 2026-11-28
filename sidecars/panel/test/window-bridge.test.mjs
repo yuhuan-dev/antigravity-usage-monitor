@@ -8780,3 +8780,154 @@ test('buildDaemonSpawnArgs caps V8 semi-space to 4MB by default while respecting
     ['/path/to/bridge-daemon.mjs']
   );
 });
+
+test('Issue #67: shared lease path decouples from DATA_DIR, sidecar preempts daemon, and daemon aligns DATA_DIR & defers cleanly', async () => {
+  const {
+    resolveBridgeLeaseFilePath,
+    resolveSharedSidecarDataDir,
+  } = await import('../backend/bridge-paths.mjs');
+  const { resolveDefaultDataDir } = await import('../backend/config.mjs');
+  const { createWindowBridgeController } = await import('../backend/window-bridge.mjs');
+  const { shouldDeferDaemonToActiveSidecar } = await import('../mcp-entry.mjs');
+
+  const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'ag-issue67-'));
+  try {
+    const sidecarDataDir = path.join(tmpRoot, 'sidecar_data', 'usage-monitor-zip', 'panel', 'data');
+    const pluginDataDir = path.join(tmpRoot, 'plugin_data', 'usage-monitor');
+    fs.mkdirSync(sidecarDataDir, { recursive: true });
+    fs.mkdirSync(pluginDataDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(sidecarDataDir, 'settings.json'),
+      JSON.stringify({ standalonePort: 0, topbarCapsuleSlots: ['cost', 'session_cost', 'gemini_5h', 'gemini_weekly'] }),
+      'utf8'
+    );
+
+    // 1. Sidecar (with ANTIGRAVITY_EXECUTABLE_DATA_DIR) and MCP daemon (without it) resolve the EXACT same shared lease path
+    const sidecarEnv = {
+      ANTIGRAVITY_GEMINI_DIR: path.join(tmpRoot, '.gemini'),
+      ANTIGRAVITY_EXECUTABLE_DATA_DIR: sidecarDataDir,
+    };
+    const daemonEnv = {
+      ANTIGRAVITY_GEMINI_DIR: path.join(tmpRoot, '.gemini'),
+      USAGE_MONITOR_PLUGIN_DATA: pluginDataDir,
+    };
+    const sidecarLeasePath = resolveBridgeLeaseFilePath({ env: sidecarEnv, tmpDir: tmpRoot });
+    const daemonLeasePath = resolveBridgeLeaseFilePath({ env: daemonEnv, tmpDir: tmpRoot });
+    assert.equal(sidecarLeasePath, daemonLeasePath, 'Sidecar and MCP daemon must share one lease path regardless of DATA_DIR');
+    assert.ok(sidecarLeasePath.startsWith(tmpRoot), 'Shared lease lives in tmpDir, decoupled from DATA_DIR');
+
+    // Test harness stays isolated to its own dataDir
+    assert.equal(
+      resolveBridgeLeaseFilePath({
+        env: { ANTIGRAVITY_LS_ADDRESS: 'test.invalid' },
+        dataDir: sidecarDataDir,
+        tmpDir: tmpRoot,
+      }),
+      path.join(sidecarDataDir, 'window-bridge-lease.json')
+    );
+
+    // 2. Role preemption: live daemon holds the shared lease -> sidecar preempts it and writes role='sidecar' + sidecarDataDir
+    const externalAlivePid = process.ppid > 0 && process.ppid !== process.pid ? process.ppid : 1;
+    fs.writeFileSync(
+      sidecarLeasePath,
+      JSON.stringify({
+        pid: externalAlivePid,
+        role: 'daemon',
+        bundleVersion: '1795870000000',
+        updatedAtMs: Date.now(),
+        peers: { [String(externalAlivePid)]: { role: 'daemon', updatedAtMs: Date.now() } },
+      }),
+      'utf8'
+    );
+
+    const sidecarCtrl = createWindowBridgeController({
+      handleApiRequest: async () => ({ status: 200, body: '{}' }),
+      readAssetFn: () => '',
+      getSettingsFn: () => ({ enableWindowOverlay: true, windowMountMode: 'dual', autoConfigureLaunch: false }),
+      getBundleVersionFn: () => '1795870000000',
+      env: sidecarEnv,
+      homeDir: tmpRoot,
+      leaseFilePath: sidecarLeasePath,
+      dataDir: sidecarDataDir,
+      hostRole: 'sidecar',
+      autoConfigureIdeArgv: false,
+      existsHostFn: () => false,
+    });
+    const sidecarSync = await sidecarCtrl.syncAllWindows();
+    assert.notEqual(sidecarSync.reason, 'follower_yield', 'Sidecar must preempt an active daemon leader');
+    const updatedLease = JSON.parse(fs.readFileSync(sidecarLeasePath, 'utf8'));
+    assert.equal(updatedLease.pid, process.pid);
+    assert.equal(updatedLease.role, 'sidecar');
+    assert.equal(updatedLease.sidecarDataDir, sidecarDataDir);
+    await sidecarCtrl.stop({ disposeWindows: false });
+
+    // 3. Re-seed lease as active external sidecar -> daemon controller yields cleanly AND resolveDefaultDataDir aligns to sidecarDataDir
+    fs.writeFileSync(
+      sidecarLeasePath,
+      JSON.stringify({
+        pid: externalAlivePid,
+        role: 'sidecar',
+        sidecarDataDir,
+        bundleVersion: '1795870000000',
+        updatedAtMs: Date.now(),
+        peers: { [String(externalAlivePid)]: { role: 'sidecar', updatedAtMs: Date.now() } },
+      }),
+      'utf8'
+    );
+
+    assert.equal(
+      resolveSharedSidecarDataDir({ env: daemonEnv, leaseFilePath: daemonLeasePath }),
+      sidecarDataDir
+    );
+    assert.equal(
+      resolveDefaultDataDir(daemonEnv, { homeDir: tmpRoot, leaseFilePath: daemonLeasePath }),
+      sidecarDataDir,
+      'Daemon DATA_DIR aligns to active sidecarDataDir from shared lease'
+    );
+
+    const daemonCtrl = createWindowBridgeController({
+      handleApiRequest: async () => ({ status: 200, body: '{}' }),
+      readAssetFn: () => '',
+      getSettingsFn: () => ({ enableWindowOverlay: true, windowMountMode: 'dual', autoConfigureLaunch: false }),
+      getBundleVersionFn: () => '1795870000000',
+      env: { ...daemonEnv, USAGE_MONITOR_HOST_PPID: '1,2' },
+      homeDir: tmpRoot,
+      leaseFilePath: daemonLeasePath,
+      dataDir: pluginDataDir,
+      hostRole: 'daemon',
+      autoConfigureIdeArgv: false,
+      existsHostFn: () => false,
+    });
+    const daemonSync = await daemonCtrl.syncAllWindows();
+    assert.equal(daemonSync.reason, 'follower_yield', 'Daemon must yield to active sidecar leader');
+    await daemonCtrl.stop({ disposeWindows: false });
+
+    // 4. mcp-entry shouldDeferDaemonToActiveSidecar defers across differing DATA_DIRs via shared lease and respects sidecarDataDir settings
+    assert.equal(
+      shouldDeferDaemonToActiveSidecar({
+        env: daemonEnv,
+        leaseFilePath: daemonLeasePath,
+        nowMs: Date.now(),
+        isPidAliveFn: (pid) => pid === externalAlivePid,
+      }),
+      true
+    );
+    fs.writeFileSync(
+      path.join(sidecarDataDir, 'settings.json'),
+      JSON.stringify({ standalonePort: 38123 }),
+      'utf8'
+    );
+    assert.equal(
+      shouldDeferDaemonToActiveSidecar({
+        env: daemonEnv,
+        leaseFilePath: daemonLeasePath,
+        nowMs: Date.now(),
+        isPidAliveFn: (pid) => pid === externalAlivePid,
+      }),
+      false,
+      'Must respect standalonePort enabled inside sidecarDataDir/settings.json'
+    );
+  } finally {
+    fs.rmSync(tmpRoot, { recursive: true, force: true });
+  }
+});

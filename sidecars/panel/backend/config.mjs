@@ -12,6 +12,11 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync } fr
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+  resolveBridgeLeaseFilePath,
+  resolveSharedGeminiBaseDir,
+  resolveSharedSidecarDataDir,
+} from './bridge-paths.mjs';
 import { writeJsonAtomicSync } from './fs-atomic.mjs';
 import { isPlainObject } from './http-helpers.mjs';
 import { writeTrajectoryCacheFile } from './trajectory-cache-file.mjs';
@@ -146,9 +151,8 @@ export const PLUGIN_ROOT = dirname(dirname(HERE));
 export const PLUGIN_MANIFEST_FILE = join(PLUGIN_ROOT, 'plugin.json');
 export const LOCAL_CATALOG_FILE = join(PLUGIN_ROOT, 'pricing-catalog.json');
 
-function resolveGeminiBaseDir() {
-  const envGemini = String(process.env.ANTIGRAVITY_GEMINI_DIR || '').trim();
-  return envGemini || join(homedir(), '.gemini');
+function resolveGeminiBaseDir(env = process.env, homeDir = homedir()) {
+  return resolveSharedGeminiBaseDir(env, homeDir);
 }
 
 function dedupeDirCandidates(list) {
@@ -190,21 +194,41 @@ function resolveProductDataRoots() {
 /**
  * 插件持久化数据目录（默认由 Antigravity 宿主注入 `~/.gemini/antigravity/sidecar_data/usage-monitor/panel/data`）。
  * 兼容桌面端、Antigravity IDE 与无头 `agy` CLI（`~/.gemini/antigravity-cli`）：
- * 优先使用已存在的持久化目录，纯 CLI 服务器自动落入 `~/.gemini/antigravity-cli/sidecar_data/usage-monitor/panel/data`，
- * 避免落入插件源码目录而在自更新时丢失缓存与设置。
+ * 优先使用已存在的持久化目录，并在缺失 `ANTIGRAVITY_EXECUTABLE_DATA_DIR`（如 MCP `bridge-daemon`）时
+ * 优先对齐共享租约中记录的活跃 Sidecar 数据目录（`sidecarDataDir`），彻底避免 2.36.0 下双进程配置分叉。
  */
-function resolveDefaultDataDir() {
-  const explicitDataDir = String(process.env.USAGE_MONITOR_DATA_DIR || '').trim();
+export function resolveDefaultDataDir(
+  env = process.env,
+  {
+    existsSyncFn = existsSync,
+    readFileSyncFn = readFileSync,
+    homeDir = homedir(),
+    leaseFilePath = '',
+    platform = process.platform,
+  } = {}
+) {
+  const explicitDataDir = String(env?.USAGE_MONITOR_DATA_DIR || '').trim();
   if (explicitDataDir) {
     return explicitDataDir;
   }
-  if (process.env.ANTIGRAVITY_EXECUTABLE_DATA_DIR) {
-    return process.env.ANTIGRAVITY_EXECUTABLE_DATA_DIR;
+  if (env?.ANTIGRAVITY_EXECUTABLE_DATA_DIR) {
+    return String(env.ANTIGRAVITY_EXECUTABLE_DATA_DIR).trim();
   }
-  if (String(process.env.ANTIGRAVITY_LS_ADDRESS || '').trim() === 'test.invalid') {
+  if (String(env?.ANTIGRAVITY_LS_ADDRESS || '').trim() === 'test.invalid') {
     return join(HERE, '.data');
   }
-  const geminiBase = resolveGeminiBaseDir();
+  const sharedSidecarDir = resolveSharedSidecarDataDir({
+    env,
+    leaseFilePath,
+    existsSyncFn,
+    readFileSyncFn,
+    homeDir,
+    platform,
+  });
+  if (sharedSidecarDir) {
+    return sharedSidecarDir;
+  }
+  const geminiBase = resolveGeminiBaseDir(env, homeDir);
   const antigravityRoot = join(geminiBase, 'antigravity');
   const ideRoot = join(geminiBase, 'antigravity-ide');
   const cliRoot = join(geminiBase, 'antigravity-cli');
@@ -213,22 +237,23 @@ function resolveDefaultDataDir() {
   const idePanelDataDir = join(ideRoot, 'sidecar_data', 'usage-monitor', 'panel', 'data');
   const cliPanelDataDir = join(cliRoot, 'sidecar_data', 'usage-monitor', 'panel', 'data');
   const pluginEnvDataDir =
-    process.env.USAGE_MONITOR_PLUGIN_DATA && !process.env.USAGE_MONITOR_PLUGIN_DATA.includes('${')
-      ? process.env.USAGE_MONITOR_PLUGIN_DATA
+    env?.USAGE_MONITOR_PLUGIN_DATA && !String(env.USAGE_MONITOR_PLUGIN_DATA).includes('${')
+      ? String(env.USAGE_MONITOR_PLUGIN_DATA).trim()
       : '';
-  if (existsSync(panelDataDir)) return panelDataDir;
-  if (existsSync(legacyDataDir)) return legacyDataDir;
-  if (pluginEnvDataDir && existsSync(pluginEnvDataDir)) return pluginEnvDataDir;
-  if (existsSync(idePanelDataDir)) return idePanelDataDir;
-  if (existsSync(cliPanelDataDir)) return cliPanelDataDir;
-  if (existsSync(antigravityRoot)) return panelDataDir;
+  if (existsSyncFn(panelDataDir)) return panelDataDir;
+  if (existsSyncFn(legacyDataDir)) return legacyDataDir;
+  if (pluginEnvDataDir && existsSyncFn(pluginEnvDataDir)) return pluginEnvDataDir;
+  if (existsSyncFn(idePanelDataDir)) return idePanelDataDir;
+  if (existsSyncFn(cliPanelDataDir)) return cliPanelDataDir;
+  if (existsSyncFn(antigravityRoot)) return panelDataDir;
   if (pluginEnvDataDir) return pluginEnvDataDir;
-  if (existsSync(ideRoot)) return idePanelDataDir;
-  if (existsSync(cliRoot)) return cliPanelDataDir;
+  if (existsSyncFn(ideRoot)) return idePanelDataDir;
+  if (existsSyncFn(cliRoot)) return cliPanelDataDir;
   return join(HERE, '.data');
 }
 
 export const DATA_DIR = resolveDefaultDataDir();
+export const SHARED_BRIDGE_LEASE_FILE = resolveBridgeLeaseFilePath({ dataDir: DATA_DIR });
 export const SETTINGS_FILE = join(DATA_DIR, 'settings.json');
 export const CACHE_FILE = join(DATA_DIR, 'trajectory_usage_cache.json');
 export const TRAJECTORY_DB_FILE = join(DATA_DIR, 'trajectory_store.sqlite');

@@ -35,6 +35,7 @@ const BACKEND_MODULE_FILES = [
   '../shared/workspace-uri.mjs',
   '../shared/prompt-clean.mjs',
   '../backend/fs-atomic.mjs',
+  '../backend/bridge-paths.mjs',
   '../backend/context-windows.mjs',
   '../backend/http-helpers.mjs',
   '../backend/settings-schema.mjs',
@@ -247,7 +248,7 @@ export function backendHarness({
       if (state.cacheWriteError) throw state.cacheWriteError;
       state.saves.push({path:p,data:JSON.parse(JSON.stringify(data))});
     },
-    homedir:()=>'/test-home',dirname:path.dirname,join:path.join,basename:path.basename,pathWin32:path.win32,winPath:path.win32,posixPath:path.posix,delimiter:path.delimiter,pathToFileURL,fileURLToPath:()=>mainPath,
+    homedir:()=>'/test-home',tmpdir:()=>'/test-tmp',dirname:path.dirname,join:path.join,basename:path.basename,pathWin32:path.win32,winPath:path.win32,posixPath:path.posix,delimiter:path.delimiter,pathToFileURL,fileURLToPath:()=>mainPath,
     Response:class {constructor(body,options){this.body=body;this.options=options;}},
     SidecarApp:class {page(){} api(){} run(){}},
     fetch:async(url,options={})=>{

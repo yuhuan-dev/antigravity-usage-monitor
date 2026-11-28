@@ -44,6 +44,7 @@ import {
 import { parseIdeRemoteAuthority } from '../shared/workspace-uri.mjs';
 import {
   DATA_DIR,
+  SHARED_BRIDGE_LEASE_FILE,
   computeRuntimeCodeVersion,
   isContextWindowFeatureActive,
   loadJson,
@@ -1691,6 +1692,8 @@ export function createWindowBridgeController(options) {
     bootBundleVersion = '',
     onVersionDrift = null,
     leaseFilePath = '',
+    dataDir = '',
+    hostRole: explicitHostRole = '',
     autoConfigureIdeArgv = options?.env === undefined && options?.homeDir === undefined,
     launcherRecheckIntervalMs = 15 * 60 * 1000,
     launcherExecFileFn = null,
@@ -1844,11 +1847,30 @@ export function createWindowBridgeController(options) {
     if (desktopExecInfo.found && !ideExecInfo.found && !argvConfigured) return 'desktop';
     return 'auto';
   }
-  const hostRole = env?.USAGE_MONITOR_HOST_PPID ? 'daemon' : 'sidecar';
+  const hostRole =
+    explicitHostRole === 'sidecar' || explicitHostRole === 'daemon'
+      ? explicitHostRole
+      : env?.USAGE_MONITOR_HOST_PPID
+        ? 'daemon'
+        : 'sidecar';
+  const effectiveDataDir = String(dataDir || '').trim();
   const LEASE_PEER_TTL_MS = 30_000;
   const LEASE_PEER_HEARTBEAT_MS = 10_000;
   const MAX_LEASE_PEERS = 32;
   let lastPeerTouchMs = 0;
+
+  function resolveLeaseRole(lease) {
+    if (!lease || typeof lease !== 'object') return '';
+    if (lease.role === 'sidecar' || lease.role === 'daemon') return lease.role;
+    const pidKey = String(Number(lease.pid || 0));
+    const peerRole = lease?.peers?.[pidKey]?.role;
+    if (peerRole === 'sidecar' || peerRole === 'daemon') return peerRole;
+    return '';
+  }
+
+  function canPreemptExternalLeader(lease) {
+    return hostRole === 'sidecar' && resolveLeaseRole(lease) === 'daemon';
+  }
 
   function pruneLeasePeers(rawPeers, now = Date.now(), { excludePid = 0 } = {}) {
     if (!rawPeers || typeof rawPeers !== 'object') return {};
@@ -1892,9 +1914,21 @@ export function createWindowBridgeController(options) {
   function saveLeaseWithPeers(payload, { includeSelf = true, baseLease = null } = {}) {
     if (!leaseFilePath) return;
     const now = Date.now();
+    const diskLease = loadJson(leaseFilePath, null);
     const peers = buildMergedLeasePeers(baseLease, { includeSelf, now });
+    const isSelfLeaderPayload = Number(payload?.pid || 0) === process.pid;
+    const resolvedRole = isSelfLeaderPayload
+      ? hostRole
+      : resolveLeaseRole(payload) || resolveLeaseRole(baseLease) || resolveLeaseRole(diskLease);
+    const sidecarDataDir =
+      (hostRole === 'sidecar' && effectiveDataDir ? effectiveDataDir : '') ||
+      String(
+        payload?.sidecarDataDir || baseLease?.sidecarDataDir || diskLease?.sidecarDataDir || ''
+      ).trim();
     saveJson(leaseFilePath, {
       ...payload,
+      ...(resolvedRole ? { role: resolvedRole } : {}),
+      ...(sidecarDataDir ? { sidecarDataDir } : {}),
       peers,
     });
   }
@@ -1948,6 +1982,12 @@ export function createWindowBridgeController(options) {
     const leaseVerStr = String(lease?.bundleVersion || '');
     const leaseVerNum = Number(leaseVerStr) || 0;
     const myVerNum = Number(myVerStr) || 0;
+    if (leaseVerNum > 0 && myVerNum > 0 && leaseVerNum > myVerNum) {
+      return true;
+    }
+    if (canPreemptExternalLeader(lease)) {
+      return false;
+    }
     if (leaseVerNum > 0 && myVerNum > 0) {
       return leaseVerNum >= myVerNum;
     }
@@ -2834,7 +2874,10 @@ export function createWindowBridgeController(options) {
           onVersionDrift?.();
           return { ok: false, enabled: true, reason: 'older_than_leader', injected: 0 };
         }
-        if (leaseVerNum === myVerNum || String(lease?.bundleVersion || '') === bundleVersion) {
+        if (
+          (leaseVerNum === myVerNum || String(lease?.bundleVersion || '') === bundleVersion) &&
+          !canPreemptExternalLeader(lease)
+        ) {
           const hasLeaseConfiguredFlag =
             typeof lease?.launcherConfigured === 'boolean' ||
             typeof lease?.argvConfigured === 'boolean';
@@ -5194,7 +5237,8 @@ export function getDefaultWindowBridgeStatus() {
 export function startDefaultWindowBridge(options) {
   if (!defaultBridgeController) {
     defaultBridgeController = createWindowBridgeController({
-      leaseFilePath: join(DATA_DIR, 'window-bridge-lease.json'),
+      leaseFilePath: SHARED_BRIDGE_LEASE_FILE,
+      dataDir: DATA_DIR,
       bindRemoteRpcInvoker: true,
       manageCloudCodeProxy: true,
       ...options,
