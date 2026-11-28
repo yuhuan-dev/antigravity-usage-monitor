@@ -57743,6 +57743,10 @@ function mountWindowOverlay() {
     }
     if (tooltipOpen === targetOpen) return;
     tooltipOpen = targetOpen;
+    if (!tooltipOpen && hoverLeaveTimer) {
+      clearTimeout(hoverLeaveTimer);
+      hoverLeaveTimer = null;
+    }
     patchClasses(hoverTipEl, { 'is-instant': Boolean(instant && targetOpen) });
     patchAttr(hoverTipEl, 'hidden', !tooltipOpen);
     if (tooltipOpen) {
@@ -58009,6 +58013,7 @@ function mountWindowOverlay() {
       ) {
         if (popoverOpen) setPopoverOpen(false);
         if (multiOpen) setMultiOpen(false);
+        if (tooltipOpen) setTooltipOpen(false);
       } else if (nextMountMode !== lastAppliedMountMode) {
         lastAppliedMountMode = nextMountMode;
         ensureCapsuleDocked();
@@ -58108,6 +58113,9 @@ function mountWindowOverlay() {
     if (multiOpen && !isEventInside(e, multiPanelEl) && !isEventInside(e, capsuleHost)) {
       setMultiOpen(false);
     }
+    if (tooltipOpen && !isEventInside(e, capsuleHost)) {
+      setTooltipOpen(false);
+    }
   };
 
   const onDocKeyDown = (e) => {
@@ -58118,10 +58126,32 @@ function mountWindowOverlay() {
       if (multiOpen) {
         setMultiOpen(false);
       }
+      if (tooltipOpen) {
+        setTooltipOpen(false);
+      }
     }
   };
 
-  const onWindowPointerMove = (e) => recordPointerCoords(e);
+  const onWindowPointerMove = (e) => {
+    recordPointerCoords(e);
+
+    if (tooltipOpen && !isPointerStillInCapsule()) {
+      setTooltipOpen(false);
+    }
+    if (multiOpen && !multiPinned && !multiLeaveTimer && !isPointerInMultiZone()) {
+      scheduleMultiHoverClose();
+    }
+  };
+  const onDocMouseLeave = (e) => {
+    if (e?.relatedTarget) return;
+    hasPointerCoords = false;
+    if (tooltipOpen) {
+      setTooltipOpen(false);
+    }
+    if (multiOpen && !multiPinned) {
+      setMultiOpen(false);
+    }
+  };
   const onWindowBlur = () => {
     hasPointerCoords = false;
     if (tooltipOpen) {
@@ -58246,6 +58276,7 @@ function mountWindowOverlay() {
   document.addEventListener?.('keydown', onDocKeyDown);
   document.addEventListener?.('focusin', onDocFocusIn);
   document.addEventListener?.('visibilitychange', onVisibilityChange);
+  document.addEventListener?.('mouseleave', onDocMouseLeave);
   window.addEventListener?.('pointermove', onWindowPointerMove, { passive: true });
   window.addEventListener?.('blur', onWindowBlur);
   window.addEventListener?.('resize', onWindowResize);
@@ -58476,6 +58507,7 @@ function mountWindowOverlay() {
       document.removeEventListener?.('keydown', onDocKeyDown);
       document.removeEventListener?.('focusin', onDocFocusIn);
       document.removeEventListener?.('visibilitychange', onVisibilityChange);
+      document.removeEventListener?.('mouseleave', onDocMouseLeave);
       popoverEl.removeEventListener?.('animationend', onPopoverAnimationEnd);
       window.removeEventListener?.('pointermove', onWindowPointerMove);
       window.removeEventListener?.('blur', onWindowBlur);

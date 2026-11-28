@@ -7317,6 +7317,186 @@ test('Issue #35: topbar capsule and hover HUD lock to main agent by default, tog
   }
 });
 
+test('Hover HUD (.wm-hover-tip) auto-dismiss regression: outside mousedown, Escape, pointermove outside capsule, and document mouseleave', async () => {
+  const appJs = fs.readFileSync(new URL('../app.js', import.meta.url), 'utf8');
+  const stylesCss = fs.readFileSync(new URL('../styles.css', import.meta.url), 'utf8');
+  const rootUuid = '22222222-3333-4444-5555-666666666666';
+
+  const { document: mockDocument, body, docListeners, makeElement } = createMockDom({
+    defaultRect: { left: 900, right: 1080, top: 6, bottom: 32, width: 180, height: 26 },
+  });
+  const winListeners = new Map();
+  const dispatchWin = (type, ev) => {
+    for (const fn of [...(winListeners.get(type) || [])]) fn(ev);
+  };
+  const titlebar = makeElement('div');
+  titlebar.className = 'flex items-center @container/titlebar';
+  const titleRight = makeElement('div');
+  titleRight.className = 'flex items-center gap-1';
+  titlebar.appendChild(titleRight);
+  body.appendChild(titlebar);
+
+  const mockSettings = {
+    language: 'en-US',
+    themeAccent: 'host',
+    fontScale: 'md',
+    pluginUpdateMode: 'manual',
+    autoUpdatePlugin: false,
+    windowMountMode: 'dual',
+    enableWindowOverlay: true,
+    showTopbarMultiSession: true,
+    contextAgentMode: 'main',
+    topbarCapsuleSlots: ['tps', 'ttft', 'context'],
+    hoverModules: ['metrics', 'context'],
+    overviewModules: ['metrics', 'context'],
+    overviewMetrics: ['tps', 'ttft', 'avg_tps', 'step_cost'],
+    stepTableColumns: ['step', 'model', 'tps', 'ttft', 'tokens_combo', 'cache', 'cost'],
+  };
+  const ctx = {
+    totalTokens: 51200,
+    limitTokens: 256000,
+    compactionLimitTokens: 256000,
+    usedPct: 20,
+    messagesTokens: 40000,
+    toolResultsTokens: 8000,
+    assistantTokens: 3200,
+    userInputTokens: 2000,
+    systemPromptTokens: 3000,
+    systemToolsTokens: 1000,
+  };
+  const buildPayload = () => ({
+    bundleVersion: 'ver-hover-dismiss',
+    settings: { ...mockSettings },
+    quotas: { pools: [] },
+    conversations: [],
+    runningConversations: [],
+    activeConversation: {
+      cascadeId: rootUuid,
+      title: 'Hover Dismiss',
+      isRunning: false,
+      stepCount: 1,
+      latestTokPerSec: 10,
+      avgTokPerSec: 8,
+      latestTtftSec: 0.5,
+      context: ctx,
+      agents: [],
+      recentSteps: [],
+    },
+    consumption: { range: '7d', summary: {}, trendSeries: [], topModels: [], topConversations: [] },
+  });
+
+  const mockLocation = { pathname: `/c/${rootUuid}`, href: `http://localhost/c/${rootUuid}` };
+  const mockWindow = {
+    innerWidth: 1280,
+    innerHeight: 800,
+    location: mockLocation,
+    document: mockDocument,
+    __AGUsageMonitorBridge: { port: 49236, token: 'tok-hover', version: 'ver-hover-dismiss', platform: 'darwin' },
+    addEventListener(type, fn) {
+      if (!winListeners.has(type)) winListeners.set(type, []);
+      winListeners.get(type).push(fn);
+    },
+    removeEventListener(type, fn) {
+      const arr = winListeners.get(type);
+      if (!arr) return;
+      const i = arr.indexOf(fn);
+      if (i >= 0) arr.splice(i, 1);
+    },
+    getComputedStyle: () => ({ display: 'flex', flexDirection: 'row', visibility: 'visible' }),
+    requestAnimationFrame: (cb) => setTimeout(cb, 0),
+    cancelAnimationFrame: (id) => clearTimeout(id),
+    fetch: async (url, opts = {}) => {
+      const urlStr = String(url);
+      if (urlStr.includes('/styles.css')) {
+        return { ok: true, status: 200, text: async () => stylesCss };
+      }
+      if (urlStr.includes('/api/settings') && String(opts.method || '').toUpperCase() === 'POST') {
+        Object.assign(mockSettings, JSON.parse(opts.body || '{}'));
+        return { ok: true, status: 200, json: async () => ({ ok: true, settings: { ...mockSettings } }) };
+      }
+      return { ok: true, status: 200, json: async () => buildPayload() };
+    },
+  };
+  mockWindow.window = mockWindow;
+  mockWindow.globalThis = mockWindow;
+
+  const sandbox = vm.createContext({
+    window: mockWindow,
+    globalThis: mockWindow,
+    document: mockDocument,
+    location: mockLocation,
+    navigator: {},
+    URLSearchParams,
+    AbortController,
+    setTimeout,
+    clearTimeout,
+    setInterval,
+    clearInterval,
+    queueMicrotask,
+    fetch: mockWindow.fetch,
+    console,
+  });
+
+  vm.runInContext(appJs, sandbox);
+  await new Promise((r) => setTimeout(r, 50));
+
+  const ov = mockWindow.__AGUsageMonitorOverlay;
+  const capsuleHost = mockDocument.getElementById('ag-usage-monitor-capsule');
+  const capsuleBtn = capsuleHost.shadowRoot.querySelector('.wm-capsule-btn');
+  const multiBtn = capsuleHost.shadowRoot.querySelector('.wm-multi-btn');
+  // Topbar capsule occupies 900..1080 x 6..32; everything else counts as "outside the capsule".
+  capsuleBtn.setRect({ left: 900, right: 1080, top: 6, bottom: 32, width: 180, height: 26 });
+  const openHoverHud = async () => {
+    capsuleBtn.dispatchEvent({ type: 'mouseenter', clientX: 960, clientY: 18 });
+    assert.equal(ov.isHoverOpen(), true, 'Hover HUD opens on capsule mouseenter');
+  };
+  try {
+    assert.ok(ov, 'Overlay initialized');
+    assert.equal(ov.isHoverOpen(), false);
+
+    // 1. Window pointermove self-heal: no capsule mouseleave is ever dispatched.
+    await openHoverHud();
+    dispatchWin('pointermove', { type: 'pointermove', clientX: 1000, clientY: 20 });
+    assert.equal(ov.isHoverOpen(), true, 'pointermove inside capsule rect keeps hover HUD open');
+    dispatchWin('pointermove', { type: 'pointermove', clientX: 500, clientY: 400 });
+    assert.equal(ov.isHoverOpen(), false, 'pointermove outside capsule rect closes hover HUD without mouseleave');
+
+    // 2. Outside mousedown (document capture phase) closes hover HUD; mousedown inside capsule does not.
+    await openHoverHud();
+    mockDocument.dispatchEvent({ type: 'mousedown', target: capsuleHost, composedPath: () => [capsuleBtn, capsuleHost] });
+    assert.equal(ov.isHoverOpen(), true, 'mousedown inside capsule host keeps hover HUD open');
+    mockDocument.dispatchEvent({ type: 'mousedown', target: body, composedPath: () => [body] });
+    assert.equal(ov.isHoverOpen(), false, 'Outside mousedown closes hover HUD');
+
+    // 3. Escape keydown closes hover HUD.
+    await openHoverHud();
+    mockDocument.dispatchEvent({ type: 'keydown', key: 'Escape' });
+    assert.equal(ov.isHoverOpen(), false, 'Escape closes hover HUD');
+
+    // 4. Document mouseleave (pointer leaves viewport, relatedTarget === null) closes hover HUD
+    //    and unpinned multi-session panel, but leaves a pinned multi-session panel untouched.
+    await openHoverHud();
+    mockDocument.dispatchEvent({ type: 'mouseleave', relatedTarget: body });
+    assert.equal(ov.isHoverOpen(), true, 'mouseleave with a relatedTarget (internal DOM transition) is ignored');
+    mockDocument.dispatchEvent({ type: 'mouseleave', relatedTarget: null });
+    assert.equal(ov.isHoverOpen(), false, 'Viewport mouseleave closes hover HUD');
+
+    multiBtn.dispatchEvent({ type: 'mouseenter', clientX: 930, clientY: 18 });
+    assert.equal(ov.isMultiHoverOpen(), true, 'Unpinned multi-session panel opens on hover');
+    mockDocument.dispatchEvent({ type: 'mouseleave', relatedTarget: null });
+    assert.equal(ov.isMultiOpen(), false, 'Viewport mouseleave closes unpinned multi-session panel');
+
+    multiBtn.dispatchEvent({ type: 'click', stopPropagation() {} });
+    assert.equal(ov.isMultiPinnedOpen(), true, 'Multi-session panel pinned by click');
+    mockDocument.dispatchEvent({ type: 'mouseleave', relatedTarget: null });
+    assert.equal(ov.isMultiPinnedOpen(), true, 'Viewport mouseleave keeps pinned multi-session panel open');
+  } finally {
+    ov?.dispose?.();
+  }
+  assert.equal((docListeners.get('mouseleave') || []).length, 0, 'dispose() removes document mouseleave listener');
+  assert.equal((winListeners.get('pointermove') || []).length, 0, 'dispose() removes window pointermove listener');
+});
+
 test('Antigravity IDE dual mode (双栖挂载) probes live chat iframe DOM cascade ID and syncs workbench.html on conversation switch', async () => {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ag-ide-dual-route-'));
   const roamingDir = path.join(tmpDir, 'Roaming');
