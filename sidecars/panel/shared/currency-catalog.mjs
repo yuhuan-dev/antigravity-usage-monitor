@@ -16,6 +16,7 @@ export const LOCALE_DEFAULT_CURRENCY = Object.freeze({
   'zh-CN': 'CNY',
   'zh-TW': 'TWD',
   'en-US': 'USD',
+  'vi-VN': 'VND',
   'ja-JP': 'JPY',
   'ko-KR': 'KRW',
   'de-DE': 'EUR',

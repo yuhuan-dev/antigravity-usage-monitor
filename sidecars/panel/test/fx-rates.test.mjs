@@ -74,6 +74,7 @@ test('currency catalog maps all supported locales automatically in auto mode, su
   assert.equal(resolveEffectiveCurrency('auto', 'ko-KR'), 'KRW');
   assert.equal(resolveEffectiveCurrency('auto', 'de-DE'), 'EUR');
   assert.equal(resolveEffectiveCurrency('auto', 'fr-FR'), 'EUR');
+  assert.equal(resolveEffectiveCurrency('auto', 'vi-VN'), 'VND');
   for (const loc of SUPPORTED_LOCALES) {
     assert.equal(
       resolveEffectiveCurrency('auto', loc),
@@ -94,6 +95,7 @@ test('currency catalog maps all supported locales automatically in auto mode, su
   assert.equal(formatConvertedApprox(158.05, { displayCurrency: 'auto', locale: 'ko-KR' }), '≈ ₩218,109');
   assert.equal(formatConvertedApprox(158.05, { displayCurrency: 'auto', locale: 'de-DE' }), '≈ €145');
   assert.equal(formatConvertedApprox(158.05, { displayCurrency: 'auto', locale: 'fr-FR' }), '≈ €145');
+  assert.equal(formatConvertedApprox(158.05, { displayCurrency: 'auto', locale: 'vi-VN' }), '≈ ₫4,014,470');
   assert.equal(formatConvertedApprox(158.05, { displayCurrency: 'MYR', locale: 'en-US' }), '≈ RM703');
   assert.equal(formatConvertedApprox(158.05, { displayCurrency: 'USD', locale: 'zh-CN' }), '');
 

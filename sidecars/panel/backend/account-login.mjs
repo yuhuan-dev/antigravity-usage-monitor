@@ -129,6 +129,12 @@ export const LOGIN_CALLBACK_COPY = Object.freeze({
     failTitle: 'Connexion incomplète',
     detail: 'Retournez sur la page de compte Antigravity. Vous pouvez fermer cet onglet.',
   },
+  'vi-VN': {
+    htmlLang: 'vi-VN',
+    okTitle: 'Đã thêm tài khoản',
+    failTitle: 'Đăng nhập chưa hoàn tất',
+    detail: 'Quay lại trang tài khoản Antigravity. Bạn có thể đóng tab trình duyệt này.',
+  },
 });
 
 function loginCallbackPage(language, success) {

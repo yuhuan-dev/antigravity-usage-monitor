@@ -986,6 +986,32 @@ export const CLI_STATUS_COPY = Object.freeze({
       error: (n) => `Err${n}`,
     },
   },
+  'vi-VN': {
+    ctx: 'Ctx',
+    gen: 'Đang chạy...',
+    idle: 'Chờ',
+    avg: 'TB ',
+    sum: 'tổng ',
+    cache: 'cache ',
+    quotaAuto: '5g',
+    quotaEmpty: 'Quota --',
+    wk: 'T',
+    activeSub: (r, s) => `${r} chạy · ${s} sub`,
+    active: (r) => `${r} chạy`,
+    idleZero: '0 chạy',
+    anom: {
+      capacity: (n) => (n === 1 ? '503' : `503x${n}`),
+      upstream: (n) => (n === 1 ? '500' : `500x${n}`),
+      rate_limit: (n) => `429x${n}`,
+      timeout: (n) => `TO${n}`,
+      disconnect: (n) => `Drop${n}`,
+      model_output: (n) => `Fix${n}`,
+      safety: (n) => `Safe${n}`,
+      auth_or_model: (n) => `Err${n}`,
+      mixed: (n) => `Warn${n}`,
+      error: (n) => `Err${n}`,
+    },
+  },
 });
 
 function getCliCopy(locale) {

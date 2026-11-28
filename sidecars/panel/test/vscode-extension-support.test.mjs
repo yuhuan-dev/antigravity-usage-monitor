@@ -44,16 +44,11 @@ import {
   buildExportableSettingsJson,
   parseImportedSettingsJson,
 } from '../src/core/settingsBackup.js';
-import { I18N_MESSAGES_DE_DE } from '../src/i18n/de-DE.js';
+import { I18N_DICTIONARIES } from '../src/i18n/index.js';
 import { I18N_MESSAGES_EN_US } from '../src/i18n/en-US.js';
-import { I18N_MESSAGES_FR_FR } from '../src/i18n/fr-FR.js';
-import { I18N_MESSAGES_JA_JP } from '../src/i18n/ja-JP.js';
-import { I18N_MESSAGES_KO_KR } from '../src/i18n/ko-KR.js';
-import { I18N_MESSAGES_ZH_CN } from '../src/i18n/zh-CN.js';
-import { I18N_MESSAGES_ZH_TW } from '../src/i18n/zh-TW.js';
 import { extractHostRouteCascadeId } from '../src/store/telemetryStore.js';
 
-test('VS Code settings schema, portable backup, and all 7 i18n locales support vsCodeMountMode', () => {
+test('VS Code settings schema, portable backup, and all supported i18n locales support vsCodeMountMode', () => {
   const def = normalizeFullSettings({});
   assert.equal(def.vsCodeMountMode, 'composer');
   assert.equal(def.windowMountMode, 'dual');
@@ -67,15 +62,7 @@ test('VS Code settings schema, portable backup, and all 7 i18n locales support v
   assert.equal(imported.patch.vsCodeMountMode, 'dual');
   assert.equal(imported.patch.windowMountMode, 'sidebar');
 
-  const locales = [
-    I18N_MESSAGES_EN_US,
-    I18N_MESSAGES_ZH_CN,
-    I18N_MESSAGES_ZH_TW,
-    I18N_MESSAGES_JA_JP,
-    I18N_MESSAGES_KO_KR,
-    I18N_MESSAGES_DE_DE,
-    I18N_MESSAGES_FR_FR,
-  ];
+  const locales = Object.values(I18N_DICTIONARIES);
   const baseKeys = Object.keys(I18N_MESSAGES_EN_US).sort();
   for (const dict of locales) {
     assert.ok(dict['settings.str.mountVsCodeComposer'], 'missing mountVsCodeComposer');

@@ -168,6 +168,15 @@ export const STANDALONE_LOCALE_COPY = Object.freeze({
     placeholder: 'Saisir la clé d’accès --token',
     submit: 'Vérifier et ouvrir le moniteur',
   },
+  'vi-VN': {
+    htmlLang: 'vi-VN',
+    title: 'Giám sát Dung lượng & Tốc độ',
+    authTitle: 'Giám sát Dung lượng & Tốc độ · Xác minh truy cập',
+    desc: 'Trình giám sát độc lập này đã bật bảo vệ bằng mã truy cập. Nhập token của bạn để tiếp tục.',
+    err: 'Mã truy cập không hợp lệ. Vui lòng kiểm tra và nhập lại.',
+    placeholder: 'Nhập khóa truy cập --token',
+    submit: 'Xác minh & Mở trình giám sát',
+  },
 });
 
 export function resolveStandaloneRequestLocale(req, settingsLanguage = 'auto') {

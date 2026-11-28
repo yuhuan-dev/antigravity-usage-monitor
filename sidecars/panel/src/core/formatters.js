@@ -25,6 +25,7 @@ import {
 
 const LOCALE_MONTH_SHORT = Object.freeze({
   'en-US': Object.freeze(['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']),
+  'vi-VN': Object.freeze(['Th1', 'Th2', 'Th3', 'Th4', 'Th5', 'Th6', 'Th7', 'Th8', 'Th9', 'Th10', 'Th11', 'Th12']),
   'de-DE': Object.freeze(['Jan.', 'Feb.', 'Mär.', 'Apr.', 'Mai', 'Jun.', 'Jul.', 'Aug.', 'Sep.', 'Okt.', 'Nov.', 'Dez.']),
   'fr-FR': Object.freeze(['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.']),
 });
@@ -33,6 +34,7 @@ const LOCALE_WEEKDAY_SHORT = Object.freeze({
   'zh-CN': Object.freeze(['周日', '周一', '周二', '周三', '周四', '周五', '周六']),
   'zh-TW': Object.freeze(['週日', '週一', '週二', '週三', '週四', '週五', '週六']),
   'en-US': Object.freeze(['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']),
+  'vi-VN': Object.freeze(['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7']),
   'ja-JP': Object.freeze(['日', '月', '火', '水', '木', '金', '土']),
   'ko-KR': Object.freeze(['일', '월', '화', '수', '목', '금', '토']),
   'de-DE': Object.freeze(['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa']),
@@ -258,7 +260,7 @@ function formatLocalizedDayDate(dateObj, locale, includeYear) {
   if (locale === 'de-DE') {
     return includeYear ? `${d}. ${mon} ${y}` : `${d}. ${mon}`;
   }
-  if (locale === 'fr-FR') {
+  if (locale === 'fr-FR' || locale === 'vi-VN') {
     return includeYear ? `${d} ${mon} ${y}` : `${d} ${mon}`;
   }
   return includeYear ? `${mon} ${d}, ${y}` : `${mon} ${d}`;

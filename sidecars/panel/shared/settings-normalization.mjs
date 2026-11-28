@@ -39,6 +39,11 @@ export const SUPPORTED_LOCALE_ENTRIES = Object.freeze([
     nativeName: 'Français',
     prefixes: Object.freeze(['fr']),
   }),
+  Object.freeze({
+    locale: 'vi-VN',
+    nativeName: 'Tiếng Việt',
+    prefixes: Object.freeze(['vi']),
+  }),
 ]);
 
 export const SUPPORTED_LOCALES = Object.freeze(

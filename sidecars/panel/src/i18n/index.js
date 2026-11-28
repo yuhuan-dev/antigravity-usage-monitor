@@ -14,11 +14,13 @@ import { I18N_MESSAGES_JA_JP } from './ja-JP.js';
 import { I18N_MESSAGES_KO_KR } from './ko-KR.js';
 import { I18N_MESSAGES_DE_DE } from './de-DE.js';
 import { I18N_MESSAGES_FR_FR } from './fr-FR.js';
+import { I18N_MESSAGES_VI_VN } from './vi-VN.js';
 
 export const I18N_DICTIONARIES = Object.freeze({
   'zh-CN': I18N_MESSAGES_ZH_CN,
   'zh-TW': I18N_MESSAGES_ZH_TW,
   'en-US': I18N_MESSAGES_EN_US,
+  'vi-VN': I18N_MESSAGES_VI_VN,
   'ja-JP': I18N_MESSAGES_JA_JP,
   'ko-KR': I18N_MESSAGES_KO_KR,
   'de-DE': I18N_MESSAGES_DE_DE,

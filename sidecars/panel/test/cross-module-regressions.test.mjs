@@ -1639,11 +1639,13 @@ test('i18n static t(...) key completeness guard across all supported locales, ba
     }
   }
 
-  // Unlisted locales fall back gracefully via Intl.DateTimeFormat for month/weekday names
+  // Registered & unlisted locales format month/weekday names cleanly (with Intl.DateTimeFormat fallback)
   assert.equal(formatShortMonthName(2, 'de-DE', { stripTrailingDot: true }), 'Mär');
   assert.equal(formatShortMonthName(0, 'fr-FR', { stripTrailingDot: true }), 'janv');
-  assert.ok(formatShortMonthName(0, 'vi-VN').length > 0);
-  assert.ok(formatShortWeekdayName(1, 'vi-VN').length > 0);
+  assert.equal(formatShortMonthName(0, 'vi-VN'), 'Th1');
+  assert.equal(formatShortWeekdayName(1, 'vi-VN'), 'T2');
+  assert.ok(formatShortMonthName(0, 'es-ES').length > 0);
+  assert.ok(formatShortWeekdayName(1, 'es-ES').length > 0);
 
   // BCP-47 tag normalization + regional aliases
   assert.equal(resolveLocaleFromLanguageTag('zh-HK'), 'zh-TW');
@@ -1653,6 +1655,7 @@ test('i18n static t(...) key completeness guard across all supported locales, ba
   assert.equal(resolveLocaleFromLanguageTag('ko'), 'ko-KR');
   assert.equal(resolveLocaleFromLanguageTag('de-AT'), 'de-DE');
   assert.equal(resolveLocaleFromLanguageTag('fr-CA'), 'fr-FR');
+  assert.equal(resolveLocaleFromLanguageTag('vi'), 'vi-VN');
 
   const missingKeys = [];
   for (const filePath of walkJs(srcRoot)) {
