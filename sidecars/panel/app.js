@@ -1815,6 +1815,12 @@ function buildHostThemeFallbackCss(snapshot) {
       hasVarDecl = true;
     }
   }
+  if (!norm.vars['--font-sans'] && norm.vars['--font-family']) {
+    decls.push(`--host-font-sans:${norm.vars['--font-family']}`);
+  }
+  if (!norm.vars['--font-mono'] && norm.vars['--editor-font-family']) {
+    decls.push(`--host-font-mono:${norm.vars['--editor-font-family']}`);
+  }
   if (!hasVarDecl) return '';
   return `:root{${decls.join(';')}}`;
 }
@@ -13210,9 +13216,9 @@ function syncHostThemeFallback(
 
   const syncBridgedTypography = (normalizedSnap) => {
     const body = doc?.body || null;
-    for (const [cssVar, hostVar] of [
-      ['--font-sans', '--host-font-sans'],
-      ['--font-mono', '--host-font-mono'],
+    for (const [cssVar, hostVar, fallbackVar] of [
+      ['--font-sans', '--host-font-sans', '--font-family'],
+      ['--font-mono', '--host-font-mono', '--editor-font-family'],
     ]) {
       const hasNativeInlineFont = Boolean(
         readInlineStyleVar(root, cssVar) || readInlineStyleVar(body, cssVar)
@@ -13223,6 +13229,9 @@ function syncHostThemeFallback(
       }
       const bridgedVal =
         String(normalizedSnap?.vars?.[cssVar] || '').trim() ||
+        String(normalizedSnap?.vars?.[fallbackVar] || '').trim() ||
+        readInlineStyleVar(root, fallbackVar) ||
+        readInlineStyleVar(body, fallbackVar) ||
         String(ssrFallbackFonts?.[cssVar] || '').trim();
       if (bridgedVal) {
         setOrClearStyleVar(root, hostVar, bridgedVal);
@@ -58242,30 +58251,37 @@ function mountWindowOverlay() {
     const hostFontSans =
       readProp(rootCs, '--font-sans') ||
       readProp(bodyCs, '--font-sans') ||
+      readProp(rootCs, '--font-family') ||
+      readProp(bodyCs, '--font-family') ||
       readProp(wbCs, '--vscode-font-family') ||
       readProp(bodyCs, 'font-family', 'fontFamily') ||
       readProp(rootCs, 'font-family', 'fontFamily');
     const hostFontMono =
       readProp(rootCs, '--font-mono') ||
       readProp(bodyCs, '--font-mono') ||
+      readProp(rootCs, '--editor-font-family') ||
+      readProp(bodyCs, '--editor-font-family') ||
       readProp(wbCs, '--vscode-editor-font-family') ||
       readProp(rootCs, '--font-code');
 
-    for (const [cssVar, val] of [
-      ['--font-sans', hostFontSans],
-      ['--font-mono', hostFontMono],
+    for (const [cssVar, hostVar, val] of [
+      ['--font-sans', '--host-font-sans', hostFontSans],
+      ['--font-mono', '--host-font-mono', hostFontMono],
     ]) {
       const prevVal = mirroredTypographyVars.get(cssVar) || '';
       if (val) {
         if (prevVal !== val) {
           portalHost.style.setProperty?.(cssVar, val);
+          portalHost.style.setProperty?.(hostVar, val);
           mirroredTypographyVars.set(cssVar, val);
         }
       } else if (prevVal) {
         if (typeof portalHost.style.removeProperty === 'function') {
           portalHost.style.removeProperty(cssVar);
+          portalHost.style.removeProperty(hostVar);
         } else {
           portalHost.style.setProperty?.(cssVar, '');
+          portalHost.style.setProperty?.(hostVar, '');
         }
         mirroredTypographyVars.delete(cssVar);
       }

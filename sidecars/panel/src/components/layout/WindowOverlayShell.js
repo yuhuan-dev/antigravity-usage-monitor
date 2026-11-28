@@ -735,30 +735,37 @@ export function mountWindowOverlay() {
     const hostFontSans =
       readProp(rootCs, '--font-sans') ||
       readProp(bodyCs, '--font-sans') ||
+      readProp(rootCs, '--font-family') ||
+      readProp(bodyCs, '--font-family') ||
       readProp(wbCs, '--vscode-font-family') ||
       readProp(bodyCs, 'font-family', 'fontFamily') ||
       readProp(rootCs, 'font-family', 'fontFamily');
     const hostFontMono =
       readProp(rootCs, '--font-mono') ||
       readProp(bodyCs, '--font-mono') ||
+      readProp(rootCs, '--editor-font-family') ||
+      readProp(bodyCs, '--editor-font-family') ||
       readProp(wbCs, '--vscode-editor-font-family') ||
       readProp(rootCs, '--font-code');
 
-    for (const [cssVar, val] of [
-      ['--font-sans', hostFontSans],
-      ['--font-mono', hostFontMono],
+    for (const [cssVar, hostVar, val] of [
+      ['--font-sans', '--host-font-sans', hostFontSans],
+      ['--font-mono', '--host-font-mono', hostFontMono],
     ]) {
       const prevVal = mirroredTypographyVars.get(cssVar) || '';
       if (val) {
         if (prevVal !== val) {
           portalHost.style.setProperty?.(cssVar, val);
+          portalHost.style.setProperty?.(hostVar, val);
           mirroredTypographyVars.set(cssVar, val);
         }
       } else if (prevVal) {
         if (typeof portalHost.style.removeProperty === 'function') {
           portalHost.style.removeProperty(cssVar);
+          portalHost.style.removeProperty(hostVar);
         } else {
           portalHost.style.setProperty?.(cssVar, '');
+          portalHost.style.setProperty?.(hostVar, '');
         }
         mirroredTypographyVars.delete(cssVar);
       }

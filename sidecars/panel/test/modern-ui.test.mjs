@@ -262,12 +262,22 @@ test('applyAppearanceToRoot and SettingsGeneralTab toggle data-modern-ui + data-
   assert.equal(savedPatches.length, 1);
   assert.equal(savedPatches[0].modernUi, true);
 
-  // 3. Built styles.css contains modern-ui borderless, sliding glider, and crisp pure-white light-mode rules
+  // 3. Built styles.css contains modern-ui borderless, sliding glider, and host-derived light-mode rules
   const builtStyles = fs.readFileSync(new URL('../styles.css', import.meta.url), 'utf8');
   assert.match(builtStyles, /\[data-modern-ui="true"\]\s+\.panel/);
   assert.match(builtStyles, /\[data-modern-ui="true"\]\[data-color-scheme="light"\]/);
-  assert.match(builtStyles, /--modern-surface-card:\s*#ffffff;/);
-  assert.match(builtStyles, /--modern-glider-bg:\s*#ffffff;/);
+  assert.match(
+    builtStyles,
+    /--modern-surface-card:\s*color-mix\(in srgb,\s*var\(--surface-bg\)\s*78%,\s*#ffffff\s*22%\);/
+  );
+  assert.match(
+    builtStyles,
+    /--modern-glider-bg:\s*color-mix\(in srgb,\s*var\(--surface-bg\)\s*56%,\s*#ffffff\s*44%\);/
+  );
+  const modernUiSection = builtStyles.slice(builtStyles.indexOf('/* --- src/styles/modern-ui.css --- */'));
+  assert.doesNotMatch(modernUiSection, /hsl\(216\s+/);
+  assert.doesNotMatch(modernUiSection, /hsl\(220\s+14%/);
+  assert.doesNotMatch(modernUiSection, /rgb\(15 23 42/);
   assert.match(
     builtStyles,
     /--text-secondary:\s*color-mix\(in srgb,\s*var\(--text-primary\)\s*80%,\s*transparent\);/
@@ -2482,6 +2492,18 @@ test('Host typography parity: Sidebar mirrors bridged host fonts in native mode 
   assert.match(css, /--host-font-sans:system-ui/);
   assert.match(css, /--host-font-mono:'Google Sans Code'/);
 
+  // 1b) --font-family and --editor-font-family map to --host-font-* when --font-sans/--font-mono are omitted
+  const legacyFontCss = buildHostThemeFallbackCss({
+    colorScheme: 'dark',
+    vars: {
+      '--background': '#1A1B26',
+      '--font-family': hostSans,
+      '--editor-font-family': hostMono,
+    },
+  });
+  assert.match(legacyFontCss, /--host-font-sans:system-ui/);
+  assert.match(legacyFontCss, /--host-font-mono:'Google Sans Code'/);
+
   // 2) Sidebar native mode (/preload.js sets inline colors only, no inline font vars):
   //    - captureNativeHostThemeSnapshot must NOT capture our own tokens.css computed --font-sans/--font-mono
   //    - syncHostThemeFallback must mirror CDP host --font-sans/--font-mono onto --host-font-sans/--host-font-mono
@@ -2548,6 +2570,21 @@ test('Host typography parity: Sidebar mirrors bridged host fonts in native mode 
     { doc: document, win: globalThis.window, isStandalone: false, telemetryLoaded: true }
   );
   assert.equal(nativeWithBridge.mode, 'native');
+  assert.equal(document.documentElement.style.getPropertyValue('--host-font-sans'), hostSans);
+  assert.equal(document.documentElement.style.getPropertyValue('--host-font-mono'), hostMono);
+
+  // Native mode also bridges --font-family / --editor-font-family when --font-sans / --font-mono are omitted
+  document.documentElement.style.removeProperty('--host-font-sans');
+  document.documentElement.style.removeProperty('--host-font-mono');
+  const nativeWithLegacyBridge = syncHostThemeFallback(
+    {
+      colorScheme: 'dark',
+      source: 'cdp',
+      vars: { '--background': '#1A1B26', '--font-family': hostSans, '--editor-font-family': hostMono },
+    },
+    { doc: document, win: globalThis.window, isStandalone: false, telemetryLoaded: true }
+  );
+  assert.equal(nativeWithLegacyBridge.mode, 'native');
   assert.equal(document.documentElement.style.getPropertyValue('--host-font-sans'), hostSans);
   assert.equal(document.documentElement.style.getPropertyValue('--host-font-mono'), hostMono);
 

@@ -257,13 +257,16 @@ export function buildHostThemeProbeSnippet() {
         const bodyFont = String(bodyCs?.fontFamily || '').trim();
         const rootFont = String(rootCs?.fontFamily || '').trim();
         const mappedSans =
+          (isUsableFont(vars['--font-family']) ? vars['--font-family'] : '') ||
           pick('--vscode-font-family') ||
           (isUsableFont(bodyFont) ? bodyFont : '') ||
           (isUsableFont(rootFont) ? rootFont : '');
         if (mappedSans) vars['--font-sans'] = mappedSans;
       }
       if (!vars['--font-mono']) {
-        const mappedMono = pick('--vscode-editor-font-family', '--font-code');
+        const mappedMono =
+          (isUsableFont(vars['--editor-font-family']) ? vars['--editor-font-family'] : '') ||
+          pick('--vscode-editor-font-family', '--font-code');
         if (mappedMono) vars['--font-mono'] = mappedMono;
       }
 
