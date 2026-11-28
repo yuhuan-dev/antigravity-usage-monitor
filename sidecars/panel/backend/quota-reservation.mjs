@@ -727,11 +727,143 @@ function qrResolveBucketDisplayRate(st, win) {
   };
 }
 
+function qrNormalizePlanTier(raw) {
+  const s = String(raw || '')
+    .trim()
+    .toLowerCase();
+  if (!s) return '';
+  if (s === 'ultra-20x' || s === 'ultra-5x' || s === 'ultra' || s === 'pro' || s === 'free') {
+    return s;
+  }
+  if (/ultra/.test(s)) {
+    if (/(?:^|[-_\s])5x(?:$|[-_\s])|lite/.test(s)) return 'ultra-5x';
+    if (/(?:^|[-_\s])20x(?:$|[-_\s])/.test(s)) return 'ultra-20x';
+    return 'ultra';
+  }
+  if (/\bfree\b|standard/.test(s)) return 'free';
+  if (/\bpro\b/.test(s)) return 'pro';
+  return s.replace(/\s+/g, '-').slice(0, 32);
+}
+
+function qrArePlanTiersIncompatible(prevTier, nextTier) {
+  const prev = qrNormalizePlanTier(prevTier);
+  const next = qrNormalizePlanTier(nextTier);
+  if (!prev || !next || prev === next) return false;
+  // 允许 'ultra' <-> 'ultra-5x'/'ultra-20x' 的精度细化（不误判为跨档切换）
+  if (
+    (prev === 'ultra' && (next === 'ultra-5x' || next === 'ultra-20x')) ||
+    (next === 'ultra' && (prev === 'ultra-5x' || prev === 'ultra-20x'))
+  ) {
+    return false;
+  }
+  return true;
+}
+
+function qrMergeCompatiblePlanTier(prevTier, nextTier) {
+  const prev = qrNormalizePlanTier(prevTier);
+  const next = qrNormalizePlanTier(nextTier);
+  if (!next) return prev;
+  if (!prev) return next;
+  if (prev === 'ultra' && (next === 'ultra-5x' || next === 'ultra-20x')) return next;
+  if (next === 'ultra' && (prev === 'ultra-5x' || prev === 'ultra-20x')) return prev;
+  return next;
+}
+
+function qrResetBucketForRegimeChange(st, { nextPlanTier = '', resetBaseline = false } = {}) {
+  if (!st || typeof st !== 'object') return;
+  st.planTier = qrNormalizePlanTier(nextPlanTier);
+  if (resetBaseline) {
+    st.lastOfficialUsedPct = null;
+    st.lastQuotaTs = 0;
+  }
+  st.slopeSamples = [];
+  st.pendingCostUsd = 0;
+  st.pendingCostAtMs = 0;
+  st.pendingCostSinceMs = 0;
+  st.pendingModelCostsUsd = {};
+  st.ratePctPerUsd = null;
+  st.rateSamples = 0;
+  st.rateWindow = [];
+  st.rateOutlierSide = 0;
+  st.rateOutlierBuf = [];
+  st.modelRates = {};
+  st.activeLeases = [];
+  st.pendingDrop = null;
+  st.hasExternalUsage = false;
+  st.lastExternalUsageAtMs = 0;
+  st.externalUsedPct = 0;
+  st.externalEvents = 0;
+  st.safetyReviewUsedPct = 0;
+  st.safetyReviewEvents = 0;
+  st.lastSafetyReviewAtMs = 0;
+  st.lastAttributedSafetyEventMs = 0;
+  st.idleUnexplainedAccumPct = 0;
+}
+
+function qrDetectCrossWindowRateInversion(st5h, stWk) {
+  if (!st5h || !stWk) return false;
+  // 1. 同模型跨窗物理倒挂：同一模型 5h 每美元消耗占比绝不可能比周限低 >= 2x（否则等价 5h 额度 > 2x 周限）
+  const models5 = st5h.modelRates && typeof st5h.modelRates === 'object' ? st5h.modelRates : null;
+  const modelsW = stWk.modelRates && typeof stWk.modelRates === 'object' ? stWk.modelRates : null;
+  if (models5 && modelsW) {
+    for (const [mKey, m5] of Object.entries(models5)) {
+      const mw = modelsW[mKey];
+      if (!m5 || !mw) continue;
+      if (
+        (Number(m5.rateSamples) || 0) >= QR_MODEL_RATE_MIN_UI_SAMPLES &&
+        (Number(mw.rateSamples) || 0) >= QR_MODEL_RATE_MIN_UI_SAMPLES &&
+        Number(m5.ratePctPerUsd) > 0 &&
+        Number(mw.ratePctPerUsd) > Number(m5.ratePctPerUsd) * 2.0
+      ) {
+        return true;
+      }
+    }
+  }
+  // 2. 池级跨窗物理倒挂（双桶均已校准且周限每美元消耗占比 > 2x 5h，典型为降档后周限先漂移、5h 死锁旧档位）
+  const r5 = Number(st5h.ratePctPerUsd) || 0;
+  const rW = Number(stWk.ratePctPerUsd) || 0;
+  const s5 = Math.max(st5h.rateWindow?.length || 0, Number(st5h.rateSamples) || 0);
+  const sW = Math.max(stWk.rateWindow?.length || 0, Number(stWk.rateSamples) || 0);
+  if (r5 > 0 && rW > 0 && s5 >= QR_MODEL_RATE_MIN_UI_SAMPLES && sW >= QR_MODEL_RATE_MIN_UI_SAMPLES) {
+    if (rW > r5 * 2.0) return true;
+  }
+  return false;
+}
+
+function qrDetectStaleFiveHRateDeadlock(
+  st5h,
+  stWk,
+  { used5hExact = null, cost5hUsd = 0, calls5h = 0, unpriced5h = 0, safety5hPct = 0 } = {}
+) {
+  if (!st5h || !stWk) return false;
+  const r5 = Number(st5h.ratePctPerUsd) || 0;
+  if (r5 <= 0 || !st5h.hasExternalUsage) return false;
+  const out5 = qrFormatOutput(st5h, used5hExact ?? st5h.lastOfficialUsedPct ?? 0);
+  const attributedNonLocal5h = (Number(st5h.externalUsedPct) || 0) + (Number(out5.reservedPct) || 0);
+  if (attributedNonLocal5h < 4.0) return false;
+  // 仅当同池周限桶明确无外部消耗时，才能排除真实家庭组共享并确认是 5h 旧低费率导致的误判死锁
+  if (
+    stWk.lastOfficialUsedPct === null ||
+    stWk.hasExternalUsage ||
+    (Number(stWk.externalUsedPct) || 0) > 0.1
+  ) {
+    return false;
+  }
+  if (used5hExact === null || cost5hUsd < 1.0 || calls5h < 3 || unpriced5h > 0) {
+    return false;
+  }
+  const observedNet5hRate = Math.max(0, used5hExact - Math.max(0, Number(safety5hPct) || 0)) / cost5hUsd;
+  return observedNet5hRate >= r5 * 2.2;
+}
+
 function qrBuildPoolRateEstimate(st5h, stWk, nowMs = Date.now(), { out5h = null, outWk = null } = {}) {
   const resolved5h = qrResolveBucketDisplayRate(st5h, '5h');
   const resolvedWk = qrResolveBucketDisplayRate(stWk, 'weekly');
-  const raw5hPool = resolved5h ? resolved5h.rate : null;
+  let raw5hPool = resolved5h ? resolved5h.rate : null;
   const rawWkPool = resolvedWk ? resolvedWk.rate : null;
+  if (raw5hPool !== null && rawWkPool !== null && rawWkPool > raw5hPool * 1.5) {
+    raw5hPool = null;
+  }
   const rate5hPool = raw5hPool !== null ? +raw5hPool.toFixed(4) : null;
   const rateWkPool = rawWkPool !== null ? +rawWkPool.toFixed(4) : null;
   const fallbackPoolDensity = stWk?.usdPerMTok ?? st5h?.usdPerMTok ?? null;
@@ -746,7 +878,7 @@ function qrBuildPoolRateEstimate(st5h, stWk, nowMs = Date.now(), { out5h = null,
   for (const model of modelKeys) {
     const m5 = st5h?.modelRates?.[model] || null;
     const mw = stWk?.modelRates?.[model] || null;
-    const rawR5 =
+    let rawR5 =
       m5 && m5.rateSamples >= QR_MODEL_RATE_MIN_UI_SAMPLES && Number.isFinite(m5.ratePctPerUsd)
         ? m5.ratePctPerUsd
         : null;
@@ -754,6 +886,9 @@ function qrBuildPoolRateEstimate(st5h, stWk, nowMs = Date.now(), { out5h = null,
       mw && mw.rateSamples >= QR_MODEL_RATE_MIN_UI_SAMPLES && Number.isFinite(mw.ratePctPerUsd)
         ? mw.ratePctPerUsd
         : null;
+    if (rawR5 !== null && rawRw !== null && rawRw > rawR5 * 1.5) {
+      rawR5 = null;
+    }
     if (rawR5 === null && rawRw === null) continue;
     const rawEq5hUsd = rawR5 ? 100 / rawR5 : null;
     const rawEqWkUsd = rawRw ? 100 / rawRw : null;
@@ -1511,6 +1646,7 @@ function qrSanitizePersistedBucket(raw, { preserveRate = true } = {}) {
         : null
     : null;
   return {
+    planTier: qrNormalizePlanTier(raw.planTier),
     resetTimeMs: Math.max(0, Number(raw.resetTimeMs) || 0),
     lastQuotaTs: Math.max(0, Number(raw.lastQuotaTs) || 0),
     lastOfficialUsedPct: lastOfficial,
@@ -1612,6 +1748,7 @@ export function createQuotaReservationTracker({ loadState = null, saveState = nu
         };
       }
       serializedBuckets[k] = {
+        ...(st.planTier ? { planTier: st.planTier } : {}),
         resetTimeMs: st.resetTimeMs,
         lastQuotaTs: st.lastQuotaTs,
         lastOfficialUsedPct: st.lastOfficialUsedPct,
@@ -1729,6 +1866,7 @@ export function createQuotaReservationTracker({ loadState = null, saveState = nu
       if (oldestKey !== undefined) buckets.delete(oldestKey);
     }
     st = {
+      planTier: '',
       resetTimeMs: 0,
       lastQuotaTs: 0,
       lastOfficialUsedPct: null,
@@ -2766,6 +2904,7 @@ export function createQuotaReservationTracker({ loadState = null, saveState = nu
   function updatePools({
     endpointId = 'local',
     accountScope = '',
+    planTier = '',
     quotaPoolsMap = null,
     poolCycleStats = null,
     runningPoolKeys = null,
@@ -2778,6 +2917,7 @@ export function createQuotaReservationTracker({ loadState = null, saveState = nu
     if (!(quotaPoolsMap instanceof Map) || quotaPoolsMap.size === 0) return;
     ensureHydrated();
     const normalizedAccountScope = String(accountScope || '').trim().toLowerCase();
+    const normalizedPlanTier = qrNormalizePlanTier(planTier);
     const scopePrefix = `${String(endpointId || 'local')}::${normalizedAccountScope}`;
 
     batchingDepth += 1;
@@ -2820,6 +2960,65 @@ export function createQuotaReservationTracker({ loadState = null, saveState = nu
         const isSafetyPool = Boolean(
           safetyMonitor && qrIsSafetyReviewEligiblePool(poolKey, poolObj)
         );
+
+        // 订阅档位切换 / 跨窗物理倒挂 / 旧低费率死锁自愈：
+        // 避免账号从 Ultra <-> Pro <-> Free 升降档后继续继承旧档位倍率、误报家庭组外部消耗或出现 5h > 周限倒挂
+        const prev5hTier = prev5hSt?.planTier || '';
+        const prevWkTier = prevWkSt?.planTier || '';
+        const planTierChanged =
+          Boolean(normalizedPlanTier) &&
+          (qrArePlanTiersIncompatible(prev5hTier, normalizedPlanTier) ||
+            qrArePlanTiersIncompatible(prevWkTier, normalizedPlanTier));
+        const crossWindowInverted =
+          !planTierChanged && qrDetectCrossWindowRateInversion(prev5hSt, prevWkSt);
+        if (planTierChanged || crossWindowInverted) {
+          const reason = planTierChanged ? 'plan_tier_change' : 'cross_window_inversion';
+          const effectiveTier = normalizedPlanTier || prevWkTier || prev5hTier || '';
+          if (prev5hSt) {
+            qrResetBucketForRegimeChange(prev5hSt, {
+              nextPlanTier: effectiveTier,
+              resetBaseline: planTierChanged,
+            });
+          }
+          if (prevWkSt) {
+            qrResetBucketForRegimeChange(prevWkSt, {
+              nextPlanTier: effectiveTier,
+              resetBaseline: planTierChanged,
+            });
+          }
+          appendEventLog(
+            {
+              ts: new Date(nowMs).toISOString(),
+              pool: poolKey,
+              win: 'pool',
+              event: 'reset',
+              reason,
+              prevTier: prev5hTier || prevWkTier || '',
+              nextTier: effectiveTier,
+            },
+            nowMs
+          );
+        } else {
+          let tierStamped = false;
+          if (prev5hSt && normalizedPlanTier) {
+            const next5hTier = qrMergeCompatiblePlanTier(prev5hSt.planTier, normalizedPlanTier);
+            if (next5hTier !== prev5hSt.planTier) {
+              prev5hSt.planTier = next5hTier;
+              tierStamped = true;
+            }
+          }
+          if (prevWkSt && normalizedPlanTier) {
+            const nextWkTier = qrMergeCompatiblePlanTier(prevWkSt.planTier, normalizedPlanTier);
+            if (nextWkTier !== prevWkSt.planTier) {
+              prevWkSt.planTier = nextWkTier;
+              tierStamped = true;
+            }
+          }
+          if (tierStamped) {
+            persistIfNeeded('normal', nowMs);
+          }
+        }
+
         const unmatchedHeavy5h = isSafetyPool
           ? qrCollectUnmatchedHeavySafetyEvents(prev5hSt, safetyMonitor, quotaFetchedAtMs, nowMs)
           : { count: 0, latestTsMs: 0, totalChars: 0 };
@@ -2846,6 +3045,32 @@ export function createQuotaReservationTracker({ loadState = null, saveState = nu
               prevWkSt?.ratePctPerUsd
             )
           : { estPct: 0, latestEventMs: 0, heavyCalls: 0 };
+
+        if (
+          !planTierChanged &&
+          !crossWindowInverted &&
+          qrDetectStaleFiveHRateDeadlock(prev5hSt, prevWkSt, {
+            used5hExact,
+            cost5hUsd,
+            calls5h,
+            unpriced5h,
+            safety5hPct: Math.max(Number(prev5hSt?.safetyReviewUsedPct) || 0, obsSafety5h.estPct || 0),
+          })
+        ) {
+          const effectiveTier = normalizedPlanTier || prev5hSt?.planTier || prevWkSt?.planTier || '';
+          qrResetBucketForRegimeChange(prev5hSt, { nextPlanTier: effectiveTier });
+          appendEventLog(
+            {
+              ts: new Date(nowMs).toISOString(),
+              pool: poolKey,
+              win: '5h',
+              event: 'reset',
+              reason: 'stale_5h_deadlock',
+              nextTier: effectiveTier,
+            },
+            nowMs
+          );
+        }
 
         const peerExtTs5h = Number(prevWkSt?.lastExternalUsageAtMs) || 0;
         const peerExtTsWk = Number(prev5hSt?.lastExternalUsageAtMs) || 0;
@@ -2993,6 +3218,10 @@ export function createQuotaReservationTracker({ loadState = null, saveState = nu
         // 对称补齐：若周限在本轮确认空闲外部消耗，而 5h 因单桶微增暂存在 idleUnexplainedAccumPct 中，同步记入 5h 非自用
         const st5hNow = used5hExact !== null ? buckets.get(key5h) || null : null;
         const stWkNow = usedWkExact !== null ? buckets.get(keyWk) || null : null;
+        if (normalizedPlanTier) {
+          if (st5hNow) st5hNow.planTier = qrMergeCompatiblePlanTier(st5hNow.planTier, normalizedPlanTier);
+          if (stWkNow) stWkNow.planTier = qrMergeCompatiblePlanTier(stWkNow.planTier, normalizedPlanTier);
+        }
         if (
           st5hNow &&
           stWkNow &&
@@ -3073,6 +3302,7 @@ export function createQuotaReservationTracker({ loadState = null, saveState = nu
       bucketSummaries.push({
         pool: parts[2] || key,
         win: parts[3] || '',
+        ...(st.planTier ? { planTier: st.planTier } : {}),
         usedPct: +usedPct.toFixed(3),
         cycleCostUsd: +Number(st.lastCycleCostUsd || 0).toFixed(4),
         ratePctPerUsd: st.ratePctPerUsd !== null ? +st.ratePctPerUsd.toFixed(4) : null,

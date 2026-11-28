@@ -2055,41 +2055,6 @@ export async function buildTelemetryPayloadInternal(
       (deferredCascadeIds instanceof Set && deferredCascadeIds.size > 0)
   );
 
-  const nowMs = Date.now();
-  const safetyMonitorSnapshot = !isRemote ? refreshSafetyMonitorTelemetry({ nowMs }) : null;
-
-  updatePoolQuotaReservationEstimates({
-    endpointId,
-    accountScope: accountScope || '',
-    quotaPoolsMap,
-    poolCycleStats,
-    runningPoolKeys,
-    hasUnknownRunningPool,
-    localScanIncomplete,
-    safetyMonitor: safetyMonitorSnapshot,
-    quotaFetchedAtMs: officialQuotaInfo?.fetchedAtMs || 0,
-    nowMs,
-  });
-
-  // 6. 组装当前活跃配额池与每周限额视图数据
-  const { activePoolQuota, weeklyQuota } = buildActivePoolAndWeeklyQuotas({
-    activePoolKey,
-    activeLive5h,
-    activeLiveWeekly,
-    quotaPoolsMap,
-    isCustomWeeklyMode,
-    settings,
-    weekBucket,
-    quotaWeekBucket,
-    poolsWeeklySummary,
-  });
-
-  const g1CreditEntry = (userStatus?.userTier?.availableCredits || []).find(
-    (c) => c?.creditType === 'GOOGLE_ONE_AI'
-  );
-  const realAiCredits = Number(g1CreditEntry?.creditAmount || 0);
-  const uiBundleVersion = computeRuntimeCodeVersion();
-
   const rawTierId = String(userStatus?.userTier?.id || '').trim();
   const rawTierName = String(userStatus?.userTier?.name || '').trim();
   const rawTierDesc = String(userStatus?.userTier?.description || '').trim();
@@ -2123,6 +2088,58 @@ export async function buildTelemetryPayloadInternal(
     ? resolvedTierMultiplier ||
       (rawPlanName && !/^pro$/i.test(rawPlanName) ? rawPlanName : 'Ultra')
     : rawPlanName || inferredPlanFallback;
+  const hasExplicitPlanInfo = Boolean(rawTierId || rawTierName || rawPlanName);
+  const quotaPlanTier = !hasExplicitPlanInfo
+    ? ''
+    : isUltraTier
+      ? resolvedTierMultiplier
+        ? `ultra-${resolvedTierMultiplier}`
+        : 'ultra'
+      : /\bfree\b|standard/i.test(`${rawTierId} ${resolvedTierName} ${rawPlanName}`)
+        ? 'free'
+        : /\bpro\b/i.test(`${rawTierId} ${resolvedTierName} ${rawPlanName}`)
+          ? 'pro'
+          : String(rawTierId || resolvedPlanName || resolvedTierName)
+              .trim()
+              .toLowerCase()
+              .replace(/\s+/g, '-')
+              .slice(0, 32);
+
+  const nowMs = Date.now();
+  const safetyMonitorSnapshot = !isRemote ? refreshSafetyMonitorTelemetry({ nowMs }) : null;
+
+  updatePoolQuotaReservationEstimates({
+    endpointId,
+    accountScope: accountScope || '',
+    planTier: quotaPlanTier,
+    quotaPoolsMap,
+    poolCycleStats,
+    runningPoolKeys,
+    hasUnknownRunningPool,
+    localScanIncomplete,
+    safetyMonitor: safetyMonitorSnapshot,
+    quotaFetchedAtMs: officialQuotaInfo?.fetchedAtMs || 0,
+    nowMs,
+  });
+
+  // 6. 组装当前活跃配额池与每周限额视图数据
+  const { activePoolQuota, weeklyQuota } = buildActivePoolAndWeeklyQuotas({
+    activePoolKey,
+    activeLive5h,
+    activeLiveWeekly,
+    quotaPoolsMap,
+    isCustomWeeklyMode,
+    settings,
+    weekBucket,
+    quotaWeekBucket,
+    poolsWeeklySummary,
+  });
+
+  const g1CreditEntry = (userStatus?.userTier?.availableCredits || []).find(
+    (c) => c?.creditType === 'GOOGLE_ONE_AI'
+  );
+  const realAiCredits = Number(g1CreditEntry?.creditAmount || 0);
+  const uiBundleVersion = computeRuntimeCodeVersion();
 
   // 预计算近期会话与运行中会话的轻量缓存速览指标（零额外 RPC 与零 SQLite 冷会话水合开销）
   const quickStatsMemo = new Map();
