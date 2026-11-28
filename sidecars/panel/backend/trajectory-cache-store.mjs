@@ -53,6 +53,16 @@ function tcsDefineHiddenProp(obj, key, value) {
   });
 }
 
+// Process-wide monotonic sequence so _accountingRev never collides across distinct
+// createTrajectoryCacheStore instances (e.g., pruned & re-registered remote endpoints).
+let nextGlobalAccountingRevSeq = 0;
+
+function tcsAssignNextAccountingRev(entry) {
+  if (!entry || typeof entry !== 'object') return;
+  nextGlobalAccountingRevSeq += 1;
+  tcsDefineHiddenProp(entry, '_accountingRev', nextGlobalAccountingRevSeq);
+}
+
 function tcsAttachEntryStepFlags(entry, flags) {
   if (!entry || typeof entry !== 'object') return;
   const resolved = flags || entry._stepFlags || computePrecomputedStepFlags(entry.steps);
@@ -157,13 +167,6 @@ export function createTrajectoryCacheStore({
   let pendingEpochBump = false;
   let loadedOnce = false;
   let lastWalSyncCheckMs = 0;
-  let accountingRevSeq = 0;
-
-  function assignNextAccountingRev(entry) {
-    if (!entry || typeof entry !== 'object') return;
-    accountingRevSeq += 1;
-    tcsDefineHiddenProp(entry, '_accountingRev', accountingRevSeq);
-  }
 
   const state = {
     needsSave: false,
@@ -247,7 +250,7 @@ export function createTrajectoryCacheStore({
     for (const key of Object.keys(cacheObj)) {
       const lower = key.toLowerCase();
       byLower.set(lower, key);
-      assignNextAccountingRev(cacheObj[key]);
+      tcsAssignNextAccountingRev(cacheObj[key]);
       if (markCold) {
         finalizeColdEntryInPlace(cacheObj[key]);
       }
@@ -274,6 +277,7 @@ export function createTrajectoryCacheStore({
     loadedOnce = true;
     for (const key of Object.keys(cacheObj)) {
       byLower.set(key.toLowerCase(), key);
+      tcsAssignNextAccountingRev(cacheObj[key]);
     }
     if (hydrated.migrated) {
       state.needsSave = true;
@@ -320,7 +324,7 @@ export function createTrajectoryCacheStore({
         if (prevCanon && prevCanon !== cascadeId) {
           delete cacheObj[prevCanon];
         }
-        assignNextAccountingRev(entry);
+        tcsAssignNextAccountingRev(entry);
         finalizeColdEntryInPlace(entry);
         cacheObj[cascadeId] = entry;
         byLower.set(lowerId, cascadeId);
@@ -626,7 +630,7 @@ export function createTrajectoryCacheStore({
         if (prevEntry && prevEntry.steps === entry.steps && prevEntry._accountingRev > 0) {
           tcsDefineHiddenProp(entry, '_accountingRev', prevEntry._accountingRev);
         } else {
-          assignNextAccountingRev(entry);
+          tcsAssignNextAccountingRev(entry);
         }
         if (useSqlite && lower) {
           dirtyRemovals.delete(lower);
@@ -740,6 +744,7 @@ export function createTrajectoryCacheStore({
           if (preFlags) {
             tcsDefineHiddenProp(nextEntry, '_stepFlags', preFlags);
           }
+          tcsAssignNextAccountingRev(nextEntry);
           cacheObj[canon] = nextEntry;
           dirtyUpserts.delete(lower);
           memConvsChanged += 1;
@@ -887,6 +892,7 @@ export function createTrajectoryCacheStore({
           if (preFlags) {
             tcsDefineHiddenProp(nextEntry, '_stepFlags', preFlags);
           }
+          tcsAssignNextAccountingRev(nextEntry);
           cacheObj[toCascadeId] = nextEntry;
           byLower.set(toLower, toCascadeId);
           dirtyRemovals.delete(toLower);

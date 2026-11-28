@@ -1598,8 +1598,10 @@ export function aggregateMultiWindowUsage({
     { key: `${key}:week`, startMs: startWkMs, endMs: nowMs },
   ]).flat();
   const windows = [selectedWindow, ...Object.values(presetWindows), ...quotaWindows];
+  const endpointInstanceId = endpoint?.isRemote ? Number(endpoint.instanceId || 0) : 0;
   const snapshot = lastUsageSnapshotsByEndpoint.get(endpointKey) || null;
   const sameSnapshot = modelInputs && snapshot && timeZone === snapshot.timeZone &&
+    endpointInstanceId === Number(snapshot.endpointInstanceId || 0) &&
     currentYear === snapshot.currentYear &&
     Boolean(isCustomWeeklyMode) === Boolean(snapshot.isCustomWeeklyMode) &&
     normalizedQuotaAccount === snapshot.normalizedQuotaAccount &&
@@ -2076,6 +2078,7 @@ export function aggregateMultiWindowUsage({
       resolvedUsageRevision = ++usageSnapshotRevisionSeq;
       activeSnap = {
         revision: resolvedUsageRevision,
+        endpointInstanceId,
         timeZone,
         modelInputs,
         currentYear,
@@ -2222,10 +2225,12 @@ export function aggregateSelectedWindowUsage({
         ]
       : [selectedWindow];
 
+  const endpointInstanceId = endpoint?.isRemote ? Number(endpoint.instanceId || 0) : 0;
   const snapshot = lastUsageSnapshotsByEndpoint.get(endpointKey) || null;
   const sameSnapshot = Boolean(
     modelInputs &&
       snapshot &&
+      endpointInstanceId === Number(snapshot.endpointInstanceId || 0) &&
       timeZone === snapshot.timeZone &&
       currentYear === snapshot.currentYear &&
       Boolean(isCustomWeeklyMode) === Boolean(snapshot.isCustomWeeklyMode) &&

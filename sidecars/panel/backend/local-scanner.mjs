@@ -4794,11 +4794,11 @@ export async function enumerateAndSyncConversations({
         rootCached?.title,
       ]);
       if (!recoveredTitle && rootCached) {
-        const probeKey = `${isRemote ? String(endpoint?.id || 'remote') : 'local'}::${cid}`;
+        const probeKey = `${isRemote ? `${String(endpoint?.id || 'remote')}#${Number(endpoint?.instanceId || 0)}` : 'local'}::${cid}`;
         const accRev = Number(rootCached._accountingRev || 0);
         const stepsLen = Array.isArray(rootCached.steps) ? rootCached.steps.length : 0;
         const cachedProbe = stepTitleProbeMemo.get(probeKey);
-        if (cachedProbe && cachedProbe.accRev === accRev && cachedProbe.stepsLen === stepsLen) {
+        if (cachedProbe && accRev > 0 && cachedProbe.accRev === accRev && cachedProbe.stepsLen === stepsLen) {
           recoveredTitle = cachedProbe.title;
         } else if (
           rootCached._coldSteps &&
