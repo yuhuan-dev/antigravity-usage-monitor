@@ -53,6 +53,7 @@ import { getCloudStatus, getPricingPhaseEpoch, pricingCatalogRevision } from './
 import { getFxStatus } from './fx-rates.mjs';
 import { buildOfficialQuotaPools } from './quota-pools.mjs';
 import { recordAccountQuotaSnapshot } from './account-quota-history.mjs';
+import { refreshSafetyMonitorTelemetry } from './safety-monitor-scanner.mjs';
 import { updatePoolQuotaReservationEstimates } from './quota-reservation.mjs';
 import { getDefaultCloudCodeProxyStatus } from './cloudcode-proxy.mjs';
 import { getEffectiveHostTheme } from './host-theme-store.mjs';
@@ -1764,11 +1765,13 @@ function buildActivePoolAndWeeklyQuotas({
     remainingIntPct: activeLive5h?.remainingIntPct ?? null,
     usedPct: activeLive5h?.usedPct ?? null,
     externalUsedPct: 0,
+    safetyReviewUsedPct: 0,
     resetTime: activeLive5h?.resetTime || null,
     weeklyRemainingPct: activeLiveWeekly?.remainingPct ?? null,
     weeklyRemainingIntPct: activeLiveWeekly?.remainingIntPct ?? null,
     weeklyUsedPct: activeLiveWeekly?.usedPct ?? null,
     weeklyExternalUsedPct: 0,
+    weeklySafetyReviewUsedPct: 0,
     weeklyResetTime: activeLiveWeekly?.resetTime || null,
     cycle5h: createEmptyCycleSummary(),
     cycleWeekly: createEmptyCycleSummary(),
@@ -2052,6 +2055,9 @@ export async function buildTelemetryPayloadInternal(
       (deferredCascadeIds instanceof Set && deferredCascadeIds.size > 0)
   );
 
+  const nowMs = Date.now();
+  const safetyMonitorSnapshot = !isRemote ? refreshSafetyMonitorTelemetry({ nowMs }) : null;
+
   updatePoolQuotaReservationEstimates({
     endpointId,
     accountScope: accountScope || '',
@@ -2060,8 +2066,9 @@ export async function buildTelemetryPayloadInternal(
     runningPoolKeys,
     hasUnknownRunningPool,
     localScanIncomplete,
+    safetyMonitor: safetyMonitorSnapshot,
     quotaFetchedAtMs: officialQuotaInfo?.fetchedAtMs || 0,
-    nowMs: Date.now(),
+    nowMs,
   });
 
   // 6. 组装当前活跃配额池与每周限额视图数据
@@ -2482,6 +2489,19 @@ export async function buildTelemetryPayloadInternal(
     hostTheme: getEffectiveHostTheme(),
     cloudCodeProxy: getDefaultCloudCodeProxyStatus(),
     cliStatusLine: getCliStatusLineRuntimeStatus(),
+    ...(safetyMonitorSnapshot?.hasActiveSources
+      ? {
+          safetyMonitor: {
+            scannedAtMs: safetyMonitorSnapshot.scannedAtMs,
+            sourceCount: safetyMonitorSnapshot.sourceCount,
+            window5h: safetyMonitorSnapshot.window5h,
+            window24h: safetyMonitorSnapshot.window24h,
+            lastHeavyEventAtMs: safetyMonitorSnapshot.lastHeavyEventAtMs,
+            lastFallbackAtMs: safetyMonitorSnapshot.lastFallbackAtMs,
+            alerts: safetyMonitorSnapshot.alerts,
+          },
+        }
+      : {}),
     settings,
     contextWindowModels: getContextWindowGroups(getContextWindowModels(clientConfigs, contextModelCatalog)).map((group) => {
       const latest = group.members.reduce((previous, id) => {

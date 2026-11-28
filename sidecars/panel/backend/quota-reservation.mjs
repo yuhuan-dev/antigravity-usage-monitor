@@ -16,6 +16,7 @@ import {
   lsRuntimeEndpoint,
   saveJson,
 } from './config.mjs';
+import { summarizeSafetyMonitorWindow } from './safety-monitor-scanner.mjs';
 
 export const QR_LEASE_TTL_MS = 45 * 60 * 1000;
 export const QR_LEASE_GRACE_MS = 15 * 60 * 1000;
@@ -59,6 +60,12 @@ export const QR_EXTERNAL_HIGH_COVERAGE_MAX_UNCAL_SHARE = 0.15;
 export const QR_EXTERNAL_RECONCILE_DEADBAND_PCT = 0.02;
 export const QR_LEASE_REJECT_SURPLUS_RATIO = 0.06;
 export const QR_EXTERNAL_SCAN_LAG_RECONCILE_MS = 2 * 60 * 1000;
+export const QR_SAFETY_EVENT_MATCH_WINDOW_MS = 90 * 1000;
+export const QR_SAFETY_EVENT_MAX_LOOKBACK_MS = 10 * 60 * 1000;
+export const QR_SAFETY_MAX_USD_PER_HEAVY_EVENT = 0.65;
+export const QR_SAFETY_CHARS_PER_TOKEN_EST = 2.75;
+export const QR_SAFETY_SONAR_INPUT_USD_PER_MTOK = 1.5;
+export const QR_SAFETY_FLASH_LITE_EST_USD_PER_CALL = 0.0015;
 export const QR_CO_MOVE_MIN_5H_EXCESS_PCT = 0.35;
 export const QR_CO_MOVE_MIN_WK_EXCESS_PCT = 0.1;
 export const QR_CO_MOVE_SHARED_MIN_5H_EXCESS_PCT = 0.2;
@@ -217,7 +224,8 @@ function qrComputeNetLocalUsedPct(st, officialUsedPct) {
   if (!st || typeof st !== 'object') return safeOfficial;
   const leaseSum = qrSumLeases(st.activeLeases || [], { includeTentative: true });
   const extPct = Math.max(0, Number(st.externalUsedPct) || 0);
-  return Math.max(0, safeOfficial - leaseSum - extPct);
+  const safetyPct = Math.max(0, Number(st.safetyReviewUsedPct) || 0);
+  return Math.max(0, safeOfficial - leaseSum - extPct - safetyPct);
 }
 
 function qrSanitizeModelDensities(raw, { preserveRate = true } = {}) {
@@ -468,10 +476,18 @@ function qrFormatOutput(state, officialUsedPct) {
     }
   }
 
-  // 严格守恒：externalUsedPct >= 0 且 externalUsedPct + reservedPct <= officialUsedPct
-  const maxExtRaw = Math.max(0, safeOfficial - (hasVisibleReserved ? rawReserved : 0));
+  const maxSafetyRaw = Math.max(0, safeOfficial - (hasVisibleReserved ? rawReserved : 0));
+  const rawSafety = qrClamp(Number(state.safetyReviewUsedPct) || 0, 0, maxSafetyRaw);
+  const maxSafetyRounded = Math.max(0, qrRound1(roundedOfficial - reservedPct));
+  const safetyReviewUsedPct =
+    rawSafety >= QR_MIN_DISPLAY_RESERVED_PCT
+      ? qrClamp(qrRound1(rawSafety), 0, maxSafetyRounded)
+      : 0;
+
+  // 严格守恒：externalUsedPct >= 0 且 externalUsedPct + safetyReviewUsedPct + reservedPct <= officialUsedPct
+  const maxExtRaw = Math.max(0, maxSafetyRaw - rawSafety);
   const rawExternal = qrClamp(Number(state.externalUsedPct) || 0, 0, maxExtRaw);
-  const maxExtRounded = Math.max(0, qrRound1(roundedOfficial - reservedPct));
+  const maxExtRounded = Math.max(0, qrRound1(roundedOfficial - reservedPct - safetyReviewUsedPct));
   const externalUsedPct =
     rawExternal >= QR_MIN_DISPLAY_RESERVED_PCT
       ? qrClamp(qrRound1(rawExternal), 0, maxExtRounded)
@@ -482,6 +498,7 @@ function qrFormatOutput(state, officialUsedPct) {
     reservedLeaseCount: hasVisibleReserved ? visibleCount : 0,
     reservedExpiresAtMs: hasVisibleReserved ? earliestExpiresAtMs : null,
     externalUsedPct,
+    safetyReviewUsedPct,
   };
 }
 
@@ -666,7 +683,10 @@ function qrResolveBucketDisplayRate(st, win) {
     const out = qrFormatOutput(st, st.lastOfficialUsedPct);
     const netUsedPct = Math.max(
       0,
-      st.lastOfficialUsedPct - out.reservedPct - (Number(st.externalUsedPct) || 0)
+      st.lastOfficialUsedPct -
+        out.reservedPct -
+        (Number(st.externalUsedPct) || 0) -
+        (Number(st.safetyReviewUsedPct) || 0)
     );
     const calls = Math.max(0, Number(st.lastCycleCalls) || 0);
     const cost = Math.max(0, Number(st.lastCycleCostUsd) || 0);
@@ -862,8 +882,90 @@ function qrResolveSoloDriftTolerance(localExpectedPct) {
   );
 }
 
+function qrIsSafetyReviewEligiblePool(poolKey, poolObj) {
+  const pk = String(poolKey || '').trim().toLowerCase();
+  if (pk === 'gemini') return true;
+  const fam = String(poolObj?.family || '').trim().toLowerCase();
+  return fam === 'gemini' && pk !== 'carbon' && pk !== 'argon';
+}
+
+function qrCollectUnmatchedHeavySafetyEvents(st, safetyMonitor, safeFetchTs, nowMs) {
+  const events = Array.isArray(safetyMonitor?.recentHeavyEvents)
+    ? safetyMonitor.recentHeavyEvents
+    : null;
+  if (!events || events.length === 0) {
+    return { count: 0, latestTsMs: 0, totalChars: 0 };
+  }
+  const lastAttributed = Number(st?.lastAttributedSafetyEventMs) || 0;
+  const refHigh = Math.max(Number(safeFetchTs) || 0, Number(nowMs) || 0) + 5_000;
+  const prevQuotaTs = Number(st?.lastQuotaTs) || 0;
+  const minWindowFloor = Math.max(0, nowMs - QR_SAFETY_EVENT_MAX_LOOKBACK_MS);
+  const rawLower =
+    prevQuotaTs > 0
+      ? Math.min(prevQuotaTs - 15_000, nowMs - QR_SAFETY_EVENT_MATCH_WINDOW_MS)
+      : nowMs - QR_SAFETY_EVENT_MATCH_WINDOW_MS;
+  const lowerBound = Math.max(lastAttributed, minWindowFloor, rawLower);
+
+  let count = 0;
+  let latestTsMs = 0;
+  let totalChars = 0;
+  for (let i = events.length - 1; i >= 0; i -= 1) {
+    const ev = events[i];
+    if (!ev || ev.tsMs <= lowerBound) break;
+    if (ev.tsMs > refHigh) continue;
+    count += 1;
+    totalChars += Number(ev.trajChars) || 0;
+    if (ev.tsMs > latestTsMs) latestTsMs = ev.tsMs;
+  }
+  return { count, latestTsMs, totalChars };
+}
+
+function qrComputeObservedCycleSafetyPct(st, safetyMonitor, win, safeResetMs, nowMs, fallbackRate) {
+  if (!safetyMonitor || typeof safetyMonitor !== 'object') {
+    return { estPct: 0, latestEventMs: 0, heavyCalls: 0 };
+  }
+  const rate =
+    Number.isFinite(Number(fallbackRate)) && Number(fallbackRate) > 0
+      ? Number(fallbackRate)
+      : Number(st?.ratePctPerUsd) > 0
+        ? Number(st.ratePctPerUsd)
+        : 0;
+  if (rate <= 0) {
+    return { estPct: 0, latestEventMs: 0, heavyCalls: 0 };
+  }
+  const winMs = win === 'weekly' ? 7 * 24 * 60 * 60 * 1000 : 5 * 60 * 60 * 1000;
+  const cycleStartMs =
+    safeResetMs > 0 ? Math.max(0, safeResetMs - winMs) : Math.max(0, nowMs - winMs);
+  const summary = summarizeSafetyMonitorWindow(
+    safetyMonitor.minuteBuckets,
+    safetyMonitor.recentHeavyEvents,
+    cycleStartMs,
+    nowMs
+  );
+  if (!summary || (summary.heavyCalls <= 0 && summary.flashLiteCalls <= 0)) {
+    return { estPct: 0, latestEventMs: 0, heavyCalls: 0 };
+  }
+  const heavyUsd =
+    summary.heavyTrajChars > 0
+      ? (summary.heavyTrajChars / 1_000_000 / QR_SAFETY_CHARS_PER_TOKEN_EST) *
+        QR_SAFETY_SONAR_INPUT_USD_PER_MTOK
+      : summary.heavyCalls * 0.14;
+  const flashLiteUsd = summary.flashLiteCalls * QR_SAFETY_FLASH_LITE_EST_USD_PER_CALL;
+  const estPct = (heavyUsd + flashLiteUsd) * rate;
+  const latestEventMs = Math.max(
+    Number(safetyMonitor.lastHeavyEventAtMs) || 0,
+    Number(safetyMonitor.lastAnyMonitorAtMs) || 0
+  );
+  return {
+    estPct: Number.isFinite(estPct) && estPct > 0 ? estPct : 0,
+    latestEventMs,
+    heavyCalls: summary.heavyCalls,
+  };
+}
+
 function qrComputeCycleUnexplained(st, safeUsed, safeCost, safeModelCosts, safeUnpriced = 0) {
   const leaseSum = qrSumLeases(st?.activeLeases || [], { includeTentative: true });
+  const safetyReviewPct = Math.max(0, Number(st?.safetyReviewUsedPct) || 0);
   const cleanWin = Array.isArray(st?.rateWindow) ? st.rateWindow : [];
   const isCalibrated = Boolean(
     st &&
@@ -876,6 +978,7 @@ function qrComputeCycleUnexplained(st, safeUsed, safeCost, safeModelCosts, safeU
     return {
       isCalibrated: false,
       leaseSum,
+      safetyReviewPct,
       localExpectedPct: 0,
       unexplainedPct: null,
       localCoverTolerance: QR_EXTERNAL_SOLO_DRIFT_FLOOR_PCT,
@@ -888,10 +991,11 @@ function qrComputeCycleUnexplained(st, safeUsed, safeCost, safeModelCosts, safeU
     safeCost,
     st.ratePctPerUsd
   );
-  const unexplainedPct = Math.max(0, safeUsed - leaseSum - localExpectedPct);
+  const unexplainedPct = Math.max(0, safeUsed - leaseSum - safetyReviewPct - localExpectedPct);
   return {
     isCalibrated: true,
     leaseSum,
+    safetyReviewPct,
     localExpectedPct,
     unexplainedPct,
     localCoverTolerance: qrResolveLocalCoverTolerance(localExpectedPct),
@@ -1075,14 +1179,22 @@ function qrReconcileExpiredTentativeLeases(
       safeCost,
       st.ratePctPerUsd
     );
-    const unexplainedTotal = Math.max(0, safeUsed - remainingLeaseSum - localExpectedPct);
+    const safetyReviewPct = Math.max(0, Number(st.safetyReviewUsedPct) || 0);
+    const unexplainedTotal = Math.max(
+      0,
+      safeUsed - remainingLeaseSum - safetyReviewPct - localExpectedPct
+    );
     const soloTol = qrResolveSoloDriftTolerance(localExpectedPct);
-    const maxAddable = Math.max(0, safeUsed - remainingLeaseSum - localExpectedPct - curExtPct);
+    const maxAddable = Math.max(
+      0,
+      safeUsed - remainingLeaseSum - safetyReviewPct - localExpectedPct - curExtPct
+    );
     if (unexplainedTotal > soloTol && maxAddable >= QR_MIN_DISPLAY_RESERVED_PCT) {
       attrPct = Math.min(expiredTentativePct, maxAddable);
     }
   } else if (st.hasExternalUsage && safeCost < QR_EXTERNAL_BASELINE_MAX_LOCAL_COST_USD) {
-    const maxAddable = Math.max(0, safeUsed - remainingLeaseSum - curExtPct);
+    const safetyReviewPct = Math.max(0, Number(st.safetyReviewUsedPct) || 0);
+    const maxAddable = Math.max(0, safeUsed - remainingLeaseSum - safetyReviewPct - curExtPct);
     if (maxAddable >= QR_MIN_DISPLAY_RESERVED_PCT) {
       attrPct = Math.min(expiredTentativePct, maxAddable);
     }
@@ -1156,9 +1268,66 @@ function qrReconcileExternalUsageBound(
     hasRunningLocalSession = false,
     suppressIdleExternal = false,
     peerHasExternalUsage = false,
+    observedCycleSafetyPct = 0,
+    observedSafetyLatestMs = 0,
   } = {}
 ) {
   if (!st) return false;
+  let mutated = false;
+  const leaseSum0 = qrSumLeases(st.activeLeases || [], { includeTentative: true });
+  const hasAnyValidRate =
+    (st.lastUnpricedCalls || 0) === 0 &&
+    Number.isFinite(st.ratePctPerUsd) &&
+    st.ratePctPerUsd > 0;
+  const effLocalExp = hasAnyValidRate
+    ? qrEstimateModelWeightedPct(st, safeModelCosts, safeCost, st.ratePctPerUsd)
+    : null;
+
+  const curSafetyPct = Math.max(0, Number(st.safetyReviewUsedPct) || 0);
+  const maxSafetyPhysical =
+    effLocalExp !== null
+      ? Math.max(0, safeUsed - leaseSum0 - effLocalExp * (1 - QR_EXTERNAL_SOLO_DRIFT_RATIO))
+      : Math.max(0, safeUsed - leaseSum0);
+  if (curSafetyPct > maxSafetyPhysical + 1e-3) {
+    const clampedSafety =
+      maxSafetyPhysical < QR_MIN_DISPLAY_RESERVED_PCT ? 0 : maxSafetyPhysical;
+    if (Math.abs(curSafetyPct - clampedSafety) > 1e-3) {
+      st.safetyReviewUsedPct = clampedSafety;
+      mutated = true;
+    }
+  }
+
+  let promotedFromExternal = 0;
+  if (
+    !localScanIncomplete &&
+    !suppressIdleExternal &&
+    st.pendingDrop === null &&
+    Number(observedCycleSafetyPct) > 0 &&
+    effLocalExp !== null
+  ) {
+    const rawResidualBeforeSafety = Math.max(0, safeUsed - leaseSum0 - effLocalExp);
+    const backedSafetyTarget = Math.min(rawResidualBeforeSafety, Number(observedCycleSafetyPct));
+    const curSafetyNow = Math.max(0, Number(st.safetyReviewUsedPct) || 0);
+    if (backedSafetyTarget > curSafetyNow + QR_EXTERNAL_RECONCILE_DEADBAND_PCT) {
+      const deltaPromote = backedSafetyTarget - curSafetyNow;
+      st.safetyReviewUsedPct =
+        backedSafetyTarget < QR_MIN_DISPLAY_RESERVED_PCT ? 0 : backedSafetyTarget;
+      if (observedSafetyLatestMs > 0) {
+        st.lastSafetyReviewAtMs = Math.max(
+          Number(st.lastSafetyReviewAtMs) || 0,
+          observedSafetyLatestMs
+        );
+      }
+      const curExtBeforePromote = Math.max(0, Number(st.externalUsedPct) || 0);
+      if (curExtBeforePromote > 0) {
+        promotedFromExternal = Math.min(curExtBeforePromote, deltaPromote);
+        const nextExt = Math.max(0, curExtBeforePromote - promotedFromExternal);
+        st.externalUsedPct = nextExt < QR_MIN_DISPLAY_RESERVED_PCT ? 0 : nextExt;
+      }
+      mutated = true;
+    }
+  }
+
   const curExtPct = Number(st.externalUsedPct) || 0;
   const hasExistingExternal = Boolean(st.hasExternalUsage || curExtPct > 0);
   const cycleInfo = qrComputeCycleUnexplained(
@@ -1170,19 +1339,19 @@ function qrReconcileExternalUsageBound(
   );
 
   if (!hasExistingExternal && !cycleInfo.isCalibrated) {
-    return false;
+    return mutated;
   }
 
-  let mutated = false;
-  const maxResidualCap = Math.max(0, safeUsed - cycleInfo.leaseSum);
+  const maxResidualCap = Math.max(0, safeUsed - cycleInfo.leaseSum - cycleInfo.safetyReviewPct);
 
   if (hasExistingExternal) {
-    // 本周期累计外部消耗物理上不可能超过（官方累计已用 - 活跃租约 - 已校准本机下界）
+    // 本周期累计外部消耗物理上不可能超过（官方累计已用 - 活跃租约 - 本机安全审查 - 已校准本机下界）
     const maxExternalBound = cycleInfo.isCalibrated
       ? Math.max(
           0,
           safeUsed -
             cycleInfo.leaseSum -
+            cycleInfo.safetyReviewPct -
             cycleInfo.localExpectedPct * (1 - QR_EXTERNAL_SOLO_DRIFT_RATIO)
         )
       : maxResidualCap;
@@ -1208,6 +1377,22 @@ function qrReconcileExternalUsageBound(
       safeUsed >= 0.05 &&
       !recentExt &&
       cycleInfo.unexplainedPct <= cycleInfo.soloTolerance;
+    const effResidualAfterSafety =
+      effLocalExp !== null
+        ? Math.max(
+            0,
+            safeUsed - leaseSum0 - (Number(st.safetyReviewUsedPct) || 0) - effLocalExp
+          )
+        : null;
+    const effSoloTol = effLocalExp !== null ? qrResolveSoloDriftTolerance(effLocalExp) : 0;
+    const healedByObservedSafety =
+      effResidualAfterSafety !== null &&
+      (Number(st.safetyReviewUsedPct) || 0) >= QR_MIN_DISPLAY_RESERVED_PCT &&
+      effResidualAfterSafety <= effSoloTol &&
+      (promotedFromExternal > 0 ||
+        (Number(st.externalUsedPct) || 0) < QR_MIN_DISPLAY_RESERVED_PCT) &&
+      (observedSafetyLatestMs <= 0 ||
+        (Number(st.lastExternalUsageAtMs) || 0) <= observedSafetyLatestMs + 60_000);
     const pollutedUncalibratedColdStart =
       !cycleInfo.isCalibrated &&
       st.ratePctPerUsd === null &&
@@ -1218,7 +1403,12 @@ function qrReconcileExternalUsageBound(
       (Number(st.externalEvents) || 0) <= 1 &&
       (Number(st.externalUsedPct) || 0) > 0 &&
       (Number(st.externalUsedPct) || 0) <= safeUsed * 0.1;
-    if (fullyExplainedByLocal || explainedWithinSoloDrift || pollutedUncalibratedColdStart) {
+    if (
+      fullyExplainedByLocal ||
+      explainedWithinSoloDrift ||
+      healedByObservedSafety ||
+      pollutedUncalibratedColdStart
+    ) {
       if (
         st.hasExternalUsage ||
         (Number(st.externalUsedPct) || 0) > 0 ||
@@ -1359,6 +1549,10 @@ function qrSanitizePersistedBucket(raw, { preserveRate = true } = {}) {
     lastExternalUsageAtMs: Math.max(0, Number(raw.lastExternalUsageAtMs) || 0),
     externalUsedPct: Math.max(0, Number(raw.externalUsedPct) || 0),
     externalEvents: Math.max(0, Math.floor(Number(raw.externalEvents) || 0)),
+    safetyReviewUsedPct: Math.max(0, Number(raw.safetyReviewUsedPct) || 0),
+    safetyReviewEvents: Math.max(0, Math.floor(Number(raw.safetyReviewEvents) || 0)),
+    lastSafetyReviewAtMs: Math.max(0, Number(raw.lastSafetyReviewAtMs) || 0),
+    lastAttributedSafetyEventMs: Math.max(0, Number(raw.lastAttributedSafetyEventMs) || 0),
     idleUnexplainedAccumPct: 0,
   };
 }
@@ -1457,6 +1651,18 @@ export function createQuotaReservationTracker({ loadState = null, saveState = nu
         lastExternalUsageAtMs: st.lastExternalUsageAtMs || 0,
         externalUsedPct: +(Number(st.externalUsedPct) || 0).toFixed(3),
         externalEvents: Math.max(0, Math.floor(Number(st.externalEvents) || 0)),
+        ...(Number(st.safetyReviewUsedPct) > 0
+          ? { safetyReviewUsedPct: +(Number(st.safetyReviewUsedPct) || 0).toFixed(3) }
+          : {}),
+        ...(Number(st.safetyReviewEvents) > 0
+          ? { safetyReviewEvents: Math.max(0, Math.floor(Number(st.safetyReviewEvents) || 0)) }
+          : {}),
+        ...(Number(st.lastSafetyReviewAtMs) > 0
+          ? { lastSafetyReviewAtMs: Number(st.lastSafetyReviewAtMs) || 0 }
+          : {}),
+        ...(Number(st.lastAttributedSafetyEventMs) > 0
+          ? { lastAttributedSafetyEventMs: Number(st.lastAttributedSafetyEventMs) || 0 }
+          : {}),
       };
     }
     return {
@@ -1556,6 +1762,10 @@ export function createQuotaReservationTracker({ loadState = null, saveState = nu
       lastExternalUsageAtMs: 0,
       externalUsedPct: 0,
       externalEvents: 0,
+      safetyReviewUsedPct: 0,
+      safetyReviewEvents: 0,
+      lastSafetyReviewAtMs: 0,
+      lastAttributedSafetyEventMs: 0,
       idleUnexplainedAccumPct: 0,
     };
     buckets.set(bucketKey, st);
@@ -1584,6 +1794,9 @@ export function createQuotaReservationTracker({ loadState = null, saveState = nu
     forceExternalJump = false,
     peerLastExternalUsageAtMs = 0,
     peerHasExternalUsage = false,
+    unmatchedHeavySafety = null,
+    observedCycleSafetyPct = 0,
+    observedSafetyLatestMs = 0,
     nowMs = Date.now(),
   }) {
     if (officialUsedPct === null || !Number.isFinite(officialUsedPct)) {
@@ -1592,6 +1805,7 @@ export function createQuotaReservationTracker({ loadState = null, saveState = nu
         reservedLeaseCount: 0,
         reservedExpiresAtMs: null,
         externalUsedPct: 0,
+        safetyReviewUsedPct: 0,
       };
     }
     ensureHydrated();
@@ -1678,6 +1892,10 @@ export function createQuotaReservationTracker({ loadState = null, saveState = nu
       st.activeLeases = [];
       st.pendingDrop = null;
       st.lastRefundHighWaterPct = 0;
+      st.safetyReviewUsedPct = 0;
+      st.safetyReviewEvents = 0;
+      st.lastSafetyReviewAtMs = 0;
+      st.lastAttributedSafetyEventMs = 0;
       const isResetBaselineExternal =
         !localScanIncomplete &&
         !hasRunningLocalSession &&
@@ -1697,6 +1915,8 @@ export function createQuotaReservationTracker({ loadState = null, saveState = nu
         hasRunningLocalSession,
         suppressIdleExternal,
         peerHasExternalUsage,
+        observedCycleSafetyPct,
+        observedSafetyLatestMs,
       });
       qrRefreshBucketDensities(st, safeCost, safePricedTokens, safeModelCosts, safeModelTokens);
       qrUpdateSlopeSamples(
@@ -1738,7 +1958,10 @@ export function createQuotaReservationTracker({ loadState = null, saveState = nu
         );
         st.hasExternalUsage = baselineExtPct >= QR_MIN_DISPLAY_RESERVED_PCT;
         st.externalUsedPct = st.hasExternalUsage ? baselineExtPct : 0;
-        qrReconcileExternalUsageBound(st, safeUsed, safeCost, safeModelCosts, nowMs);
+        qrReconcileExternalUsageBound(st, safeUsed, safeCost, safeModelCosts, nowMs, {
+          observedCycleSafetyPct,
+          observedSafetyLatestMs,
+        });
       } else if (
         !st.hasExternalUsage &&
         safeUnpriced === 0 &&
@@ -1806,6 +2029,8 @@ export function createQuotaReservationTracker({ loadState = null, saveState = nu
           hasRunningLocalSession,
           suppressIdleExternal,
           peerHasExternalUsage,
+          observedCycleSafetyPct,
+          observedSafetyLatestMs,
         }
       );
       const out = qrFormatOutput(st, safeUsed);
@@ -2144,6 +2369,58 @@ export function createQuotaReservationTracker({ loadState = null, saveState = nu
       const allowForceExternal = Boolean(
         forceExternalJump && !localScanIncomplete && !isExplainedByLocalCycle
       );
+      let safetyReviewMatchedFully = false;
+      const unmatchedSafetyCount = Number(unmatchedHeavySafety?.count) || 0;
+      if (
+        !isPostRefundReplicaBounce &&
+        !localScanIncomplete &&
+        !isExplainedByLocalCycle &&
+        unmatchedSafetyCount > 0
+      ) {
+        const rawSafetyExcess =
+          rate !== null
+            ? Math.max(0, excessPct)
+            : effectiveDeltaCost <= QR_COLD_START_MAX_COST_USD
+              ? deltaOfficial
+              : 0;
+        if (rawSafetyExcess >= QR_MIN_DISPLAY_RESERVED_PCT) {
+          const maxSafetyTickPct =
+            rate !== null && rate > 0
+              ? unmatchedSafetyCount * QR_SAFETY_MAX_USD_PER_HEAVY_EVENT * rate
+              : logWin === 'weekly'
+                ? unmatchedSafetyCount * 0.6
+                : unmatchedSafetyCount * 2.2;
+          const attributedSafetyPct = Math.min(rawSafetyExcess, maxSafetyTickPct);
+          if (attributedSafetyPct >= QR_MIN_DISPLAY_RESERVED_PCT) {
+            const latestSafetyTs = Math.max(
+              Number(unmatchedHeavySafety?.latestTsMs) || 0,
+              nowMs
+            );
+            st.safetyReviewUsedPct = qrClamp(
+              (Number(st.safetyReviewUsedPct) || 0) + attributedSafetyPct,
+              0,
+              safeUsed
+            );
+            st.safetyReviewEvents = (Number(st.safetyReviewEvents) || 0) + unmatchedSafetyCount;
+            st.lastSafetyReviewAtMs = Math.max(
+              Number(st.lastSafetyReviewAtMs) || 0,
+              latestSafetyTs
+            );
+            st.lastAttributedSafetyEventMs = Math.max(
+              Number(st.lastAttributedSafetyEventMs) || 0,
+              Number(unmatchedHeavySafety?.latestTsMs) || nowMs
+            );
+            st.idleUnexplainedAccumPct = 0;
+            skipSlopeUpdate = true;
+            excessPct -= attributedSafetyPct;
+            const remExcess = rawSafetyExcess - attributedSafetyPct;
+            safetyReviewMatchedFully =
+              rate !== null
+                ? remExcess < QR_MIN_JUMP_EXCESS_PCT
+                : remExcess < QR_COLD_START_JUMP_PCT;
+          }
+        }
+      }
       const detectedWithRate = rate !== null && excessPct >= QR_MIN_JUMP_EXCESS_PCT;
       const detectedColdStart =
         rate === null &&
@@ -2158,6 +2435,8 @@ export function createQuotaReservationTracker({ loadState = null, saveState = nu
       if (isPostRefundReplicaBounce) {
         st.lastBounceAtMs = nowMs;
         eventKind = 'replica_flip';
+      } else if (safetyReviewMatchedFully) {
+        eventKind = 'safety_review';
       } else if (allowForceExternal || isIdleExternalUsage) {
         const extAmt =
           allowForceExternal && excessPct > 0 ? excessPct : idleExternalAmt;
@@ -2223,9 +2502,10 @@ export function createQuotaReservationTracker({ loadState = null, saveState = nu
                   ? qrEstimateModelWeightedPct(st, safeModelCosts, safeCost, st.ratePctPerUsd)
                   : null;
               const remainingLeaseSum = qrSumLeases(st.activeLeases, { includeTentative: true });
+              const safetyReviewPct = Math.max(0, Number(st.safetyReviewUsedPct) || 0);
               const effectiveUnexplained =
                 effectiveLocalExp !== null
-                  ? Math.max(0, safeUsed - remainingLeaseSum - effectiveLocalExp)
+                  ? Math.max(0, safeUsed - remainingLeaseSum - safetyReviewPct - effectiveLocalExp)
                   : null;
               const leaseRejectTol = Math.max(
                 QR_EXTERNAL_SOLO_DRIFT_FLOOR_PCT,
@@ -2265,18 +2545,33 @@ export function createQuotaReservationTracker({ loadState = null, saveState = nu
         if (suspiciousExternalInflation) {
           skipSlopeUpdate = true;
         }
+        const isCleanSampleMagnitude =
+          deltaOfficial < QR_MIN_JUMP_EXCESS_PCT ||
+          (rate !== null &&
+            Array.isArray(st.rateWindow) &&
+            st.rateWindow.length >= 1 &&
+            excessPct < QR_MIN_JUMP_EXCESS_PCT &&
+            deltaOfficial < 2.5);
+        const hasNonAbsorbingConfirmedLeases =
+          st.activeLeases.length > 0 &&
+          st.activeLeases.every((l) => l.confirmed && !l.tentative) &&
+          rate !== null &&
+          expectedDeltaPct >= 0.08 &&
+          deltaOfficial >= expectedDeltaPct * 0.9 &&
+          deltaOfficial <= expectedDeltaPct * 1.12 &&
+          Math.abs(excessPct) < 0.05;
         if (
           !rejectedLease &&
           !suspiciousExternalInflation &&
-          st.activeLeases.length === 0 &&
+          (st.activeLeases.length === 0 || hasNonAbsorbingConfirmedLeases) &&
           outsideBounceCooldown &&
           !pendingValid &&
           rawDeltaCost >= 0.04 &&
           deltaUnpriced === 0 &&
           deltaOfficial > 0.005 &&
-          deltaOfficial < QR_MIN_JUMP_EXCESS_PCT
+          isCleanSampleMagnitude
         ) {
-          // 纯净未租约且无近期副本抖动的单步消耗：进入滚动中位数费率校准池；纯单模型步同步校准该模型费率
+          // 纯净未租约（或已证实租约未发生吸收）且无近期副本抖动的单步消耗：进入滚动中位数费率校准池；纯单模型步同步校准该模型费率
           qrRecordRateSample(st, deltaOfficial / rawDeltaCost, {
             blockUpwardDriftReset: externalActiveRecently,
           });
@@ -2440,6 +2735,8 @@ export function createQuotaReservationTracker({ loadState = null, saveState = nu
         hasRunningLocalSession,
         suppressIdleExternal,
         peerHasExternalUsage,
+        observedCycleSafetyPct,
+        observedSafetyLatestMs,
       }
     );
     const netLocalUsed = qrComputeNetLocalUsedPct(st, safeUsed);
@@ -2474,6 +2771,7 @@ export function createQuotaReservationTracker({ loadState = null, saveState = nu
     runningPoolKeys = null,
     hasUnknownRunningPool = false,
     localScanIncomplete = false,
+    safetyMonitor = null,
     quotaFetchedAtMs = 0,
     nowMs = Date.now(),
   } = {}) {
@@ -2519,6 +2817,36 @@ export function createQuotaReservationTracker({ loadState = null, saveState = nu
 
         const prev5hSt = buckets.get(key5h) || null;
         const prevWkSt = buckets.get(keyWk) || null;
+        const isSafetyPool = Boolean(
+          safetyMonitor && qrIsSafetyReviewEligiblePool(poolKey, poolObj)
+        );
+        const unmatchedHeavy5h = isSafetyPool
+          ? qrCollectUnmatchedHeavySafetyEvents(prev5hSt, safetyMonitor, quotaFetchedAtMs, nowMs)
+          : { count: 0, latestTsMs: 0, totalChars: 0 };
+        const unmatchedHeavyWk = isSafetyPool
+          ? qrCollectUnmatchedHeavySafetyEvents(prevWkSt, safetyMonitor, quotaFetchedAtMs, nowMs)
+          : { count: 0, latestTsMs: 0, totalChars: 0 };
+        const obsSafety5h = isSafetyPool
+          ? qrComputeObservedCycleSafetyPct(
+              prev5hSt,
+              safetyMonitor,
+              '5h',
+              reset5hMs,
+              nowMs,
+              prev5hSt?.ratePctPerUsd
+            )
+          : { estPct: 0, latestEventMs: 0, heavyCalls: 0 };
+        const obsSafetyWk = isSafetyPool
+          ? qrComputeObservedCycleSafetyPct(
+              prevWkSt,
+              safetyMonitor,
+              'weekly',
+              resetWkMs,
+              nowMs,
+              prevWkSt?.ratePctPerUsd
+            )
+          : { estPct: 0, latestEventMs: 0, heavyCalls: 0 };
+
         const peerExtTs5h = Number(prevWkSt?.lastExternalUsageAtMs) || 0;
         const peerExtTsWk = Number(prev5hSt?.lastExternalUsageAtMs) || 0;
         const latestPoolExtTs = Math.max(peerExtTs5h, peerExtTsWk);
@@ -2528,8 +2856,11 @@ export function createQuotaReservationTracker({ loadState = null, saveState = nu
           nowMs - latestPoolExtTs <= QR_EXTERNAL_ACTIVE_WINDOW_MS;
 
         // 第 2 层：同一快照下 5h / 周限按已校准费率等比同涨 -> 判定为同一笔家庭组/外部真实消耗而非租约
+        // 若本机刚完成后台安全审查（如 gemini-4-hydrogen-sonar），抑制同涨误判，由单桶直接归入 safetyReviewUsedPct
+        const suppressProportionalForSafety =
+          isSafetyPool && (unmatchedHeavy5h.count > 0 || unmatchedHeavyWk.count > 0);
         const isProportionalExternal =
-          used5hExact !== null && usedWkExact !== null
+          !suppressProportionalForSafety && used5hExact !== null && usedWkExact !== null
             ? qrDetectProportionalExternalJump(
                 prev5hSt,
                 prevWkSt,
@@ -2604,6 +2935,9 @@ export function createQuotaReservationTracker({ loadState = null, saveState = nu
                 forceExternalJump: isProportionalExternal,
                 peerLastExternalUsageAtMs: peerExtTs5h,
                 peerHasExternalUsage: Boolean(prevWkSt?.hasExternalUsage),
+                unmatchedHeavySafety: unmatchedHeavy5h,
+                observedCycleSafetyPct: obsSafety5h.estPct,
+                observedSafetyLatestMs: obsSafety5h.latestEventMs,
                 nowMs,
               })
             : {
@@ -2611,6 +2945,7 @@ export function createQuotaReservationTracker({ loadState = null, saveState = nu
                 reservedLeaseCount: 0,
                 reservedExpiresAtMs: null,
                 externalUsedPct: 0,
+                safetyReviewUsedPct: 0,
               };
 
         const updated5hSt = used5hExact !== null ? buckets.get(key5h) || null : null;
@@ -2642,6 +2977,9 @@ export function createQuotaReservationTracker({ loadState = null, saveState = nu
                 forceExternalJump: isProportionalExternal,
                 peerLastExternalUsageAtMs: updated5hExtTs,
                 peerHasExternalUsage: Boolean(updated5hSt?.hasExternalUsage),
+                unmatchedHeavySafety: unmatchedHeavyWk,
+                observedCycleSafetyPct: obsSafetyWk.estPct,
+                observedSafetyLatestMs: obsSafetyWk.latestEventMs,
                 nowMs,
               })
             : {
@@ -2649,6 +2987,7 @@ export function createQuotaReservationTracker({ loadState = null, saveState = nu
                 reservedLeaseCount: 0,
                 reservedExpiresAtMs: null,
                 externalUsedPct: 0,
+                safetyReviewUsedPct: 0,
               };
 
         // 对称补齐：若周限在本轮确认空闲外部消耗，而 5h 因单桶微增暂存在 idleUnexplainedAccumPct 中，同步记入 5h 非自用
@@ -2682,6 +3021,8 @@ export function createQuotaReservationTracker({ loadState = null, saveState = nu
               hasRunningLocalSession,
               suppressIdleExternal: isFiveHOnlyServerLease,
               peerHasExternalUsage: Boolean(stWkNow?.hasExternalUsage),
+              observedCycleSafetyPct: obsSafety5h.estPct,
+              observedSafetyLatestMs: obsSafety5h.latestEventMs,
             }
           );
           res5h = qrFormatOutput(st5hNow, used5hExact);
@@ -2692,10 +3033,12 @@ export function createQuotaReservationTracker({ loadState = null, saveState = nu
         poolObj.reservedLeaseCount = res5h.reservedLeaseCount;
         poolObj.reservedExpiresAtMs = res5h.reservedExpiresAtMs;
         poolObj.externalUsedPct = res5h.externalUsedPct;
+        poolObj.safetyReviewUsedPct = res5h.safetyReviewUsedPct;
         poolObj.weeklyReservedPct = resWk.reservedPct;
         poolObj.weeklyReservedLeaseCount = resWk.reservedLeaseCount;
         poolObj.weeklyReservedExpiresAtMs = resWk.reservedExpiresAtMs;
         poolObj.weeklyExternalUsedPct = resWk.externalUsedPct;
+        poolObj.weeklySafetyReviewUsedPct = resWk.safetyReviewUsedPct;
         poolObj.rateEstimate = qrBuildPoolRateEstimate(st5hNow, stWkNow, nowMs, {
           out5h: res5h,
           outWk: resWk,
@@ -2741,6 +3084,12 @@ export function createQuotaReservationTracker({ loadState = null, saveState = nu
               hasExternalUsage: true,
               externalUsedPct: out.externalUsedPct,
               externalEvents: Number(st.externalEvents) || 0,
+            }
+          : {}),
+        ...(out.safetyReviewUsedPct > 0 || (Number(st.safetyReviewEvents) || 0) > 0
+          ? {
+              safetyReviewUsedPct: out.safetyReviewUsedPct,
+              safetyReviewEvents: Number(st.safetyReviewEvents) || 0,
             }
           : {}),
         ...(Object.keys(byModel).length > 0 ? { byModel } : {}),

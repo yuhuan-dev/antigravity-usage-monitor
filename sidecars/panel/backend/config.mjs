@@ -231,6 +231,7 @@ export const REMOTE_CATALOG_CACHE_FILE = join(DATA_DIR, 'remote_pricing_cache.js
 export const FX_RATES_CACHE_FILE = join(DATA_DIR, 'fx_rates_cache.json');
 export const CLI_STATUS_SNAPSHOT_FILE = join(DATA_DIR, 'cli-status-snapshot.json');
 export const QUOTA_RESERVATION_STATE_FILE = join(DATA_DIR, 'quota_reservation_state.json');
+export const SAFETY_MONITOR_STATE_FILE = join(DATA_DIR, 'safety_monitor_state.json');
 export const ACCOUNT_QUOTA_HISTORY_FILE = join(DATA_DIR, 'account_quota_history.json');
 
 /**
