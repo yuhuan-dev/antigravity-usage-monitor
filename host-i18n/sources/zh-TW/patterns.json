@@ -4811,6 +4811,324 @@
       "flags": "",
       "replace": "選擇模型，目前：$1。$2",
       "hint": "Select model, current:"
+    },
+    {
+      "source": "^(\\d+) posts?$",
+      "flags": "",
+      "replace": "$1 則訊息",
+      "hint": "post"
+    },
+    {
+      "source": "^(\\d+) members?$",
+      "flags": "",
+      "replace": "$1 位成員",
+      "hint": "member"
+    },
+    {
+      "source": "^(\\d+) frames?$",
+      "flags": "",
+      "replace": "$1 幀",
+      "hint": "frame"
+    },
+    {
+      "source": "^(\\d+) bees?$",
+      "flags": "",
+      "replace": "$1 隻工蜂",
+      "hint": "bee"
+    },
+    {
+      "source": "^(\\d+) threads?$",
+      "flags": "",
+      "replace": "$1 條工作線",
+      "hint": "thread"
+    },
+    {
+      "source": "^(\\d+) of (\\d+) tasks done$",
+      "flags": "",
+      "replace": "已完成 $1 / $2 項任務",
+      "hint": "tasks done"
+    },
+    {
+      "source": "^(\\d+) of (\\d+) done$",
+      "flags": "",
+      "replace": "已完成 $1 / $2",
+      "hint": "done"
+    },
+    {
+      "source": "^(\\d+) of (\\d+)$",
+      "flags": "",
+      "replace": "$1 / $2",
+      "hint": "of"
+    },
+    {
+      "source": "^Waiting on (\\d+)$",
+      "flags": "",
+      "replace": "等待 $1 項",
+      "hint": "Waiting on"
+    },
+    {
+      "source": "^Working for @([A-Za-z0-9_.-]+)$",
+      "flags": "",
+      "replace": "正為 @$1 處理",
+      "hint": "Working for @"
+    },
+    {
+      "source": "^(\\d+) waiting on @([A-Za-z0-9_.-]+)$",
+      "flags": "",
+      "replace": "$1 項正在等待 @$2",
+      "hint": "waiting on @"
+    },
+    {
+      "source": "^(\\d+) needs? you$",
+      "flags": "",
+      "replace": "$1 項需要您處理",
+      "hint": "you"
+    },
+    {
+      "source": "^(\\d+) in review$",
+      "flags": "",
+      "replace": "$1 項評審中",
+      "hint": "in review"
+    },
+    {
+      "source": "^(\\d+) threads? open$",
+      "flags": "",
+      "replace": "$1 條工作線進行中",
+      "hint": "open"
+    },
+    {
+      "source": "^(\\d+) active$",
+      "flags": "",
+      "replace": "$1 活躍",
+      "hint": "active"
+    },
+    {
+      "source": "^(\\d+) stuck$",
+      "flags": "",
+      "replace": "$1 卡住",
+      "hint": "stuck"
+    },
+    {
+      "source": "^(\\d+) working$",
+      "flags": "",
+      "replace": "$1 處理中",
+      "hint": "working"
+    },
+    {
+      "source": "^(\\d+) waiting$",
+      "flags": "",
+      "replace": "$1 等待中",
+      "hint": "waiting"
+    },
+    {
+      "source": "^(\\d+) done$",
+      "flags": "",
+      "replace": "$1 已完成",
+      "hint": "done"
+    },
+    {
+      "source": "^Up next · (\\d+)$",
+      "flags": "",
+      "replace": "待辦 · $1",
+      "hint": "Up next"
+    },
+    {
+      "source": "^@([^\\s]+) ran out of quota$",
+      "flags": "",
+      "replace": "@$1 配額已耗盡",
+      "hint": "ran out of quota"
+    },
+    {
+      "source": "^@([^\\s]+) looks stuck$",
+      "flags": "",
+      "replace": "@$1 似乎卡住了",
+      "hint": "looks stuck"
+    },
+    {
+      "source": "^@([^\\s]+) hit an error$",
+      "flags": "",
+      "replace": "@$1 發生錯誤",
+      "hint": "hit an error"
+    },
+    {
+      "source": "^From @([A-Za-z0-9_.-]+)$",
+      "flags": "",
+      "replace": "來自 @$1",
+      "hint": "From @"
+    },
+    {
+      "source": "^To @([A-Za-z0-9_.-]+)$",
+      "flags": "",
+      "replace": "傳給 @$1",
+      "hint": "To @"
+    },
+    {
+      "source": "^Go to #(\\d+) on the Board$",
+      "flags": "",
+      "replace": "跳轉至訊息板 #$1",
+      "hint": "on the Board"
+    },
+    {
+      "source": "^Go to #(\\d+) \\((.+?)\\)$",
+      "flags": "",
+      "replace": "跳轉至 #$1（$2）",
+      "hint": "Go to #"
+    },
+    {
+      "source": "^Go to #(\\d+)$",
+      "flags": "",
+      "replace": "跳轉至 #$1",
+      "hint": "Go to #"
+    },
+    {
+      "source": "^Posted in #([a-z0-9-]+); click to show only #([a-z0-9-]+)$",
+      "flags": "",
+      "replace": "發佈於 #$1；點擊僅顯示 #$2",
+      "hint": "Posted in #"
+    },
+    {
+      "source": "^Everyone in #([a-z0-9-]+)$",
+      "flags": "",
+      "replace": "#$1 中的全體成員",
+      "hint": "Everyone in #"
+    },
+    {
+      "source": "^#([a-z0-9-]+) is archived: this addresses nobody$",
+      "flags": "",
+      "replace": "#$1 已封存：此訊息不會通知任何人",
+      "hint": "is archived"
+    },
+    {
+      "source": "^Loading earlier posts… \\((\\d+) older\\)$",
+      "flags": "",
+      "replace": "正在載入較早的訊息…（還有 $1 則較早）",
+      "hint": "Loading earlier posts"
+    },
+    {
+      "source": "^Loading (\\d+) earlier posts?\\.$",
+      "flags": "",
+      "replace": "正在載入 $1 則較早的訊息。",
+      "hint": "earlier post"
+    },
+    {
+      "source": "^(\\d+) earlier posts? could not be loaded\\.$",
+      "flags": "",
+      "replace": "有 $1 則較早的訊息無法載入。",
+      "hint": "could not be loaded"
+    },
+    {
+      "source": "^Show (\\d+) earlier posts? \\((\\d+) older\\)$",
+      "flags": "",
+      "replace": "顯示 $1 則較早的訊息（還有 $2 則較早）",
+      "hint": "earlier post"
+    },
+    {
+      "source": "^Retry loading (\\d+) earlier posts?$",
+      "flags": "",
+      "replace": "重試載入 $1 則較早的訊息",
+      "hint": "Retry loading"
+    },
+    {
+      "source": "^Exporting (\\d+)%$",
+      "flags": "",
+      "replace": "正在匯出 $1%",
+      "hint": "Exporting"
+    },
+    {
+      "source": "^Exporting (.+?)…$",
+      "flags": "",
+      "replace": "正在匯出 $1…",
+      "hint": "Exporting"
+    },
+    {
+      "source": "^Rendering (.+?)…$",
+      "flags": "",
+      "replace": "正在轉譯 $1…",
+      "hint": "Rendering"
+    },
+    {
+      "source": "^Exported (.+?) \\((.+?)\\)$",
+      "flags": "",
+      "replace": "已匯出 $1（$2）",
+      "hint": "Exported"
+    },
+    {
+      "source": "^Download (.+?\\.gif)$",
+      "flags": "",
+      "replace": "下載 $1",
+      "hint": "Download"
+    },
+    {
+      "source": "^GIF ready \\((.+?)\\) — right-click image to save\\.$",
+      "flags": "",
+      "replace": "GIF 已就緒（$1）— 右鍵點擊圖片即可儲存。",
+      "hint": "GIF ready ("
+    },
+    {
+      "source": "^The narrator's last step failed:\\s*(.+?)$",
+      "flags": "",
+      "replace": "旁白上一步失敗：$1",
+      "hint": "last step failed:"
+    },
+    {
+      "source": "^Narrator read up to #(\\d+) of (\\d+)$",
+      "flags": "",
+      "replace": "旁白已讀至 #$1 / $2",
+      "hint": "Narrator read up to #"
+    },
+    {
+      "source": "^read #(\\d+) · updated (.+?)$",
+      "flags": "",
+      "replace": "已讀 #$1 · 更新於 $2",
+      "hint": "· updated"
+    },
+    {
+      "source": "^read #(\\d+)$",
+      "flags": "",
+      "replace": "已讀 #$1",
+      "hint": "read #"
+    },
+    {
+      "source": "^(\\d+) posts? since the view was updated$",
+      "flags": "",
+      "replace": "自檢視更新以來新增 $1 則訊息",
+      "hint": "since the view was updated"
+    },
+    {
+      "source": "^Opening (.+?)'s conversation needs the app\\.$",
+      "flags": "",
+      "replace": "需要在桌面應用程式中開啟 $1 的對話。",
+      "hint": "conversation needs the app"
+    },
+    {
+      "source": "^(.+?) runs on (.+?); open it there\\.$",
+      "flags": "",
+      "replace": "$1 執行於 $2；請在該處開啟。",
+      "hint": "runs on"
+    },
+    {
+      "source": "^Runs on (.+?)$",
+      "flags": "",
+      "replace": "執行於 $1",
+      "hint": "Runs on"
+    },
+    {
+      "source": "^last seen (\\d+[smhd]) ago$",
+      "flags": "",
+      "replace": "最後活躍於 $1 前",
+      "hint": "last seen"
+    },
+    {
+      "source": "^over (\\d+[smhd](?: \\d+[smhd])?)$",
+      "flags": "",
+      "replace": "歷時 $1",
+      "hint": "over"
+    },
+    {
+      "source": "^of (\\d+)$",
+      "flags": "",
+      "replace": "/ $1",
+      "hint": "of"
     }
   ],
   "light": [
@@ -5587,6 +5905,12 @@
       "flags": "",
       "replace": "$1（Branch 更改）",
       "hint": "(branch changes)"
+    },
+    {
+      "source": "^Copied “(.+?)”\\. Paste it to the coordinator and say what you want changed\\.$",
+      "flags": "",
+      "replace": "已複製「$1」。請貼給 Coordinator 並說明想要修改的內容。",
+      "hint": "Paste it to the coordinator"
     }
   ],
   "deep": [
@@ -6363,6 +6687,12 @@
       "flags": "",
       "replace": "$1（分支更改）",
       "hint": "(branch changes)"
+    },
+    {
+      "source": "^Copied “(.+?)”\\. Paste it to the coordinator and say what you want changed\\.$",
+      "flags": "",
+      "replace": "已複製「$1」。請貼給協調者並說明想要修改的內容。",
+      "hint": "Paste it to the coordinator"
     }
   ]
 }

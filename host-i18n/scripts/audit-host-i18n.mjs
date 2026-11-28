@@ -24,7 +24,10 @@ import {
 } from './extract-host-strings.mjs';
 import { compileHostI18nRuntimePayload } from '../../sidecars/panel/backend/host-i18n/pack-manager.mjs';
 import { createHostI18nCollectExpression } from '../../sidecars/panel/backend/host-i18n/runtime-translator.mjs';
-import { resolveDevToolsPortCandidates } from '../../sidecars/panel/backend/window-bridge.mjs';
+import {
+  isSwarmBoardTarget,
+  resolveDevToolsPortCandidates,
+} from '../../sidecars/panel/backend/window-bridge.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 export const HOST_I18N_ROOT = resolve(__dirname, '..');
@@ -306,12 +309,22 @@ export async function scanLiveCdpUntranslated({ ignoreLists = { exact: new Set()
     const collectExpr = createHostI18nCollectExpression();
     for (const t of Array.isArray(targets) ? targets : []) {
       const url = String(t?.url || '');
-      const wsUrl = String(t?.webSocketDebuggerUrl || '');
+      const isSwarmTarget = isSwarmBoardTarget(t);
+      const rawWsUrl = String(t?.webSocketDebuggerUrl || '').trim();
+      const wsUrl =
+        rawWsUrl ||
+        (isSwarmTarget && t?.id
+          ? `ws://127.0.0.1:${port}/devtools/page/${encodeURIComponent(String(t.id))}`
+          : '');
       if (!wsUrl) continue;
       if (url.startsWith('vscode-file://') || url.includes('workbench.html') || url.startsWith('devtools://')) {
         continue;
       }
-      if (t.type !== 'page' && !(t.type === 'iframe' && url.includes('extensionView=true'))) {
+      if (
+        t.type !== 'page' &&
+        !(t.type === 'iframe' && url.includes('extensionView=true')) &&
+        !isSwarmTarget
+      ) {
         continue;
       }
       try {

@@ -4032,6 +4032,324 @@
       "source": "^Select model, current: (.+?)\\. (.+?)$",
       "replace": "モデルを選択、現在：$1。$2",
       "hint": "Select model, current:"
+    },
+    {
+      "source": "^(\\d+) posts?$",
+      "flags": "",
+      "replace": "$1 件の投稿",
+      "hint": "post"
+    },
+    {
+      "source": "^(\\d+) members?$",
+      "flags": "",
+      "replace": "$1 名のメンバー",
+      "hint": "member"
+    },
+    {
+      "source": "^(\\d+) frames?$",
+      "flags": "",
+      "replace": "$1 フレーム",
+      "hint": "frame"
+    },
+    {
+      "source": "^(\\d+) bees?$",
+      "flags": "",
+      "replace": "$1 体のワーカー",
+      "hint": "bee"
+    },
+    {
+      "source": "^(\\d+) threads?$",
+      "flags": "",
+      "replace": "$1 件のスレッド",
+      "hint": "thread"
+    },
+    {
+      "source": "^(\\d+) of (\\d+) tasks done$",
+      "flags": "",
+      "replace": "$2 件中 $1 件のタスク完了",
+      "hint": "tasks done"
+    },
+    {
+      "source": "^(\\d+) of (\\d+) done$",
+      "flags": "",
+      "replace": "$1 / $2 完了",
+      "hint": "done"
+    },
+    {
+      "source": "^(\\d+) of (\\d+)$",
+      "flags": "",
+      "replace": "$1 / $2",
+      "hint": "of"
+    },
+    {
+      "source": "^Waiting on (\\d+)$",
+      "flags": "",
+      "replace": "$1 件を待機中",
+      "hint": "Waiting on"
+    },
+    {
+      "source": "^Working for @([A-Za-z0-9_.-]+)$",
+      "flags": "",
+      "replace": "@$1 のため作業中",
+      "hint": "Working for @"
+    },
+    {
+      "source": "^(\\d+) waiting on @([A-Za-z0-9_.-]+)$",
+      "flags": "",
+      "replace": "$1 件が @$2 を待機中",
+      "hint": "waiting on @"
+    },
+    {
+      "source": "^(\\d+) needs? you$",
+      "flags": "",
+      "replace": "$1 件に対応が必要",
+      "hint": "you"
+    },
+    {
+      "source": "^(\\d+) in review$",
+      "flags": "",
+      "replace": "$1 件レビュー中",
+      "hint": "in review"
+    },
+    {
+      "source": "^(\\d+) threads? open$",
+      "flags": "",
+      "replace": "$1 件のスレッドが進行中",
+      "hint": "open"
+    },
+    {
+      "source": "^(\\d+) active$",
+      "flags": "",
+      "replace": "$1 アクティブ",
+      "hint": "active"
+    },
+    {
+      "source": "^(\\d+) stuck$",
+      "flags": "",
+      "replace": "$1 停滞中",
+      "hint": "stuck"
+    },
+    {
+      "source": "^(\\d+) working$",
+      "flags": "",
+      "replace": "$1 作業中",
+      "hint": "working"
+    },
+    {
+      "source": "^(\\d+) waiting$",
+      "flags": "",
+      "replace": "$1 待機中",
+      "hint": "waiting"
+    },
+    {
+      "source": "^(\\d+) done$",
+      "flags": "",
+      "replace": "$1 完了",
+      "hint": "done"
+    },
+    {
+      "source": "^Up next · (\\d+)$",
+      "flags": "",
+      "replace": "次の予定 · $1",
+      "hint": "Up next"
+    },
+    {
+      "source": "^@([^\\s]+) ran out of quota$",
+      "flags": "",
+      "replace": "@$1 のクォータが不足しています",
+      "hint": "ran out of quota"
+    },
+    {
+      "source": "^@([^\\s]+) looks stuck$",
+      "flags": "",
+      "replace": "@$1 が停滞しているようです",
+      "hint": "looks stuck"
+    },
+    {
+      "source": "^@([^\\s]+) hit an error$",
+      "flags": "",
+      "replace": "@$1 でエラーが発生しました",
+      "hint": "hit an error"
+    },
+    {
+      "source": "^From @([A-Za-z0-9_.-]+)$",
+      "flags": "",
+      "replace": "投稿者：@$1",
+      "hint": "From @"
+    },
+    {
+      "source": "^To @([A-Za-z0-9_.-]+)$",
+      "flags": "",
+      "replace": "宛先：@$1",
+      "hint": "To @"
+    },
+    {
+      "source": "^Go to #(\\d+) on the Board$",
+      "flags": "",
+      "replace": "ボードの #$1 へ移動",
+      "hint": "on the Board"
+    },
+    {
+      "source": "^Go to #(\\d+) \\((.+?)\\)$",
+      "flags": "",
+      "replace": "#$1（$2）へ移動",
+      "hint": "Go to #"
+    },
+    {
+      "source": "^Go to #(\\d+)$",
+      "flags": "",
+      "replace": "#$1 へ移動",
+      "hint": "Go to #"
+    },
+    {
+      "source": "^Posted in #([a-z0-9-]+); click to show only #([a-z0-9-]+)$",
+      "flags": "",
+      "replace": "#$1 に投稿済み（クリックで #$2 のみ表示）",
+      "hint": "Posted in #"
+    },
+    {
+      "source": "^Everyone in #([a-z0-9-]+)$",
+      "flags": "",
+      "replace": "#$1 の全員",
+      "hint": "Everyone in #"
+    },
+    {
+      "source": "^#([a-z0-9-]+) is archived: this addresses nobody$",
+      "flags": "",
+      "replace": "#$1 はアーカイブ済みのため誰にも届きません",
+      "hint": "is archived"
+    },
+    {
+      "source": "^Loading earlier posts… \\((\\d+) older\\)$",
+      "flags": "",
+      "replace": "過去の投稿を読み込み中…（残り $1 件）",
+      "hint": "Loading earlier posts"
+    },
+    {
+      "source": "^Loading (\\d+) earlier posts?\\.$",
+      "flags": "",
+      "replace": "過去の投稿 $1 件を読み込んでいます。",
+      "hint": "earlier post"
+    },
+    {
+      "source": "^(\\d+) earlier posts? could not be loaded\\.$",
+      "flags": "",
+      "replace": "過去の投稿 $1 件を読み込めませんでした。",
+      "hint": "could not be loaded"
+    },
+    {
+      "source": "^Show (\\d+) earlier posts? \\((\\d+) older\\)$",
+      "flags": "",
+      "replace": "過去の投稿 $1 件を表示（さらに $2 件）",
+      "hint": "earlier post"
+    },
+    {
+      "source": "^Retry loading (\\d+) earlier posts?$",
+      "flags": "",
+      "replace": "過去の投稿 $1 件を再読み込み",
+      "hint": "Retry loading"
+    },
+    {
+      "source": "^Exporting (\\d+)%$",
+      "flags": "",
+      "replace": "書き出し中 $1%",
+      "hint": "Exporting"
+    },
+    {
+      "source": "^Exporting (.+?)…$",
+      "flags": "",
+      "replace": "$1 を書き出し中…",
+      "hint": "Exporting"
+    },
+    {
+      "source": "^Rendering (.+?)…$",
+      "flags": "",
+      "replace": "$1 をレンダリング中…",
+      "hint": "Rendering"
+    },
+    {
+      "source": "^Exported (.+?) \\((.+?)\\)$",
+      "flags": "",
+      "replace": "$1 を書き出しました（$2）",
+      "hint": "Exported"
+    },
+    {
+      "source": "^Download (.+?\\.gif)$",
+      "flags": "",
+      "replace": "$1 をダウンロード",
+      "hint": "Download"
+    },
+    {
+      "source": "^GIF ready \\((.+?)\\) — right-click image to save\\.$",
+      "flags": "",
+      "replace": "GIF 準備完了（$1）— 画像を右クリックして保存してください。",
+      "hint": "GIF ready ("
+    },
+    {
+      "source": "^The narrator's last step failed:\\s*(.+?)$",
+      "flags": "",
+      "replace": "ナレーターの直前ステップが失敗しました：$1",
+      "hint": "last step failed:"
+    },
+    {
+      "source": "^Narrator read up to #(\\d+) of (\\d+)$",
+      "flags": "",
+      "replace": "ナレーターは #$1 / $2 まで既読",
+      "hint": "Narrator read up to #"
+    },
+    {
+      "source": "^read #(\\d+) · updated (.+?)$",
+      "flags": "",
+      "replace": "#$1 既読 · $2 に更新",
+      "hint": "· updated"
+    },
+    {
+      "source": "^read #(\\d+)$",
+      "flags": "",
+      "replace": "#$1 既読",
+      "hint": "read #"
+    },
+    {
+      "source": "^(\\d+) posts? since the view was updated$",
+      "flags": "",
+      "replace": "ビュー更新後に $1 件の新規投稿",
+      "hint": "since the view was updated"
+    },
+    {
+      "source": "^Opening (.+?)'s conversation needs the app\\.$",
+      "flags": "",
+      "replace": "$1 の会話を開くにはアプリが必要です。",
+      "hint": "conversation needs the app"
+    },
+    {
+      "source": "^(.+?) runs on (.+?); open it there\\.$",
+      "flags": "",
+      "replace": "$1 は $2 で実行中です。そちらで開いてください。",
+      "hint": "runs on"
+    },
+    {
+      "source": "^Runs on (.+?)$",
+      "flags": "",
+      "replace": "$1 で実行中",
+      "hint": "Runs on"
+    },
+    {
+      "source": "^last seen (\\d+[smhd]) ago$",
+      "flags": "",
+      "replace": "最終確認 $1 前",
+      "hint": "last seen"
+    },
+    {
+      "source": "^over (\\d+[smhd](?: \\d+[smhd])?)$",
+      "flags": "",
+      "replace": "経過 $1",
+      "hint": "over"
+    },
+    {
+      "source": "^of (\\d+)$",
+      "flags": "",
+      "replace": "/ $1",
+      "hint": "of"
     }
   ],
   "light": [
@@ -4683,6 +5001,12 @@
       "source": "^(.+?) \\(branch changes\\)$",
       "replace": "$1（Branch変更）",
       "hint": "(branch changes)"
+    },
+    {
+      "source": "^Copied “(.+?)”\\. Paste it to the coordinator and say what you want changed\\.$",
+      "flags": "",
+      "replace": "「$1」をコピーしました。Coordinator に貼り付けて変更したい内容を伝えてください。",
+      "hint": "Paste it to the coordinator"
     }
   ],
   "deep": [
@@ -5334,6 +5658,12 @@
       "source": "^(.+?) \\(branch changes\\)$",
       "replace": "$1（ブランチ変更）",
       "hint": "(branch changes)"
+    },
+    {
+      "source": "^Copied “(.+?)”\\. Paste it to the coordinator and say what you want changed\\.$",
+      "flags": "",
+      "replace": "「$1」をコピーしました。コーディネーターに貼り付けて変更したい内容を伝えてください。",
+      "hint": "Paste it to the coordinator"
     }
   ]
 }

@@ -4032,6 +4032,324 @@
       "source": "^Select model, current: (.+?)\\. (.+?)$",
       "replace": "모델 선택, 현재: $1. $2",
       "hint": "Select model, current:"
+    },
+    {
+      "source": "^(\\d+) posts?$",
+      "flags": "",
+      "replace": "게시물 $1개",
+      "hint": "post"
+    },
+    {
+      "source": "^(\\d+) members?$",
+      "flags": "",
+      "replace": "구성원 $1명",
+      "hint": "member"
+    },
+    {
+      "source": "^(\\d+) frames?$",
+      "flags": "",
+      "replace": "$1프레임",
+      "hint": "frame"
+    },
+    {
+      "source": "^(\\d+) bees?$",
+      "flags": "",
+      "replace": "워커 $1명",
+      "hint": "bee"
+    },
+    {
+      "source": "^(\\d+) threads?$",
+      "flags": "",
+      "replace": "스레드 $1개",
+      "hint": "thread"
+    },
+    {
+      "source": "^(\\d+) of (\\d+) tasks done$",
+      "flags": "",
+      "replace": "작업 $2개 중 $1개 완료",
+      "hint": "tasks done"
+    },
+    {
+      "source": "^(\\d+) of (\\d+) done$",
+      "flags": "",
+      "replace": "$1 / $2 완료",
+      "hint": "done"
+    },
+    {
+      "source": "^(\\d+) of (\\d+)$",
+      "flags": "",
+      "replace": "$1 / $2",
+      "hint": "of"
+    },
+    {
+      "source": "^Waiting on (\\d+)$",
+      "flags": "",
+      "replace": "$1개 대기 중",
+      "hint": "Waiting on"
+    },
+    {
+      "source": "^Working for @([A-Za-z0-9_.-]+)$",
+      "flags": "",
+      "replace": "@$1을(를) 위해 작업 중",
+      "hint": "Working for @"
+    },
+    {
+      "source": "^(\\d+) waiting on @([A-Za-z0-9_.-]+)$",
+      "flags": "",
+      "replace": "$1개가 @$2 대기 중",
+      "hint": "waiting on @"
+    },
+    {
+      "source": "^(\\d+) needs? you$",
+      "flags": "",
+      "replace": "$1개 확인 필요",
+      "hint": "you"
+    },
+    {
+      "source": "^(\\d+) in review$",
+      "flags": "",
+      "replace": "$1개 검토 중",
+      "hint": "in review"
+    },
+    {
+      "source": "^(\\d+) threads? open$",
+      "flags": "",
+      "replace": "진행 중인 스레드 $1개",
+      "hint": "open"
+    },
+    {
+      "source": "^(\\d+) active$",
+      "flags": "",
+      "replace": "$1 활성",
+      "hint": "active"
+    },
+    {
+      "source": "^(\\d+) stuck$",
+      "flags": "",
+      "replace": "$1 멈춤",
+      "hint": "stuck"
+    },
+    {
+      "source": "^(\\d+) working$",
+      "flags": "",
+      "replace": "$1 작업 중",
+      "hint": "working"
+    },
+    {
+      "source": "^(\\d+) waiting$",
+      "flags": "",
+      "replace": "$1 대기 중",
+      "hint": "waiting"
+    },
+    {
+      "source": "^(\\d+) done$",
+      "flags": "",
+      "replace": "$1 완료",
+      "hint": "done"
+    },
+    {
+      "source": "^Up next · (\\d+)$",
+      "flags": "",
+      "replace": "다음 예정 · $1",
+      "hint": "Up next"
+    },
+    {
+      "source": "^@([^\\s]+) ran out of quota$",
+      "flags": "",
+      "replace": "@$1의 할당량이 소진되었습니다",
+      "hint": "ran out of quota"
+    },
+    {
+      "source": "^@([^\\s]+) looks stuck$",
+      "flags": "",
+      "replace": "@$1이(가) 멈춘 것 같습니다",
+      "hint": "looks stuck"
+    },
+    {
+      "source": "^@([^\\s]+) hit an error$",
+      "flags": "",
+      "replace": "@$1에서 오류가 발생했습니다",
+      "hint": "hit an error"
+    },
+    {
+      "source": "^From @([A-Za-z0-9_.-]+)$",
+      "flags": "",
+      "replace": "작성자: @$1",
+      "hint": "From @"
+    },
+    {
+      "source": "^To @([A-Za-z0-9_.-]+)$",
+      "flags": "",
+      "replace": "수신자: @$1",
+      "hint": "To @"
+    },
+    {
+      "source": "^Go to #(\\d+) on the Board$",
+      "flags": "",
+      "replace": "보드 #$1(으)로 이동",
+      "hint": "on the Board"
+    },
+    {
+      "source": "^Go to #(\\d+) \\((.+?)\\)$",
+      "flags": "",
+      "replace": "#$1($2)(으)로 이동",
+      "hint": "Go to #"
+    },
+    {
+      "source": "^Go to #(\\d+)$",
+      "flags": "",
+      "replace": "#$1(으)로 이동",
+      "hint": "Go to #"
+    },
+    {
+      "source": "^Posted in #([a-z0-9-]+); click to show only #([a-z0-9-]+)$",
+      "flags": "",
+      "replace": "#$1에 게시됨(클릭하여 #$2만 표시)",
+      "hint": "Posted in #"
+    },
+    {
+      "source": "^Everyone in #([a-z0-9-]+)$",
+      "flags": "",
+      "replace": "#$1 전체 구성원",
+      "hint": "Everyone in #"
+    },
+    {
+      "source": "^#([a-z0-9-]+) is archived: this addresses nobody$",
+      "flags": "",
+      "replace": "#$1 채널은 보관되어 아무에게도 전달되지 않습니다",
+      "hint": "is archived"
+    },
+    {
+      "source": "^Loading earlier posts… \\((\\d+) older\\)$",
+      "flags": "",
+      "replace": "이전 게시물 불러오는 중…($1개 더 있음)",
+      "hint": "Loading earlier posts"
+    },
+    {
+      "source": "^Loading (\\d+) earlier posts?\\.$",
+      "flags": "",
+      "replace": "이전 게시물 $1개를 불러오는 중입니다.",
+      "hint": "earlier post"
+    },
+    {
+      "source": "^(\\d+) earlier posts? could not be loaded\\.$",
+      "flags": "",
+      "replace": "이전 게시물 $1개를 불러오지 못했습니다.",
+      "hint": "could not be loaded"
+    },
+    {
+      "source": "^Show (\\d+) earlier posts? \\((\\d+) older\\)$",
+      "flags": "",
+      "replace": "이전 게시물 $1개 표시($2개 더 있음)",
+      "hint": "earlier post"
+    },
+    {
+      "source": "^Retry loading (\\d+) earlier posts?$",
+      "flags": "",
+      "replace": "이전 게시물 $1개 다시 불러오기",
+      "hint": "Retry loading"
+    },
+    {
+      "source": "^Exporting (\\d+)%$",
+      "flags": "",
+      "replace": "내보내는 중 $1%",
+      "hint": "Exporting"
+    },
+    {
+      "source": "^Exporting (.+?)…$",
+      "flags": "",
+      "replace": "$1 내보내는 중…",
+      "hint": "Exporting"
+    },
+    {
+      "source": "^Rendering (.+?)…$",
+      "flags": "",
+      "replace": "$1 렌더링 중…",
+      "hint": "Rendering"
+    },
+    {
+      "source": "^Exported (.+?) \\((.+?)\\)$",
+      "flags": "",
+      "replace": "$1 내보내기 완료 ($2)",
+      "hint": "Exported"
+    },
+    {
+      "source": "^Download (.+?\\.gif)$",
+      "flags": "",
+      "replace": "$1 다운로드",
+      "hint": "Download"
+    },
+    {
+      "source": "^GIF ready \\((.+?)\\) — right-click image to save\\.$",
+      "flags": "",
+      "replace": "GIF 준비 완료 ($1) — 이미지를 우클릭하여 저장하세요.",
+      "hint": "GIF ready ("
+    },
+    {
+      "source": "^The narrator's last step failed:\\s*(.+?)$",
+      "flags": "",
+      "replace": "내레이터의 마지막 단계 실패: $1",
+      "hint": "last step failed:"
+    },
+    {
+      "source": "^Narrator read up to #(\\d+) of (\\d+)$",
+      "flags": "",
+      "replace": "내레이터가 #$1 / $2까지 읽음",
+      "hint": "Narrator read up to #"
+    },
+    {
+      "source": "^read #(\\d+) · updated (.+?)$",
+      "flags": "",
+      "replace": "#$1 읽음 · $2 업데이트됨",
+      "hint": "· updated"
+    },
+    {
+      "source": "^read #(\\d+)$",
+      "flags": "",
+      "replace": "#$1 읽음",
+      "hint": "read #"
+    },
+    {
+      "source": "^(\\d+) posts? since the view was updated$",
+      "flags": "",
+      "replace": "보기 업데이트 이후 새 게시물 $1개",
+      "hint": "since the view was updated"
+    },
+    {
+      "source": "^Opening (.+?)'s conversation needs the app\\.$",
+      "flags": "",
+      "replace": "$1의 대화를 열려면 앱이 필요합니다.",
+      "hint": "conversation needs the app"
+    },
+    {
+      "source": "^(.+?) runs on (.+?); open it there\\.$",
+      "flags": "",
+      "replace": "$1은(는) $2에서 실행 중입니다. 그곳에서 여세요.",
+      "hint": "runs on"
+    },
+    {
+      "source": "^Runs on (.+?)$",
+      "flags": "",
+      "replace": "$1에서 실행 중",
+      "hint": "Runs on"
+    },
+    {
+      "source": "^last seen (\\d+[smhd]) ago$",
+      "flags": "",
+      "replace": "마지막 확인 $1 전",
+      "hint": "last seen"
+    },
+    {
+      "source": "^over (\\d+[smhd](?: \\d+[smhd])?)$",
+      "flags": "",
+      "replace": "$1 동안",
+      "hint": "over"
+    },
+    {
+      "source": "^of (\\d+)$",
+      "flags": "",
+      "replace": "/ $1",
+      "hint": "of"
     }
   ],
   "light": [
@@ -4683,6 +5001,12 @@
       "source": "^(.+?) \\(branch changes\\)$",
       "replace": "$1 (Branch 변경 사항)",
       "hint": "(branch changes)"
+    },
+    {
+      "source": "^Copied “(.+?)”\\. Paste it to the coordinator and say what you want changed\\.$",
+      "flags": "",
+      "replace": "“$1”을(를) 복사했습니다. Coordinator에게 붙여넣고 변경할 내용을 알려주세요.",
+      "hint": "Paste it to the coordinator"
     }
   ],
   "deep": [
@@ -5334,6 +5658,12 @@
       "source": "^(.+?) \\(branch changes\\)$",
       "replace": "$1 (브랜치 변경 사항)",
       "hint": "(branch changes)"
+    },
+    {
+      "source": "^Copied “(.+?)”\\. Paste it to the coordinator and say what you want changed\\.$",
+      "flags": "",
+      "replace": "“$1”을(를) 복사했습니다. 코디네이터에게 붙여넣고 변경할 내용을 알려주세요.",
+      "hint": "Paste it to the coordinator"
     }
   ]
 }

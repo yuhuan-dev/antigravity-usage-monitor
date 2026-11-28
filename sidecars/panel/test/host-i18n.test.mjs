@@ -39,7 +39,11 @@ import {
   createHostI18nHeartbeatExpression,
 } from '../backend/host-i18n/runtime-translator.mjs';
 import { handleHostI18nPostAction } from '../backend/host-i18n/index.mjs';
-import { createWindowBridgeController } from '../backend/window-bridge.mjs';
+import {
+  collectSwarmBoardDebuggerUrls,
+  createWindowBridgeController,
+  isSwarmBoardTarget,
+} from '../backend/window-bridge.mjs';
 import { dispatchBridgeApiRequest } from '../backend/api-actions.mjs';
 
 const REPO_ROOT = resolve(fileURLToPath(new URL('../../..', import.meta.url)));
@@ -1518,6 +1522,426 @@ test('Issue #54: runtime translator and collector exempt AI replies (streaming w
     }
 
     win[HOST_I18N_GLOBAL_KEY].dispose();
+  } finally {
+    globalThis.window = prevWindow;
+    globalThis.document = prevDocument;
+  }
+});
+
+// ---------------------------------------------------------------------------
+// 7. Swarm collaboration board iframe discovery, isolation & DOM localization
+// ---------------------------------------------------------------------------
+
+test('isSwarmBoardTarget and collectSwarmBoardDebuggerUrls match only Swarm board iframes with loopback ws URLs', () => {
+  const swarmIframe = {
+    id: 'swarm-1',
+    type: 'iframe',
+    url: 'plugin://swarm--swarm_board-abc123/index.html',
+    webSocketDebuggerUrl: 'ws://127.0.0.1:9222/devtools/page/swarm-1',
+  };
+  const swarmWebviewNoWs = {
+    id: 'swarm-2',
+    type: 'webview',
+    url: 'plugin://swarm--swarm_board-xyz789/?conv=abc',
+  };
+  const swarmNonLoopbackWs = {
+    id: 'swarm-3',
+    type: 'iframe',
+    url: 'plugin://swarm--swarm_board-remote/',
+    webSocketDebuggerUrl: 'ws://10.0.0.5:9222/devtools/page/swarm-3',
+  };
+  const otherPluginIframe = {
+    id: 'other-plugin',
+    type: 'iframe',
+    url: 'plugin://usage-monitor--panel-1/index.html',
+    webSocketDebuggerUrl: 'ws://127.0.0.1:9222/devtools/page/other-plugin',
+  };
+  const swarmPageTarget = {
+    id: 'swarm-page',
+    type: 'page',
+    url: 'plugin://swarm--swarm_board-abc123/index.html',
+    webSocketDebuggerUrl: 'ws://127.0.0.1:9222/devtools/page/swarm-page',
+  };
+  const desktopPage = {
+    id: 'desktop-1',
+    type: 'page',
+    url: 'https://127.0.0.1:45123/c/11111111-1111-1111-1111-111111111111',
+    webSocketDebuggerUrl: 'ws://127.0.0.1:9222/devtools/page/desktop-1',
+  };
+
+  assert.equal(isSwarmBoardTarget(swarmIframe), true);
+  assert.equal(isSwarmBoardTarget(swarmWebviewNoWs), true);
+  assert.equal(isSwarmBoardTarget(otherPluginIframe), false);
+  assert.equal(isSwarmBoardTarget(swarmPageTarget), false);
+  assert.equal(isSwarmBoardTarget(desktopPage), false);
+  assert.equal(isSwarmBoardTarget(null), false);
+
+  const urls = collectSwarmBoardDebuggerUrls(
+    [swarmIframe, swarmIframe, swarmWebviewNoWs, swarmNonLoopbackWs, otherPluginIframe, desktopPage],
+    9222
+  );
+  assert.deepEqual(urls, [
+    'ws://127.0.0.1:9222/devtools/page/swarm-1',
+    'ws://127.0.0.1:9222/devtools/page/swarm-2',
+    'ws://127.0.0.1:9222/devtools/page/swarm-3',
+  ]);
+  // Without cdpPort, non-loopback wsUrl must not be returned
+  assert.deepEqual(collectSwarmBoardDebuggerUrls([swarmNonLoopbackWs], 0), []);
+});
+
+test('window-bridge injects Host I18n into Swarm board iframes with strict isolation from overlay/context hooks, supports collect & dispose', async (t) => {
+  const homeDir = createTempDir(t);
+  const devToolsDir = join(homeDir, 'AppData', 'Roaming', 'Antigravity');
+  mkdirSync(devToolsDir, { recursive: true });
+
+  const evaluatedByWs = new Map();
+  const pageAliveRevision = new Map();
+
+  const cdpServer = http.createServer((req, res) => {
+    if (req.url === '/json/list') {
+      const port = cdpServer.address().port;
+      const targets = [
+        {
+          id: 'desktop-main',
+          type: 'page',
+          title: 'Antigravity',
+          url: 'https://127.0.0.1:45123/c/11111111-1111-1111-1111-111111111111',
+          webSocketDebuggerUrl: `ws://127.0.0.1:${port}/devtools/page/desktop-main`,
+        },
+        {
+          id: 'swarm-board-1',
+          parentId: 'desktop-main',
+          type: 'iframe',
+          title: 'Swarm Board',
+          url: 'plugin://swarm--swarm_board-1/index.html',
+          webSocketDebuggerUrl: `ws://127.0.0.1:${port}/devtools/page/swarm-board-1`,
+        },
+        {
+          id: 'swarm-board-2',
+          parentId: 'desktop-main',
+          type: 'iframe',
+          title: 'Swarm Board (synthesized wsUrl)',
+          url: 'plugin://swarm--swarm_board-2/index.html',
+        },
+        {
+          id: 'unrelated-plugin',
+          parentId: 'desktop-main',
+          type: 'iframe',
+          title: 'Other Plugin',
+          url: 'plugin://other-vendor--widget-1/index.html',
+          webSocketDebuggerUrl: `ws://127.0.0.1:${port}/devtools/page/unrelated-plugin`,
+        },
+      ];
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(targets));
+      return;
+    }
+    res.writeHead(404);
+    res.end();
+  });
+
+  await new Promise((r) => cdpServer.listen(0, '127.0.0.1', r));
+  t.after(() => cdpServer.close());
+  const cdpPort = cdpServer.address().port;
+  writeFileSync(join(devToolsDir, 'DevToolsActivePort'), `${cdpPort}\n/devtools/browser/test\n`);
+
+  class FakeCdpWebSocket {
+    constructor(url) {
+      this.url = url;
+      this.listeners = new Map();
+      queueMicrotask(() => this._emit('open', {}));
+    }
+    addEventListener(type, fn) {
+      if (!this.listeners.has(type)) this.listeners.set(type, []);
+      this.listeners.get(type).push(fn);
+    }
+    _emit(type, ev) {
+      for (const fn of this.listeners.get(type) || []) fn(ev);
+    }
+    send(raw) {
+      const msg = JSON.parse(raw);
+      const expr = String(msg?.params?.expression || '');
+      if (!evaluatedByWs.has(this.url)) evaluatedByWs.set(this.url, []);
+      evaluatedByWs.get(this.url).push(expr);
+
+      let value = null;
+      if (expr.includes('collectUntranslatedHostUiInPage')) {
+        value = this.url.includes('swarm-board-1')
+          ? { count: 1, items: [{ text: 'Untranslated Swarm Label', kind: 'text', count: 1 }] }
+          : { count: 0, items: [] };
+      } else if (expr.includes('needsApply: true')) {
+        const revMatch = expr.match(/st\.revision !== ("[^"]+")/);
+        const rev = revMatch ? JSON.parse(revMatch[1]) : '';
+        value =
+          pageAliveRevision.get(this.url) === rev
+            ? { alive: true, needsApply: false, revision: rev, translatedCount: 5 }
+            : { alive: false, needsApply: true };
+      } else if (expr.includes('applyHostI18nInPage')) {
+        const revMatch = expr.match(/"revision":"([^"]+)"/);
+        if (revMatch) pageAliveRevision.set(this.url, revMatch[1]);
+        value = { applied: true, translatedCount: 5 };
+      } else if (expr.includes('disposed: true')) {
+        pageAliveRevision.delete(this.url);
+        value = { disposed: true };
+      } else if (expr.includes('OVERLAY_SENTINEL_SCRIPT')) {
+        value = true;
+      } else {
+        value = { origin: 'https://127.0.0.1:45123', title: 'Antigravity', csrfToken: '', appConfig: null };
+      }
+
+      queueMicrotask(() =>
+        this._emit('message', {
+          data: JSON.stringify({ id: msg.id, result: { result: { value } } }),
+        })
+      );
+    }
+    close() {
+      this._emit('close', {});
+    }
+  }
+
+  let active = true;
+  let payloadBuilds = 0;
+  const controller = createWindowBridgeController({
+    handleApiRequest: async () => ({ status: 200, body: '{}' }),
+    readAssetFn: async () => '/* OVERLAY_SENTINEL_SCRIPT */',
+    getSettingsFn: () => ({
+      windowMountMode: 'window',
+      enableWindowOverlay: true,
+      enableModelContextWindows: true,
+    }),
+    getBundleVersionFn: () => 'vtest',
+    env: { APPDATA: join(homeDir, 'AppData', 'Roaming') },
+    platform: 'win32',
+    homeDir,
+    autoConfigureIdeArgv: false,
+    WebSocketImpl: FakeCdpWebSocket,
+    getModelContextWindowsFn: () => ({ enabled: true, rules: { 'test-model': 200000 } }),
+    getHostI18nDescriptorFn: () =>
+      active
+        ? {
+            active: true,
+            locale: 'zh-CN',
+            depth: 'light',
+            revision: 'zh-CN:light:1.0.4:swarmtest',
+            getPayload: () => {
+              payloadBuilds += 1;
+              return {
+                locale: 'zh-CN',
+                depth: 'light',
+                revision: 'zh-CN:light:1.0.4:swarmtest',
+                exact: { 'Swarm views': 'Swarm 视图' },
+                patterns: [],
+              };
+            },
+          }
+        : { active: false, revision: '', getPayload: null },
+  });
+
+  await controller.syncAllWindows();
+
+  const desktopUrl = `ws://127.0.0.1:${cdpPort}/devtools/page/desktop-main`;
+  const swarmUrl1 = `ws://127.0.0.1:${cdpPort}/devtools/page/swarm-board-1`;
+  const swarmUrl2 = `ws://127.0.0.1:${cdpPort}/devtools/page/swarm-board-2`;
+  const otherPluginUrl = `ws://127.0.0.1:${cdpPort}/devtools/page/unrelated-plugin`;
+
+  assert.equal(payloadBuilds, 1, 'Payload must be built once and shared across Desktop + Swarm iframes');
+  assert.equal(controller.getBridgeStatus().hostI18nAppliedCount, 3);
+  assert.ok((evaluatedByWs.get(desktopUrl) || []).some((e) => e.includes('applyHostI18nInPage')));
+  assert.ok((evaluatedByWs.get(swarmUrl1) || []).some((e) => e.includes('applyHostI18nInPage')));
+  assert.ok((evaluatedByWs.get(swarmUrl2) || []).some((e) => e.includes('applyHostI18nInPage')));
+  assert.equal(evaluatedByWs.has(otherPluginUrl), false, 'Unrelated plugin iframe must never be touched');
+
+  // Strict isolation: Swarm board iframes must NEVER receive overlay or context-window hooks
+  for (const swarmUrl of [swarmUrl1, swarmUrl2]) {
+    const evals = evaluatedByWs.get(swarmUrl) || [];
+    assert.equal(
+      evals.some((e) => e.includes('OVERLAY_SENTINEL_SCRIPT') || e.includes('__AGUsageMonitorOverlay')),
+      false,
+      `Swarm iframe ${swarmUrl} must never receive Window Overlay injection`
+    );
+    assert.equal(
+      evals.some((e) => e.includes('__AGUsageMonitorContextWindows')),
+      false,
+      `Swarm iframe ${swarmUrl} must never receive Context Windows hook`
+    );
+  }
+
+  // Second tick: heartbeat only across all 3 targets
+  await controller.syncAllWindows();
+  assert.equal(payloadBuilds, 1, 'Heartbeat must not rebuild Host I18n payload');
+
+  // Collect untranslated strings includes Swarm iframes
+  const collected = await controller.collectHostI18nUntranslatedFromTargets();
+  assert.equal(collected.targets, 3);
+  assert.ok(collected.items.some((it) => it.text === 'Untranslated Swarm Label'));
+
+  // Disable Host I18n -> disposes Swarm iframes cleanly
+  active = false;
+  await controller.notifyHostI18nChanged();
+  assert.ok((evaluatedByWs.get(swarmUrl1) || []).some((e) => e.includes('disposed: true')));
+  assert.ok((evaluatedByWs.get(swarmUrl2) || []).some((e) => e.includes('disposed: true')));
+  assert.equal(controller.getBridgeStatus().hostI18nAppliedCount, 0);
+
+  // Re-enable and verify stop({ disposeWindows: true }) cleans up Swarm iframes with Host I18n dispose only
+  active = true;
+  await controller.notifyHostI18nChanged();
+  const swarm1CountBeforeStop = (evaluatedByWs.get(swarmUrl1) || []).length;
+  await controller.stop({ disposeWindows: true });
+  const swarm1AfterStop = (evaluatedByWs.get(swarmUrl1) || []).slice(swarm1CountBeforeStop);
+  assert.ok(
+    swarm1AfterStop.some((e) => e.includes('disposed: true')),
+    'stop({ disposeWindows: true }) must dispose Host I18n on Swarm iframes'
+  );
+  assert.equal(
+    swarm1AfterStop.some((e) => e.includes('__AGUsageMonitorOverlay')),
+    false,
+    'stop({ disposeWindows: true }) must only run Host I18n dispose on Swarm iframes'
+  );
+});
+
+test('runtime translator localizes Swarm board UI chrome in light/deep modes while protecting posts, titles, narrator content, and raw JSON', () => {
+  const { win, doc, body, MockElement, MockText } = createMockDom();
+  const zhPack = JSON.parse(
+    readFileSync(join(REAL_HOST_I18N_ROOT, 'dist', 'packs', 'zh-CN.json'), 'utf8')
+  );
+  const packHash = sha256(JSON.stringify(zhPack));
+  const lightPayload = compileHostI18nRuntimePayload(zhPack, 'light', packHash);
+  const deepPayload = compileHostI18nRuntimePayload(zhPack, 'deep', packHash);
+
+  const prevWindow = globalThis.window;
+  const prevDocument = globalThis.document;
+  try {
+    globalThis.window = win;
+    globalThis.document = doc;
+
+    // 1. Translatable Swarm UI chrome (tabs, narrator bar, overview, filters, replay, dynamic patterns)
+    const tabGraph = body.appendChild(new MockElement('button')).appendChild(new MockText('Graph'));
+    const tabHive = body.appendChild(new MockElement('button')).appendChild(new MockText('Hive'));
+    const statusStalled = body
+      .appendChild(new MockElement('span'))
+      .appendChild(new MockText('Swarm stalled — no agents working'));
+    const narratorNote = body
+      .appendChild(new MockElement('span'))
+      .appendChild(new MockText('overview · from the narrator’s notes'));
+    const coordBtn = body
+      .appendChild(new MockElement('button'))
+      .appendChild(new MockText('Open coordinator chat'));
+    const searchInput = body.appendChild(
+      new MockElement('input', { attrs: { placeholder: 'Search posts', 'aria-label': 'Search posts' } })
+    );
+    const btnShowMore = body
+      .appendChild(new MockElement('button', { className: 'msg-more' }))
+      .appendChild(new MockText('Show more'));
+    const dynTasks = body
+      .appendChild(new MockElement('span'))
+      .appendChild(new MockText('3 of 5 tasks done'));
+    const dynWaitingNum = body
+      .appendChild(new MockElement('span'))
+      .appendChild(new MockText('Waiting on 2'));
+    const dynWaitingMember = body
+      .appendChild(new MockElement('span'))
+      .appendChild(new MockText('Waiting on @worker-1'));
+    const dynJump = body
+      .appendChild(new MockElement('a', { attrs: { title: 'Go to #12 on the Board' } }));
+    const dynEarlier = body
+      .appendChild(new MockElement('button'))
+      .appendChild(new MockText('Show 20 earlier posts (40 older)'));
+    const dynCopied = body
+      .appendChild(new MockElement('div'))
+      .appendChild(new MockText('Copied “Goal”. Paste it to the coordinator and say what you want changed.'));
+
+    // 2. Protected Swarm user/agent/narrator content containers (MUST stay 100% untouched & uncollected)
+    const swarmTitle = body
+      .appendChild(new MockElement('h1', { className: 'swarm-title', attrs: { 'data-testid': 'swarm-title' } }))
+      .appendChild(new MockText('Overview Settings'));
+    const msgBody = body.appendChild(new MockElement('div', { className: 'msg-body' }));
+    const msgHeading = msgBody.appendChild(new MockElement('h2')).appendChild(new MockText('Overview'));
+    const msgBold = msgBody.appendChild(new MockElement('strong')).appendChild(new MockText('Done'));
+    const msgProse = msgBody
+      .appendChild(new MockElement('p'))
+      .appendChild(new MockText('SwarmPostSecretPhrase in agent markdown'));
+    const msgAuthor = body
+      .appendChild(new MockElement('span', { className: 'msg-author' }))
+      .appendChild(new MockText('@coordinator'));
+    const runTaskTitle = body
+      .appendChild(new MockElement('b', { className: 'o2-runt' }))
+      .appendChild(new MockText('Settings'));
+    const liveActivity = body
+      .appendChild(
+        new MockElement('p', {
+          className: 'o2-runnote o2-live',
+          attrs: { 'data-testid': 'swarm-running-activity' },
+        })
+      )
+      .appendChild(new MockText('Running'));
+    const rawPre = body
+      .appendChild(new MockElement('div', { className: 'raw', attrs: { 'data-testid': 'swarm-raw' } }))
+      .appendChild(new MockElement('pre', { className: 'raw-pre' }))
+      .appendChild(new MockText('{"status":"Running"}'));
+    const ovFrame = body
+      .appendChild(
+        new MockElement('div', { className: 'ov-frame', attrs: { 'data-testid': 'swarm-overview-frame' } })
+      )
+      .appendChild(new MockText('Overview'));
+
+    // Apply Light mode via isolated CDP expression
+    const lightExpr = createHostI18nApplyExpression(lightPayload, 'boot-swarm');
+    const lightRes = new Function(`return (${lightExpr});`)();
+    assert.equal(lightRes.applied, true);
+
+    // Light mode assertions
+    assert.equal(tabGraph.nodeValue, '关系图');
+    assert.equal(tabHive.nodeValue, '蜂巢');
+    assert.equal(statusStalled.nodeValue, 'Swarm 已停滞 — 当前无 Agent 在工作');
+    assert.equal(narratorNote.nodeValue, '概览 · 来自旁白笔记');
+    assert.equal(coordBtn.nodeValue, '打开 Coordinator 对话');
+    assert.equal(searchInput.getAttribute('placeholder'), '搜索消息');
+    assert.equal(searchInput.getAttribute('aria-label'), '搜索消息');
+    assert.equal(btnShowMore.nodeValue, '显示更多');
+    assert.equal(dynTasks.nodeValue, '已完成 3 / 5 项任务');
+    assert.equal(dynWaitingNum.nodeValue, '等待 2 项');
+    assert.equal(dynWaitingMember.nodeValue, '正在等待 @worker-1');
+    assert.equal(dynJump.getAttribute('title'), '跳转到消息板 #12');
+    assert.equal(dynEarlier.nodeValue, '显示 20 条更早的消息（还有 40 条更早）');
+    assert.equal(dynCopied.nodeValue, '已复制“Goal”。请粘贴给 Coordinator 并说明想要修改的内容。');
+
+    // Protected content stayed 100% untouched
+    assert.equal(swarmTitle.nodeValue, 'Overview Settings');
+    assert.equal(msgHeading.nodeValue, 'Overview');
+    assert.equal(msgBold.nodeValue, 'Done');
+    assert.equal(msgProse.nodeValue, 'SwarmPostSecretPhrase in agent markdown');
+    assert.equal(msgAuthor.nodeValue, '@coordinator');
+    assert.equal(runTaskTitle.nodeValue, 'Settings');
+    assert.equal(liveActivity.nodeValue, 'Running');
+    assert.equal(rawPre.nodeValue, '{"status":"Running"}');
+    assert.equal(ovFrame.nodeValue, 'Overview');
+
+    // Collector must NOT leak any protected Swarm content
+    const collectExpr = createHostI18nCollectExpression();
+    const collected = new Function(`return (${collectExpr});`)();
+    const collectedTexts = new Set(collected.items.map((item) => item.text));
+    assert.equal(collectedTexts.has('Overview Settings'), false);
+    assert.equal(collectedTexts.has('SwarmPostSecretPhrase in agent markdown'), false);
+
+    // Hot-switch to Deep mode: Swarm/Coordinator/Agent switch to 蜂群/协调者/智能体
+    const deepExpr = createHostI18nApplyExpression(deepPayload, 'boot-swarm');
+    const deepRes = new Function(`return (${deepExpr});`)();
+    assert.equal(deepRes.applied, true);
+    assert.equal(statusStalled.nodeValue, '蜂群已停滞 — 当前无智能体在工作');
+    assert.equal(coordBtn.nodeValue, '打开协调者对话');
+    assert.equal(dynCopied.nodeValue, '已复制“Goal”。请粘贴给协调者并说明想要修改的内容。');
+    assert.equal(msgHeading.nodeValue, 'Overview');
+
+    // Dispose cleanly restores all translated DOM back to original English
+    const disposeExpr = createHostI18nDisposeExpression();
+    const disposeRes = new Function(`return (${disposeExpr});`)();
+    assert.equal(disposeRes.disposed, true);
+    assert.equal(tabGraph.nodeValue, 'Graph');
+    assert.equal(statusStalled.nodeValue, 'Swarm stalled — no agents working');
+    assert.equal(coordBtn.nodeValue, 'Open coordinator chat');
+    assert.equal(searchInput.getAttribute('placeholder'), 'Search posts');
+    assert.equal(dynJump.getAttribute('title'), 'Go to #12 on the Board');
   } finally {
     globalThis.window = prevWindow;
     globalThis.document = prevDocument;

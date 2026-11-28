@@ -4293,6 +4293,324 @@
       "source": "^(.+?) \\(branch changes\\)$",
       "replace": "$1 (Zweig-Änderungen)",
       "hint": "(branch changes)"
+    },
+    {
+      "source": "^(\\d+) posts?$",
+      "flags": "",
+      "replace": "$1 Beiträge",
+      "hint": "post"
+    },
+    {
+      "source": "^(\\d+) members?$",
+      "flags": "",
+      "replace": "$1 Mitglieder",
+      "hint": "member"
+    },
+    {
+      "source": "^(\\d+) frames?$",
+      "flags": "",
+      "replace": "$1 Frames",
+      "hint": "frame"
+    },
+    {
+      "source": "^(\\d+) bees?$",
+      "flags": "",
+      "replace": "$1 Worker",
+      "hint": "bee"
+    },
+    {
+      "source": "^(\\d+) threads?$",
+      "flags": "",
+      "replace": "$1 Threads",
+      "hint": "thread"
+    },
+    {
+      "source": "^(\\d+) of (\\d+) tasks done$",
+      "flags": "",
+      "replace": "$1 von $2 Aufgaben erledigt",
+      "hint": "tasks done"
+    },
+    {
+      "source": "^(\\d+) of (\\d+) done$",
+      "flags": "",
+      "replace": "$1 von $2 erledigt",
+      "hint": "done"
+    },
+    {
+      "source": "^(\\d+) of (\\d+)$",
+      "flags": "",
+      "replace": "$1 von $2",
+      "hint": "of"
+    },
+    {
+      "source": "^Waiting on (\\d+)$",
+      "flags": "",
+      "replace": "Wartet auf $1",
+      "hint": "Waiting on"
+    },
+    {
+      "source": "^Working for @([A-Za-z0-9_.-]+)$",
+      "flags": "",
+      "replace": "Arbeitet für @$1",
+      "hint": "Working for @"
+    },
+    {
+      "source": "^(\\d+) waiting on @([A-Za-z0-9_.-]+)$",
+      "flags": "",
+      "replace": "$1 warten auf @$2",
+      "hint": "waiting on @"
+    },
+    {
+      "source": "^(\\d+) needs? you$",
+      "flags": "",
+      "replace": "$1 benötigen dich",
+      "hint": "you"
+    },
+    {
+      "source": "^(\\d+) in review$",
+      "flags": "",
+      "replace": "$1 in Prüfung",
+      "hint": "in review"
+    },
+    {
+      "source": "^(\\d+) threads? open$",
+      "flags": "",
+      "replace": "$1 Threads offen",
+      "hint": "open"
+    },
+    {
+      "source": "^(\\d+) active$",
+      "flags": "",
+      "replace": "$1 aktiv",
+      "hint": "active"
+    },
+    {
+      "source": "^(\\d+) stuck$",
+      "flags": "",
+      "replace": "$1 festgefahren",
+      "hint": "stuck"
+    },
+    {
+      "source": "^(\\d+) working$",
+      "flags": "",
+      "replace": "$1 in Arbeit",
+      "hint": "working"
+    },
+    {
+      "source": "^(\\d+) waiting$",
+      "flags": "",
+      "replace": "$1 wartend",
+      "hint": "waiting"
+    },
+    {
+      "source": "^(\\d+) done$",
+      "flags": "",
+      "replace": "$1 erledigt",
+      "hint": "done"
+    },
+    {
+      "source": "^Up next · (\\d+)$",
+      "flags": "",
+      "replace": "Als Nächstes · $1",
+      "hint": "Up next"
+    },
+    {
+      "source": "^@([^\\s]+) ran out of quota$",
+      "flags": "",
+      "replace": "@$1 hat kein Kontingent mehr",
+      "hint": "ran out of quota"
+    },
+    {
+      "source": "^@([^\\s]+) looks stuck$",
+      "flags": "",
+      "replace": "@$1 scheint festzustecken",
+      "hint": "looks stuck"
+    },
+    {
+      "source": "^@([^\\s]+) hit an error$",
+      "flags": "",
+      "replace": "@$1 hat einen Fehler gemeldet",
+      "hint": "hit an error"
+    },
+    {
+      "source": "^From @([A-Za-z0-9_.-]+)$",
+      "flags": "",
+      "replace": "Von @$1",
+      "hint": "From @"
+    },
+    {
+      "source": "^To @([A-Za-z0-9_.-]+)$",
+      "flags": "",
+      "replace": "An @$1",
+      "hint": "To @"
+    },
+    {
+      "source": "^Go to #(\\d+) on the Board$",
+      "flags": "",
+      "replace": "Zu #$1 im Board springen",
+      "hint": "on the Board"
+    },
+    {
+      "source": "^Go to #(\\d+) \\((.+?)\\)$",
+      "flags": "",
+      "replace": "Zu #$1 ($2) springen",
+      "hint": "Go to #"
+    },
+    {
+      "source": "^Go to #(\\d+)$",
+      "flags": "",
+      "replace": "Zu #$1 springen",
+      "hint": "Go to #"
+    },
+    {
+      "source": "^Posted in #([a-z0-9-]+); click to show only #([a-z0-9-]+)$",
+      "flags": "",
+      "replace": "In #$1 gepostet; klicken, um nur #$2 anzuzeigen",
+      "hint": "Posted in #"
+    },
+    {
+      "source": "^Everyone in #([a-z0-9-]+)$",
+      "flags": "",
+      "replace": "Alle in #$1",
+      "hint": "Everyone in #"
+    },
+    {
+      "source": "^#([a-z0-9-]+) is archived: this addresses nobody$",
+      "flags": "",
+      "replace": "#$1 ist archiviert: erreicht niemanden",
+      "hint": "is archived"
+    },
+    {
+      "source": "^Loading earlier posts… \\((\\d+) older\\)$",
+      "flags": "",
+      "replace": "Lade ältere Beiträge… ($1 ältere)",
+      "hint": "Loading earlier posts"
+    },
+    {
+      "source": "^Loading (\\d+) earlier posts?\\.$",
+      "flags": "",
+      "replace": "Lade $1 ältere Beiträge.",
+      "hint": "earlier post"
+    },
+    {
+      "source": "^(\\d+) earlier posts? could not be loaded\\.$",
+      "flags": "",
+      "replace": "$1 ältere Beiträge konnten nicht geladen werden.",
+      "hint": "could not be loaded"
+    },
+    {
+      "source": "^Show (\\d+) earlier posts? \\((\\d+) older\\)$",
+      "flags": "",
+      "replace": "$1 ältere Beiträge anzeigen ($2 ältere)",
+      "hint": "earlier post"
+    },
+    {
+      "source": "^Retry loading (\\d+) earlier posts?$",
+      "flags": "",
+      "replace": "$1 ältere Beiträge erneut laden",
+      "hint": "Retry loading"
+    },
+    {
+      "source": "^Exporting (\\d+)%$",
+      "flags": "",
+      "replace": "Exportiere $1 %",
+      "hint": "Exporting"
+    },
+    {
+      "source": "^Exporting (.+?)…$",
+      "flags": "",
+      "replace": "Exportiere $1…",
+      "hint": "Exporting"
+    },
+    {
+      "source": "^Rendering (.+?)…$",
+      "flags": "",
+      "replace": "Rendere $1…",
+      "hint": "Rendering"
+    },
+    {
+      "source": "^Exported (.+?) \\((.+?)\\)$",
+      "flags": "",
+      "replace": "$1 exportiert ($2)",
+      "hint": "Exported"
+    },
+    {
+      "source": "^Download (.+?\\.gif)$",
+      "flags": "",
+      "replace": "$1 herunterladen",
+      "hint": "Download"
+    },
+    {
+      "source": "^GIF ready \\((.+?)\\) — right-click image to save\\.$",
+      "flags": "",
+      "replace": "GIF bereit ($1) — Rechtsklick zum Speichern.",
+      "hint": "GIF ready ("
+    },
+    {
+      "source": "^The narrator's last step failed:\\s*(.+?)$",
+      "flags": "",
+      "replace": "Letzter Schritt des Erzählers fehlgeschlagen: $1",
+      "hint": "last step failed:"
+    },
+    {
+      "source": "^Narrator read up to #(\\d+) of (\\d+)$",
+      "flags": "",
+      "replace": "Erzähler hat bis #$1 von $2 gelesen",
+      "hint": "Narrator read up to #"
+    },
+    {
+      "source": "^read #(\\d+) · updated (.+?)$",
+      "flags": "",
+      "replace": "#$1 gelesen · aktualisiert vor $2",
+      "hint": "· updated"
+    },
+    {
+      "source": "^read #(\\d+)$",
+      "flags": "",
+      "replace": "#$1 gelesen",
+      "hint": "read #"
+    },
+    {
+      "source": "^(\\d+) posts? since the view was updated$",
+      "flags": "",
+      "replace": "$1 Beiträge seit der letzten Ansichtsaktualisierung",
+      "hint": "since the view was updated"
+    },
+    {
+      "source": "^Opening (.+?)'s conversation needs the app\\.$",
+      "flags": "",
+      "replace": "Zum Öffnen der Unterhaltung von $1 ist die App erforderlich.",
+      "hint": "conversation needs the app"
+    },
+    {
+      "source": "^(.+?) runs on (.+?); open it there\\.$",
+      "flags": "",
+      "replace": "$1 läuft auf $2; bitte dort öffnen.",
+      "hint": "runs on"
+    },
+    {
+      "source": "^Runs on (.+?)$",
+      "flags": "",
+      "replace": "Läuft auf $1",
+      "hint": "Runs on"
+    },
+    {
+      "source": "^last seen (\\d+[smhd]) ago$",
+      "flags": "",
+      "replace": "zuletzt gesehen vor $1",
+      "hint": "last seen"
+    },
+    {
+      "source": "^over (\\d+[smhd](?: \\d+[smhd])?)$",
+      "flags": "",
+      "replace": "über $1",
+      "hint": "over"
+    },
+    {
+      "source": "^of (\\d+)$",
+      "flags": "",
+      "replace": "von $1",
+      "hint": "of"
     }
   ],
   "light": [
@@ -4683,6 +5001,12 @@
       "source": "^Yes, save rule (.+?)$",
       "replace": "Ja, Rule $1 speichern",
       "hint": "Yes, save rule"
+    },
+    {
+      "source": "^Copied “(.+?)”\\. Paste it to the coordinator and say what you want changed\\.$",
+      "flags": "",
+      "replace": "„$1“ kopiert. Füge es beim Coordinator ein und sag, was geändert werden soll.",
+      "hint": "Paste it to the coordinator"
     }
   ],
   "deep": [
@@ -5073,6 +5397,12 @@
       "source": "^Yes, save rule (.+?)$",
       "replace": "Ja, Regel $1 speichern",
       "hint": "Yes, save rule"
+    },
+    {
+      "source": "^Copied “(.+?)”\\. Paste it to the coordinator and say what you want changed\\.$",
+      "flags": "",
+      "replace": "„$1“ kopiert. Füge es beim Koordinator ein und sag, was geändert werden soll.",
+      "hint": "Paste it to the coordinator"
     }
   ]
 }

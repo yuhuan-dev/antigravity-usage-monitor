@@ -920,6 +920,9 @@ const IDE_WORKBENCH_URL_RE =
  * @param {object} target
  * @returns {boolean}
  */
+const LOOPBACK_WS_URL_RE = /^ws:\/\/(127\.0\.0\.1|localhost|\[::1\]):\d+\//i;
+const SWARM_BOARD_TARGET_URL_RE = /^plugin:\/\/swarm--swarm_board-/i;
+
 export function isAntigravityMainPageTarget(target) {
   if (!target || typeof target !== 'object') return false;
   if (target.type !== 'page') return false;
@@ -930,7 +933,7 @@ export function isAntigravityMainPageTarget(target) {
   if (!isLoopbackAppPage && !isIdeWorkbenchPage) {
     return false;
   }
-  if (!/^ws:\/\/(127\.0\.0\.1|localhost|\[::1\]):\d+\//i.test(wsUrl)) {
+  if (!LOOPBACK_WS_URL_RE.test(wsUrl)) {
     return false;
   }
   return true;
@@ -1006,6 +1009,51 @@ export function isIdeExtensionChatTarget(target, lsAddr = '') {
     return true;
   }
   return false;
+}
+
+/**
+ * 判断 CDP 目标是否为 Antigravity 内置 Swarm 协作面板子页面（`plugin://swarm--swarm_board-*`）。
+ * 该目标仅参与宿主 UI 汉化与未翻译词条采集，绝不挂载悬浮胶囊或上下文窗口 Hook。
+ *
+ * @param {object} target
+ * @returns {boolean}
+ */
+export function isSwarmBoardTarget(target) {
+  if (!target || typeof target !== 'object') return false;
+  if (isAntigravityMainPageTarget(target)) return false;
+  const type = String(target.type || '').trim().toLowerCase();
+  if (type !== 'iframe' && type !== 'webview') return false;
+  const url = String(target.url || '').trim();
+  return SWARM_BOARD_TARGET_URL_RE.test(url);
+}
+
+/**
+ * 从某调试端口 `/json/list` 原始目标中提取内置 Swarm 协作面板的本机回环 CDP WebSocket 地址列表。
+ *
+ * @param {Array<object>} rawTargets
+ * @param {number} [cdpPort=0]
+ * @returns {Array<string>}
+ */
+export function collectSwarmBoardDebuggerUrls(rawTargets, cdpPort = 0) {
+  if (!Array.isArray(rawTargets) || rawTargets.length === 0) return [];
+  const port = Number(cdpPort || 0);
+  const urls = [];
+  const seen = new Set();
+  for (const t of rawTargets) {
+    if (!isSwarmBoardTarget(t)) continue;
+    const rawWs = String(t.webSocketDebuggerUrl || '').trim();
+    let wsUrl = '';
+    if (LOOPBACK_WS_URL_RE.test(rawWs)) {
+      wsUrl = rawWs;
+    } else if (port > 0 && t.id) {
+      wsUrl = `ws://127.0.0.1:${port}/devtools/page/${encodeURIComponent(String(t.id))}`;
+    }
+    if (wsUrl && !seen.has(wsUrl)) {
+      seen.add(wsUrl);
+      urls.push(wsUrl);
+    }
+  }
+  return urls;
 }
 
 /**
@@ -2353,12 +2401,15 @@ export function createWindowBridgeController(options) {
       req.on('error', reject);
     });
     const parsed = JSON.parse(rawBody);
-    if (!Array.isArray(parsed)) return [];
+    if (!Array.isArray(parsed)) {
+      return { mainTargets: [], hostI18nExtraWsUrls: [] };
+    }
     const associated = associateIdeIframeRoutes(
       parsed,
       parsed.filter(isAntigravityMainPageTarget),
       { lsAddr: lsRuntimeEndpoint.addr, cdpPort }
     );
+    const hostI18nExtraWsUrls = collectSwarmBoardDebuggerUrls(parsed, cdpPort);
     for (const mainT of associated) {
       mainT.isVsCodeHost = Boolean(isVsCodeHost || isVsCodeHostUrl(mainT?.url));
       mainT.vsCodeVariant = mainT.isVsCodeHost ? detectVsCodeVariantFromUrl(mainT?.url) : '';
@@ -2372,7 +2423,7 @@ export function createWindowBridgeController(options) {
         }
       }
     }
-    return associated;
+    return { mainTargets: associated, hostI18nExtraWsUrls };
   }
 
   function collectAllChatDebuggerUrls(mainTargets) {
@@ -2391,6 +2442,38 @@ export function createWindowBridgeController(options) {
     return urls;
   }
 
+  function collectHostI18nTargetWsUrls(
+    mainTargets,
+    hostI18nExtraWsUrls = [],
+    { skipDisabledOverlay = false, appliedWsUrls = null, skippedOut = null } = {}
+  ) {
+    const urls = new Set();
+    for (const target of mainTargets) {
+      if (target.isIdeWorkbench) continue;
+      const wsUrl = String(target.webSocketDebuggerUrl || '').trim();
+      if (wsUrl) urls.add(wsUrl);
+    }
+    for (const target of mainTargets) {
+      if (!Array.isArray(target?.ideChatTargets)) continue;
+      for (const ct of target.ideChatTargets) {
+        const chatUrl = String(ct?.webSocketDebuggerUrl || '').trim();
+        if (!chatUrl) continue;
+        if (skipDisabledOverlay && target.skipOverlayInjection) {
+          if (appliedWsUrls?.has?.(chatUrl)) {
+            skippedOut?.add?.(chatUrl);
+          }
+        } else {
+          urls.add(chatUrl);
+        }
+      }
+    }
+    for (const extraUrl of hostI18nExtraWsUrls) {
+      const wsUrl = String(extraUrl || '').trim();
+      if (wsUrl) urls.add(wsUrl);
+    }
+    return urls;
+  }
+
   async function collectAllMainWindowTargets(cdpPorts, vsCodePortsSet = null) {
     const vsSet = vsCodePortsSet instanceof Set ? vsCodePortsSet : new Set();
     const settled = await Promise.allSettled(
@@ -2399,19 +2482,31 @@ export function createWindowBridgeController(options) {
     let reachableCount = 0;
     const merged = [];
     const seenWs = new Set();
+    const mergedHostI18nExtraWs = [];
+    const seenHostI18nExtraWs = new Set();
     for (const item of settled) {
       if (item.status === 'fulfilled') {
         reachableCount += 1;
-        for (const target of item.value) {
+        const mainTargets = Array.isArray(item.value?.mainTargets) ? item.value.mainTargets : [];
+        for (const target of mainTargets) {
           const wsKey = String(target.webSocketDebuggerUrl || '');
           if (wsKey && !seenWs.has(wsKey)) {
             seenWs.add(wsKey);
             merged.push(target);
           }
         }
+        const extraUrls = Array.isArray(item.value?.hostI18nExtraWsUrls)
+          ? item.value.hostI18nExtraWsUrls
+          : [];
+        for (const extraWs of extraUrls) {
+          if (extraWs && !seenHostI18nExtraWs.has(extraWs)) {
+            seenHostI18nExtraWs.add(extraWs);
+            mergedHostI18nExtraWs.push(extraWs);
+          }
+        }
       }
     }
-    return { reachableCount, targets: merged };
+    return { reachableCount, targets: merged, hostI18nExtraWsUrls: mergedHostI18nExtraWs };
   }
 
   async function evaluateOnTarget(wsUrl, expression, timeoutMsOverride = 0, signal = null) {
@@ -3013,7 +3108,7 @@ export function createWindowBridgeController(options) {
 
     lastStalePortDetected = Boolean(antigravityStaleDetected);
     lastTargetProduct = resolvePreferredTargetProduct(probeReport);
-    const { reachableCount, targets } = await collectAllMainWindowTargets(
+    const { reachableCount, targets, hostI18nExtraWsUrls } = await collectAllMainWindowTargets(
       cdpPorts,
       vsCodeLivePortsSet
     );
@@ -3067,7 +3162,7 @@ export function createWindowBridgeController(options) {
         void provisionHostLaunchersOnce({ fastCheckIfActive: true }).catch(() => {});
       }
     }
-    if (!targets.length) {
+    if (!targets.length && !hostI18nExtraWsUrls.length) {
       activeIdeSshHostKeys = new Set();
       pruneStaleRemoteEndpoints(new Set());
       ideSshCoordinator.pruneInactiveHosts(activeIdeSshHostKeys);
@@ -3832,27 +3927,12 @@ export function createWindowBridgeController(options) {
     }
 
     if (needsHostI18n || hadHostI18n) {
-      const hostI18nWsUrls = new Set();
       const skippedHostI18nChatUrls = new Set();
-      for (const target of targets) {
-        if (target.isIdeWorkbench) continue;
-        const wsUrl = String(target.webSocketDebuggerUrl || '').trim();
-        if (wsUrl) hostI18nWsUrls.add(wsUrl);
-      }
-      for (const target of targets) {
-        if (!Array.isArray(target?.ideChatTargets)) continue;
-        for (const ct of target.ideChatTargets) {
-          const chatUrl = String(ct?.webSocketDebuggerUrl || '').trim();
-          if (!chatUrl) continue;
-          if (needsHostI18n && target.skipOverlayInjection) {
-            if (appliedHostI18nWsUrls.has(chatUrl)) {
-              skippedHostI18nChatUrls.add(chatUrl);
-            }
-          } else {
-            hostI18nWsUrls.add(chatUrl);
-          }
-        }
-      }
+      const hostI18nWsUrls = collectHostI18nTargetWsUrls(targets, hostI18nExtraWsUrls, {
+        skipDisabledOverlay: needsHostI18n,
+        appliedWsUrls: appliedHostI18nWsUrls,
+        skippedOut: skippedHostI18nChatUrls,
+      });
 
       if (!needsHostI18n) {
         const disposeHostI18nExpr = createHostI18nDisposeExpression();
@@ -4829,8 +4909,11 @@ export function createWindowBridgeController(options) {
         try {
           const cdpPorts = findActiveDevToolsPorts();
           if (cdpPorts.length) {
-            const { targets } = await collectAllMainWindowTargets(cdpPorts).catch(() => ({
+            const { targets, hostI18nExtraWsUrls } = await collectAllMainWindowTargets(
+              cdpPorts
+            ).catch(() => ({
               targets: [],
+              hostI18nExtraWsUrls: [],
             }));
             const disposeExpr = `(() => {
               try {
@@ -4845,12 +4928,18 @@ export function createWindowBridgeController(options) {
                 return false;
               }
             })()`;
-            const allUrls = [
+            const allUrls = new Set([
               ...targets.map((t) => String(t.webSocketDebuggerUrl || '')).filter(Boolean),
               ...collectAllChatDebuggerUrls(targets),
-            ];
-            for (const wsUrl of new Set(allUrls)) {
+            ]);
+            for (const wsUrl of allUrls) {
               await evaluateOnTarget(wsUrl, disposeExpr).catch(() => {});
+            }
+            const disposeHostI18nExpr = createHostI18nDisposeExpression();
+            for (const extraWsUrl of new Set(hostI18nExtraWsUrls)) {
+              if (extraWsUrl && !allUrls.has(extraWsUrl)) {
+                await evaluateOnTarget(extraWsUrl, disposeHostI18nExpr).catch(() => {});
+              }
             }
           }
         } finally {
@@ -5013,16 +5102,10 @@ export function createWindowBridgeController(options) {
     if (!cdpPorts.length) {
       return { targets: 0, items: [] };
     }
-    const { targets } = await collectAllMainWindowTargets(cdpPorts).catch(() => ({ targets: [] }));
-    const wsUrls = new Set();
-    for (const target of targets) {
-      if (target.isIdeWorkbench) continue;
-      const wsUrl = String(target.webSocketDebuggerUrl || '').trim();
-      if (wsUrl) wsUrls.add(wsUrl);
-    }
-    for (const chatUrl of collectAllChatDebuggerUrls(targets)) {
-      if (chatUrl) wsUrls.add(chatUrl);
-    }
+    const { targets, hostI18nExtraWsUrls } = await collectAllMainWindowTargets(cdpPorts).catch(
+      () => ({ targets: [], hostI18nExtraWsUrls: [] })
+    );
+    const wsUrls = collectHostI18nTargetWsUrls(targets, hostI18nExtraWsUrls);
     if (wsUrls.size === 0) {
       return { targets: 0, items: [] };
     }
